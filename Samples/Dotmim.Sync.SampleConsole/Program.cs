@@ -429,6 +429,7 @@ internal class Program
             Console.ResetColor();
         });
 
+
         agent.AddRemoteProgress(remoteProgress);
 
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");

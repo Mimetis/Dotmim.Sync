@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -18,6 +19,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -171,7 +173,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, 
+                var agent = new SyncAgent(client.Provider, Server.Provider, options,
                     new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
 
                 var s = await agent.SynchronizeAsync();
@@ -3902,6 +3904,113 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+
+
+        [Fact, TestPriority(40)]
+        public async Task Serialize_And_Deserialize()
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var scopeName = "scopesnap1";
+
+            var myRijndael = new RijndaelManaged();
+            myRijndael.GenerateKey();
+            myRijndael.GenerateIV();
+
+            // Create action for serializing and deserialzing for both remote and local orchestrators
+            var deserializing = new Action<DeserializingSetArgs>(dsa =>
+            {
+                // Create an encryptor to perform the stream transform.
+                var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+
+                using (var csDecrypt = new CryptoStream(dsa.FileStream, decryptor, CryptoStreamMode.Read))
+                {
+                    using (var swDecrypt = new StreamReader(csDecrypt))
+                    {
+                        //Read all data to the ContainerSet
+                        var str = swDecrypt.ReadToEnd();
+                        dsa.Result = JsonConvert.DeserializeObject<ContainerSet>(str);
+                    }
+                }
+            });
+
+
+            var serializing = new Action<SerializingSetArgs>(ssa =>
+            {
+                // Create an encryptor to perform the stream transform.
+                var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+
+                using (var msEncrypt = new MemoryStream())
+                {
+                    using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
+                    {
+                        using (var swEncrypt = new StreamWriter(csEncrypt))
+                        {
+                            //Write all data to the stream.
+                            var strSet = JsonConvert.SerializeObject(ssa.Set);
+                            swEncrypt.Write(strSet);
+                        }
+                        ssa.Result = msEncrypt.ToArray();
+                    }
+                }
+
+            });
+
+            foreach (var client in this.Clients)
+            {
+                // Defining options with Batchsize to enable serialization on disk
+                var options = new SyncOptions { BatchSize = 1000 };
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables), scopeName);
+
+                // Get the orchestrators
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // Encrypting / decrypting data on disk
+                localOrchestrator.OnSerializingSet(serializing);
+                localOrchestrator.OnDeserializingSet(deserializing);
+                remoteOrchestrator.OnSerializingSet(serializing);
+                remoteOrchestrator.OnDeserializingSet(deserializing);
+
+                // Making a first sync, will initialize everything we need
+                var result = await agent.SynchronizeAsync();
+
+                Assert.Equal(GetServerDatabaseRowsCount(this.Server), result.TotalChangesDownloaded);
+
+                // Server side : Create a product category and a product
+                // Create a productcategory item
+                // Create a new product on server
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                using (var ctx = new AdventureWorksContext(client))
+                {
+                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                    ctx.Add(pc);
+
+                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                    ctx.Add(product);
+
+                    await ctx.SaveChangesAsync();
+                }
+
+                // Making a first sync, will initialize everything we need
+                var r = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, r.TotalChangesUploaded);
             }
         }
     }

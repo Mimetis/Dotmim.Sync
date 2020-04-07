@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -427,7 +428,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
-                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
+                sessionCache.ClientBatchInfo = new BatchInfo(this, clientWorkInMemory, Schema, this.Options.BatchDirectory);
 
             // create the in memory changes set
             var changesSet = new SyncSet();
@@ -515,10 +516,10 @@ namespace Dotmim.Sync.Web.Server
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
             {
-                if (this.ClientConverter != null && serverBatchInfo.InMemoryData.HasRows)
+                if (this.ClientConverter != null && serverBatchInfo.InMemoryData != null && serverBatchInfo.InMemoryData.HasRows)
                     BeforeSerializeRows(serverBatchInfo.InMemoryData, this.ClientConverter);
 
-                changesResponse.Changes = serverBatchInfo.InMemoryData.GetContainerSet();
+                changesResponse.Changes = serverBatchInfo.InMemoryData ==null ? new ContainerSet() : serverBatchInfo.InMemoryData.GetContainerSet();
                 changesResponse.BatchIndex = 0;
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
@@ -536,7 +537,7 @@ namespace Dotmim.Sync.Web.Server
             foreach (var table in Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath());
+            await batchPartInfo.LoadBatchAsync(this, changesSet, serverBatchInfo.GetDirectoryFullPath());
 
             // if client request a conversion on each row, apply the conversion
             if (this.ClientConverter != null && batchPartInfo.Data.HasRows)
