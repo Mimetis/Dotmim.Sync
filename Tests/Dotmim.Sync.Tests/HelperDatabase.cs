@@ -258,7 +258,7 @@ namespace Dotmim.Sync.Tests
         }
         private static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
-            using (var connection = new SqliteConnection(dbName))
+            using (var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName)))
             {
                 connection.Open();
                 using (var cmdDb = new SqliteCommand(script, connection))

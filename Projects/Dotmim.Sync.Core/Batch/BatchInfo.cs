@@ -105,7 +105,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Check if this batchinfo has some data (in memory or not)
         /// </summary>
-        public async Task<bool> HasDataAsync(BaseOrchestrator orchestrator)
+        public async Task<bool> HasDataAsync(BaseOrchestrator orchestrator = null)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -136,7 +136,7 @@ namespace Dotmim.Sync.Batch
         /// Get all parts containing this table
         /// Could be multiple parts, since the table may be spread across multiples files
         /// </summary>
-        public IEnumerable<SyncTable> GetTable(string tableName, string schemaName, BaseOrchestrator orchestrator)
+        public IEnumerable<SyncTable> GetTable(string tableName, string schemaName, BaseOrchestrator orchestrator = null)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -198,7 +198,6 @@ namespace Dotmim.Sync.Batch
             // Set corret last batch 
             foreach (var bpi in this.BatchPartsInfo)
                 bpi.IsLastBatch = bpi.Index == maxIndex;
-
         }
 
         /// <summary>
@@ -218,7 +217,6 @@ namespace Dotmim.Sync.Batch
 
                 // add the batchpartinfo tp the current batchinfo
                 this.BatchPartsInfo.Add(bpi);
-
             }
         }
 
