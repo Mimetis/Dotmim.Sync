@@ -27,8 +27,9 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null, string directoryName = null)
+        public BatchInfo(BaseOrchestrator orchestrator, bool isInMemory, SyncSet inSchema, string rootDirectory = null, string directoryName = null)
         {
+            this.Orchestrator = orchestrator;
             this.InMemory = isInMemory;
 
             // We need to create a change table set, containing table with columns not readonly
@@ -49,6 +50,12 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         [IgnoreDataMember]
         public SyncSet SanitizedSchema { get; set; } = new SyncSet();
+
+        /// <summary>
+        /// Gets the orchestrator who create the Batch Info
+        /// </summary>
+        [IgnoreDataMember]
+        public BaseOrchestrator Orchestrator { get; internal set; }
 
         /// <summary>
         /// Is the batch parts are in memory
@@ -117,12 +124,12 @@ namespace Dotmim.Sync.Batch
             {
                 foreach (var bpi in BatchPartsInfo)
                 {
-                    await bpi.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false);
+                    await bpi.LoadBatchAsync(this.Orchestrator, this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false);
 
                     var hasData = bpi.Data.HasRows;
 
-                    bpi.Clear();
-                    bpi.Data = null;
+                    //bpi.Clear();
+                    //bpi.Data = null;
 
                     return hasData;
                 }
@@ -145,7 +152,7 @@ namespace Dotmim.Sync.Batch
 
             if (InMemory)
             {
-                if (this.InMemoryData.HasTables)
+                if (this.InMemoryData!= null && this.InMemoryData.HasTables)
                     yield return this.InMemoryData.Tables[tableName, schemaName];
             }
             else
@@ -160,7 +167,7 @@ namespace Dotmim.Sync.Batch
                         // But .Net Standard 2.1 is not compatible with .Net Framework 4.8
                         // So far, we can't use it, until we decide to abandon .Net FX 4.8
                         // For sure, it will be replaced when .Net 5 will appears ...
-                        batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false)
+                        batchPartinInfo.LoadBatchAsync(this.Orchestrator, this.SanitizedSchema, GetDirectoryFullPath()).ConfigureAwait(false)
                             .GetAwaiter().GetResult();
 
                         // Get the table from the batchPartInfo
@@ -171,10 +178,9 @@ namespace Dotmim.Sync.Batch
                         {
                             yield return batchTable;
 
-                            // Once read, clear it
-                            batchPartinInfo.Data.Clear();
-                            batchPartinInfo.Data = null;
-
+                            //// Once read, clear it
+                            //batchPartinInfo.Data.Clear();
+                            //batchPartinInfo.Data = null;
                         }
                     }
                 }
@@ -215,7 +221,7 @@ namespace Dotmim.Sync.Batch
             {
                 var bpId = this.GenerateNewFileName(batchIndex.ToString());
                 //var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
-                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch).ConfigureAwait(false);
+                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(this.Orchestrator, batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch).ConfigureAwait(false);
 
                 // add the batchpartinfo tp the current batchinfo
                 this.BatchPartsInfo.Add(bpi);

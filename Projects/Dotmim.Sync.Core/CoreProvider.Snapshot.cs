@@ -64,7 +64,7 @@ namespace Dotmim.Sync
             directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
             // batchinfo generate a schema clone with scope columns if needed
-            var batchInfo = new BatchInfo(false, schema, directoryFullPath, directoryName);
+            var batchInfo = new BatchInfo(this.Orchestrator, false, schema, directoryFullPath, directoryName);
 
             // Delete directory if already exists
             directoryFullPath = Path.Combine(directoryFullPath, directoryName);

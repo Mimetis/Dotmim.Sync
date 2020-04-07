@@ -112,6 +112,18 @@ namespace Dotmim.Sync
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
+        /// Occurs just after loading a serialized set from disk
+        /// </summary>
+        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Func<DeserializingSetArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Occurs just after loading a serialized set from disk
+        /// </summary>
+        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Action<DeserializingSetArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
         /// Intercept the provider when an apply change is failing
         /// </summary>
         public static void OnApplyChangesFailed(this BaseOrchestrator orchestrator, Func<ApplyChangesFailedArgs, Task> func)
