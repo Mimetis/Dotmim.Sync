@@ -323,7 +323,7 @@ namespace Dotmim.Sync
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
-            if (serverBatchInfo == null || !await serverBatchInfo.HasDataAsync())
+            if (serverBatchInfo == null || !await serverBatchInfo.HasDataAsync(this))
                 return (new DatabaseChangesApplied(), clientScopeInfo);
 
             // Get context or create a new one

@@ -428,7 +428,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
-                sessionCache.ClientBatchInfo = new BatchInfo(this, clientWorkInMemory, Schema, this.Options.BatchDirectory);
+                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
 
             // create the in memory changes set
             var changesSet = new SyncSet();
@@ -443,7 +443,7 @@ namespace Dotmim.Sync.Web.Server
                 AfterDeserializedRows(changesSet, this.ClientConverter);
 
             // add changes to the batch info
-            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch);
+            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this);
 
 
             // Clear the httpMessage set
@@ -537,7 +537,7 @@ namespace Dotmim.Sync.Web.Server
             foreach (var table in Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-            await batchPartInfo.LoadBatchAsync(this, changesSet, serverBatchInfo.GetDirectoryFullPath());
+            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath(), this);
 
             // if client request a conversion on each row, apply the conversion
             if (this.ClientConverter != null && batchPartInfo.Data.HasRows)

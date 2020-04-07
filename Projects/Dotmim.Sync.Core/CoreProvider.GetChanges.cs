@@ -55,7 +55,7 @@ namespace Dotmim.Sync
 
             // Create a batch info in memory (if !isBatch) or serialized on disk (if isBatch)
             // batchinfo generate a schema clone with scope columns if needed
-            batchInfo = new BatchInfo(this.Orchestrator, !isBatch, message.Schema, message.BatchDirectory);
+            batchInfo = new BatchInfo(!isBatch, message.Schema, message.BatchDirectory);
 
             // Clean SyncSet, we will add only tables we need in the batch info
             var changesSet = new SyncSet();
@@ -125,7 +125,7 @@ namespace Dotmim.Sync
                                 continue;
 
                             // add changes to batchinfo
-                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false).ConfigureAwait(false);
+                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this.Orchestrator).ConfigureAwait(false);
 
                             // increment batch index
                             batchIndex++;
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
             // We are in batch mode, and we are at the last batchpart info
             // Even if we don't have rows inside, we return the changesSet, since it contains at least schema
             if (changesSet != null && changesSet.HasTables && changesSet.HasRows)
-                await batchInfo.AddChangesAsync(changesSet, batchIndex, true).ConfigureAwait(false);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this.Orchestrator).ConfigureAwait(false);
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
@@ -184,7 +184,7 @@ namespace Dotmim.Sync
             var isBatched = message.BatchSize > 0;
 
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo(this.Orchestrator, !isBatched, message.Schema, message.BatchDirectory); ;
+            var batchInfo = new BatchInfo(!isBatched, message.Schema, message.BatchDirectory); ;
 
             // add changes to batchInfo
             // await batchInfo.AddChangesAsync(new SyncSet()).ConfigureAwait(false);
