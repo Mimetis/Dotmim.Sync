@@ -24,7 +24,7 @@ namespace Dotmim.Sync
             var changesApplied = new DatabaseChangesApplied();
 
             // Check if we have some data available
-            var hasChanges = await message.Changes.HasDataAsync();
+            var hasChanges = await message.Changes.HasDataAsync(this.Orchestrator);
 
             if (!hasChanges)
                 return (context, changesApplied);
@@ -136,14 +136,14 @@ namespace Dotmim.Sync
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
             syncAdapter.ApplyType = applyType;
 
-            var hasChanges = await message.Changes.HasDataAsync();
+            var hasChanges = await message.Changes.HasDataAsync(this.Orchestrator);
             // Each table in the messages contains scope columns. Don't forget it
             if (hasChanges)
             {
                 // getting the table to be applied
                 // we may have multiple batch files, so we can have multipe sync tables with the same name
                 // We can say that dmTable may be contained in several files
-                foreach (var syncTable in message.Changes.GetTable(schemaTable.TableName, schemaTable.SchemaName))
+                foreach (var syncTable in message.Changes.GetTable(schemaTable.TableName, schemaTable.SchemaName, this.Orchestrator))
                 {
                     if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count == 0)
                         continue;
