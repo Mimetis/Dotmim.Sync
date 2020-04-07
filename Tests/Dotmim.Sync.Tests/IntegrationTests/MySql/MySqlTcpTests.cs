@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql, ProviderType.Sqlite};
+            { ProviderType.MySql};
 
         public override ProviderType ServerType =>
             ProviderType.MySql;
