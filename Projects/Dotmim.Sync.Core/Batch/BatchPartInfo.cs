@@ -22,10 +22,10 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Loads the batch file and import the rows in a SyncSet instance
         /// </summary>
-        public async Task LoadBatchAsync(BaseOrchestrator orchestrator, SyncSet sanitizedSchema, string directoryFullPath)
+        public async Task LoadBatchAsync(SyncSet sanitizedSchema, string directoryFullPath, BaseOrchestrator orchestrator)
         {
             if (this.Data != null)
-                return ;
+                return;
 
             if (string.IsNullOrEmpty(this.FileName))
                 return;
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Batch
             var set = sanitizedSchema.Clone();
 
             // Get a Batch part, and deserialise the file into a the BatchPartInfo Set property
-            var data = await DeserializeAsync(orchestrator, this.FileName, directoryFullPath);
+            var data = await DeserializeAsync(this.FileName, directoryFullPath, orchestrator);
 
             // Import data in a typed Set
             set.ImportContainerSet(data, true);
@@ -77,7 +77,7 @@ namespace Dotmim.Sync.Batch
         }
 
 
-        private static async Task<ContainerSet> DeserializeAsync(BaseOrchestrator orchestrator, string fileName, string directoryFullPath)
+        private static async Task<ContainerSet> DeserializeAsync(string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new ArgumentNullException(fileName);
@@ -93,11 +93,14 @@ namespace Dotmim.Sync.Batch
 
             using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read))
             {
-                var interceptorArgs = new DeserializingSetArgs(orchestrator.GetContext(), fs, fileName, directoryFullPath);
+                ContainerSet set = null;
 
-                await orchestrator.InterceptAsync(interceptorArgs, default);
-
-                ContainerSet set = interceptorArgs.Result;
+                if (orchestrator != null)
+                {
+                    var interceptorArgs = new DeserializingSetArgs(orchestrator.GetContext(), fs, fileName, directoryFullPath);
+                    await orchestrator.InterceptAsync(interceptorArgs, default);
+                    set = interceptorArgs.Result;
+                }
 
                 if (set == null)
                     set = await jsonConverter.DeserializeAsync(fs);
@@ -109,7 +112,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Serialize a container set instance
         /// </summary>
-        private static async Task SerializeAsync(BaseOrchestrator orchestrator, ContainerSet set, string fileName, string directoryFullPath)
+        private static async Task SerializeAsync(ContainerSet set, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
             if (set == null)
                 return;
@@ -126,11 +129,14 @@ namespace Dotmim.Sync.Batch
 
             using (var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                var interceptorArgs = new SerializingSetArgs(orchestrator.GetContext(), set, fileName, directoryFullPath);
+                byte[] serializedBytes = null;
 
-                await orchestrator.InterceptAsync(interceptorArgs, default);
-
-                byte[] serializedBytes = interceptorArgs.Result;
+                if (orchestrator != null)
+                {
+                    var interceptorArgs = new SerializingSetArgs(orchestrator.GetContext(), set, fileName, directoryFullPath);
+                    await orchestrator.InterceptAsync(interceptorArgs, default);
+                    serializedBytes = interceptorArgs.Result;
+                }
 
                 if (serializedBytes == null)
                     serializedBytes = await jsonConverter.SerializeAsync(set);
@@ -139,11 +145,11 @@ namespace Dotmim.Sync.Batch
                 f.Write(serializedBytes, 0, serializedBytes.Length);
             }
         }
-     
+
         /// <summary>
         /// Create a new BPI, and serialize the changeset if not in memory
         /// </summary>
-        internal static async Task<BatchPartInfo> CreateBatchPartInfoAsync(BaseOrchestrator orchestrator, int batchIndex, SyncSet set, string fileName, string directoryFullPath, bool isLastBatch)
+        internal static async Task<BatchPartInfo> CreateBatchPartInfoAsync(int batchIndex, SyncSet set, string fileName, string directoryFullPath, bool isLastBatch, BaseOrchestrator orchestrator)
         {
             BatchPartInfo bpi = null;
 
@@ -151,7 +157,7 @@ namespace Dotmim.Sync.Batch
             // The batch part creation process will serialize the changesSet to the disk
 
             // Serialize the file !
-            await SerializeAsync(orchestrator, set.GetContainerSet(), fileName, directoryFullPath);
+            await SerializeAsync(set.GetContainerSet(), fileName, directoryFullPath, orchestrator);
 
             bpi = new BatchPartInfo { FileName = fileName };
 
