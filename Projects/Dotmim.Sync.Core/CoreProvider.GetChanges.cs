@@ -85,14 +85,18 @@ namespace Dotmim.Sync
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
+                // Create a chnages table with scope columns
+                var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+
+                // Create a container for this table
+                var tableChangesContainer = new ContainerTable(changesSetTable);
+                tableChangesContainer.Rows = new List<object[]>();
+
                 // Get the reader
                 using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     // memory size total
                     double rowsMemorySize = 0L;
-
-                    // Create a chnages table with scope columns
-                    var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
                     while (dataReader.Read())
                     {
@@ -140,9 +144,14 @@ namespace Dotmim.Sync
 
                             // Init the row memory size
                             rowsMemorySize = 0L;
-
                         }
+
+                        // For interceptor purpose
+                        // Because it's heavy, we are checking before if we have an interceptor here
+                        if (this.Orchestrator.ContainsInterceptor<TableChangesSelectedArgs>())
+                            tableChangesContainer.Rows.Add(row.ToArray());
                     }
+
                 }
 
                 // be sure it's disposed
@@ -151,11 +160,33 @@ namespace Dotmim.Sync
                 if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
                     changes.TableChangesSelected.Add(tableChangesSelected);
 
-                // Event progress & interceptor
-                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChangesSelected, connection, transaction);
 
+                SyncTable tableChanges = null;
+
+                // report this progress
+                // Because it's heavy, we are checking before if we have an interceptor here
+                var shouldImportContainerTable = this.Orchestrator.ContainsInterceptor<TableChangesSelectedArgs>();
+
+                if (shouldImportContainerTable)
+                {
+                    tableChanges = changesSetTable.Clone();
+                    tableChanges.Rows.ImportContainerTable(tableChangesContainer, false);
+                }
+           
+                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChanges, tableChangesSelected, connection, transaction);
                 // Always make an interceptor even if table changes is empty
                 await this.Orchestrator.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+                if (shouldImportContainerTable)
+                {
+                    tableChanges.Clear();
+                    tableChangesContainer.Clear();
+                }
+
+                //// Event progress & interceptor
+                //var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, connection, transaction);
+                //// Always make an interceptor even if table changes is empty
+                //await this.Orchestrator.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
                 // We don't report progress if no table changes is empty, to limit verbosity of Progress
                 if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
@@ -178,7 +209,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal async Task<(BatchInfo, DatabaseChangesSelected)> GetEmptyChangesAsync(MessageGetChangesBatch message)
+        internal Task<(BatchInfo, DatabaseChangesSelected)> GetEmptyChangesAsync(MessageGetChangesBatch message)
         {
             // Get config
             var isBatched = message.BatchSize > 0;
@@ -190,7 +221,7 @@ namespace Dotmim.Sync
             // await batchInfo.AddChangesAsync(new SyncSet()).ConfigureAwait(false);
 
             // Create a new empty in-memory batch info
-            return (batchInfo, new DatabaseChangesSelected());
+            return Task.FromResult((batchInfo, new DatabaseChangesSelected()));
 
         }
 

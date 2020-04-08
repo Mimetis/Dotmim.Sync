@@ -126,12 +126,16 @@ namespace Dotmim.Sync
             return localTime;
         }
 
-        /// <summary>
-        /// TODO : Manage an outdated scope. Complicated on the server side since we don't store any informations
-        /// </summary>
-        internal virtual bool IsRemoteOutdated() =>
-            //var lastCleanupTimeStamp = 0; // A établir comment récupérer la dernière date de clean up des metadatas
-            //return (ScopeInfo.LastTimestamp < lastCleanupTimeStamp);
-            false;
+        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
+                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            // get database builder
+            var databaseBuilder = this.GetDatabaseBuilder();
+
+            var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
+
+            return (context, hello.DatabaseName, hello.Version);
+        }
+
     }
 }
