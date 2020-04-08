@@ -295,26 +295,20 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (dbType)
             {
                 case DbType.AnsiString:
-                    if (maxLength > 0 && maxLength < 8000)
+                    if (maxLength > 0 && maxLength <= 8000)
                         return $"({maxLength})";
                     else
                         return $"(MAX)";
                 case DbType.String:
-                    if (maxLength > 0 && maxLength < 4000)
+                    if (maxLength > 0 && maxLength <= 4000)
                         return $"({maxLength})";
                     else
                         return $"(MAX)";
                 case DbType.AnsiStringFixedLength:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
-                case DbType.StringFixedLength:
                 case DbType.Binary:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
+                    return $"({Math.Min(8000, maxLength)})";
+                case DbType.StringFixedLength:
+                    return $"({Math.Min(4000, maxLength)})";
                 case DbType.Decimal:
                 case DbType.Double:
                 case DbType.Single:
@@ -364,28 +358,21 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (sqlDbType)
             {
                 case SqlDbType.NVarChar:
-                    if (maxLength > 0 && maxLength < 4000)
+                    if (maxLength > 0 && maxLength <= 4000)
                         return $"({maxLength})";
                     else
                         return "(MAX)";
                 case SqlDbType.VarBinary:
                 case SqlDbType.VarChar:
-                    if (maxLength > 0 && maxLength < 8000)
+                    if (maxLength > 0 && maxLength <= 8000)
                         return $"({maxLength})";
                     else
                         return "(MAX)";
                 case SqlDbType.NChar:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
+                    return $"({Math.Min(4000, maxLength)})";
                 case SqlDbType.Char:
                 case SqlDbType.Binary:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
-
+                    return $"({Math.Min(8000, maxLength)})";
                 case SqlDbType.Decimal:
                     var (p, s) = CoercePrecisionAndScale(precision, scale);
 

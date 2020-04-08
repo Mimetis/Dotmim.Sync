@@ -100,6 +100,12 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Gets a boolean returning true if an interceptor of type T, exists
+        /// </summary>
+        internal bool ContainsInterceptor<T>() where T : ProgressArgs => this.interceptors.Contains<T>();
+
+
+        /// <summary>
         /// Try to report progress
         /// </summary>
         internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)

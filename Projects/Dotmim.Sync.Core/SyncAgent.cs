@@ -290,6 +290,26 @@ namespace Dotmim.Sync
 
             this.EnsureOptionsAndSetupInstances();
         }
+        // 10
+        /// <summary>
+        /// Create an agent based on 2 orchestrators
+        /// </summary>
+        /// <param name="localOrchestrator">local orchestrator</param>
+        /// <param name="remoteOrchestrator">remote orchestrator</param>
+        /// <param name="scopeName">scope name</param>
+        public SyncAgent(LocalOrchestrator localOrchestrator, RemoteOrchestrator remoteOrchestrator, string scopeName = SyncOptions.DefaultScopeName)
+            : this(scopeName)
+        {
+            if (localOrchestrator is null)
+                throw new ArgumentNullException(nameof(localOrchestrator));
+            if (remoteOrchestrator is null)
+                throw new ArgumentNullException(nameof(remoteOrchestrator));
+
+            this.LocalOrchestrator = localOrchestrator;
+            this.RemoteOrchestrator = remoteOrchestrator;
+
+            this.EnsureOptionsAndSetupInstances();
+        }
 
 
 

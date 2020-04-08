@@ -27,5 +27,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 throw new MissingChangeTrackingException(connection.Database);
 
         }
+
+        public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
+        {
+            return await SqlManagementUtils.GetHelloAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
+
+        }
     }
 }
