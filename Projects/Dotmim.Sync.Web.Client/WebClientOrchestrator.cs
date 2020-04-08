@@ -221,6 +221,7 @@ namespace Dotmim.Sync.Web.Client
                 schema = JsonConvert.DeserializeObject<SyncSet>(scope.Schema);
             }
 
+            schema.EnsureSchema();
 
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
@@ -384,7 +385,7 @@ namespace Dotmim.Sync.Web.Client
 
 
         public override async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)>
-            GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetSnapshotAsync(SyncSet schema = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // Get context or create a new one
@@ -395,7 +396,11 @@ namespace Dotmim.Sync.Web.Client
 
 
             // Make a remote call to get Schema from remote provider
-            (var schema, var version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+            if (schema == null)
+            {
+                (schema, _) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                schema.EnsureSchema();
+            }
 
 
             // Create the BatchInfo and SyncContext to return at the end

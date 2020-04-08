@@ -162,6 +162,7 @@ namespace Dotmim.Sync
 
                         // Get concrete schema
                         var schema = JsonConvert.DeserializeObject<SyncSet>(localScopeInfo.Schema);
+                        schema.EnsureSchema();
 
                         // On local, we don't want to chase rows from "others" 
                         // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
@@ -337,6 +338,8 @@ namespace Dotmim.Sync
 
             if (schema == null)
                 throw new ArgumentNullException(nameof(schema));
+
+            schema.EnsureSchema();
 
             // Applying changes and getting the new client scope info
             var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, schema, serverBatchInfo,
