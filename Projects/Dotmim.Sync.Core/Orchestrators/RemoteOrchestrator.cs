@@ -217,6 +217,7 @@ namespace Dotmim.Sync
 
                             // 1) Get Schema from remote provider
                             (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            schema.EnsureSchema();
 
                             // 2) Ensure databases are ready
                             var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -246,6 +247,7 @@ namespace Dotmim.Sync
                         {
                             // Get the schema saved on server
                             schema = JsonConvert.DeserializeObject<SyncSet>(serverScopeInfo.Schema);
+                            schema.EnsureSchema();
                         }
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -467,6 +469,7 @@ namespace Dotmim.Sync
 
                         // Get concrete schema
                         var schema = JsonConvert.DeserializeObject<SyncSet>(serverScope.Schema);
+                        schema.EnsureSchema();
 
                         // JUST Before get changes, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
@@ -600,10 +603,11 @@ namespace Dotmim.Sync
             }
         }
 
+
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)> GetSnapshotAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)> GetSnapshotAsync(SyncSet schema = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // TODO: Get snapshot based on version and scopename
@@ -623,8 +627,12 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Get Schema from remote provider
-                var (schema, version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                // Get Schema from remote provider if no schema passed from args
+                if (schema == null)
+                {
+                    (schema, _) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                    schema.EnsureSchema();
+                }
 
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
@@ -655,6 +663,9 @@ namespace Dotmim.Sync
 
             // Get the min timestamp, where we can without any problem, delete metadatas
             var histories = await this.GetServerHistoryScopes(cancellationToken, progress);
+
+            if (histories == null || histories.Count == 0)
+                return new DatabaseMetadatasCleaned();
 
             var minTimestamp = histories.Min(shsi => shsi.LastSyncTimestamp);
 

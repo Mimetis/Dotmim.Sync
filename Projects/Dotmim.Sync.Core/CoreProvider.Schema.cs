@@ -66,6 +66,9 @@ namespace Dotmim.Sync
             // Parse and affect relations to schema
             SetRelations(relations, schema);
 
+            // Ensure all objects have correct relations to schema
+            schema.EnsureSchema();
+
             return (context, schema);
         }
 
