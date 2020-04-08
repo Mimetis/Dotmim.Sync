@@ -203,6 +203,7 @@ namespace Dotmim.Sync.Web.Server
             }
         }
 
+       
         /// <summary>
         /// Ensure we have a Compression setting or not
         /// </summary>

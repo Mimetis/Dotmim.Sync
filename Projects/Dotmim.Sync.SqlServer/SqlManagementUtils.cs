@@ -410,6 +410,49 @@ namespace Dotmim.Sync.SqlServer
         }
 
 
+        public static async Task<(string DatabaseName, string EngineVersion)> GetHelloAsync(SqlConnection connection, SqlTransaction transaction)
+        {
+            string dbName = null;
+            string dbVersion = null;
+
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "SELECT name, @@VERSION as version FROM sys.databases WHERE name = @databaseName;";
+
+                var sqlParameter = new SqlParameter()
+                {
+                    ParameterName = "@databaseName",
+                    Value = connection.Database
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                using (var reader = await dbCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (reader.HasRows)
+                    {
+                        reader.Read();
+
+                        dbName = reader.GetString(0);
+                        dbVersion = reader.GetString(1);
+                    }
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return (dbName, dbVersion);
+        }
+
+
+
         public static async Task<bool> DatabaseExistsAsync(SqlConnection connection, SqlTransaction transaction)
         {
             bool tableExist;

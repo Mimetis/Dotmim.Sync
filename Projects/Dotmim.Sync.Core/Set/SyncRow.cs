@@ -190,7 +190,9 @@ namespace Dotmim.Sync
 
             sb.Append($"[Sync state]:{this.RowState}");
 
-            foreach(var c in this.Table.Columns)
+            var columns = this.RowState == DataRowState.Deleted ? this.Table.GetPrimaryKeysColumns() : this.Table.Columns;
+
+            foreach(var c in columns)
             {
                 var o = this[c.ColumnName];
                 var os = o == null ? "<NULL />" : o.ToString();

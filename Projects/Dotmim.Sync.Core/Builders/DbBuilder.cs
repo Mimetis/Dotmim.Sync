@@ -23,5 +23,10 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public abstract Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null);
 
+        /// <summary>
+        /// Make a hello test on the current database
+        /// </summary>
+        public abstract Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null);
+
     }
 }
