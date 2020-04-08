@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -11,5 +12,11 @@ namespace Dotmim.Sync.MySql.Builders
     {
         public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null) 
             => Task.CompletedTask;
+
+        public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
+        {
+            return await MySqlManagementUtils.GetHelloAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
+
+        }
     }
 }

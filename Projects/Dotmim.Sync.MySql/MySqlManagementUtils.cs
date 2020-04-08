@@ -14,6 +14,47 @@ namespace Dotmim.Sync.MySql
     public static class MySqlManagementUtils
     {
 
+        public static async Task<(string DatabaseName, string EngineVersion)> GetHelloAsync(MySqlConnection connection, MySqlTransaction transaction)
+        {
+            string dbName = null;
+            string dbVersion = null;
+
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "select schema_name, version() as version from information_schema.schemata where schema_name=@databaseName;";
+
+                var sqlParameter = new MySqlParameter()
+                {
+                    ParameterName = "@databaseName",
+                    Value = connection.Database
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                using (var reader = await dbCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    if (reader.HasRows)
+                    {
+                        reader.Read();
+                        dbName = reader.GetString(0);
+                        dbVersion = reader.GetString(1);
+                    }
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return (dbName, dbVersion);
+        }
+
+
         public static async Task<SyncTable> GetTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";

@@ -651,6 +651,57 @@ namespace Dotmim.Sync
             return (serverBatchInfo.Timestamp, serverBatchInfo);
         }
 
+
+        /// <summary>
+        /// Check if we can reach the underlying provider database
+        /// </summary>
+        /// <returns></returns>
+        public async Task<(string DatabaseName, string Version)> GetHelloAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+            string databaseName = null;
+            string version = null;
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        (ctx, databaseName, version) = await this.Provider.GetHelloAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+
+                return (databaseName, version);
+            }
+        }
+
+
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from history client table
         /// </summary>

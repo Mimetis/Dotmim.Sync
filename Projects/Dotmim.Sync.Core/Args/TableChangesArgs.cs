@@ -12,10 +12,22 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesSelectedArgs : ProgressArgs
     {
-        public TableChangesSelectedArgs(SyncContext context, TableChangesSelected changesSelected, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction) => this.TableChangesSelected = changesSelected;
+        public TableChangesSelectedArgs(SyncContext context, SyncTable changes, TableChangesSelected changesSelected, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.Changes = changes;
+            this.TableChangesSelected = changesSelected;
+        }
 
-        public TableChangesSelected TableChangesSelected { get; set; }
+        /// <summary>
+        /// Gets the SyncTable instances containing all changes selected
+        /// </summary>
+        public SyncTable Changes { get; }
+
+        /// <summary>
+        /// Gets the incremental summary of changes selected
+        /// </summary>
+        public TableChangesSelected TableChangesSelected { get; }
 
         public override string Message => $"[{Connection.Database}] [{this.TableChangesSelected.TableName}] upserts:{this.TableChangesSelected.Upserts} deletes:{this.TableChangesSelected.Deletes} total:{this.TableChangesSelected.TotalChanges}";
     }

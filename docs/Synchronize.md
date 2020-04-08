@@ -14,7 +14,7 @@ Obviously, you can use the `CancellationToken` object whenever you want to rollb
 And since we have an async synchronization, you can pass an `IProgress<ProgressArgs>` object to have feedback during the sync process
 
 let's see now a straightforward sample illustrating the use of the `SyncType` argument.
-You will find the sample used for this demonstration, here : [SyncType sample](/samples/SyncType)
+You will find the sample used for this demonstration, here : [SyncType sample](/Samples/SyncType)
 
 ```csharp
 SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
