@@ -45,7 +45,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-       await SynchronizeAsync();
+       await SyncHttpThroughKestrellAsync();
       
     }
 
@@ -367,8 +367,8 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(serverDbName));
+        var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
@@ -515,7 +515,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-    public static async Task SyncHttpThroughKestellAsync()
+    public static async Task SyncHttpThroughKestrellAsync()
     {
         // server provider
         // Create 2 Sql Sync providers

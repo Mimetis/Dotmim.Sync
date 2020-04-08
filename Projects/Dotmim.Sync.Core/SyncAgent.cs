@@ -399,6 +399,7 @@ namespace Dotmim.Sync
 
                     // Set schema for agent, just to let the opportunity to user to use it.
                     this.Schema = schema;
+                    this.Schema.EnsureSchema();
 
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -415,7 +416,9 @@ namespace Dotmim.Sync
                     if (serverScopeInfo.Schema != null)
                     {
                         var serverSchema = JsonConvert.DeserializeObject<SyncSet>(serverScopeInfo.Schema);
+                        serverSchema.EnsureSchema();
                         var localSchema = JsonConvert.DeserializeObject<SyncSet>(clientScopeInfo.Schema);
+                        localSchema.EnsureSchema();
 
                         schemaAreTheSame = serverSchema == localSchema;
                     }
@@ -429,7 +432,10 @@ namespace Dotmim.Sync
 
                     // Get schema
                     this.Schema = JsonConvert.DeserializeObject<SyncSet>(clientScopeInfo.Schema);
+                    this.Schema.EnsureSchema();
+
                 }
+
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -459,7 +465,7 @@ namespace Dotmim.Sync
                 if (fromScratch)
                 {
                     // Get snapshot files
-                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(cancellationToken, remoteProgress);
+                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(this.Schema, cancellationToken, remoteProgress);
 
                     // Apply snapshot
                     if (serverSnapshotChanges.ServerBatchInfo != null)

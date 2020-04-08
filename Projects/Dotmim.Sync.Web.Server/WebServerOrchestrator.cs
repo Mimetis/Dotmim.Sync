@@ -365,7 +365,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // get changes
-            var snap = await this.GetSnapshotAsync(cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(this.Schema, cancellationToken, progress).ConfigureAwait(false);
 
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;

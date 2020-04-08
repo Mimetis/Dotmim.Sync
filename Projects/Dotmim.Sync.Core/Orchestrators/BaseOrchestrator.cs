@@ -481,7 +481,8 @@ namespace Dotmim.Sync
             var ctx = this.GetContext();
 
             // Check if the provider is not outdated
-            if (clientScopeInfo.LastServerSyncTimestamp > 0 && serverScopeInfo.LastCleanupTimestamp > 0)
+            // We can have negative value where we want to compare anyway
+            if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
                 isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
 
             // Get a chance to make the sync even if it's outdated
