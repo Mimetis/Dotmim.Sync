@@ -264,6 +264,4 @@ paket-files/
 __pycache__/
 *.pyc
 
-# SQL
-*.sql
 /.vscode

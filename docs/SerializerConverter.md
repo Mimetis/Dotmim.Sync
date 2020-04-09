@@ -3,7 +3,7 @@
 
 ## Sample
 >
-> You will find the sample used for this chapter, here : [Converters sample](/Samples/ConverterWebSync)
+> You will find the sample used for this chapter, here : [Converters sample](https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/ConverterWebSync)
 >
 
 ## Introduction
