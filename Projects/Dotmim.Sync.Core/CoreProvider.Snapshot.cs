@@ -20,24 +20,30 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public virtual async Task<SyncContext> CreateSnapshotAsync(SyncContext context, SyncSet schema,
-                             DbConnection connection, DbTransaction transaction, string batchDirectory, int batchSize, long remoteClientTimestamp,
+        public virtual async Task<(SyncContext, BatchInfo)> CreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
+                             DbConnection connection, DbTransaction transaction, string snapshotDirectory, int batchSize, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
             // create local directory
-            if (!Directory.Exists(batchDirectory))
-                Directory.CreateDirectory(batchDirectory);
+            if (!Directory.Exists(snapshotDirectory))
+                Directory.CreateDirectory(snapshotDirectory);
+
+            // cleansing scope name
+            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+
+            var directoryFullPath = Path.Combine(snapshotDirectory, directoryScopeName);
+      
+            // create local directory with scope inside
+            if (!Directory.Exists(directoryFullPath))
+                Directory.CreateDirectory(directoryFullPath);
+
 
             // numbers of batch files generated
             var batchIndex = 0;
 
             // create the in memory changes set
             var changesSet = new SyncSet();
-
-            // Create a Schema set without readonly tables, attached to memory changes
-            foreach (var table in schema.Tables)
-                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             var sb = new StringBuilder();
             var underscore = "";
@@ -57,30 +63,25 @@ namespace Dotmim.Sync
             var directoryName = sb.ToString();
             directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
-            var directoryFullPath = Path.Combine(batchDirectory, directoryName);
+            // batchinfo generate a schema clone with scope columns if needed
+            var batchInfo = new BatchInfo(false, schema, directoryFullPath, directoryName);
+
+            // Delete directory if already exists
+            directoryFullPath = Path.Combine(directoryFullPath, directoryName);
 
             if (Directory.Exists(directoryFullPath))
                 Directory.Delete(directoryFullPath, true);
 
-            // batchinfo generate a schema clone with scope columns if needed
-            var batchInfo = new BatchInfo(false, changesSet, batchDirectory, directoryName);
-
-            // Clear tables, we will add only the ones we need in the batch info
-            changesSet.Clear();
-
             foreach (var syncTable in schema.Tables)
             {
-                var tableBuilder = this.GetTableBuilder(syncTable);
+                var tableBuilder = this.GetTableBuilder(syncTable, setup);
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
-                // raise before event
-                context.SyncStage = SyncStage.TableChangesSelecting;
-                var tableChangesSelectingArgs = new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction);
                 // launch interceptor if any
-                await this.InterceptAsync(tableChangesSelectingArgs).ConfigureAwait(false);
+                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Select initialize changes command
-                var selectIncrementalChangesCommand = this.GetSelectChangesCommand(context, syncAdapter, syncTable, true);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, true);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, null, true, 0, selectIncrementalChangesCommand);
@@ -116,7 +117,7 @@ namespace Dotmim.Sync
                             continue;
 
                         // add changes to batchinfo
-                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false);
+                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this.Orchestrator).ConfigureAwait(false);
 
                         // increment batch index
                         batchIndex++;
@@ -139,7 +140,7 @@ namespace Dotmim.Sync
 
 
             if (changesSet != null && changesSet.HasTables)
-                await batchInfo.AddChangesAsync(changesSet, batchIndex, true);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this.Orchestrator).ConfigureAwait(false);
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
@@ -153,12 +154,11 @@ namespace Dotmim.Sync
 
             using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                var bytes = await jsonConverter.SerializeAsync(batchInfo);
+                var bytes = await jsonConverter.SerializeAsync(batchInfo).ConfigureAwait(false);
                 f.Write(bytes, 0, bytes.Length);
             }
 
-
-            return context;
+            return (context, batchInfo);
         }
 
 
@@ -168,9 +168,11 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         public virtual async Task<(SyncContext, BatchInfo)> GetSnapshotAsync(
-                             SyncContext context, SyncSet schema, string batchDirectory,
+                             SyncContext context, SyncSet schema, string snapshotDirectory,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
+
+            // TODO : Get a snapshot based on scope name
 
             var sb = new StringBuilder();
             var underscore = "";
@@ -190,7 +192,11 @@ namespace Dotmim.Sync
             var directoryName = sb.ToString();
             directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
-            var directoryFullPath = Path.Combine(batchDirectory, directoryName);
+            // cleansing scope name
+            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+
+            // Get full path
+            var directoryFullPath = Path.Combine(snapshotDirectory, directoryScopeName, directoryName);
 
             // if no snapshot present, just return null value.
             if (!Directory.Exists(directoryFullPath))
@@ -204,19 +210,18 @@ namespace Dotmim.Sync
             BatchInfo batchInfo = null;
 
             // Create the schema changeset
-            var changesSet = new SyncSet(schema.ScopeName);
+            var changesSet = new SyncSet();
 
             // Create a Schema set without readonly columns, attached to memory changes
             foreach (var table in schema.Tables)
                 DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
-
 
             using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
             {
                 batchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
             }
 
-            batchInfo.SetSchema(changesSet);
+            batchInfo.SanitizedSchema = changesSet;
 
             return (context, batchInfo);
 

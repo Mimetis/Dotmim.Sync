@@ -398,7 +398,7 @@ You can also manually delete metadatas from both server or client, using the met
 ``` cs
 var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 var localOrchestrator = new LocalOrchestrator(clientProvider);
-await localOrchestrator.DeleteMetadatasAsync(null, new SyncSetup(tables), 1000);
+await localOrchestrator.DeleteMetadatasAsync();
 ```
 
 > If you're using `SqlSyncChangeTrackingProvider`, the metadatas cleansing is automatically handled by the change tracking feature. This option is not used

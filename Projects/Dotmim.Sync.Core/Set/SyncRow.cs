@@ -188,14 +188,16 @@ namespace Dotmim.Sync
 
             var sb = new StringBuilder();
 
-            sb.Append($"{this.RowState}, ");
+            sb.Append($"[Sync state]:{this.RowState}");
 
-            foreach(var c in this.Table.Columns)
+            var columns = this.RowState == DataRowState.Deleted ? this.Table.GetPrimaryKeysColumns() : this.Table.Columns;
+
+            foreach(var c in columns)
             {
                 var o = this[c.ColumnName];
                 var os = o == null ? "<NULL />" : o.ToString();
 
-                sb.Append($"{c.ColumnName}:{os}, ");
+                sb.Append($", [{c.ColumnName}]:{os}");
             }
 
             return sb.ToString();

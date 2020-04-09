@@ -3,15 +3,16 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer
 {
     public static class SqlExtensionsMethods
     {
 
-        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
+        internal static async Task<SqlParameter[]> DeriveParametersAsync(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
         {
             if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
@@ -23,7 +24,7 @@ namespace Dotmim.Sync.SqlServer
             var alreadyOpened = connection.State == ConnectionState.Open;
 
             if (!alreadyOpened)
-                connection.Open();
+                await connection.OpenAsync().ConfigureAwait(false);
 
             try
             {
@@ -38,13 +39,11 @@ namespace Dotmim.Sync.SqlServer
                 p = new SqlParameter("@procedure_schema", SqlDbType.NVarChar);
                 p.Value = schemaName;
                 getParamsCommand.Parameters.Add(p);
-                
-                var sdr = getParamsCommand.ExecuteReader();
 
-                // Do we have any rows?
-                if (sdr.HasRows)
+                using (var sdr = await getParamsCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    using (sdr)
+                    // Do we have any rows?
+                    if (sdr.HasRows)
                     {
                         // Read the parameter information
                         int ParamNameCol = sdr.GetOrdinal("PARAMETER_NAME");
@@ -105,6 +104,7 @@ namespace Dotmim.Sync.SqlServer
                         }
                     }
                 }
+
             }
             finally
             {
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.SqlServer
             return discoveredParameters;
         }
 
-        
+
 
         internal static SqlParameter Clone(this SqlParameter param)
         {
@@ -148,6 +148,6 @@ namespace Dotmim.Sync.SqlServer
 
             return p;
         }
-  
+
     }
 }

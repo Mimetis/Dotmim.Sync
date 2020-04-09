@@ -6,6 +6,7 @@ using System.Data;
 using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -22,7 +23,7 @@ namespace Dotmim.Sync.Sqlite
             this.scopeTableName = ParserName.Parse(scopeTableName);
         }
 
-        public void CreateScopeInfoTable()
+        public async Task CreateClientScopeInfoTableAsync()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -32,19 +33,22 @@ namespace Dotmim.Sync.Sqlite
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText =
-                    $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
+                    $@"CREATE TABLE {scopeTableName.Quoted()}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
 	                    sync_scope_schema text NULL,
+	                    sync_scope_setup text NULL,
+	                    sync_scope_version text NULL,
                         scope_last_server_sync_timestamp integer NULL,
                         scope_last_sync_timestamp integer NULL,
                         scope_last_sync_duration integer NULL,
                         scope_last_sync datetime NULL
                         )";
-                command.ExecuteNonQuery();
+
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -61,7 +65,11 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public void DropScopeInfoTable()
+        public Task CreateServerHistoryScopeInfoTableAsync() => throw new NotImplementedException();
+
+        public Task CreateServerScopeInfoTableAsync() => throw new NotImplementedException();
+
+        public async Task DropClientScopeInfoTableAsync()
         {
             var command = connection.CreateCommand();
 
@@ -73,11 +81,11 @@ namespace Dotmim.Sync.Sqlite
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText = $"DROP Table {scopeTableName.Unquoted().ToString()}";
 
-                command.ExecuteNonQuery();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -94,8 +102,11 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
+        public Task DropServerHistoryScopeInfoTableAsync() => throw new NotImplementedException();
 
-        public List<ScopeInfo> GetAllScopes(string scopeName)
+        public Task DropServerScopeInfoTableAsync() => throw new NotImplementedException();
+
+        public async Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -107,17 +118,19 @@ namespace Dotmim.Sync.Sqlite
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText =
                     $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
+                           , sync_scope_setup
+                           , sync_scope_version
                            , scope_last_sync
                            , scope_last_server_sync_timestamp
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
-                    FROM  {scopeTableName.Unquoted().ToString()}
+                    FROM  {scopeTableName.Unquoted()}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
@@ -126,7 +139,7 @@ namespace Dotmim.Sync.Sqlite
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
-                using (DbDataReader reader = command.ExecuteReader())
+                using (DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     if (reader.HasRows)
                     {
@@ -136,6 +149,8 @@ namespace Dotmim.Sync.Sqlite
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
                             scopeInfo.Schema = reader["sync_scope_schema"] as String;
+                            scopeInfo.Setup = reader["sync_scope_setup"] as String;
+                            scopeInfo.Version = reader["sync_scope_version"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                             ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
@@ -165,7 +180,11 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public long GetLocalTimestamp()
+        public Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName) => throw new NotImplementedException();
+
+        public Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName) => throw new NotImplementedException();
+
+        public async Task<long> GetLocalTimestampAsync()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -177,9 +196,9 @@ namespace Dotmim.Sync.Sqlite
                 command.CommandText = $"Select {SqliteObjectNames.TimestampValue}";
 
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                    long result = Convert.ToInt64(command.ExecuteScalar());
+                    long result = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false));
 
                 return result;
             }
@@ -199,7 +218,7 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public ScopeInfo InsertOrUpdateScopeInfo(ScopeInfo scopeInfo)
+        public async Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo)
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -209,7 +228,7 @@ namespace Dotmim.Sync.Sqlite
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText = $@"Select count(*) from {scopeTableName.Unquoted().ToString()} where sync_scope_id = @sync_scope_id";
 
@@ -219,11 +238,11 @@ namespace Dotmim.Sync.Sqlite
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
-                var exist = (long)command.ExecuteScalar() > 0;
+                var exist = ((long)await command.ExecuteScalarAsync().ConfigureAwait(false)) > 0;
 
                 string stmtText = exist
-                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
-                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
+                    ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
+                    : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
 
                 command = connection.CreateCommand();
                 command.CommandText = stmtText;
@@ -237,6 +256,18 @@ namespace Dotmim.Sync.Sqlite
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_schema";
                 p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_setup";
+                p.Value = string.IsNullOrEmpty(scopeInfo.Setup) ? DBNull.Value : (object)scopeInfo.Setup;
+                p.DbType = DbType.String;
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                p.ParameterName = "@sync_scope_version";
+                p.Value = string.IsNullOrEmpty(scopeInfo.Version) ? DBNull.Value : (object)scopeInfo.Version;
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -270,15 +301,17 @@ namespace Dotmim.Sync.Sqlite
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
-                using (DbDataReader reader = command.ExecuteReader())
+                using (DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     if (reader.HasRows)
                     {
                         while (reader.Read())
                         {
 
-                            scopeInfo.Name = reader["sync_scope_name"] as String;
-                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
+                            scopeInfo.Name = reader["sync_scope_name"] as string;
+                            scopeInfo.Schema = reader["sync_scope_schema"] as string;
+                            scopeInfo.Setup = reader["sync_scope_setup"] as string;
+                            scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
                                         ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync"))
@@ -294,7 +327,7 @@ namespace Dotmim.Sync.Sqlite
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
+                Debug.WriteLine($"Error during InsertOrUpdateClientScopeInfoAsync : {ex}");
                 throw;
             }
             finally
@@ -307,8 +340,11 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
+        public Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo) => throw new NotImplementedException();
 
-        public bool NeedToCreateScopeInfoTable()
+        public Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo) => throw new NotImplementedException();
+
+        public async Task<bool> NeedToCreateClientScopeInfoTableAsync()
         {
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -318,17 +354,17 @@ namespace Dotmim.Sync.Sqlite
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText =
                     $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{scopeTableName.Unquoted().ToString()}'";
 
-                return (long)command.ExecuteScalar() != 1;
+                return ((long)await command.ExecuteScalarAsync()) != 1;
 
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during NeedToCreateScopeInfoTable command : {ex}");
+                Debug.WriteLine($"Error during NeedToCreateClientScopeInfoTableAsync command : {ex}");
                 throw;
             }
             finally
@@ -341,7 +377,8 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
+        public Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync() => throw new NotImplementedException();
 
-
+        public Task<bool> NeedToCreateServerScopeInfoTableAsync() => throw new NotImplementedException();
     }
 }

@@ -1,5 +1,6 @@
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Manager
 {
@@ -17,22 +18,22 @@ namespace Dotmim.Sync.Manager
         /// The main purpose of this call is to be sure the table exists
         /// </summary>
         /// <returns></returns>
-        SyncTable GetTable();
+        Task<SyncTable> GetTableAsync();
 
         /// <summary>
         /// Gets a columns list from the datastore
         /// </summary>
-        IEnumerable<SyncColumn> GetColumns();
+        Task<IEnumerable<SyncColumn>> GetColumnsAsync();
 
         /// <summary>
         /// Gets all relations from a current table. If composite, must be ordered
         /// </summary>
-        IEnumerable<DbRelationDefinition> GetRelations();
+        Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync();
 
         /// <summary>
         /// Get all primary keys. If composite, must be ordered
         /// </summary>
-        IEnumerable<SyncColumn> GetPrimaryKeys();
+        Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync();
 
     }
 }

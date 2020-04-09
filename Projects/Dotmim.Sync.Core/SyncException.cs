@@ -63,25 +63,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets if error is Local or Remote side
         /// </summary>
-        public SyncExceptionSide Side { get; set; }
+        public SyncSide Side { get; set; }
 
     }
 
-
     /// <summary>
-    /// Defines where occured the exception
+    /// Unknown Exception
     /// </summary>
-    public enum SyncExceptionSide
+    public class UnknownException : Exception
     {
-        /// <summary>
-        /// Occurs when error comes from LocalOrchestrator
-        /// </summary>
-        ClientSide,
-
-        /// <summary>
-        /// Occurs when error comes from RemoteOrchestrator
-        /// </summary>
-        ServerSide
+        public UnknownException(string message) : base(message) { }
     }
 
     /// <summary>
@@ -113,6 +104,37 @@ namespace Dotmim.Sync
     }
 
 
+    /// <summary>
+    /// Occurs when a bad SyncProvision is provided to a local orchestrator
+    /// </summary>
+    public class InvalidRemoteOrchestratorException : Exception
+    {
+        const string message = "The remote orchestrator used here is not able to intercept the OnApplyChangedFailed event, since this event is occuring on the server side only";
+
+        public InvalidRemoteOrchestratorException() : base(message) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when a bad SyncProvision is provided to a local orchestrator
+    /// </summary>
+    public class InvalidProvisionForLocalOrchestratorException : Exception
+    {
+        const string message = "A local database should not have a server scope table. Please provide a correct SyncProvision flag.";
+
+        public InvalidProvisionForLocalOrchestratorException() : base(message) { }
+    }
+
+    /// <summary>
+    /// Occurs when a bad SyncProvision is provided to a remote orchestrator
+    /// </summary>
+    public class InvalidProvisionForRemoteOrchestratorException : Exception
+    {
+        const string message = "A server database should not have a client scope table. Please provide a correct SyncProvision flag.";
+
+        public InvalidProvisionForRemoteOrchestratorException() : base(message) { }
+    }
+
 
     /// <summary>
     /// Occurs when a file is missing
@@ -123,6 +145,39 @@ namespace Dotmim.Sync
 
         public MissingFileException(string fileName) : base(string.Format(message, fileName)) { }
     }
+
+    /// <summary>
+    /// Occurs when a schema is needed, but does not exists
+    /// </summary>
+    public class MissingLocalOrchestratorSchemaException : Exception
+    {
+        const string message = "Schema does not exists yet in your local database. You must make a first sync with your server, to initialize everything required locally.";
+
+        public MissingLocalOrchestratorSchemaException() : base(message) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when a schema is needed, but does not exists
+    /// </summary>
+    public class MissingRemoteOrchestratorSchemaException : Exception
+    {
+        const string message = "Schema does not exists yet in your remote database. You must make a first sync with your server, to initialize everything required locally.";
+
+        public MissingRemoteOrchestratorSchemaException() : base(message) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when a scope info is needed, but does not exists
+    /// </summary>
+    public class MissingClientScopeInfoException : Exception
+    {
+        const string message = "The client scope info is invalid. You need to make a first sync before.";
+
+        public MissingClientScopeInfoException() : base(message) { }
+    }
+
 
 
     /// <summary>
@@ -155,6 +210,27 @@ namespace Dotmim.Sync
         public MissingColumnException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
     }
 
+    /// <summary>
+    /// Setup columns exception. Used when a setup table has no columns during provisioning.
+    /// </summary>
+    public class MissingsColumnException : Exception
+    {
+        const string message = "Table {0} has no columns.";
+
+        public MissingsColumnException(string sourceTableName) : base(string.Format(message, sourceTableName)) { }
+    }
+
+
+    /// <summary>
+    /// Setup column exception. Used when a setup column  is defined that does not exist in the data source table
+    /// </summary>
+    public class MissingPrimaryKeyColumnException : Exception
+    {
+        const string message = "Primary key column {0} should be part of the columns list in your Setup table {1}.";
+
+        public MissingPrimaryKeyColumnException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
+    }
+
 
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any table
@@ -164,6 +240,17 @@ namespace Dotmim.Sync
         const string message = "Your setup does not contains any table.";
 
         public MissingTablesException() : base(message) { }
+    }
+
+
+    /// <summary>
+    /// Setup table exception. Used when a your setup does not contains any columns in table
+    /// </summary>
+    public class MissingColumnsException : Exception
+    {
+        const string message = "Your setup does not contains any column.";
+
+        public MissingColumnsException() : base(message) { }
     }
 
     /// <summary>
@@ -232,13 +319,13 @@ namespace Dotmim.Sync
 
 
     /// <summary>
-    /// [Not Used] Occurs when sync metadatas are out of date
+    /// Occurs when sync metadatas are out of date
     /// </summary>
     public class OutOfDateException : Exception
     {
-        const string message = "The provider is out of date ! Try to make a Reinitialize sync.";
+        const string message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
 
-        public OutOfDateException() : base(message) { }
+        public OutOfDateException(long timestampLimit, long serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
     }
 
     /// <summary>
@@ -313,6 +400,16 @@ namespace Dotmim.Sync
         { }
     }
 
+    /// <summary>
+    /// Occurs when a parameter has been already added in a filter parameter list
+    /// </summary>
+    public class HttpScopeNameInvalidException : Exception
+    {
+        const string message = "The scope {0} does not exist on the server side. Please provider a correct scope name";
+
+        public HttpScopeNameInvalidException(string scopeName) : base(string.Format(message, scopeName)) { }
+    }
+
 
     /// <summary>
     /// Occurs when a parameter has been already added in a filter parameter list
@@ -385,6 +482,37 @@ namespace Dotmim.Sync
         const string message = "The snapshot {0} does not exists.";
 
         public SnapshotNotExistsException(string directoryName) : base(string.Format(message, directoryName)) { }
+    }
+
+    /// <summary>
+    /// Occurs when trying to create a snapshot but no directory and size have been set in the options
+    /// </summary>
+    public class SnapshotMissingMandatariesOptionsException : Exception
+    {
+        const string message = "To be able to create a snapshot, you need to precise SnapshotsDirectory and BatchSize in the SyncOptions from the RemoteOrchestrator";
+
+        public SnapshotMissingMandatariesOptionsException() : base(message) { }
+    }
+
+
+    /// <summary>
+    /// Occurs when options references are not the same
+    /// </summary>
+    public class OptionsReferencesAreNotSameExecption : Exception
+    {
+        const string message = "Remote orchestrator options instance is different from Local orchestrator options instance. Please use the same instance.";
+
+        public OptionsReferencesAreNotSameExecption() : base(message) { }
+    }
+
+    /// <summary>
+    /// Occurs when setup references are not the same
+    /// </summary>
+    public class SetupReferencesAreNotSameExecption : Exception
+    {
+        const string message = "Remote orchestrator setup instance is different from Local orchestrator setup instance. Please use the same instance.";
+
+        public SetupReferencesAreNotSameExecption() : base(message) { }
     }
 
 

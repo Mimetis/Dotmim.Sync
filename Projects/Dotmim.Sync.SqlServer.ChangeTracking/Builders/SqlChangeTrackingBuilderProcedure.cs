@@ -3,7 +3,7 @@ using System;
 using System.Text;
 
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Data;
 using Dotmim.Sync.Log;
 using System.Linq;
@@ -22,18 +22,20 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         private SqlConnection connection;
         private readonly SqlTransaction transaction;
         private readonly SyncTable tableDescription;
+        private readonly SyncSetup setup;
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public SqlChangeTrackingBuilderProcedure(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
-            : base(tableDescription, connection, transaction)
+        public SqlChangeTrackingBuilderProcedure(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+            : base(tableDescription, setup, connection, transaction)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
 
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(tableDescription);
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription);
+            this.setup = setup;
+            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(tableDescription, setup);
+            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, this.setup);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
@@ -662,6 +664,47 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return sqlCommand;
         }
 
+        protected override SqlCommand BuildDeleteMetadataCommand()
+        {
+            SqlCommand sqlCommand = new SqlCommand();
+            this.AddPkColumnParametersToCommand(sqlCommand);
+            SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
+            sqlCommand.Parameters.Add(sqlParameter2);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"SELECT 1;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = 1;"));
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+        protected override SqlCommand BuildResetCommand()
+        {
+            SqlCommand sqlCommand = new SqlCommand();
+            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+            {
+                Direction = ParameterDirection.Output
+            };
+            sqlCommand.Parameters.Add(sqlParameter2);
 
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted()} DISABLE CHANGE_TRACKING;");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);");
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
     }
 }

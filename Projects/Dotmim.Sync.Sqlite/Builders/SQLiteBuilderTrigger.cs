@@ -10,6 +10,7 @@ using Microsoft.Data.Sqlite;
 
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -18,16 +19,18 @@ namespace Dotmim.Sync.Sqlite
         private ParserName tableName;
         private ParserName trackingName;
         private SyncTable tableDescription;
+        private SyncSetup setup;
         private SqliteConnection connection;
         private SqliteTransaction transaction;
         private SqliteObjectNames sqliteObjectNames;
-        public SqliteBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrigger(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription);
-            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription);
+            this.setup = setup;
+            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription, this.setup);
+            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription, this.setup);
         }
 
         private string DeleteTriggerBodyText()
@@ -71,7 +74,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
         }
-        public void CreateDeleteTrigger()
+        public async Task CreateDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -80,7 +83,7 @@ namespace Dotmim.Sync.Sqlite
                 using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -92,7 +95,7 @@ namespace Dotmim.Sync.Sqlite
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -110,8 +113,7 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public void AlterDeleteTrigger() { }
-        public string AlterDeleteTriggerScriptText() => string.Empty;
+        public Task AlterDeleteTriggerAsync() => Task.CompletedTask;
 
         private string InsertTriggerBodyText()
         {
@@ -155,7 +157,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
         }
-        public void CreateInsertTrigger()
+      
+        public async Task CreateInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -164,7 +167,7 @@ namespace Dotmim.Sync.Sqlite
                 using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -177,7 +180,7 @@ namespace Dotmim.Sync.Sqlite
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -195,7 +198,7 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public void AlterInsertTrigger() { }
+        public Task AlterInsertTriggerAsync() => Task.CompletedTask;
 
         private string UpdateTriggerBodyText()
         {
@@ -284,7 +287,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
         }
-        public void CreateUpdateTrigger()
+        public async Task CreateUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -293,7 +296,7 @@ namespace Dotmim.Sync.Sqlite
                 using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -305,7 +308,7 @@ namespace Dotmim.Sync.Sqlite
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -322,8 +325,8 @@ namespace Dotmim.Sync.Sqlite
 
             }
         }
-        public void AlterUpdateTrigger() { return; }
-        public bool NeedToCreateTrigger(DbTriggerType type)
+        public Task AlterUpdateTriggerAsync() => Task.CompletedTask;
+        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type)
         {
             var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
             var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.Unquoted().ToString());
@@ -349,17 +352,17 @@ namespace Dotmim.Sync.Sqlite
                     }
             }
 
-            return !SqliteManagementUtils.TriggerExists(connection, transaction, triggerName);
+            return !(await SqliteManagementUtils.TriggerExistsAsync(connection, transaction, triggerName).ConfigureAwait(false));
 
 
         }
 
 
-        public void DropInsertTrigger() => this.DropTrigger(DbCommandType.InsertTrigger);
-        public void DropUpdateTrigger() => this.DropTrigger(DbCommandType.UpdateTrigger);
-        public void DropDeleteTrigger() => this.DropTrigger(DbCommandType.DeleteTrigger);
+        public Task DropInsertTriggerAsync() => this.DropTriggerAsync(DbCommandType.InsertTrigger);
+        public Task DropUpdateTriggerAsync() => this.DropTriggerAsync(DbCommandType.UpdateTrigger);
+        public Task DropDeleteTriggerAsync() => this.DropTriggerAsync(DbCommandType.DeleteTrigger);
 
-        private void DropTrigger(DbCommandType triggerType)
+        private async Task DropTriggerAsync(DbCommandType triggerType)
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -368,7 +371,7 @@ namespace Dotmim.Sync.Sqlite
                 using (var command = new SqliteCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
@@ -379,7 +382,7 @@ namespace Dotmim.Sync.Sqlite
 
                     command.CommandText = dropTrigger;
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }

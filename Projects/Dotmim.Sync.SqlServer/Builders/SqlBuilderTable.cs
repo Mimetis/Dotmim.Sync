@@ -6,11 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -19,18 +20,20 @@ namespace Dotmim.Sync.SqlServer.Builders
         private ParserName tableName;
         private ParserName trackingName;
         private SyncTable tableDescription;
+        private readonly SyncSetup setup;
         private SqlConnection connection;
         private SqlTransaction transaction;
         private SqlDbMetadata sqlDbMetadata;
 
 
-        public SqlBuilderTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
 
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription);
+            this.setup = setup;
+            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription, this.setup);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
@@ -61,7 +64,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return name;
         }
 
-        public bool NeedToCreateForeignKeyConstraints(SyncRelation relation)
+        public async Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation relation)
         {
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
@@ -78,9 +81,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                var syncTable = SqlManagementUtils.RelationsForTable(connection, transaction, tableName, schemaName);
+                var syncTable = await SqlManagementUtils.GetRelationsForTableAsync(connection, transaction, tableName, schemaName).ConfigureAwait(false);
 
                 var foreignKeyExist = syncTable.Rows.Any(r =>
                    string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
@@ -133,7 +136,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateForeignKeyConstraints(SyncRelation constraint)
+        public async Task CreateForeignKeyConstraintsAsync(SyncRelation constraint)
         {
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -141,7 +144,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 using (var command = BuildForeignKeyConstraintsCommand(constraint))
                 {
@@ -150,7 +153,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (transaction != null)
                         command.Transaction = transaction;
 
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -186,7 +189,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return new SqlCommand(stringBuilder.ToString());
         }
-        public void CreatePrimaryKey()
+        public async Task CreatePrimaryKeyAsync()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -195,13 +198,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = BuildPkCommand())
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -265,7 +268,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return new SqlCommand($"DROP TABLE {tableName.Schema().Quoted().ToString()};");
         }
 
-        public void CreateSchema()
+        public async Task CreateSchemaAsync()
         {
             if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "dbo")
                 return;
@@ -279,13 +282,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = new SqlCommand(schemaCommand))
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -303,7 +306,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public void CreateTable()
+        public async Task CreateTableAsync()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -312,13 +315,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = BuildTableCommand())
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -337,7 +340,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public void DropTable()
+        public async Task DropTableAsync()
         {
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -346,13 +349,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 using (var command = BuildDeleteTableCommand())
                 {
                     if (!alreadyOpened)
-                        connection.Open();
+                        await connection.OpenAsync().ConfigureAwait(false);
 
                     if (transaction != null)
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 }
             }
@@ -374,21 +377,21 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateTable()
+        public async Task<bool> NeedToCreateTableAsync()
         {
-            return !SqlManagementUtils.TableExists(connection, transaction, tableName.Schema().Quoted().ToString());
+            return !await SqlManagementUtils.TableExistsAsync(connection, transaction, tableName.Schema().Quoted().ToString()).ConfigureAwait(false);
 
         }
 
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public bool NeedToCreateSchema()
+        public async Task<bool> NeedToCreateSchemaAsync()
         {
             if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "dbo")
                 return false;
 
-            return !SqlManagementUtils.SchemaExists(connection, transaction, tableName.SchemaName);
+            return !await SqlManagementUtils.SchemaExistsAsync(connection, transaction, tableName.SchemaName).ConfigureAwait(false);
         }
 
 

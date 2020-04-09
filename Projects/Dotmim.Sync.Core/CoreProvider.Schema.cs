@@ -1,7 +1,6 @@
 
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -18,21 +17,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public SyncSet ReadSchema(SyncSetup setup, DbConnection connection, DbTransaction transaction)
+        public async Task<(SyncContext, SyncSet)> GetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (setup == null || setup.Tables.Count <= 0)
                 throw new MissingTablesException();
 
             // Create the schema
-            var schema = new SyncSet(setup.ScopeName)
-            {
-                StoredProceduresPrefix = setup.StoredProceduresPrefix,
-                StoredProceduresSuffix = setup.StoredProceduresSuffix,
-                TrackingTablesPrefix = setup.TrackingTablesPrefix,
-                TrackingTablesSuffix = setup.TrackingTablesSuffix,
-                TriggersPrefix = setup.TriggersPrefix,
-                TriggersSuffix = setup.TriggersSuffix,
-            };
+            var schema = new SyncSet();
 
             // copy filters from setup
             foreach (var filter in setup.Filters)
@@ -46,13 +38,13 @@ namespace Dotmim.Sync
                 var tblManager = builderTable.CreateManagerTable(connection, transaction);
 
                 // Check if table exists
-                var syncTable = tblManager.GetTable();
+                var syncTable = await tblManager.GetTableAsync().ConfigureAwait(false);
 
                 if (syncTable == null)
                     throw new MissingTableException(string.IsNullOrEmpty(setupTable.SchemaName) ? setupTable.TableName : setupTable.SchemaName + "." + setupTable.TableName);
 
                 // get columns list
-                var lstColumns = tblManager.GetColumns();
+                var lstColumns = await tblManager.GetColumnsAsync().ConfigureAwait(false);
 
                 // Validate the column list and get the dmTable configuration object.
                 this.FillSyncTableWithColumns(setupTable, syncTable, lstColumns, tblManager);
@@ -61,10 +53,10 @@ namespace Dotmim.Sync
                 schema.Tables.Add(syncTable);
 
                 // Check primary Keys
-                SetPrimaryKeys(syncTable, tblManager);
+                await SetPrimaryKeysAsync(syncTable, tblManager).ConfigureAwait(false);
 
                 // get all relations
-                var tableRelations = tblManager.GetRelations();
+                var tableRelations = await tblManager.GetRelationsAsync().ConfigureAwait(false);
 
                 // Since we are not sure of the order of reading tables
                 // create a tmp relations list
@@ -74,32 +66,11 @@ namespace Dotmim.Sync
             // Parse and affect relations to schema
             SetRelations(relations, schema);
 
-            return schema;
-        }
-
-
-        /// <summary>
-        /// Ensure configuration is correct on both server and client side
-        /// </summary>
-        public virtual async Task<(SyncContext, SyncSet)> EnsureSchemaAsync(SyncContext context, SyncSetup setup,
-                             DbConnection connection, DbTransaction transaction,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        {
-
-            context.SyncStage = SyncStage.SchemaReading;
-
-            var schema = this.ReadSchema(setup, connection, transaction);
-
-            // Progress & Interceptor
-            context.SyncStage = SyncStage.SchemaRead;
-            var schemaArgs = new SchemaArgs(context, schema, connection, transaction);
-            this.ReportProgress(context, progress, schemaArgs);
-            await this.InterceptAsync(schemaArgs).ConfigureAwait(false);
+            // Ensure all objects have correct relations to schema
+            schema.EnsureSchema();
 
             return (context, schema);
-
         }
-
 
 
         /// <summary>
@@ -230,10 +201,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check then add primary keys to schema table
         /// </summary>
-        private void SetPrimaryKeys(SyncTable schemaTable, IDbTableManager dbManagerTable)
+        private async Task SetPrimaryKeysAsync(SyncTable schemaTable, IDbTableManager dbManagerTable)
         {
             // Get PrimaryKey
-            var schemaPrimaryKeys = dbManagerTable.GetPrimaryKeys();
+            var schemaPrimaryKeys = await dbManagerTable.GetPrimaryKeysAsync().ConfigureAwait(false);
 
             if (schemaPrimaryKeys == null || schemaPrimaryKeys.Any() == false)
                 throw new MissingPrimaryKeyException(schemaTable.TableName);
@@ -244,7 +215,7 @@ namespace Dotmim.Sync
                 var columnKey = schemaTable.Columns.FirstOrDefault(sc => sc == rowColumn);
 
                 if (columnKey == null)
-                    throw new MissingColumnException(rowColumn.ColumnName, schemaTable.TableName);
+                    throw new MissingPrimaryKeyColumnException(rowColumn.ColumnName, schemaTable.TableName);
 
                 schemaTable.PrimaryKeys.Add(columnKey.ColumnName);
             }

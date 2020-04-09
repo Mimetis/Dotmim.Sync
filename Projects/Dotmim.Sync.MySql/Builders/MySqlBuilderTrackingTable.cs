@@ -10,6 +10,7 @@ using System.Linq;
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
@@ -23,22 +24,22 @@ namespace Dotmim.Sync.MySql
         private MySqlDbMetadata mySqlDbMetadata;
 
 
-        public MySqlBuilderTrackingTable(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrackingTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription);
+            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription, setup);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-        public bool NeedToCreateTrackingTable()
-             => !MySqlManagementUtils.TableExists(connection, transaction, trackingName);
+        public async Task<bool> NeedToCreateTrackingTableAsync()
+             => !(await MySqlManagementUtils.TableExistsAsync(connection, transaction, trackingName).ConfigureAwait(false));
 
-        public void CreateIndex() {}
-        public void CreatePk() { }
-        
-        public void CreateTable()
+        public Task CreateIndexAsync() => Task.CompletedTask;
+        public Task CreatePkAsync() => Task.CompletedTask;
+
+        public async Task CreateTableAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -47,15 +48,14 @@ namespace Dotmim.Sync.MySql
                 using (var command = new MySqlCommand())
                 {
                     if (!alreadyOpened)
-                        this.connection.Open();
+                        await this.connection.OpenAsync().ConfigureAwait(false);
 
                     if (this.transaction != null)
                         command.Transaction = this.transaction;
 
                     command.CommandText = this.CreateTableCommandText();
                     command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -115,7 +115,7 @@ namespace Dotmim.Sync.MySql
         }
 
  
-        public void DropTable()
+        public async Task DropTableAsync()
         {
             var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
 
@@ -124,14 +124,14 @@ namespace Dotmim.Sync.MySql
             try
             {
                 if (!alreadyOpened)
-                    connection.Open();
+                    await connection.OpenAsync().ConfigureAwait(false);
 
                 using (var command = new MySqlCommand(commandText, connection))
                 {
                     if (transaction != null)
                         command.Transaction = transaction;
 
-                    command.ExecuteNonQuery();
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)

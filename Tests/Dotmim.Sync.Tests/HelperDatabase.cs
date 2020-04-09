@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 using MySql.Data.MySqlClient;
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -258,7 +258,7 @@ namespace Dotmim.Sync.Tests
         }
         private static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
-            using (var connection = new SqliteConnection(dbName))
+            using (var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName)))
             {
                 connection.Open();
                 using (var cmdDb = new SqliteCommand(script, connection))

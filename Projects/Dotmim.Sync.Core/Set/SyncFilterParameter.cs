@@ -104,10 +104,15 @@ namespace Dotmim.Sync
             var sc = SyncGlobalization.DataSourceStringComparison;
 
             var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+            var tn = this.TableName == null ? string.Empty : this.TableName;
+            var n = this.Name == null ? string.Empty : this.Name;
 
-            return other != null &&
-                   this.TableName.Equals(other.TableName, sc) &&
+            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+            var otherTn = other.TableName == null ? string.Empty : other.TableName;
+            var otherN = other.Name == null ? string.Empty : other.Name;
+
+            return n.Equals(otherN, sc) &&
+                   tn.Equals(otherTn, sc) &&
                    sn.Equals(otherSn, sc);
         }
 
