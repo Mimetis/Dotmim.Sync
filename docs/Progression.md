@@ -1,14 +1,21 @@
 # Progression
 
-Progression in a sync process could be complex.   
+## Sample
+>
+> You will find the sample used for this chapter, here : [Progression sample](/Samples/Progression)
+>
+
+## Introduction
+
+Getting useful information during a sync process could be complex.
 
 First of all, during a full synchronization, we have **two distincts** progression:
 * A first **Progression** from the client side
 * A second **Progression** from the server side.
 
-We have a lot of events raised by both the **server** and the **client** side.
-* Each event is raised from the assiocated **Orchestrator** instance.
-* Each event in a sync process is called a *stage*, represented by a **SyncStage** enumeration:
+We have a lot of progress values raised by both the **server** and the **client** side.
+* Each progress value is catch from a callback from the assiocated **Orchestrator** instance.
+* Each progress value in a sync process is associated with a specific *stage*, represented by a **SyncStage** enumeration:
 ``` cs
 public enum SyncStage
 {
@@ -53,9 +60,12 @@ public enum SyncStage
     MetadataCleaning,
     MetadataCleaned,
 }
-
 ```
-Now, imagine we have a really straightforward sync process, using the sample from [Hello sync sample](/Samples/HelloSync) :
+
+## How does it work
+
+
+To explain how does it work, we are starting from a really straightforward sync process example, using the sample from [Hello sync sample](/Samples/HelloSync) :
 
 ``` csharp
 var serverProvider = new SqlSyncChangeTrackingProvider(serverConnectionString);
@@ -80,9 +90,9 @@ Console.WriteLine("End");
 ```
 We are going to see how to get useful information, from each stage involved during the sync processus, thanks to `IProgress<T>` and then we will go deeper with the notion of `Interceptor<T>`.
 
-## How progression is handled 
+## IProgress\<T\> : How progression is handled 
 
-The progress values are raised from both side : **Server** side and **Client** side, ordered.  
+The progress values are triggered from both side : **Server** side and **Client** side, ordered.  
 
 In our sample, we can say that : 
 - The `RemoteOrchestrator` instance using the `serverProvider` provider instance will report all the progress from the server side.   
@@ -93,18 +103,17 @@ In our sample, we can say that :
 
 Just remember this true fact: The `syncAgent` object is **always** on the client side of any architecture.  
 
-## Progress\<ProgressArgs\>
-
-Since version **v0.4** the `Dotmim.Sync` does not use any more the `EventHandler` events mechanism.   
-
 Since our main method `SynchronizeAsync()` is marked `async` method, we will use the [Progress\<T\>](https://docs.microsoft.com/en-us/dotnet/api/system.progress-1?view=netcore-2.2) to be able to report progress value.
 
 So far, the most straightforward way to get feedback from a current sync, is to pass an instance of `Progress<T>` when calling the method `SynchronizeAsync()`
 
-You will find the sample used for this demonstration, here : [Progression sample](/Samples/Progression)
+All the reported progress value that invokes a callback, are deriving from `ProgressArgs`.
+So far, we can use a `Progress<ProgressArgs>` instance that we will pass to the `SynchronizeAsync()` method.
 
+> Quick note about the `Progress<T>` object: `Progress<T>` is not synchronous. So far, no guarantee that the progress callbacks will be called in an ordered way.   
+> That's why you can use a **DMS** progess class called `SynchronousProgress<T>` which is synchronous, using the correct synchronization context.
 
-Here is a quick example, often used to provide some feedback to the users:   
+Here is a quick example used to provide some feedback to the users:   
 
 ``` cs
 var serverProvider = new SqlSyncChangeTrackingProvider(serverConnectionString);
@@ -185,14 +194,16 @@ On the other side, to be able to get progress from the server side (if you are n
 
 The result is really verbose, but you have ALL the informations  from both **Client** side and **Server** side !
 
+*In the screenshot below, yellow lines are interceptors from server side.*
+
 ![Verbose progression](assets/ProgressionVerbose.png)
 
 
-## Go further : Interceptor\<T\>
+## Going further : Interceptor\<T\>
 
 The `Progress<T>` stuff is great, but as we said, it's mainly read only, and the progress is always reported **at the end of the current sync stage**.   
 
-So, if you need a more granular control on all the events, you can subscribe to an `Interceptor<T>`.   
+So, if you need a more granular control on all the progress values, you can subscribe to an `Interceptor<T>`.   
 On each **orchestrator**, you will find a lot of relevant methods to intercept the sync process:
 
 ![Interceptor](assets/interceptor01.png)
@@ -201,7 +212,7 @@ On each **orchestrator**, you will find a lot of relevant methods to intercept t
 Imagine you have a table that should **never** be synchronized. You're able to use an interceptor like this:
 
 ``` csharp
-// We are using a cancellation token that will passed as an argument to the SynchronizeAsync() method !
+// We are using a cancellation token that will be passed as an argument to the SynchronizeAsync() method !
 var cts = new CancellationTokenSource();
 
 agent.LocalOrchestrator.OnTableChangesApplying((args) =>
@@ -213,16 +224,40 @@ agent.LocalOrchestrator.OnTableChangesApplying((args) =>
 ```
 Be careful, your `CancellationTokenSource` instance will rollback the whole sync session and you will get a `SyncException` error ! 
 
-Other useful example, you can use the **interceptors** `OnTableChangesSelecting` and `OnTableChangesSelected` to have more details on what changes are selected for each table.
+## Intercept rows before sending and before applying
 
-> The changes you get from the interceptor `OnTableChangesSelected` are "*copy of*" the changes that will be sent. Making any modification in these rows won't affect the current sync session !
+You may want to intercept all the rows that have just been selected from the source (client or server), and are about to be sent to the destination (server or client).   
+Or even intercept all the rows that are going to be applied on a destination database.   
+That way, you may be able to modify these rows, to meet your business / requirements rules.  
+
+
+To do so, you can use the **interceptors** `OnTableChangesSelecting` and `OnTableChangesSelected` to have more details on what changes are selected for each table.
+
+In the other hand, you can use the **interceptors** `OnTableChangesApplying` and `OnTableChangesApplied` to get all the rows that will be applied to a destination database.
+
 
 ``` csharp
+// Intercept a table changes selecting stage.
 agent.LocalOrchestrator.OnTableChangesSelecting(args =>
 {
-    Console.WriteLine($"-------- Getting changes from table {args.TableName} ...");
+    Console.WriteLine($"-------- Getting changes from table {args.Table.GetFullName()} ...");
 });
 
+// Intercept a table changes applying stage, with a particular state [Upsert] or [Deleted]
+// The rows included in the args.Changes table will be applied right after.
+agent.LocalOrchestrator.OnTableChangesApplying(args =>
+{
+    Console.WriteLine($"-------- Applying changes {args.State} to table {args.Changes.GetFullName()} ...");
+
+    if (args.Changes == null || args.Changes.Rows.Count == 0)
+        return;
+
+    foreach (var row in args.Changes.Rows)
+        Console.WriteLine(row);
+});
+
+// Intercept a table changes selected stage.
+// The rows included in the args.Changes have been selected from the local database and will be sent to the server.
 agent.LocalOrchestrator.OnTableChangesSelected(args =>
 {
     if (args.Changes == null || args.Changes.Rows.Count == 0)
@@ -232,43 +267,6 @@ agent.LocalOrchestrator.OnTableChangesSelected(args =>
         Console.WriteLine(row);
 });
 ```
+*In the screenshot below, yellow lines are interceptors from server side.*
 
-``` bash
-BeginSession:   00:06:54.838
-ScopeLoaded:    00:06:55.181     [Client] [DefaultScope] [Version 1] Last sync:08/04/2020 22:04:51 Last sync duration:0:0:0.905
-ScopeLoaded:    00:06:55.260     [AdventureWorks] [DefaultScope] [Version 1]
--------- Getting changes from table ProductCategory ...
-[Sync state]:Modified, [ProductCategoryID]:6, [ParentProductCategoryID]:1, [Name]:Road Bikes Bis, [rowguid]:000310c0-bcc8-42c4-b0c3-45ae611af06b, [ModifiedDate]:01/06/2002 00:00:00
-[Sync state]:Modified, [ProductCategoryID]:7, [ParentProductCategoryID]:1, [Name]:Touring Bikesde , [rowguid]:02c5061d-ecdc-4274-b5f1-e91d76bc3f37, [ModifiedDate]:01/06/2002 00:00:00
-[Sync state]:Modified, [ProductCategoryID]:15, [ParentProductCategoryID]:2, [Name]:Headsets II, [rowguid]:7c782bbe-5a16-495a-aa50-10afe5a84af2, [ModifiedDate]:01/06/2002 00:00:00
-ChangesSelecting:       00:06:55.624     [Client] [ProductCategory] upserts:3 deletes:0 total:3
--------- Getting changes from table ProductModel ...
--------- Getting changes from table Product ...
--------- Getting changes from table Address ...
--------- Getting changes from table Customer ...
--------- Getting changes from table CustomerAddress ...
--------- Getting changes from table SalesOrderHeader ...
--------- Getting changes from table SalesOrderDetail ...
-[Sync state]:Deleted, [SalesOrderID]:71784, [SalesOrderDetailID]:110775
-[Sync state]:Deleted, [SalesOrderID]:71784, [SalesOrderDetailID]:110776
-[Sync state]:Deleted, [SalesOrderID]:71784, [SalesOrderDetailID]:110777
-[Sync state]:Deleted, [SalesOrderID]:71784, [SalesOrderDetailID]:110778
-[Sync state]:Deleted, [SalesOrderID]:71784, [SalesOrderDetailID]:110779
-[Sync state]:Deleted, [SalesOrderID]:71784, [SalesOrderDetailID]:110780
-[Sync state]:Deleted, [SalesOrderID]:71784, [SalesOrderDetailID]:110781
-ChangesSelecting:       00:06:55.655     [Client] [SalesOrderDetail] upserts:0 deletes:7 total:7
-ChangesSelected:        00:06:55.657     [Client] upserts:3 deletes:7 total:10
-ChangesApplying:        00:06:55.988     [AdventureWorks] [SalesOrderDetail] Deleted applied:7 resolved conflicts:0
-ChangesApplying:        00:06:56.27      [AdventureWorks] [ProductCategory] Modified applied:3 resolved conflicts:0
-ChangesApplied: 00:06:56.42      [AdventureWorks] applied:10 resolved conflicts:0
-ChangesSelected:        00:06:56.102     [AdventureWorks] upserts:0 deletes:0 total:0
-ChangesApplied: 00:06:56.147     [Client] applied:0 resolved conflicts:0
-EndSession:     00:06:56.149
-Synchronization done.
-        Total changes  uploaded: 10
-        Total changes  downloaded: 0
-        Total changes  applied: 0
-        Total resolved conflicts: 0
-        Total duration :0:0:1.313
-```
-
+![Progression with interceptors](assets/ProgressionInterceptors.png)

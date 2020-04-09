@@ -36,6 +36,8 @@ namespace Progression
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProvider, tables);
 
+            agent.Options.BatchSize = 20;
+
             // Using the IProgress<T> pattern to handle progession dring the synchronization
             // Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
             var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.Context.SyncStage}:\t{args.Message}"));
@@ -53,19 +55,35 @@ namespace Progression
             // --------------------------------------------
             // Using Interceptors
             // --------------------------------------------
+
+            // CancellationTokenSource is used to cancel a sync process in the next example
             var cts = new CancellationTokenSource();
 
-            agent.LocalOrchestrator.OnTableChangesApplying((args) =>
+            // Intercept a table changes selecting
+            // Because the changes are not yet selected, we can easily interrupt the process with the cancellation token
+            agent.LocalOrchestrator.OnTableChangesSelecting(args =>
             {
-                if (args.SchemaTable.TableName == "Table_That_Should_Not_Be_Sync")
+                Console.WriteLine($"-------- Getting changes from table {args.Table.GetFullName()} ...");
+
+                if (args.Table.TableName == "Table_That_Should_Not_Be_Sync")
                     cts.Cancel();
             });
 
-            agent.LocalOrchestrator.OnTableChangesSelecting(args =>
+            // Intercept a table changes applying with a particular state [Upsert] or [Deleted]
+            // The rows included in the args.Changes table will be applied right after.
+            agent.LocalOrchestrator.OnTableChangesApplying(args =>
             {
-                Console.WriteLine($"-------- Getting changes from table {args.TableName} ...");
+                Console.WriteLine($"-------- Applying changes {args.State} to table {args.Changes.GetFullName()} ...");
+
+                if (args.Changes == null || args.Changes.Rows.Count == 0)
+                    return;
+
+                foreach (var row in args.Changes.Rows)
+                    Console.WriteLine(row);
             });
 
+            // Intercept a table changes selected.
+            // The rows included in the args.Changes have been selected from the datasource and will be sent to the server
             agent.LocalOrchestrator.OnTableChangesSelected(args =>
             {
                 if (args.Changes == null || args.Changes.Rows.Count == 0)
@@ -75,6 +93,41 @@ namespace Progression
                     Console.WriteLine(row);
             });
 
+            // ------------------------
+            // Because we are in a TCP mode, we can hook the server side events
+            // In an HTTP mode, the code below won't work
+            // ------------------------
+
+            agent.RemoteOrchestrator.OnTableChangesSelecting(args =>
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"-------- Getting changes from table {args.Table.GetFullName()} ...");
+                Console.ResetColor();
+            });
+
+            agent.RemoteOrchestrator.OnTableChangesSelected(args =>
+            {
+                if (args.Changes == null || args.Changes.Rows.Count == 0)
+                    return;
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                foreach (var row in args.Changes.Rows)
+                    Console.WriteLine(row);
+                Console.ResetColor();
+            });
+
+            agent.RemoteOrchestrator.OnTableChangesApplying(args =>
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"-------- Applying changes {args.State} to table {args.Changes.GetFullName()} ...");
+
+                if (args.Changes == null || args.Changes.Rows.Count == 0)
+                    return;
+
+                foreach (var row in args.Changes.Rows)
+                    Console.WriteLine(row);
+                Console.ResetColor();
+            });
             do
             {
                 // Launch the sync process
