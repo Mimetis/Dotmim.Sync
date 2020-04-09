@@ -2,8 +2,8 @@
 
 ![DMS](assets/Smallicon.png)
 
-**Dotmim.Sync** is the easiest way to handle a full **synchronization** between one server database and multiples clients databases.  
-**Dotmim.Sync** is cross-platforms, multi-databases and based on **.Net Standard 2.0**.   
+**Dotmim.Sync** (**DMS**) is the easiest way to handle a full **synchronization** between one server database and multiples clients databases.  
+**Dotmim.Sync** (**DMS**) is cross-platforms, multi-databases and based on **.Net Standard 2.0**.   
 Choose either **SQL Server**, **SQLite**, **MySQL**, and (hopefully, I hope soon...) Oracle and PostgreSQL !
 
 For simplicity, we can say **Dotmim.Sync** or **DMS** framework.
@@ -130,19 +130,19 @@ Boom, less than **150** milliseconds.
 
 You will find the sample used for this demonstration, here : [HelloSync sample](https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/HelloSync)
 
-You can see this sample as well, live, hosted on [dotnetfiddle](https://dotnetfiddle.net) : https://dotnetfiddle.net/CZgNDm
+You can see this sample as well, live, hosted on [dotnetfiddle](https://dotnetfiddle.net) : [Hello Sync On dotnetfiddle](https://dotnetfiddle.net/CZgNDm)
 
 ## Nuget packages
 
 All packages are available through **nuget.org**:
 
-* **Dotmim.Sync.Core** : [https://www.nuget.org/packages/Dotmim.Sync.Core/]() : This package is used by all providers. No need to reference it (it will be added by the providers)
-* **Dotmim.Sync.SqlServer** : [https://www.nuget.org/packages/Dotmim.Sync.SqlServer/]() : This package is the Sql Server package. Use it if you want to synchronize Sql Server databases.
-* **Dotmim.Sync.SqlSyncChangeTrackingProvider** : [https://www.nuget.org/packages/Dotmim.Sync.SqlServer.ChangeTracking/]() : This package is based on the Sql Server package, but will use the **Change Tracking** feature from SQL server, instead of classic tracking tables/ triggers/ stored procedures.
-* **Dotmim.Sync.Sqlite** : [https://www.nuget.org/packages/Dotmim.Sync.Sqlite/]() : This package is the SQLite package. Be careful, SQLite is allowed only as a client provider (no SQLite Sync Server provider right now )
-* **Dotmim.Sync.MySql** : [https://www.nuget.org/packages/Dotmim.Sync.MySql/]() : This package is the MySql package. Use it if you want to synchronize MySql databases.
-* **Dotmim.Sync.Web.Server** : [https://www.nuget.org/packages/Dotmim.Sync.Web.Server/]() : This package allow you to make a sync process over **HTTP** using a web server beetween your server and your clients. Use this package with the corresponding Server provider (SQL, MySQL, SQLite) on your server side. Since we are **.Net Standard 2.0** you can use it from an **ASP.NET Core** application or a classic **ASP.NET** application (Framework 4.7 +)
-* **Dotmim.Sync.Web.Client** : [https://www.nuget.org/packages/Dotmim.Sync.Web.Client/]() : This package has to be referenced on your client application, if you want to make a synchronization over **HTTP**.
+* **Dotmim.Sync.Core** : [https://www.nuget.org/packages/Dotmim.Sync.Core/](https://www.nuget.org/packages/Dotmim.Sync.Core/) : This package is used by all providers. No need to reference it (it will be added by the providers)
+* **Dotmim.Sync.SqlServer** : [https://www.nuget.org/packages/Dotmim.Sync.SqlServer/](https://www.nuget.org/packages/Dotmim.Sync.SqlServer/) : This package is the Sql Server package. Use it if you want to synchronize Sql Server databases.
+* **Dotmim.Sync.SqlSyncChangeTrackingProvider** : [https://www.nuget.org/packages/Dotmim.Sync.SqlServer.ChangeTracking/](https://www.nuget.org/packages/Dotmim.Sync.SqlServer.ChangeTracking/) : This package is based on the Sql Server package, but will use the **Change Tracking** feature from SQL server, instead of classic tracking tables/ triggers/ stored procedures.
+* **Dotmim.Sync.Sqlite** : [https://www.nuget.org/packages/Dotmim.Sync.Sqlite/](https://www.nuget.org/packages/Dotmim.Sync.Sqlite/) : This package is the SQLite package. Be careful, SQLite is allowed only as a client provider (no SQLite Sync Server provider right now )
+* **Dotmim.Sync.MySql** : [https://www.nuget.org/packages/Dotmim.Sync.MySql/](https://www.nuget.org/packages/Dotmim.Sync.MySql/) : This package is the MySql package. Use it if you want to synchronize MySql databases.
+* **Dotmim.Sync.Web.Server** : [https://www.nuget.org/packages/Dotmim.Sync.Web.Server/](https://www.nuget.org/packages/Dotmim.Sync.Web.Server/) : This package allow you to make a sync process over **HTTP** using a web server beetween your server and your clients. Use this package with the corresponding Server provider (SQL, MySQL, SQLite) on your server side. Since we are **.Net Standard 2.0** you can use it from an **ASP.NET Core** application or a classic **ASP.NET** application (Framework 4.7 +)
+* **Dotmim.Sync.Web.Client** : [https://www.nuget.org/packages/Dotmim.Sync.Web.Client/](ttps://www.nuget.org/packages/Dotmim.Sync.Web.Client/) : This package has to be referenced on your client application, if you want to make a synchronization over **HTTP**.
 
 ## Need Help
 
