@@ -2,7 +2,7 @@
 
 ## Sample
 >
-> You will find the sample used for this chapter, here : [Progression sample](/Samples/Progression)
+> You will find the sample used for this chapter, here : [Progression sample](https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Progression)
 >
 
 ## Introduction
