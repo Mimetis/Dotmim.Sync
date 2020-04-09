@@ -1,19 +1,17 @@
 ﻿using Dotmim.Sync.Builders;
-
-
 using Dotmim.Sync.SqlServer.Manager;
-using Microsoft.SqlServer.Server;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-
+using System.Threading.Tasks;
+using Microsoft.Data.SqlClient.Server;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -32,30 +30,17 @@ namespace Dotmim.Sync.SqlServer.Builders
         private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<SqlParameter>>();
 
-        public override DbConnection Connection
-        {
-            get
-            {
-                return this.connection;
-            }
-        }
-        public override DbTransaction Transaction
-        {
-            get
-            {
-                return this.transaction;
-            }
+        public override DbConnection Connection => this.connection;
+        public override DbTransaction Transaction => this.transaction;
 
-        }
-
-        public SqlSyncAdapter(SyncTable tableDescription, DbConnection connection, DbTransaction transaction) : base(tableDescription)
+        public SqlSyncAdapter(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
         {
             var sqlc = connection as SqlConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqlConnection");
 
             this.transaction = transaction as SqlTransaction;
 
-            this.sqlObjectNames = new SqlObjectNames(tableDescription);
+            this.sqlObjectNames = new SqlObjectNames(tableDescription, setup);
             this.sqlMetadata = new SqlDbMetadata();
         }
 
@@ -130,7 +115,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override void ExecuteBatchCommand(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
         {
 
             var applyRowsCount = applyRows.Count();
@@ -281,12 +266,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             try
             {
                 if (!alreadyOpened)
-                    this.connection.Open();
+                    await this.connection.OpenAsync().ConfigureAwait(false);
 
                 if (this.transaction != null)
                     cmd.Transaction = this.transaction;
 
-                using (var dataReader = cmd.ExecuteReader())
+                using (var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     while (dataReader.Read())
                     {
@@ -381,7 +366,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override void SetCommandParameters(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override async Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             if (command == null)
                 return;
@@ -391,24 +376,14 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             // special case for constraint
             if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
-            {
-                string check = commandType == DbCommandType.DisableConstraints ? "NOCHECK" : "CHECK";
-
-                var p = command.CreateParameter();
-                p.ParameterName = "@command1";
-                p.DbType = DbType.String;
-                p.Value = $"ALTER TABLE ? {check} CONSTRAINT ALL";
-                command.Parameters.Add(p);
-
                 return;
-            }
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    this.connection.Open();
+                    await this.connection.OpenAsync().ConfigureAwait(false);
 
                 if (this.transaction != null)
                     command.Transaction = this.transaction;
@@ -431,7 +406,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     // TODO: Fix that.
                     //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
 
-                    var parameters = connection.DeriveParameters((SqlCommand)command, false, transaction);
+                    await connection.DeriveParametersAsync((SqlCommand)command, false, transaction).ConfigureAwait(false);
 
                     var arrayParameters = new List<SqlParameter>();
                     foreach (var p in command.Parameters)

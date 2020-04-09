@@ -37,22 +37,7 @@ namespace Dotmim.Sync
         /// </summary>
         public string SnapshotsDirectory { get; set; }
 
-        /// <summary>
-        /// Get the default Batch directory full path ([User Temp Path]/[DotmimSync])
-        /// </summary>
-        public static string GetDefaultUserBatchDiretory() => Path.Combine(GetDefaultUserTempPath(), GetDefaultUserBatchDirectoryName());
-
-        /// <summary>
-        /// Get the default user tmp folder
-        /// </summary>
-        public static string GetDefaultUserTempPath() => Path.GetTempPath();
-
-        /// <summary>
-        /// Get the default sync tmp folder name
-        /// </summary>
-        public static string GetDefaultUserBatchDirectoryName() => "DotmimSync";
-
-        /// <summary>
+         /// <summary>
         /// Gets or Sets the size used (approximatively in kb, depending on the serializer) for each batch file, in batch mode. 
         /// Default is 0 (no batch mode)
         /// </summary>
@@ -109,6 +94,23 @@ namespace Dotmim.Sync
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         }
+
+
+        /// <summary>
+        /// Get the default Batch directory full path ([User Temp Path]/[DotmimSync])
+        /// </summary>
+        public static string GetDefaultUserBatchDiretory() => Path.Combine(GetDefaultUserTempPath(), GetDefaultUserBatchDirectoryName());
+
+        /// <summary>
+        /// Get the default user tmp folder
+        /// </summary>
+        public static string GetDefaultUserTempPath() => Path.GetTempPath();
+
+        /// <summary>
+        /// Get the default sync tmp folder name
+        /// </summary>
+        public static string GetDefaultUserBatchDirectoryName() => "DotmimSync";
+
 
 
     }

@@ -22,14 +22,7 @@ namespace Dotmim.Sync.Tests.Models
 
         public static Guid CustomerIdForFilter = Guid.NewGuid();
 
-
-        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, LocalOrchestrator LocalOrchestrator, WebClientOrchestrator WebClientOrchestrator) t, bool fallbackUseSchema = true, bool useSeeding = false) 
-            : this((t.DatabaseName, t.ProviderType, t.LocalOrchestrator), fallbackUseSchema, useSeeding)
-        {
-
-        }
-
-        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, IOrchestrator RemoteOrchestrator) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
+        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, CoreProvider provider) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
         {
             this.ProviderType = t.ProviderType;
             this.ConnectionString = HelperDatabase.GetConnectionString(t.ProviderType, t.DatabaseName);

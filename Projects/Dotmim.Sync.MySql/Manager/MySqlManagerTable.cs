@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
@@ -27,9 +28,9 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-        public SyncTable GetTable()
+        public async Task<SyncTable> GetTableAsync()
         {
-            var syncTable = MySqlManagementUtils.Table(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var syncTable = await MySqlManagementUtils.GetTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName).ConfigureAwait(false);
 
             if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count <= 0)
                 return null;
@@ -43,13 +44,13 @@ namespace Dotmim.Sync.MySql
 
 
 
-        public IEnumerable<SyncColumn> GetColumns()
+        public async Task<IEnumerable<SyncColumn>> GetColumnsAsync()
         {
             var columns = new List<SyncColumn>();
 
             // Get the columns definition
 
-            var columnsList = MySqlManagementUtils.ColumnsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var columnsList = await MySqlManagementUtils.GetColumnsForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName).ConfigureAwait(false);
             var mySqlDbMetadata = new MySqlDbMetadata();
 
             foreach (var c in columnsList.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
@@ -87,20 +88,17 @@ namespace Dotmim.Sync.MySql
                 sColumn.IsUnsigned = isUnsigned;
                 sColumn.IsUnique = c["column_key"] != DBNull.Value ? ((string)c["column_key"]).ToLowerInvariant().Contains("uni") : false;
 
-
-
                 columns.Add(sColumn);
 
             }
-
             return columns.ToArray();
         }
 
-        public IEnumerable<DbRelationDefinition> GetRelations()
+        public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync()
         {
             var relations = new List<DbRelationDefinition>();
 
-            var relationsList = MySqlManagementUtils.RelationsForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var relationsList = await MySqlManagementUtils.GetRelationsForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName).ConfigureAwait(false);
 
             if (relationsList != null && relationsList.Rows.Count > 0)
             {
@@ -126,13 +124,13 @@ namespace Dotmim.Sync.MySql
                 }
             }
 
-            return relations.ToArray();
+            return relations.OrderBy(t => t.ForeignKey).ToArray();
         }
 
-        public IEnumerable<SyncColumn> GetPrimaryKeys()
+        public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync()
         {
             // Get PrimaryKey
-            var keys = MySqlManagementUtils.PrimaryKeysForTable(this.sqlConnection, this.sqlTransaction, this.tableName);
+            var keys = await MySqlManagementUtils.GetPrimaryKeysForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
 

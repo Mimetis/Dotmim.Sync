@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Web
         /// Gets or Sets if error is Local or Remote side
         /// </summary>
         [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public SyncExceptionSide Side { get; set; }
+        public SyncSide Side { get; set; }
 
     }
 }

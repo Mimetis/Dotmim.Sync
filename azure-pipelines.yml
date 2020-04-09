@@ -18,9 +18,30 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL 2017 on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx
-        name: alltests
-        displayName: "All Tests"
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx
+        name: standalonetests
+        displayName: "Standalone Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx
+        name: unittests
+        displayName: "Unit Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServer --logger trx
+        name: sqlserverintegrationtests
+        displayName: "SQL Server Integration Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySql --logger trx
+        name: mysqlintegrationtests
+        displayName: "MySql  Integration Tests"
         continueOnError: true
         env:
           "AZUREDEV": "true"

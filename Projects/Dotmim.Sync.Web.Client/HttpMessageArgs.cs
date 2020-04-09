@@ -1,13 +1,9 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
-
 using System;
 using System.Collections.Generic;
 using System.Text;
-
 using Dotmim.Sync.Enumerations;
-
-using Dotmim.Sync.Messages;
 using System.Runtime.Serialization;
 using System.Data.Common;
 
@@ -41,6 +37,14 @@ namespace Dotmim.Sync.Web.Client
     public class HttpMessageEnsureScopesResponseArgs : ProgressArgs
     {
         public HttpMessageEnsureScopesResponseArgs(byte[] content) : base(null, null, null)
+            => this.Content = content;
+
+        public byte[] Content { get; }
+    }
+
+    public class HttpMessageEnsureSchemaResponseArgs : ProgressArgs
+    {
+        public HttpMessageEnsureSchemaResponseArgs(byte[] content) : base(null, null, null)
             => this.Content = content;
 
         public byte[] Content { get; }

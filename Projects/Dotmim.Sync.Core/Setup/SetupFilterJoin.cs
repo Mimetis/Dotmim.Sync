@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace Dotmim.Sync
@@ -50,25 +51,60 @@ namespace Dotmim.Sync
     }
 
 
-    public struct SetupFilterJoin
+    [DataContract(Name = "sfj"), Serializable]
+    public class SetupFilterJoin : IEquatable<SetupFilterJoin>
     {
-        internal Join joinEnum;
-        internal string tableName;
-        internal string leftTableName;
-        internal string leftColumnName;
-        internal string rightTableName;
-        internal string rightColumnName;
+        [DataMember(Name = "je", IsRequired = true, Order = 1)]
+        public Join JoinEnum { get; set; }
 
+        [DataMember(Name = "tn", IsRequired = true, Order = 2)]
+        public string TableName { get; set; }
+
+        [DataMember(Name = "ltn", IsRequired = true, Order = 3)]
+        public string LeftTableName { get; set; }
+
+        [DataMember(Name = "lcn", IsRequired = true, Order = 4)]
+        public string LeftColumnName { get; set; }
+
+        [DataMember(Name = "rtn", IsRequired = true, Order = 5)]
+        public string RightTableName { get; set; }
+
+        [DataMember(Name = "rcn", IsRequired = true, Order = 6)]
+        public string RightColumnName { get; set; }
         public SetupFilterJoin(Join joinEnum, string tableName, string leftTableName, string leftColumnName, string rightTableName, string rightColumnName)
         {
-            this.joinEnum = joinEnum;
-            this.tableName = tableName;
-            this.leftTableName = leftTableName;
-            this.leftColumnName = leftColumnName;
-            this.rightTableName = rightTableName;
-            this.rightColumnName = rightColumnName;
+            this.JoinEnum = joinEnum;
+            this.TableName = tableName;
+            this.LeftTableName = leftTableName;
+            this.LeftColumnName = leftColumnName;
+            this.RightTableName = rightTableName;
+            this.RightColumnName = rightColumnName;
         }
 
+        public bool Equals(SetupFilterJoin other)
+        {
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return this.JoinEnum == other.JoinEnum
+                && string.Equals(this.TableName, other.TableName, sc)
+                && string.Equals(this.LeftColumnName, other.LeftColumnName, sc)
+                && string.Equals(this.LeftTableName, other.LeftTableName, sc)
+                && string.Equals(this.RightColumnName, other.RightColumnName, sc)
+                && string.Equals(this.RightTableName, other.RightTableName, sc);
+        }
+
+        public override bool Equals(object obj) => this.Equals(obj as SetupFilterJoin);
+
+        public override int GetHashCode() => base.GetHashCode();
+
+        public static bool operator ==(SetupFilterJoin left, SetupFilterJoin right)
+            => EqualityComparer<SetupFilterJoin>.Default.Equals(left, right);
+
+        public static bool operator !=(SetupFilterJoin left, SetupFilterJoin right)
+            => !(left == right);
     }
 
 

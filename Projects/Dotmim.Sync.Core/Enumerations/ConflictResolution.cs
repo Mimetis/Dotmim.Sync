@@ -19,6 +19,11 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// Indicates that you will manage the conflict by filling the final row and sent it to both client and server
         /// </summary>
-        MergeRow
+        MergeRow,
+
+        /// <summary>
+        /// Indicates that you want to rollback the whole sync process
+        /// </summary>
+        Rollback
     }
 }
