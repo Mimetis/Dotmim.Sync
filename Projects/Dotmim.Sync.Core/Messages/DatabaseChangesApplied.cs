@@ -11,6 +11,15 @@ namespace Dotmim.Sync
     [DataContract(Name = "dca"), Serializable]
     public class DatabaseChangesApplied
     {
+
+        /// <summary>
+        /// ctor for serialization purpose
+        /// </summary>
+        public DatabaseChangesApplied()
+        {
+
+        }
+
         /// <summary>
         /// Get the view to be applied 
         /// </summary>

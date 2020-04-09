@@ -13,15 +13,23 @@ namespace Dotmim.Sync
     public class TableChangesApplied
     {
         /// <summary>
+        /// ctor for serialization purpose
+        /// </summary>
+        public TableChangesApplied()
+        {
+                
+        }
+
+        /// <summary>
         /// Gets or sets the name of the table that the DmTableSurrogate object represents.
         /// </summary>
-        [DataMember(Name = "n", IsRequired = true, Order = 1)]
+        [DataMember(Name = "tn", IsRequired = true, Order = 1)]
         public string TableName { get; set; }
 
         /// <summary>
         /// Get or Set the schema used for the DmTableSurrogate
         /// </summary>
-        [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string SchemaName { get; set; }
 
         /// <summary>
@@ -33,7 +41,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the resolved conflict rows applied count
         /// </summary>
-        [DataMember(Name = "c", IsRequired = true, Order = 4)]
+        [DataMember(Name = "rc", IsRequired = true, Order = 4)]
         public int ResolvedConflicts { get; set; }
 
         /// <summary>

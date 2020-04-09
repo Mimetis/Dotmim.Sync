@@ -78,7 +78,7 @@ namespace Dotmim.Sync
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // launch interceptor if any
-                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction), cancellationToken).ConfigureAwait(false);
+                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Select initialize changes command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, true);
