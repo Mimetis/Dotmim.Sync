@@ -112,7 +112,7 @@ setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
 ```
 Tables `Customer`, `CustomerAddress` and `SalesLT.SalesOrderHeader` will filter their rows, based on the `CustomerID` column value.
 
-> Filtering rows is a quite complex thing. More information here : [Filtering](/Filters)
+> Filtering rows is a quite complex thing. More information here : [Filtering](./Filters)
 
 
 ### Database configuration

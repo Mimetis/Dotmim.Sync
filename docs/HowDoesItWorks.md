@@ -82,4 +82,4 @@ Here is the big picture of this more advanced scenario:
 
 ![Simple Http architecture 2](/assets/Architecture03.png)
 
-You can read more on the web architecture and how to implement it, here : [Asp.net Core Web Api sync proxy](/web)
+You can read more on the web architecture and how to implement it, here : [Asp.net Core Web Api sync proxy](/Dotmim.Sync/Web)
