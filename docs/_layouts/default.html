@@ -45,10 +45,15 @@
                 {% endif %}
             </section>
             <hr>
-            <section id="main_content">
-                {{ content }}
-            </section>
-
+            <div >
+                <div id="navbar">
+                    {% include summary.html %}
+                  </div>
+            
+                <section id="main_content">
+                    {{ content }}
+                </section>
+            </div>
             <footer>
                 {% if site.github.is_project_page %}
                 {{ site.title | default: site.github.repository_name }} is maintained by <a
