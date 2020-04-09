@@ -80,18 +80,18 @@ namespace Dotmim.Sync
             foreach (var s in setupFilter.Parameters)
                 item.Parameters.Add(new SyncFilterParameter { Name = s.Name, SchemaName = s.SchemaName, TableName = s.TableName, DbType = s.DbType, DefaultValue = s.DefaultValue, AllowNull = s.AllowNull, MaxLength = s.MaxLength });
 
-            foreach (var s in setupFilter.Where)
-                item.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = s.columName, TableName = s.tableName, SchemaName = s.schemaName, ParameterName = s.parameterName });
+            foreach (var s in setupFilter.Wheres)
+                item.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = s.ColumnName, TableName = s.TableName, SchemaName = s.SchemaName, ParameterName = s.ParameterName });
 
             foreach (var s in setupFilter.Joins)
                 item.Joins.Add(new SyncFilterJoin
                 {
-                    TableName = s.tableName,
-                    JoinEnum = s.joinEnum,
-                    LeftTableName = s.leftTableName,
-                    LeftColumnName = s.leftColumnName,
-                    RightTableName = s.rightTableName,
-                    RightColumnName = s.rightColumnName,
+                    TableName = s.TableName,
+                    JoinEnum = s.JoinEnum,
+                    LeftTableName = s.LeftTableName,
+                    LeftColumnName = s.LeftColumnName,
+                    RightTableName = s.RightTableName,
+                    RightColumnName = s.RightColumnName,
                 });
 
             foreach (var s in setupFilter.CustomWheres)

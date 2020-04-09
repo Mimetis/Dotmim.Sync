@@ -41,11 +41,11 @@ In some circumstances, you may want to provision manually your database (server 
 * If you have a really big database, the provision step could be really long, so it could be better to provision the server side before any sync process.
 * If you have to modify your schema. You will have to *deprovision* then *edit* your schema then *provision* again your database.
 
-That's why the **Dotmim.Sync** framework contains several methods to let you control how, and when, you want to provision and deprovision your database.
+That's why the **DMS** framework contains several methods to let you control how, and when, you want to provision and deprovision your database.
 
-Each provider (inheriting from `CoreProvider`) has two main methods, basically:
-* `ProvisionAsync(string[] tables, SyncProvision provision)`
-* `DeprovisionAsync(string[] tables, SyncProvision provision)`
+Each orchestrator has two main methods, basically:
+* `ProvisionAsync(SyncSet schema, SyncProvision provision)`
+* `DeprovisionAsync(SyncSet schema, SyncProvision provision)`
 
 the `SyncProvision` enum parameter lets you decide which kind of objects (tables, stored proc, triggers or tracking tables) you will provision on your target database.
 
@@ -54,46 +54,55 @@ the `SyncProvision` enum parameter lets you decide which kind of objects (tables
 public enum SyncProvision
 {
     Table = 1,
-    Triggers = 2,
+    TrackingTable = 2,
     StoredProcedures = 4,
-    TrackingTable = 8,
-    All = 16
+    Triggers = 8,
+    ClientScope = 16,
+    ServerScope = 32,
+    ServerHistoryScope = 64,
 }
 
 ```
 For instance, here is the code you need to implement to be able to provision a database :
 
 ```csharp
-SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
+var serverProvider = new SqlSyncProvider(serverConnectionString);
+var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-// tables to provision
-var tables = new string[] { "Customers", "Region" };
+// Create a local orchestrator, to manage the local database
+var localOrchestrator = new LocalOrchestrator(clientProvider, Config.GetClientOptions(), Config.GetSetup());
 
-// Stored procedures, tracking tables and triggers
-await clientProvider.ProvisionAsync(tables, 
-                    SyncProvision.StoredProcedures 
-                    | SyncProvision.TrackingTable 
-                    | SyncProvision.Triggers);
+// Create a remote orchestrator, to manage hub server database
+var remoteOrchestrator = new RemoteOrchestrator(serverProvider, Config.GetClientOptions(), Config.GetSetup());
+
+// Get schema from server side
+var schema = await remoteOrchestrator.GetSchemaAsync();
+
+var provision = SyncProvision.ClientScope | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
+
+// provision the local database
+await localOrchestrator.ProvisionAsync(schema, provision);
 ```
 
 ## Manually Deprovision
 
-Like provisioning, deprovisioning uses basically the same method :
+Like provisioning, deprovisioning uses basically the same method.
+We don't need the full schema to be able to deprovision a table, so far, a `Setup` instance is enough
 
 ```csharp
-SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
+var serverProvider = new SqlSyncProvider(serverConnectionString);
+var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-// tables to provision
-var tables = new string[] { "Customers", "Region" };
+var setup = new SyncSetup(new string[]{"Product", "ProductCategory"});
 
-// Stored procedures, tracking tables and triggers
-await clientProvider.DeprovisionAsync(tables, 
-                    SyncProvision.StoredProcedures 
-                    | SyncProvision.TrackingTable 
-                    | SyncProvision.Triggers);
+// Create a local orchestrator, to manage the local database
+var localOrchestrator = new LocalOrchestrator(clientProvider, new SyncOptions(), setup);
 
+var provision = SyncProvision.ClientScope | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
+
+// provision the local database
+await localOrchestrator.DeprovisionAsync(schema, provision);
 ```
-**Be careful**, if you specify `SyncProvision.All`, **all** your database schema will be deleted (even your base tables). Uses **All** with caution (Most of the time, this value is needed only from the client side)
 
 ## Managing a database migration
 
@@ -118,12 +127,18 @@ private static async Task AlterSchemasAsync()
     SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
     SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
 
-    // tables to edit
-    var tables = new string[] { "Customers" };
+    var options = new SyncOptions();
+
+    // tables to deprovision
+    var setup new SyncSetup(new string[]{"Customers"});
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
+    var remoteOrchestrator = new RemoteOrchestrator(clientProvider, options, setup);
+
 
     // delete triggers and sp
-    await serverProvider.DeprovisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
-    await clientProvider.DeprovisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
 
     // use whatever you want to edit your schema
     // add column on server
@@ -143,12 +158,15 @@ private static async Task AlterSchemasAsync()
         cs.Close();
     }
 
-    // Provision again
-    await serverProvider.ProvisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
-    await clientProvider.ProvisionAsync(tables, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    // Get schema from server side
+    var schema = await remoteOrchestrator.GetSchemaAsync();
 
-  // sync !
-  await this.SynchronizeAsync();
+    // Provision again
+    await serverProvider.ProvisionAsync(schema, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    await clientProvider.ProvisionAsync(schema, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+    // sync !
+    await this.SynchronizeAsync();
 }
 ```
 

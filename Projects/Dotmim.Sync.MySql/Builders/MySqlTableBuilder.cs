@@ -15,19 +15,19 @@ namespace Dotmim.Sync.MySql
 
         MySqlObjectNames sqlObjectNames;
        
-        public MyTableSqlBuilder(SyncTable tableDescription) : base(tableDescription)
+        public MyTableSqlBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
         {
-            sqlObjectNames = new MySqlObjectNames(tableDescription);
+            sqlObjectNames = new MySqlObjectNames(tableDescription, setup);
         }
 
-        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
+        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;
 
             var originalTableName = ParserName.Parse(tableDescription, "`");
 
-            var pref = tableDescription.Schema.TrackingTablesPrefix != null ? tableDescription.Schema.TrackingTablesPrefix : "";
-            var suf = tableDescription.Schema.TrackingTablesSuffix != null ? tableDescription.Schema.TrackingTablesSuffix : "";
+            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
+            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table
@@ -55,27 +55,27 @@ namespace Dotmim.Sync.MySql
 
          public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderProcedure(TableDescription, connection, transaction);
+            return new MySqlBuilderProcedure(TableDescription, Setup, connection, transaction);
         }
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderTrigger(TableDescription, connection, transaction);
+            return new MySqlBuilderTrigger(TableDescription, Setup, connection, transaction);
         }
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderTable(TableDescription, connection, transaction);
+            return new MySqlBuilderTable(TableDescription, Setup, connection, transaction);
         }
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderTrackingTable(TableDescription, connection, transaction);
+            return new MySqlBuilderTrackingTable(TableDescription, Setup, connection, transaction);
         }
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlSyncAdapter(TableDescription, connection, transaction);
+            return new MySqlSyncAdapter(TableDescription, Setup, connection, transaction);
         }
     }
 }

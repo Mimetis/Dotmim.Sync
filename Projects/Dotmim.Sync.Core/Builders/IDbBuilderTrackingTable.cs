@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
@@ -12,10 +13,10 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTrackingTableHelper
     {
-        bool NeedToCreateTrackingTable();
-        void CreateTable();
-        void DropTable();
-        void CreatePk();
-        void CreateIndex();
+        Task<bool> NeedToCreateTrackingTableAsync();
+        Task CreateTableAsync();
+        Task DropTableAsync();
+        Task CreatePkAsync();
+        Task CreateIndexAsync();
     }
 }

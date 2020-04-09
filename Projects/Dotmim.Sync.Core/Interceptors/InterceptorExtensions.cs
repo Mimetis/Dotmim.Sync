@@ -7,300 +7,351 @@ namespace Dotmim.Sync
     public static class InterceptorsExtensions
     {
 
-        private static void SetInterceptor<T>(this IOrchestrator orchestrator, Func<T, Task> func) where T : ProgressArgs 
-            => orchestrator.Provider.On(func);
+        private static void SetInterceptor<T>(this BaseOrchestrator orchestrator, Func<T, Task> func) where T : ProgressArgs 
+            => orchestrator.On(func);
 
-        private static void SetInterceptor<T>(this IOrchestrator orchestrator, Action<T> action) where T : ProgressArgs 
-            => orchestrator.Provider.On(action);
+        private static void SetInterceptor<T>(this BaseOrchestrator orchestrator, Action<T> action) where T : ProgressArgs 
+            => orchestrator.On(action);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is opened
         /// </summary>
-        public static void OnConnectionOpen(this IOrchestrator orchestrator, Func<ConnectionOpenArgs, Task> func)
+        public static void OnConnectionOpen(this BaseOrchestrator orchestrator, Func<ConnectionOpenedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is opened
         /// </summary>
-        public static void OnConnectionOpen(this IOrchestrator orchestrator, Action<ConnectionOpenArgs> action)
+        public static void OnConnectionOpen(this BaseOrchestrator orchestrator, Action<ConnectionOpenedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action whenever a transaction is opened
         /// </summary>
-        public static void OnTransactionOpen(this IOrchestrator orchestrator, Action<TransactionOpenArgs> action)
+        public static void OnTransactionOpen(this BaseOrchestrator orchestrator, Action<TransactionOpenedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action whenever a transaction is opened
         /// </summary>
-        public static void OnTransactionOpen(this IOrchestrator orchestrator, Func<ConnectionOpenArgs, Task> func)
+        public static void OnTransactionOpen(this BaseOrchestrator orchestrator, Func<ConnectionOpenedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is closed
         /// </summary>
-        public static void OnConnectionClose(this IOrchestrator orchestrator, Func<ConnectionCloseArgs, Task> func)
+        public static void OnConnectionClose(this BaseOrchestrator orchestrator, Func<ConnectionClosedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is closed
         /// </summary>
-        public static void OnConnectionClose(this IOrchestrator orchestrator, Action<ConnectionCloseArgs> action)
+        public static void OnConnectionClose(this BaseOrchestrator orchestrator, Action<ConnectionClosedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action whenever a transaction is commit
         /// </summary>
-        public static void OnTransactionCommit(this IOrchestrator orchestrator, Action<TransactionCommitArgs> action)
+        public static void OnTransactionCommit(this BaseOrchestrator orchestrator, Action<TransactionCommitArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action whenever a transaction is commit
         /// </summary>
-        public static void OnTransactionCommit(this IOrchestrator orchestrator, Func<TransactionCommitArgs, Task> func)
+        public static void OnTransactionCommit(this BaseOrchestrator orchestrator, Func<TransactionCommitArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when session begin is called
         /// </summary>
-        public static void OnOutdated(this IOrchestrator orchestrator, Func<OutdatedArgs, Task> func)
+        public static void OnOutdated(this BaseOrchestrator orchestrator, Func<OutdatedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when session begin is called
         /// </summary>
-        public static void OnOutdated(this IOrchestrator orchestrator, Action<OutdatedArgs> action)
+        public static void OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
+        /// Intercept the orchestrator when creating a snapshot
+        /// </summary>
+        public static void OnSnapshotCreating(this BaseOrchestrator orchestrator, Func<SnapshotCreatingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when creating a snapshot
+        /// </summary>
+        public static void OnSnapshotCreating(this BaseOrchestrator orchestrator, Action<SnapshotCreatingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been created
+        /// </summary>
+        public static void OnSnapshotCreated(this BaseOrchestrator orchestrator, Func<SnapshotCreatedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been created
+        /// </summary>
+        public static void OnSnapshotCreated(this BaseOrchestrator orchestrator, Action<SnapshotCreatedArgs> action)
             => orchestrator.SetInterceptor(action);
 
 
         /// <summary>
         /// Occurs just before saving a serialized set to disk
         /// </summary>
-        public static void OnSerializingSet(this IOrchestrator orchestrator, Func<SerializingSetArgs, Task> func)
+        public static void OnSerializingSet(this BaseOrchestrator orchestrator, Func<SerializingSetArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Occurs just before saving a serialized set to disk
         /// </summary>
-        public static void OnSerializingSet(this IOrchestrator orchestrator, Action<SerializingSetArgs> action)
+        public static void OnSerializingSet(this BaseOrchestrator orchestrator, Action<SerializingSetArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Occurs just after loading a serialized set from disk
+        /// </summary>
+        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Func<DeserializingSetArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Occurs just after loading a serialized set from disk
+        /// </summary>
+        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Action<DeserializingSetArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an apply change is failing
         /// </summary>
-        public static void OnApplyChangesFailed(this IOrchestrator orchestrator, Func<ApplyChangesFailedArgs, Task> func)
+        public static void OnApplyChangesFailed(this BaseOrchestrator orchestrator, Func<ApplyChangesFailedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider when an apply change is failing
         /// </summary>
-        public static void OnApplyChangesFailed(this IOrchestrator orchestrator, Action<ApplyChangesFailedArgs> action)
+        public static void OnApplyChangesFailed(this BaseOrchestrator orchestrator, Action<ApplyChangesFailedArgs> action)
             => orchestrator.SetInterceptor(action);
 
 
         /// <summary>
         /// Intercept the provider action when session begin is called
         /// </summary>
-        public static void OnSessionBegin(this IOrchestrator orchestrator, Func<SessionBeginArgs, Task> func)
+        public static void OnSessionBegin(this BaseOrchestrator orchestrator, Func<SessionBeginArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when session begin is called
         /// </summary>
-        public static void OnSessionBegin(this IOrchestrator orchestrator, Action<SessionBeginArgs> action)
+        public static void OnSessionBegin(this BaseOrchestrator orchestrator, Action<SessionBeginArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when session end is called
         /// </summary>
-        public static void OnSessionEnd(this IOrchestrator orchestrator, Func<SessionEndArgs, Task> func)
+        public static void OnSessionEnd(this BaseOrchestrator orchestrator, Func<SessionEndArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when session end is called
         /// </summary>
-        public static void OnSessionEnd(this IOrchestrator orchestrator, Action<SessionEndArgs> action)
+        public static void OnSessionEnd(this BaseOrchestrator orchestrator, Action<SessionEndArgs> action)
             => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this BaseOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this BaseOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this BaseOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this BaseOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
 
         /// <summary>
         /// Intercept the provider when schema is readed
         /// </summary>
-        public static void OnSchema(this IOrchestrator orchestrator, Func<SchemaArgs, Task> func)
+        public static void OnSchemaRead(this BaseOrchestrator orchestrator, Func<SchemaArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider when schema is readed
         /// </summary>
-        public static void OnSchema(this IOrchestrator orchestrator, Action<SchemaArgs> action)
+        public static void OnSchemaRead(this BaseOrchestrator orchestrator, Action<SchemaArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider before it begins a database deprovisioning
         /// </summary>
-        public static void OnDatabaseDeprovisioning(this IOrchestrator orchestrator, Func<DatabaseDeprovisioningArgs, Task> func)
+        public static void OnDatabaseDeprovisioning(this BaseOrchestrator orchestrator, Func<DatabaseDeprovisioningArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider before it begins a database deprovisioning
         /// </summary>
-        public static void OnDatabaseDeprovisioning(this IOrchestrator orchestrator, Action<DatabaseDeprovisioningArgs> action)
+        public static void OnDatabaseDeprovisioning(this BaseOrchestrator orchestrator, Action<DatabaseDeprovisioningArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a database
         /// </summary>
-        public static void OnDatabaseDeprovisioned(this IOrchestrator orchestrator, Func<DatabaseDeprovisionedArgs, Task> func)
+        public static void OnDatabaseDeprovisioned(this BaseOrchestrator orchestrator, Func<DatabaseDeprovisionedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a database
         /// </summary>
-        public static void OnDatabaseDeprovisioned(this IOrchestrator orchestrator, Action<DatabaseDeprovisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table deprovisioning
-        /// </summary>
-        public static void OnTabeDeprovisioning(this IOrchestrator orchestrator, Func<TableDeprovisioningArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table deprovisioning
-        /// </summary>
-        public static void OnTabeDeprovisioning(this IOrchestrator orchestrator, Action<TableDeprovisioningArgs> action)
+        public static void OnDatabaseDeprovisioned(this BaseOrchestrator orchestrator, Action<DatabaseDeprovisionedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a table
         /// </summary>
-        public static void OnTabledDeprovisioned(this IOrchestrator orchestrator, Func<TableDeprovisionedArgs, Task> func)
+        public static void OnTableDeprovisioned(this BaseOrchestrator orchestrator, Func<TableDeprovisionedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a table
         /// </summary>
-        public static void OnTabledDeprovisioned(this IOrchestrator orchestrator, Action<TableDeprovisionedArgs> action)
+        public static void OnTableDeprovisioned(this BaseOrchestrator orchestrator, Action<TableDeprovisionedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider before it begins a database provisioning
         /// </summary>
-        public static void OnDatabaseProvisioning(this IOrchestrator orchestrator, Func<DatabaseProvisioningArgs, Task> func)
+        public static void OnDatabaseProvisioning(this BaseOrchestrator orchestrator, Func<DatabaseProvisioningArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider before it begins a database provisioning
         /// </summary>
-        public static void OnDatabaseProvisioning(this IOrchestrator orchestrator, Action<DatabaseProvisioningArgs> action)
+        public static void OnDatabaseProvisioning(this BaseOrchestrator orchestrator, Action<DatabaseProvisioningArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has provisioned a database
         /// </summary>
-        public static void OnDatabaseProvisioned(this IOrchestrator orchestrator, Func<DatabaseProvisionedArgs, Task> func)
+        public static void OnDatabaseProvisioned(this BaseOrchestrator orchestrator, Func<DatabaseProvisionedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider after it has provisioned a database
         /// </summary>
-        public static void OnDatabaseProvisioned(this IOrchestrator orchestrator, Action<DatabaseProvisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table provisioning
-        /// </summary>
-        public static void OnTabeProvisioning(this IOrchestrator orchestrator, Func<TableDeprovisioningArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
-
-        /// <summary>
-        /// Intercept the provider before it begins a table provisioning
-        /// </summary>
-        public static void OnTabeProvisioning(this IOrchestrator orchestrator, Action<TableDeprovisioningArgs> action)
+        public static void OnDatabaseProvisioned(this BaseOrchestrator orchestrator, Action<DatabaseProvisionedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has provisioned a table
         /// </summary>
-        public static void OnTabledProvisioned(this IOrchestrator orchestrator, Func<TableProvisionedArgs, Task> func)
+        public static void OnTableProvisioned(this BaseOrchestrator orchestrator, Func<TableProvisionedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider after it has provisioned a table
         /// </summary>
-        public static void OnTabledProvisioned(this IOrchestrator orchestrator, Action<TableProvisionedArgs> action)
+        public static void OnTableProvisioned(this BaseOrchestrator orchestrator, Action<TableProvisionedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider before it will provisioned a table
+        /// </summary>
+        public static void OnTableProvisioning(this BaseOrchestrator orchestrator, Func<TableProvisioningArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider before it will provisioned a table
+        /// </summary>
+        public static void OnTableProvisioning(this BaseOrchestrator orchestrator, Action<TableProvisioningArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelecting(this IOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> func)
+        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelecting(this IOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
+        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelected(this IOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> func)
+        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelected(this IOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
+        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesApplying(this IOrchestrator orchestrator, Func<TableChangesApplyingArgs, Task> func)
+        public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Func<TableChangesApplyingArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesApplying(this IOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
+        public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesApplied(this IOrchestrator orchestrator, Func<TableChangesAppliedArgs, Task> func)
+        public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Func<TableChangesAppliedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesApplied(this IOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
+        public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplying(this IOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
+        public static void OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplying(this IOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
+        public static void OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplied(this IOrchestrator orchestrator, Func<DatabaseChangesAppliedArgs, Task> func)
+        public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Func<DatabaseChangesAppliedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplied(this IOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
+        public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
             => orchestrator.SetInterceptor(func);
 
 

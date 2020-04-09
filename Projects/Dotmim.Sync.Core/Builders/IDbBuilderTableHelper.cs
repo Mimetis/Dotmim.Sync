@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
@@ -12,13 +12,13 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTableHelper
     {
-        bool NeedToCreateTable();
-        bool NeedToCreateSchema();
-        bool NeedToCreateForeignKeyConstraints(SyncRelation constraint);
-        void CreateSchema();
-        void CreateTable();
-        void CreatePrimaryKey();
-        void CreateForeignKeyConstraints(SyncRelation constraint);
-        void DropTable();
+       Task<bool> NeedToCreateTableAsync();
+       Task<bool> NeedToCreateSchemaAsync();
+       Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint);
+       Task CreateSchemaAsync();
+       Task CreateTableAsync();
+       Task CreatePrimaryKeyAsync();
+       Task CreateForeignKeyConstraintsAsync(SyncRelation constraint);
+       Task DropTableAsync();
     }
 }
