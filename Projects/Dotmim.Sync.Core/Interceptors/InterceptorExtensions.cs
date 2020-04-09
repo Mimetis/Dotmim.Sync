@@ -354,6 +354,30 @@ namespace Dotmim.Sync
         public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
             => orchestrator.SetInterceptor(func);
 
+        /// <summary>
+        /// Occurs when changes are going to be queried on the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Occurs when changes are going to be queried on the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectingArgs> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Occurs when changes have been retrieved from the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Occurs when changes have been retrieved from the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectedArgs> func)
+            => orchestrator.SetInterceptor(func);
+
 
     }
 }
