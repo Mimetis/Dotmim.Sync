@@ -2,9 +2,10 @@
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Text;
 using System.Threading.Tasks;
+
 
 namespace Dotmim.Sync.SampleConsole
 {
@@ -13,6 +14,12 @@ namespace Dotmim.Sync.SampleConsole
 
         public static string GetDatabaseConnectionString(string dbName) =>
             $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog={dbName}; Integrated Security=true;";
+
+        public static string GetLocalhostDatabaseConnectionString(string dbName) =>
+            $"Data Source=localhost; Initial Catalog={dbName}; Integrated Security=true;";
+
+        public static string GetAzureDatabaseConnectionString(string dbName) =>
+            $"Data Source=spertus.database.windows.net; Initial Catalog={dbName}; Integrated Security=true;";
 
 
 

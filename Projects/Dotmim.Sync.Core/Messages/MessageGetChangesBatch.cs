@@ -2,17 +2,18 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Messages
+namespace Dotmim.Sync
 {
     /// <summary>
     /// Message exchanged during the Get Changes Batch sync stage
     /// </summary>
     public class MessageGetChangesBatch
     {
-        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long lastTimestamp,  SyncSet schema, 
+        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long lastTimestamp, SyncSet schema, SyncSetup setup,
                                       int batchSize, string batchDirectory)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
+            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
             this.ExcludingScopeId = excludingScopeId;
             this.LocalScopeId = localScopeId;
@@ -48,6 +49,11 @@ namespace Dotmim.Sync.Messages
         /// Gets or Sets the schema used for this sync
         /// </summary>
         public SyncSet Schema { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the Setup used for this sync
+        /// </summary>
+        public SyncSetup Setup { get; }
 
         /// <summary>
         /// Gets or Sets the download batch size, if needed

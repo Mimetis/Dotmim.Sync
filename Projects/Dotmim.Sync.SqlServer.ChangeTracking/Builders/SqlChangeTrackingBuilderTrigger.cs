@@ -6,10 +6,11 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -17,11 +18,11 @@ namespace Dotmim.Sync.SqlServer.Builders
     {
 
 
-        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, DbConnection connection, DbTransaction transaction = null)
-            : base(tableDescription, connection, transaction)
+        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+            : base(tableDescription, setup, connection, transaction)
         {
         }
 
-        public override bool NeedToCreateTrigger(DbTriggerType type) => false;
+        public override Task<bool> NeedToCreateTriggerAsync(DbTriggerType type) => Task.FromResult(false);
     }
 }

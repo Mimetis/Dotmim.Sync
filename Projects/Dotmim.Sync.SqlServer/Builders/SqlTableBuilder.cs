@@ -1,8 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
-using System;
-using System.Text;
-
 using System.Data.Common;
+using System.Text;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -16,15 +14,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public SqlObjectNames ObjectNames { get; private set; }
 
-        public SqlTableBuilder(SyncTable tableDescription) : base(tableDescription) 
-            => this.ObjectNames = new SqlObjectNames(tableDescription);
+        public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
+            => this.ObjectNames = new SqlObjectNames(tableDescription, setup);
 
-        public static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription)
+        public static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             var originalTableName = ParserName.Parse(tableDescription);
 
-            var pref = tableDescription.Schema.TrackingTablesPrefix;
-            var suf = tableDescription.Schema.TrackingTablesSuffix;
+            var pref = setup.TrackingTablesPrefix;
+            var suf = setup.TrackingTablesSuffix;
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table
@@ -37,7 +35,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
 
             var trackingTableName = ParserName.Parse(trakingTableNameString);
-           
+
             return (originalTableName, trackingTableName);
         }
         public static string WrapScriptTextWithComments(string commandText, string commentText, bool includeGo = true, int indentLevel = 0)
@@ -61,27 +59,27 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderProcedure(TableDescription, connection, transaction);
+            return new SqlBuilderProcedure(TableDescription, Setup, connection, transaction);
         }
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderTrigger(TableDescription, connection, transaction);
+            return new SqlBuilderTrigger(TableDescription, Setup, connection, transaction);
         }
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderTable(TableDescription, connection, transaction);
+            return new SqlBuilderTable(TableDescription, Setup, connection, transaction);
         }
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderTrackingTable(TableDescription, connection, transaction);
+            return new SqlBuilderTrackingTable(TableDescription, Setup, connection, transaction);
         }
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlSyncAdapter(TableDescription, connection, transaction);
+            return new SqlSyncAdapter(TableDescription, Setup, connection, transaction);
         }
     }
 }

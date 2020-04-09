@@ -10,9 +10,14 @@ using System.Text;
 
 namespace Dotmim.Sync
 {
+    [CollectionDataContract(Name = "fils", ItemName = "fil"), Serializable]
     public class SetupFilters : ICollection<SetupFilter>, IList<SetupFilter>
     {
-        private Collection<SetupFilter> innerCollection = new Collection<SetupFilter>();
+        /// <summary>
+        /// Exposing the InnerCollection for serialization purpose
+        /// </summary>
+        [DataMember(Name = "c", IsRequired = true, Order = 1)]
+        public Collection<SetupFilter> InnerCollection = new Collection<SetupFilter>();
 
         /// <summary>
         /// Create a default collection for Serializers
@@ -26,10 +31,10 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(SetupFilter item)
         {
-            if (innerCollection.Any(st => item == st))
+            if (InnerCollection.Any(st => item == st))
                 throw new FilterAlreadyExistsException(item.TableName);
 
-            this.innerCollection.Add(item);
+            this.InnerCollection.Add(item);
         }
 
         /// <summary>
@@ -51,20 +56,20 @@ namespace Dotmim.Sync
         }
 
 
-        public void Clear() => this.innerCollection.Clear();
-        public SetupFilter this[int index] => innerCollection[index];
-        public int Count => innerCollection.Count;
+        public void Clear() => this.InnerCollection.Clear();
+        public SetupFilter this[int index] => InnerCollection[index];
+        public int Count => InnerCollection.Count;
         public bool IsReadOnly => false;
-        SetupFilter IList<SetupFilter>.this[int index] { get => innerCollection[index]; set => innerCollection[index] = value; }
-        public void Insert(int index, SetupFilter item) => innerCollection.Insert(index, item);
-        public bool Remove(SetupFilter item) => innerCollection.Remove(item);
-        public bool Contains(SetupFilter item) => innerCollection.Any(f => f == item);
-        public void CopyTo(SetupFilter[] array, int arrayIndex) => innerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(SetupFilter item) => innerCollection.IndexOf(item);
-        public void RemoveAt(int index) => innerCollection.RemoveAt(index);
-        IEnumerator IEnumerable.GetEnumerator() => innerCollection.GetEnumerator();
-        public IEnumerator<SetupFilter> GetEnumerator() => innerCollection.GetEnumerator();
-        public override string ToString() => this.innerCollection.Count.ToString();
+        SetupFilter IList<SetupFilter>.this[int index] { get => InnerCollection[index]; set => InnerCollection[index] = value; }
+        public void Insert(int index, SetupFilter item) => InnerCollection.Insert(index, item);
+        public bool Remove(SetupFilter item) => InnerCollection.Remove(item);
+        public bool Contains(SetupFilter item) => InnerCollection.Any(f => f == item);
+        public void CopyTo(SetupFilter[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
+        public int IndexOf(SetupFilter item) => InnerCollection.IndexOf(item);
+        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
+        IEnumerator IEnumerable.GetEnumerator() => InnerCollection.GetEnumerator();
+        public IEnumerator<SetupFilter> GetEnumerator() => InnerCollection.GetEnumerator();
+        public override string ToString() => this.InnerCollection.Count.ToString();
     }
 
 }

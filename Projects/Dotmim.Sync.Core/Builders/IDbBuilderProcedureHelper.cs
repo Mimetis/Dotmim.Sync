@@ -2,8 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-
-
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
@@ -12,27 +11,27 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderProcedureHelper
     {
-        bool NeedToCreateProcedure(DbCommandType commandName);
-        bool NeedToCreateType(DbCommandType typeName);
-        void CreateSelectRow();
-        void CreateSelectIncrementalChanges(SyncFilter filter);
-        void CreateSelectInitializedChanges(SyncFilter filter);
-        void CreateUpdate(bool hasMutableColumns);
-        void CreateDelete();
-        void CreateDeleteMetadata();
-        void CreateTVPType();
-        void CreateBulkUpdate(bool hasMutableColumns);
-        void CreateBulkDelete();
-        void CreateReset();
-        void DropSelectRow();
-        void DropSelectIncrementalChanges(SyncFilter filter);
-        void DropSelectInitializedChanges(SyncFilter filter);
-        void DropUpdate();
-        void DropDelete();
-        void DropDeleteMetadata();
-        void DropTVPType();
-        void DropBulkUpdate();
-        void DropBulkDelete();
-        void DropReset();
+        Task<bool> NeedToCreateProcedureAsync(DbCommandType commandName);
+        Task<bool> NeedToCreateTypeAsync(DbCommandType typeName);
+        Task CreateSelectRowAsync();
+        Task CreateSelectIncrementalChangesAsync(SyncFilter filter);
+        Task CreateSelectInitializedChangesAsync(SyncFilter filter);
+        Task CreateUpdateAsync(bool hasMutableColumns);
+        Task CreateDeleteAsync();
+        Task CreateDeleteMetadataAsync();
+        Task CreateTVPTypeAsync();
+        Task CreateBulkUpdateAsync(bool hasMutableColumns);
+        Task CreateBulkDeleteAsync();
+        Task CreateResetAsync();
+        Task DropSelectRowAsync();
+        Task DropSelectIncrementalChangesAsync(SyncFilter filter);
+        Task DropSelectInitializedChangesAsync(SyncFilter filter);
+        Task DropUpdateAsync();
+        Task DropDeleteAsync();
+        Task DropDeleteMetadataAsync();
+        Task DropTVPTypeAsync();
+        Task DropBulkUpdateAsync();
+        Task DropBulkDeleteAsync();
+        Task DropResetAsync();
     }
 }

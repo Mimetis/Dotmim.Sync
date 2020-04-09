@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Messages;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -12,7 +12,7 @@ namespace Dotmim.Sync
 
     public interface ISyncInterceptor<T> : ISyncInterceptor
     {
-        Task RunAsync(T args);
+        Task RunAsync(T args, CancellationToken cancellationToken);
     }
 
 }

@@ -29,14 +29,22 @@ var serverProvider = new SqlSyncProvider("Data Source= ...");
 // new setup with all tables involved
 var setup = new SyncSetup(allTables);
 
-// Directory used to store snapshots
-var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
+// snapshot directory
+var snapshotDirectoryName = "snapshots";
+var snapshotDirctory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
-// Create the orchestrator based on the remote provider
-var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+var options = new SyncOptions
+{
+    SnapshotsDirectory = snapshotDirctory,
+    BatchSize = 3000
+};
+
+// Create a remote orchestrator
+var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
 
 // Create a snapshot
-await remoteOrchestrator.CreateSnapshot(new SyncContext(), setup, directory, 500, CancellationToken.None);
+await remoteOrchestrator.CreateSnapshotAsync();
+
 
 ```
 Once created, the folder looks like this:
@@ -113,21 +121,19 @@ setup.Filters.Add("Customer", "CustomerId");
 var snapshotCustomer1001 = new SyncContext();
 snapshotCustomer1001.Parameters = new SyncParameters();
 snapshotCustomer1001.Parameters.Add("CustomerId", "1001");
-await Server.RemoteOrchestrator.CreateSnapshotAsync(snapshotCustomer1001, setup, directory, 500);
+
+await Server.RemoteOrchestrator.CreateSnapshotAsync();
 
 ```
 
 ### Activate the snapshot option for all new clients
 
-To activate this snapshot, the server should be able to get each snapshot when requested by a new client.
+To activate this snapshot, the server should know where each snapshot is located.   
 
-The `SyncOptions` (when on `TCP` mode) or `WebServerOptions` (when on `HTTP` mode) has a new property called `SnapshotsDirectory`:
+The `SyncOptions` has a new property called `SnapshotsDirectory`:
 ``` cs
 // Options used for client and server when used in a direct TCP mode:
 var options = new SyncOptions { SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots") };
-
-// Options used for server side when using ASP.NET Core Web API. Will override everything coming from SyncOptions
-var options = new WebServerOptions() { SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots") };
 ```
 
 ### HTTP mode with ASP.Net Core Web API
@@ -146,9 +152,8 @@ public void ConfigureServices(IServiceCollection services)
     var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
     // Set the web server Options
-    var options = new WebServerOptions()
+    var options = new SyncOptions()
     {
-        BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
         SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots")
     };
         

@@ -1,148 +1,135 @@
 # ASP.NET Core 2.0 Web Proxy
 
-In a more realistic world, you will not have *always* a direct TCP link to your local and remote servers.  
-That's why we should use a web proxy, and expose our server through a web api.   
+Let's say... *in the real world*, you will not have *always* a direct TCP link from your client machine to your enterprise server.   
+Even though, it's a good practice to protect you database server behing a web api.    
+That's why we will use a *sync web proxy*, and we will expose our server to sync, through a web api.   
 
-To be able to *proxyfy* everything, you will have to
-* Create a new **ASP.NET Core Web application**. (Don't forget to add the Web API stuff)
-* Add the `Dotmim.Sync.Web.Server` nuget package on your ASP.NET project: [https://www.nuget.org/packages/Dotmim.Sync.Web.Server]()
-    * Add your server provider, like `Dotmim.Sync.SqlServerProvider` for example.
-* Add the `Dotmim.Sync.Web.Client` nuget package on you client application: [https://www.nuget.org/packages/Dotmim.Sync.Web.Client]() 
+We can see the overall architecture with this big picture:
 
-You will find a sample in `/Samples/Dotmim.Sync.SampleWebServer` folder, in the Github repository
+![Simple Http architecture ](/assets/Architecture03.png)
 
+To be able to *proxify* everything, we will have to:
+
+**Server side**:   
+* Create a new **ASP.NET Core Web application**.
+* Add the [`Dotmim.Sync.Web.Server`](https://www.nuget.org/packages/Dotmim.Sync.Web.Server) nuget package to the ASP.NET project.
+* Add the server provider. As we are using sql server with change tracking, we are adding [`Dotmim.Sync.SqlSyncChangeTrackingProvider`](https://www.nuget.org/packages/Dotmim.Sync.SqlServer.ChangeTracking).
+* Add the required configuration to the `Startup.cs` file.
+* Create a new controller and intercept all requests to handle the synchronisation. 
+
+**Client side**:
+* Create any kind of client application (Console, Windows Forms, WPF ...)
+* Add the [`Dotmim.Sync.Web.Client`](https://www.nuget.org/packages/Dotmim.Sync.Web.Client) nuget package to the client application: 
+* Add the client provider. For example the [`Dotmim.Sync.SqliteSyncProvider`](https://www.nuget.org/packages/Dotmim.Sync.Sqlite) 
+* Create a new `SyncAgent` using a local orchestrator with the `SqliteSyncProvider` and a remote `WebClientOrchestrator` orchestrator.
+
+
+## Detailed steps
+We will start from the [Hello sync sample](/Samples/HelloSync) sample and will migrate it to the web architecture.   
+You will find the sample used for this demonstration, here : [Hello web sync sample](/Samples/HelloWebSync).
 
 ## Server side
 
-Once your **ASP.NET** application is created and you have added the `DotMim.Sync` packages to you project, register the Sync provider in the `Startup` class, thanks to Dependency Injection.
+Once your **ASP.NET** application is created, we're adding the specific web server package and our server provider:
+* `Dotmim.Sync.Web.Server`: This package will allow us to expose everything we need, through a **.Net core Web API**
+* `Dotmim.Sync.SqlSyncChangeTrackingProvider`: This package will allow us to communicate with the SQL Server database.
 
-> *Note*: We are using `SyncOptions` and `SyncSetup` in this example, but these objects are optional. Use them only if needed 
+Once we have added these **DMS** packages to our project, we are configuring the Sync provider in the `Startup` class, thanks to Dependency Injection.
+
+Read carefully the next portion of code, since some services are required, but not part of **DMS** (like `MemoryCache` for instance)
 
 ``` cs
 public void ConfigureServices(IServiceCollection services)
 {
-    services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+    services.AddControllers();
 
-    // [Required]: Handling multiple sessions
+    // [Required]: To be able to handle multiple sessions
     services.AddMemoryCache();
 
     // [Required]: Get a connection string to your server data source
     var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
-    // [Optional]: Web server Options. Batching directory and Snapshots directory
-    var options = new WebServerOptions()
-    {
-        BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
-        SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots")
-    };
-
     // [Required]: Tables list involved in the sync process
-    var tables = new string[] {"ProductCategory",
-                     "ProductDescription", "ProductModel",
-                     "Product", "ProductModelProductDescription",
-                     "Address", "Customer", "CustomerAddress",
-                     "SalesOrderHeader", "SalesOrderDetail" };
-
-    // [Optional]: database setup, for objects naming conventions
-    var setup = new SyncSetup(tables)
-    {
-        // optional :
-        StoredProceduresPrefix = "s",
-        StoredProceduresSuffix = "",
-        TrackingTablesPrefix = "s",
-        TrackingTablesSuffix = ""
-    };
+    var tables = new string[] {"ProductCategory", "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
     // [Required]: Add a SqlSyncProvider acting as the server hub.
-    // If you don't specify a SyncSetup object, just add the tables array.
-    services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+    services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables);
 }
 ```
 
 > We have added a memory cache, through `services.AddMemoryCache();`. Having a cache is mandatory to be able to serve multiple requests. 
 
-Once you have correctly configured your service, you can create your controller:
+Once we have correctly configured our sync process, we can create our controller:
 
-* Create a new controller (in my sample, called `SyncController`)
-* In your newly created controller, inject a `WebProxyServerProvider`.   
-* Use it in the Post method, call the `HandleRequestAsync` method and ... **that's all** !
+* Create a new controller (for example `SyncController`)
+* In this newly created controller, inject a `WebServerManager`.   
+* Use it in the `POST` method, call the `HandleRequestAsync` method and ... **that's all** !
+* We can optionally add a `GET` method, to see our configuration from within the web browser. Useful to check if everything is configured correctly.
 
 ``` cs
 [Route("api/[controller]")]
 [ApiController]
 public class SyncController : ControllerBase
 {
-    private WebProxyServerOrchestrator webProxyServer;
+    // The WebServerManager instance is useful to manage all the Web server orchestrators register in the Startup.cs
+    private WebServerManager webServerManager;
 
     // Injected thanks to Dependency Injection
-    public SyncController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
+    public SyncController(WebServerManager webServerManager) => this.webServerManager = webServerManager;
 
+    /// <summary>
+    /// This POST handler is mandatory to handle all the sync process
+    /// </summary>
     [HttpPost]
-    public async Task Post()
-    {
-        // [Optional]: handling conflicts for table Region
-        webProxyServer.WebServerOrchestrator.OnApplyChangesFailed(e =>
-        {
-            if (e.Conflict.RemoteRow.Table.TableName == "Region")
-            {
-                e.Resolution = ConflictResolution.MergeRow;
-                e.FinalRow["RegionDescription"] = "Eastern alone !";
-            }
-            else
-            {
-                e.Resolution = ConflictResolution.ServerWins;
-            }
-        });
+    public async Task Post() => await webServerManager.HandleRequestAsync(this.HttpContext);
 
-        //[Required]: Handling everything from an incoming request
-        await webProxyServer.HandleRequestAsync(this.HttpContext);
-    }
+    /// <summary>
+    /// This GET handler is optional. It allows you to see the configuration hosted on the server
+    /// The configuration is shown only if Environmenent == Development
+    /// </summary>
+    [HttpGet]
+    public async Task Get() => await webServerManager.HandleRequestAsync(this.HttpContext);
 }
 
 ```
 
+Launch your browser and try to reach *sync* web page. (Something like `https://localhost:[YOUR_PORT]/api/sync`)
+You should have useful information, like a test to reach your server database, your `SyncSetup`, your `SqlSyncProvider`, your `SyncOptions` and your `WebServerOptions` configuration:
+
+![Web server properties](assets/WebServerProperties.png)
+
+If your configuration is not correct, you should have an error message, like this:
+
+![Web server properties with error raised](assets/WebServerPropertiesError.png)
+
+
 ## Client side
 
-Your Client side is pretty similar, except you will have to use a proxy as well to be able to send all the requests to your Web API :
+The client side is pretty similar to the starter sample, except we will have to use a proxy orchestrator instead of the server provider:
+
 
 ``` cs
-// [Required]: Defininf the local provider
-var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+    var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync");
 
-// [Required]: Replacing a classic remote orchestrator with a web proxy orchestrator that point on the web api
-var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
+    // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
+    var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-// [Optional]: Specifying some useful client options
-var clientOptions = new SyncOptions
-{
-    ScopeInfoTableName = "client_scopeinfo",
-    BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client"),
-    BatchSize = 50,
-    CleanMetadatas = true,
-    UseBulkOperations = true,
-    UseVerboseErrors = false,
-};
+    // Creating an agent that will handle all the process
+    var agent = new SyncAgent(clientProvider, serverOrchestrator);
 
-// [Optional]: Specifying some useful databases options
-var clientSetup = new SyncSetup
-{
-    StoredProceduresPrefix = "s",
-    StoredProceduresSuffix = "",
-    TrackingTablesPrefix = "t",
-    TrackingTablesSuffix = "",
-    TriggersPrefix = "",
-    TriggersSuffix = "",
-};
+    do
+    {
+        // Launch the sync process
+        var s1 = await agent.SynchronizeAsync();
+        // Write results
+        Console.WriteLine(s1);
 
-// [Required]: Create an agent to launch the sync process
-var agent = new SyncAgent(clientProvider, proxyClientProvider, clientSetup, clientOptions);
+    } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
-// [Optional]: Get some progress event during the sync process
-var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
-
-// [Required]: Launch the sync.
-var s = await agent.SynchronizeAsync(progress);
-
-Console.WriteLine(s);
-
+    Console.WriteLine("End");
 ```
+Now we can launch both application, The Web Api on one side, and the Console application on the other side.   
+Just hit Enter and get the results from your synchronization over http.
+
+![Web sync](assets/WebSync01.png)

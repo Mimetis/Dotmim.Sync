@@ -13,23 +13,43 @@ namespace Dotmim.Sync
 {
     public abstract partial class CoreProvider
     {
-        /// <summary>
-        /// update configuration object with tables desc from server database
-        /// </summary>
-        public virtual async Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit,
-                             DbConnection connection, DbTransaction transaction,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext syncContext, DatabaseMetadatasCleaned databaseMetadatasCleaned)> DeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit,
+                            DbConnection connection, DbTransaction transaction,
+                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-             foreach (var schemaTable in schema.Tables)
-            {
-                var tableBuilder = this.GetTableBuilder(schemaTable);
 
+            DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
+
+            foreach (var syncTable in schema.Tables)
+            {
+                // get table builder
+                var tableBuilder = this.GetTableBuilder(syncTable, setup);
+
+                var tableHelper = tableBuilder.CreateTableBuilder(connection, transaction);
+
+                // check if table exists
+                // If not, kindly continue, without exception
+                if (await tableHelper.NeedToCreateTableAsync().ConfigureAwait(false))
+                    continue;
+
+                // Create sync adapter
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // Delete metadatas
-                syncAdapter.DeleteMetadatas(timestampLimit);
+                var rowsCleanedCount = await syncAdapter.DeleteMetadatasAsync(timestampLimit).ConfigureAwait(false);
+
+                // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
+                if (rowsCleanedCount > 0)
+                {
+                    var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName);
+                    tableMetadatasCleaned.RowsCleanedCount = rowsCleanedCount;
+                    tableMetadatasCleaned.TimestampLimit = timestampLimit;
+
+                    databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                }
+
             }
-            return await Task.FromResult(context).ConfigureAwait(false);
+            return (context, databaseMetadatasCleaned);
         }
 
     }

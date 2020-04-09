@@ -6,7 +6,7 @@ using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.SqlServer.Scope;
 using System;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -68,13 +68,12 @@ namespace Dotmim.Sync.SqlServer
         /// Metadatas are handled by Change Tracking
         /// So just do nothing here
         /// </summary>
-        public override Task<SyncContext> DeleteMetadatasAsync(SyncContext context, SyncSet schema, long timestampLimit, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null) 
-            => Task.FromResult(context);
-
+        public override Task<(SyncContext, DatabaseMetadatasCleaned)> DeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null) 
+            => Task.FromResult((context, new DatabaseMetadatasCleaned()));
 
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlChangeTrackingScopeBuilder();
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription) => new SqlChangeTrackingBuilder(tableDescription);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new SqlChangeTrackingBuilder(tableDescription, setup);
         public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqlManager(tableName, schemaName);
 
 
