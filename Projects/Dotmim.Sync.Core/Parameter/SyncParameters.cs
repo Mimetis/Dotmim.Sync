@@ -13,7 +13,7 @@ namespace Dotmim.Sync
     public class SyncParameters : ICollection<SyncParameter>, IList<SyncParameter>
     {
         /// <summary>
-        /// Exposing the InnerCollection for serialization purpose
+        /// Gets or Sets the InnerCollection (Exposed as Public for serialization purpose)
         /// </summary>
         [DataMember(Name = "c", IsRequired = true)]
         public Collection<SyncParameter> InnerCollection { get; set; } = new Collection<SyncParameter>();
@@ -42,6 +42,9 @@ namespace Dotmim.Sync
             InnerCollection.Add(item);
         }
 
+        /// <summary>
+        /// Add an array of parameters
+        /// </summary>
         public void AddRange(IEnumerable<SyncParameter> parameters)
         {
             foreach(var p in parameters)
@@ -49,7 +52,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get a table by its name
+        /// Get a parameters by its name
         /// </summary>
         public SyncParameter this[string name]
         {
