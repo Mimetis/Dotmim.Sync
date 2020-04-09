@@ -9,7 +9,7 @@ We can see the overall architecture with this big picture:
 ![Simple Http architecture ](/assets/Architecture03.png)
 
 To be able to *proxify* everything, we will have to:
-
+V
 **Server side**:   
 * Create a new **ASP.NET Core Web application**.
 * Add the [`Dotmim.Sync.Web.Server`](https://www.nuget.org/packages/Dotmim.Sync.Web.Server) nuget package to the ASP.NET project.
