@@ -69,6 +69,7 @@ a:hover {
 header {
   padding-top: 35px;
   padding-bottom: 25px;
+  margin-left: 20px;
 }
 
 header h1 {
@@ -88,7 +89,6 @@ header h2 {
 }
 
 #container {
-  min-height: 595px;
   background: transparent url(../images/highlight-bg.jpg) 50% 0 no-repeat;
 }
 
@@ -111,7 +111,7 @@ header h2 {
     width: 80% ;
   }
 #downloads {
-  margin-bottom: 40px;
+  margin: 0px;
 }
 
 a.button {
@@ -308,6 +308,11 @@ blockquote {
 
 ul li {
   list-style-position: inside;
+  list-style: disc;
+  margin-left: 20px;
+}
+
+div#navbar ul li {
   list-style: none;
   padding-left: 20px;
 }
@@ -323,8 +328,11 @@ dl dt {
 }
 
 footer {
+  float: left;
+  width: 100%;
   padding-top: 20px;
   padding-bottom: 30px;
+  margin-left: 40px;
   margin-top: 40px;
   font-size: 13px;
   color: #aaa;
