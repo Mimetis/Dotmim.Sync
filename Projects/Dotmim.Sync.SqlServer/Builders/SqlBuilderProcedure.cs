@@ -253,7 +253,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else
                     stringBuilder.AppendLine();
             }
-            stringBuilder.AppendLine("\t FROM @changed [i]");
+            stringBuilder.AppendLine("\t FROM @dms_changed [i]");
             stringBuilder.Append("\t WHERE ");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
@@ -296,7 +296,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got deleted");
-            stringBuilder.Append("declare @changed TABLE (");
+            stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 // Get the good SqlDbType (even if we are not from Sql Server def)
@@ -345,7 +345,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else
                     stringBuilder.AppendLine();
             }
-            stringBuilder.AppendLine($"INTO @changed ");
+            stringBuilder.AppendLine($"INTO @dms_changed ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"JOIN [changes] ON {str5}");
             stringBuilder.AppendLine("WHERE [changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id;");
@@ -356,7 +356,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
             stringBuilder.AppendLine("\tlast_change_datetime = GETUTCDATE()");
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"JOIN @changed [t] on {str6}");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
@@ -436,7 +436,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
+            stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
@@ -537,7 +537,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else
                     stringBuilder.AppendLine();
             }
-            stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
+            stringBuilder.AppendLine($"\tINTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
             // Check if we have auto inc column
@@ -554,7 +554,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"JOIN @changed [t] on {str6}");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             //stringBuilder.AppendLine($"JOIN @changeTable [p] on {str7}");
             stringBuilder.AppendLine();
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
@@ -713,7 +713,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
+            stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
@@ -744,7 +744,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{comma}DELETED.{columnName}");
                 comma = ", ";
             }
-            stringBuilder.AppendLine($" INTO @changed -- populates the temp table with successful deleted row");
+            stringBuilder.AppendLine($" INTO @dms_changed -- populates the temp table with successful deleted row");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
             stringBuilder.Append($"JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
 
@@ -763,7 +763,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 1,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"JOIN @changed [t] on {str6}");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
@@ -1106,7 +1106,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str7 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[side]");
 
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
+            stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
@@ -1217,7 +1217,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else
                     stringBuilder.AppendLine();
             }
-            stringBuilder.AppendLine($"INTO @changed; -- populates the temp table with successful PKs");
+            stringBuilder.AppendLine($"INTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
             // Check if we have auto inc column
@@ -1237,7 +1237,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
             stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"JOIN @changed [t] on {str6}");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
 

@@ -8,6 +8,8 @@
     <Summary>SQLite Sync Provider. Client provider .Net Standard 2.0</Summary>
     <Description>SQLite Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used only as Client provider. Use SqlSyncProvider or MySqlSyncProvider for the server side .Net Standard 2.0</Description>
     <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <Version>0.5.0</Version>

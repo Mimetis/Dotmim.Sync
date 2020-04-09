@@ -67,7 +67,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got deleted");
-            stringBuilder.Append("declare @changed TABLE (");
+            stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 // Get the good SqlDbType (even if we are not from Sql Server def)
@@ -121,7 +121,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 else
                     stringBuilder.AppendLine();
             }
-            stringBuilder.AppendLine($"INTO @changed ");
+            stringBuilder.AppendLine($"INTO @dms_changed ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"JOIN {trackingName.Quoted().ToString()} [changes] ON {str5}");
             stringBuilder.AppendLine("WHERE [changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id;");
@@ -162,7 +162,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
+            stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 else
                     stringBuilder.AppendLine();
             }
-            stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
+            stringBuilder.AppendLine($"\tINTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
             // Check if we have auto inc column
