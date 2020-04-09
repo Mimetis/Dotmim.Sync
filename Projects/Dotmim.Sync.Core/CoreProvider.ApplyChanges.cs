@@ -34,7 +34,7 @@ namespace Dotmim.Sync
             // Report this disabling constraints brefore opening a transaction
             if (message.DisableConstraintsOnApplyChanges)
                 foreach (var table in message.Schema.Tables.Reverse())
-                   await this.DisableConstraintsAsync(context, table, message.Setup, connection, transaction);
+                    await this.DisableConstraintsAsync(context, table, message.Setup, connection, transaction);
 
             // -----------------------------------------------------
             // 0) Check if we are in a reinit mode
@@ -104,7 +104,7 @@ namespace Dotmim.Sync
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
                 // reset table
-               await syncAdapter.ResetTableAsync();
+                await syncAdapter.ResetTableAsync();
             }
         }
 
@@ -158,15 +158,15 @@ namespace Dotmim.Sync
                     // Conflicts occured when trying to apply rows
                     var conflicts = new List<SyncConflict>();
 
-                    // Launch any interceptor if available
-                    await this.Orchestrator.InterceptAsync(new TableChangesApplyingArgs(context, filteredRows, schemaTable, applyType, connection, transaction), cancellationToken).ConfigureAwait(false);
-
                     // Create an empty Set that wil contains filtered rows to apply
                     // Need Schema for culture & case sensitive properties
                     var changesSet = syncTable.Schema.Clone(false);
                     var schemaChangesTable = syncTable.Clone();
                     changesSet.Tables.Add(schemaChangesTable);
                     schemaChangesTable.Rows.AddRange(filteredRows.ToList());
+
+                    // Launch any interceptor if available
+                    await this.Orchestrator.InterceptAsync(new TableChangesApplyingArgs(context, schemaChangesTable, applyType, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                     int rowsApplied = 0;
 
@@ -196,7 +196,7 @@ namespace Dotmim.Sync
                         var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
 
                         return tca.TableName.Equals(schemaTable.TableName, sc) &&
-                               sn.Equals(otherSn, sc) && 
+                               sn.Equals(otherSn, sc) &&
                                tca.State == applyType;
                     });
 
@@ -222,12 +222,12 @@ namespace Dotmim.Sync
 
                     var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, existAppliedChanges, connection, transaction);
 
-                    // Always make an interceptor even if changes applied is empty
-                    await this.Orchestrator.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
-
                     // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                     if (tableChangesAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
+                    {
+                        await this.Orchestrator.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
                         this.Orchestrator.ReportProgress(context, progress, tableChangesAppliedArgs, connection, transaction);
+                    }
                 }
             }
         }

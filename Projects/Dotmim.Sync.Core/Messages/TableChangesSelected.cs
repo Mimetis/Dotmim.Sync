@@ -11,7 +11,15 @@ namespace Dotmim.Sync
     [DataContract(Name = "tcs"), Serializable]
     public class TableChangesSelected
     {
-     
+
+        /// <summary>
+        /// Ctor for serialization purpose
+        /// </summary>
+        public TableChangesSelected()
+        {
+
+        }
+
         public TableChangesSelected(string tableName, string schemaName)
         {
             this.TableName = tableName;

@@ -61,6 +61,14 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Used for serialization purpose
+        /// </summary>
+        public SyncContext()
+        {
+
+        }
+
+        /// <summary>
         /// Get the result if sync session is ended
         /// </summary>
         public override string ToString() => this.ScopeName;

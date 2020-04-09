@@ -74,7 +74,7 @@ namespace Dotmim.Sync
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
                 // launch interceptor if any
-                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable.TableName, connection, transaction), cancellationToken).ConfigureAwait(false);
+                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew);
@@ -87,10 +87,6 @@ namespace Dotmim.Sync
 
                 // Create a chnages table with scope columns
                 var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
-
-                // Create a container for this table
-                var tableChangesContainer = new ContainerTable(changesSetTable);
-                tableChangesContainer.Rows = new List<object[]>();
 
                 // Get the reader
                 using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -128,6 +124,10 @@ namespace Dotmim.Sync
                             if (rowsMemorySize <= message.BatchSize)
                                 continue;
 
+                            // Check interceptor
+                            var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                            await this.Orchestrator.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
                             // add changes to batchinfo
                             await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this.Orchestrator).ConfigureAwait(false);
 
@@ -145,52 +145,23 @@ namespace Dotmim.Sync
                             // Init the row memory size
                             rowsMemorySize = 0L;
                         }
-
-                        // For interceptor purpose
-                        // Because it's heavy, we are checking before if we have an interceptor here
-                        if (this.Orchestrator.ContainsInterceptor<TableChangesSelectedArgs>())
-                            tableChangesContainer.Rows.Add(row.ToArray());
                     }
-
                 }
 
                 // be sure it's disposed
                 selectIncrementalChangesCommand.Dispose();
 
+                // We don't report progress if no table changes is empty, to limit verbosity
                 if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
+                {
                     changes.TableChangesSelected.Add(tableChangesSelected);
+                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                    await this.Orchestrator.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
-
-                SyncTable tableChanges = null;
-
-                // report this progress
-                // Because it's heavy, we are checking before if we have an interceptor here
-                var shouldImportContainerTable = this.Orchestrator.ContainsInterceptor<TableChangesSelectedArgs>();
-
-                if (shouldImportContainerTable)
-                {
-                    tableChanges = changesSetTable.Clone();
-                    tableChanges.Rows.ImportContainerTable(tableChangesContainer, false);
-                }
-           
-                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, tableChanges, tableChangesSelected, connection, transaction);
-                // Always make an interceptor even if table changes is empty
-                await this.Orchestrator.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-
-                if (shouldImportContainerTable)
-                {
-                    tableChanges.Clear();
-                    tableChangesContainer.Clear();
+                    if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
+                        this.Orchestrator.ReportProgress(context, progress, tableChangesSelectedArgs);
                 }
 
-                //// Event progress & interceptor
-                //var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, connection, transaction);
-                //// Always make an interceptor even if table changes is empty
-                //await this.Orchestrator.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-
-                // We don't report progress if no table changes is empty, to limit verbosity of Progress
-                if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
-                    this.Orchestrator.ReportProgress(context, progress, tableChangesSelectedArgs);
             }
 
             // We are in batch mode, and we are at the last batchpart info
