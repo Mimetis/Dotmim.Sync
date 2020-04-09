@@ -93,7 +93,7 @@ header h2 {
 }
 
 .inner {
-  width: 620px;
+  maxwidth: 1200px;
   margin: 0 auto;
 }
 
@@ -101,6 +101,15 @@ header h2 {
   max-width: 100%;
 }
 
+#navbar {
+      float: left ;
+      width: 20% ;
+    }
+
+#main_content {
+    float: left ;
+    width: 80% ;
+  }
 #downloads {
   margin-bottom: 40px;
 }
@@ -176,7 +185,7 @@ code, pre {
 }
 
 code {
-  padding: 0 3px;
+  padding: 5px;
   background-color: #f2f2f2;
   border: solid 1px #ddd;
 }
@@ -299,7 +308,7 @@ blockquote {
 
 ul li {
   list-style-position: inside;
-  list-style: disc;
+  list-style: none;
   padding-left: 20px;
 }
 
