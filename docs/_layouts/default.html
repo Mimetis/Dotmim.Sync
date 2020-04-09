@@ -26,8 +26,8 @@
         <div class="inner">
 
             <header>
-                <h1>{{ page.title | default: site.title | default: site.github.repository_name }}</h1>
-                <h2>{{ page.description | default: site.description | default: site.github.project_tagline }}</h2>
+                <h1>{{ site.title | default: site.github.repository_name }}</h1>
+                <h2>{{ site.description | default: site.github.project_tagline }}</h2>
             </header>
             <section id="downloads" class="clearfix">
                 {% if site.show_downloads %}
