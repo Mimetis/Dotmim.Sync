@@ -11,6 +11,13 @@ namespace Dotmim.Sync
     public class ScopeInfo
     {
         /// <summary>
+        /// For serialization purpose
+        /// </summary>
+        public ScopeInfo()
+        {
+
+        }
+        /// <summary>
         /// Scope name. Shared by all clients and the server
         /// </summary>
         [DataMember(Name = "n", IsRequired = true, Order = 1)]

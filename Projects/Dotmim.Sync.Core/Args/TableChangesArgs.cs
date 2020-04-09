@@ -37,15 +37,15 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesSelectingArgs : ProgressArgs
     {
-        public TableChangesSelectingArgs(SyncContext context, string tableName, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction) => this.TableName = tableName;
+        public TableChangesSelectingArgs(SyncContext context, SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction) => this.Table = schemaTable;
 
         /// <summary>
-        /// Gets the table name where the changes are going to be selected
+        /// Gets the table from where the changes are going to be selected.
         /// </summary>
-        public string TableName { get; }
+        public SyncTable Table { get; }
 
-        public override string Message => $"[{Connection.Database}] [{this.TableName}] getting changes...";
+        public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] getting changes...";
 
     }
 
@@ -70,12 +70,11 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesApplyingArgs : ProgressArgs
     {
-        public TableChangesApplyingArgs(SyncContext context, IEnumerable<SyncRow> rows, SyncTable schemaTable, DataRowState state, DbConnection connection, DbTransaction transaction)
+        public TableChangesApplyingArgs(SyncContext context, SyncTable changes, DataRowState state, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
-            this.Rows = rows;
             this.State = state;
-            this.SchemaTable = schemaTable;
+            this.Changes = changes;
         }
 
         /// <summary>
@@ -84,16 +83,11 @@ namespace Dotmim.Sync
         public DataRowState State { get; }
 
         /// <summary>
-        /// Schema table of the applied rows
+        /// Gets the changes to be applied into the database
         /// </summary>
-        public SyncTable SchemaTable { get; }
+        public SyncTable Changes { get; }
 
-        /// <summary>
-        /// Gets the table containing changes that are going to be applied
-        /// </summary>
-        public IEnumerable<SyncRow> Rows { get; }
-
-        public override string Message => $"{this.SchemaTable.TableName} state:{this.State}";
+        public override string Message => $"{this.Changes.TableName} state:{this.State}";
 
     }
 
