@@ -50,16 +50,16 @@ SELECT [sync_scope_id] ,[sync_scope_name] ,[scope_last_sync_timestamp], [scope_l
 FROM [AdventureWorks].[dbo].[scope_info_history]
 ```
 **Server database:**
-sync_scope_id | sync_scope_name | scope_last_sync_timestamp | scope_last_sync
-------------- | ----------| ------------ | -----------------
-9E9722CD-... | DefaultScope | 2090 | 2020-04-01
-AB4122AE-... | DefaultScope | 2100 | 2020-04-10
-DB6EEC7E-... | DefaultScope | **2000** | 2020-03-20
-E9CBB51D-... | DefaultScope | 2020 | 2020-03-21
-CC8A9184-... | DefaultScope | 2030 | 2020-03-22
-D789288E-... | DefaultScope | 2040 | 2020-03-23
-95425970-... | DefaultScope | 2050 | 2020-03-24
-5B6ACCC0-... | DefaultScope | 2060 | 2020-03-25
+sync_scope_id | sync_scope_name | scope_last_sync_timestamp | scope_last_sync   
+------------- | ----------| ------------ | -----------------   
+9E9722CD-... | DefaultScope | 2090 | 2020-04-01   
+AB4122AE-... | DefaultScope | 2100 | 2020-04-10   
+DB6EEC7E-... | DefaultScope | **2000** | 2020-03-20   
+E9CBB51D-... | DefaultScope | 2020 | 2020-03-21   
+CC8A9184-... | DefaultScope | 2030 | 2020-03-22   
+D789288E-... | DefaultScope | 2040 | 2020-03-23   
+95425970-... | DefaultScope | 2050 | 2020-03-24   
+5B6ACCC0-... | DefaultScope | 2060 | 2020-03-25   
 
 the `Min(scope_last_sync_timestamp)` will be **2000** and then **DMS** will internally call `remoteOrchestrator.DeleteMetadatasAsync(2000);`
 
@@ -73,16 +73,16 @@ SELECT [sync_scope_id] ,[sync_scope_name] ,[scope_last_sync_timestamp], [scope_l
 FROM [AdventureWorks].[dbo].[scope_info_history]
 ```
 **Server database:**
-sync_scope_id | sync_scope_name | scope_last_sync_timestamp | scope_last_sync
-------------- | ----------| ------------ | -----------------
-9E9722CD-... | DefaultScope | **100** | **2017-01-01**
-AB4122AE-... | DefaultScope | 2100 | 2020-04-10
-DB6EEC7E-... | DefaultScope | 2000 | 2020-03-20
-E9CBB51D-... | DefaultScope | 2020 | 2020-03-21
-CC8A9184-... | DefaultScope | 2030 | 2020-03-22
-D789288E-... | DefaultScope | 2040 | 2020-03-23
-95425970-... | DefaultScope | 2050 | 2020-03-24
-5B6ACCC0-... | DefaultScope | 2060 | 2020-03-25
+sync_scope_id | sync_scope_name | scope_last_sync_timestamp | scope_last_sync   
+------------- | ----------| ------------ | -----------------   
+9E9722CD-... | DefaultScope | **100** | **2017-01-01**   
+AB4122AE-... | DefaultScope | 2100 | 2020-04-10   
+DB6EEC7E-... | DefaultScope | 2000 | 2020-03-20   
+E9CBB51D-... | DefaultScope | 2020 | 2020-03-21   
+CC8A9184-... | DefaultScope | 2030 | 2020-03-22   
+D789288E-... | DefaultScope | 2040 | 2020-03-23   
+95425970-... | DefaultScope | 2050 | 2020-03-24   
+5B6ACCC0-... | DefaultScope | 2060 | 2020-03-25   
 
 Once again, if you call the `remoteOrchestrator.DeleteMetadatasAsync()` from your schedule task, internally **DMS** will delete all rows where timestamp is inferior to **100** (and so far, all metadata rows existing before year 2017)
 
