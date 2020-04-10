@@ -714,6 +714,76 @@ internal class Program
     }
 
 
+    private static async Task SynchronizeThenChangeSetupAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        // Add pref suf
+        setup.StoredProceduresPrefix = "s";
+        setup.StoredProceduresSuffix = "";
+        setup.TrackingTablesPrefix = "t";
+        setup.TrackingTablesSuffix = "";
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+
+        agent.AddRemoteProgress(remoteProgress);
+
+        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
+        // agent.Options.BatchSize = 1000;
+        agent.Options.CleanMetadatas = true;
+        agent.Options.UseBulkOperations = true;
+        agent.Options.DisableConstraintsOnApplyChanges = true;
+        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+        //agent.Options.UseVerboseErrors = false;
+
+
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                //if (!agent.Parameters.Contains("CompanyName"))
+                //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+
+                var s1 = await agent.SynchronizeAsync(progress);
+
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
 }
 
