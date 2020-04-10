@@ -248,6 +248,11 @@ namespace Dotmim.Sync
                             // Get the schema saved on server
                             schema = JsonConvert.DeserializeObject<SyncSet>(serverScopeInfo.Schema);
                             schema.EnsureSchema();
+
+                            var setup = JsonConvert.DeserializeObject<SyncSetup>(serverScopeInfo.Setup);
+
+                          
+
                         }
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
