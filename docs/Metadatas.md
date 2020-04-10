@@ -49,7 +49,7 @@ Basically, if you have this kind of `scope_info_history` table :
 SELECT [sync_scope_id] ,[sync_scope_name] ,[scope_last_sync_timestamp], [scope_last_sync]
 FROM [AdventureWorks].[dbo].[scope_info_history]
 ```
-**Server database:**
+**Server database:**   
 sync_scope_id | sync_scope_name | scope_last_sync_timestamp | scope_last_sync   
 ------------- | ----------| ------------ | -----------------   
 9E9722CD-... | DefaultScope | 2090 | 2020-04-01   
@@ -72,7 +72,7 @@ This situation will lead to this kind of rows in the `scope_info_history` table:
 SELECT [sync_scope_id] ,[sync_scope_name] ,[scope_last_sync_timestamp], [scope_last_sync]
 FROM [AdventureWorks].[dbo].[scope_info_history]
 ```
-**Server database:**
+**Server database:**    
 sync_scope_id | sync_scope_name | scope_last_sync_timestamp | scope_last_sync   
 ------------- | ----------| ------------ | -----------------   
 9E9722CD-... | DefaultScope | **100** | **2017-01-01**   
