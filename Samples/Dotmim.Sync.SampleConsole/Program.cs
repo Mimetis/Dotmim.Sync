@@ -45,7 +45,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-       await SyncHttpThroughKestrellAsync();
+       await SynchronizeAsync();
       
     }
 
@@ -367,8 +367,8 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(serverDbName));
-        var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
@@ -439,54 +439,8 @@ internal class Program
         agent.Options.DisableConstraintsOnApplyChanges = true;
         //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
+        
 
-        //agent.RemoteOrchestrator.(migr =>
-        //{
-        //    var cs = migr.CurrentSchema;
-        //    var ns = migr.NewSchema;
-
-        //});
-
-        //var myRijndael = new RijndaelManaged();
-        //myRijndael.GenerateKey();
-        //myRijndael.GenerateIV();
-
-        //agent.RemoteOrchestrator.OnSerializingSet(ssa =>
-        //{
-        //    // Create an encryptor to perform the stream transform.
-        //    var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
-
-        //    using (var msEncrypt = new MemoryStream())
-        //    {
-        //        using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-        //        {
-        //            using (var swEncrypt = new StreamWriter(csEncrypt))
-        //            {
-        //                //Write all data to the stream.
-        //                var strSet = JsonConvert.SerializeObject(ssa.Set);
-        //                swEncrypt.Write(strSet);
-        //            }
-        //            ssa.Data = msEncrypt.ToArray();
-        //        }
-        //    }
-        //});
-
-        //agent.OnApplyChangesFailed(acf =>
-        //{
-        //    // Check conflict is correctly set
-        //    var localRow = acf.Conflict.LocalRow;
-        //    var remoteRow = acf.Conflict.RemoteRow;
-
-        //    // Merge row
-        //    acf.Resolution = ConflictResolution.MergeRow;
-
-        //    acf.FinalRow["Name"] = "Prout";
-
-        //});
-
-        //var migration = new DbMigrationTools(clientProvider, agent.Options, setup);
-        //var context = new SyncContext(Guid.NewGuid());
-        //await migration.MigrateAsync(context);
 
         do
         {
