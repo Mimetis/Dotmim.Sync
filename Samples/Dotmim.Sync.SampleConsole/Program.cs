@@ -31,6 +31,7 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using Dotmim.Sync.Setup;
 
 internal class Program
 {
@@ -45,7 +46,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-       await SynchronizeAsync();
+       await SynchronizeThenChangeSetupAsync();
       
     }
 
@@ -747,40 +748,29 @@ internal class Program
 
 
         agent.AddRemoteProgress(remoteProgress);
+        var s1 = await agent.SynchronizeAsync(progress);
 
-        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        // agent.Options.BatchSize = 1000;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.DisableConstraintsOnApplyChanges = true;
-        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-        //agent.Options.UseVerboseErrors = false;
+        Console.WriteLine(s1);
 
+        // Change setup
+        setup.StoredProceduresPrefix = "sp";
+        setup.Tables.Add("Product");
 
+        // Get scope_server
+        var scope_server = await agent.RemoteOrchestrator.GetServerScopeAsync();
 
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                //if (!agent.Parameters.Contains("CompanyName"))
-                //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+        var oldSchema = JsonConvert.DeserializeObject<SyncSetup>(scope_server.Schema);
+        var oldSetup = JsonConvert.DeserializeObject<SyncSetup>(scope_server.Setup);
 
-                var s1 = await agent.SynchronizeAsync(progress);
+        var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
 
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+        await agent.RemoteOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
+        await agent.LocalOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
 
 
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+        var r = await agent.SynchronizeAsync(progress);
+
+        Console.WriteLine(r);
 
         Console.WriteLine("End");
     }
