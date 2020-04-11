@@ -111,7 +111,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var stringBuilder = new StringBuilder();
             stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(tableName);
+            stringBuilder.Append(tableName);
+            stringBuilder.AppendLine(" WITH NOCHECK");
             stringBuilder.Append("ADD CONSTRAINT ");
             stringBuilder.AppendLine(relationName);
             stringBuilder.Append("FOREIGN KEY (");
