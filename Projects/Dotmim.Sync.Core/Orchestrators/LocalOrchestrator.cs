@@ -160,9 +160,6 @@ namespace Dotmim.Sync
                         if (localScopeInfo.Schema == null)
                             throw new MissingLocalOrchestratorSchemaException();
 
-                        // Get concrete schema
-                        var schema = JsonConvert.DeserializeObject<SyncSet>(localScopeInfo.Schema);
-                        schema.EnsureSchema();
 
                         // On local, we don't want to chase rows from "others" 
                         // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
@@ -179,7 +176,7 @@ namespace Dotmim.Sync
                         clientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
                         // Creating the message
-                        var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
+                        var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
 
                         // Call interceptor
                         await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -284,7 +281,7 @@ namespace Dotmim.Sync
                         scope.LastSyncTimestamp = clientTimestamp;
                         scope.LastServerSyncTimestamp = remoteClientTimestamp;
                         scope.LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks;
-                        scope.Setup = JsonConvert.SerializeObject(this.Setup);
+                        scope.Setup = this.Setup;
 
                         // Write scopes locally
                         ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -333,16 +330,12 @@ namespace Dotmim.Sync
             ctx.SyncStage = SyncStage.SnapshotApplying;
             await this.InterceptAsync(new SnapshotApplyingArgs(ctx), cancellationToken).ConfigureAwait(false);
 
-            // Get schema
-            var schema = JsonConvert.DeserializeObject<SyncSet>(clientScopeInfo.Schema);
 
-            if (schema == null)
-                throw new ArgumentNullException(nameof(schema));
-
-            schema.EnsureSchema();
+            if (clientScopeInfo.Schema == null)
+                throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
 
             // Applying changes and getting the new client scope info
-            var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, schema, serverBatchInfo,
+            var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, clientScopeInfo.Schema, serverBatchInfo,
                     clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, cancellationToken, progress);
 
             // Because we have initialize everything here (if syncType != Normal)
@@ -377,6 +370,80 @@ namespace Dotmim.Sync
                 return new DatabaseMetadatasCleaned();
 
             return await base.DeleteMetadatasAsync(clientScopeInfo.LastSyncTimestamp, cancellationToken, progress);
+        }
+
+
+        /// <summary>
+        /// Migrate an old setup configuration to a new one. This method is usefull if you are changing your SyncSetup when a database has been already configured previously
+        /// </summary>
+        public virtual async Task MigrationAsync(SyncSetup oldSetup, SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    // If schema does not have any table, just return
+                    if (schema == null || schema.Tables == null || !schema.HasTables)
+                        throw new MissingTablesException();
+
+                    // new setup is the one provided on ctor
+                    var newSetup = this.Setup;
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // Migrate the db structure
+                        await this.Provider.MigrationAsync(ctx, schema, oldSetup, newSetup, connection, transaction, cancellationToken, progress);
+
+                        // Now call the ProvisionAsync() to provision new tables
+                        var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                        // Provision new tables if needed
+                        await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        ScopeInfo localScope = null;
+
+                        ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        (ctx, localScope) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        localScope.Setup = newSetup;
+                        localScope.Schema = schema;
+
+                        // Write scopes locally
+                        ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, localScope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State == ConnectionState.Open)
+                        connection.Close();
+                }
+
+            }
         }
 
     }

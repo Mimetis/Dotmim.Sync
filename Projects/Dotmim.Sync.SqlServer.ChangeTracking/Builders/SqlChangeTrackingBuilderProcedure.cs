@@ -26,15 +26,16 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public SqlChangeTrackingBuilderProcedure(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
-            : base(tableDescription, setup, connection, transaction)
+        public SqlChangeTrackingBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+            : base(tableDescription, tableName, trackingName, setup, connection, transaction)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
 
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(tableDescription, setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.sqlObjectNames = new SqlObjectNames(this.tableDescription, this.setup);
             this.sqlDbMetadata = new SqlDbMetadata();
         }

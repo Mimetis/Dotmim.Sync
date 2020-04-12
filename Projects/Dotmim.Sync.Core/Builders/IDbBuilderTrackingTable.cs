@@ -16,6 +16,7 @@ namespace Dotmim.Sync.Builders
         Task<bool> NeedToCreateTrackingTableAsync();
         Task CreateTableAsync();
         Task DropTableAsync();
+        Task RenameTableAsync(ParserName oldTableName);
         Task CreatePkAsync();
         Task CreateIndexAsync();
     }

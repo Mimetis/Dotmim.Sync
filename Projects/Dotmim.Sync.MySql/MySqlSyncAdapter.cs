@@ -35,7 +35,7 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        public MySqlSyncAdapter(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
+        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
         {
             var sqlc = connection as MySqlConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a MySqlConnection");
@@ -43,7 +43,7 @@ namespace Dotmim.Sync.MySql
             this.transaction = transaction as MySqlTransaction;
             this.mySqlDbMetadata = new MySqlDbMetadata();
 
-            this.mySqlObjectNames = new MySqlObjectNames(TableDescription, Setup);
+            this.mySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup);
         }
 
         public override bool IsPrimaryKeyViolation(Exception Error)

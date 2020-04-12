@@ -14,13 +14,13 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         }
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqlChangeTrackingBuilderTrackingTable(TableDescription, Setup, connection, transaction);
+            => new SqlChangeTrackingBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
 
         public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqlChangeTrackingBuilderProcedure(TableDescription, Setup, connection, transaction);
+            => new SqlChangeTrackingBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqlChangeTrackingBuilderTrigger(TableDescription, Setup, connection, transaction);
+            => new SqlChangeTrackingBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
 
 
     }

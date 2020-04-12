@@ -44,11 +44,12 @@ namespace Dotmim.Sync.Sqlite
             return commandName;
         }
 
-        public SqliteObjectNames(SyncTable tableDescription, SyncSetup setup)
+        public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
-            (tableName, trackingName) = SqliteTableBuilder.GetParsers(this.TableDescription, this.Setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
 
             SetDefaultNames();
         }
