@@ -20,14 +20,15 @@ namespace Dotmim.Sync.MySql
         private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
 
-        public MySqlBuilderTrigger(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription, setup);
-            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
         }
 
         private string DeleteTriggerBodyText()

@@ -28,13 +28,14 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
         public SyncFilter Filter { get; set; }
 
-        public SqlChangeTrackingBuilderTrackingTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqlChangeTrackingBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
@@ -127,5 +128,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
         public Task CreateIndexAsync() => Task.CompletedTask;
         public Task CreatePkAsync() => Task.CompletedTask;
+        public Task RenameTableAsync(ParserName oldTableName) => Task.CompletedTask;
     }
 }

@@ -1429,7 +1429,7 @@ namespace Dotmim.Sync.Tests
                     var o = await serializer.DeserializeAsync(ms);
 
                     // check we have a schema
-                    Assert.NotNull(o.Schema);
+                    Assert.NotNull(o.ServerScopeInfo.Schema);
                 }
             });
 

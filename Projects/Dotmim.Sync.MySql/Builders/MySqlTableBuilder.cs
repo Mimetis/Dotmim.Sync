@@ -17,10 +17,11 @@ namespace Dotmim.Sync.MySql
        
         public MyTableSqlBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
         {
-            sqlObjectNames = new MySqlObjectNames(tableDescription, setup);
+
+            sqlObjectNames = new MySqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
         }
 
-        internal static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;
 
@@ -55,27 +56,27 @@ namespace Dotmim.Sync.MySql
 
          public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderProcedure(TableDescription, Setup, connection, transaction);
+            return new MySqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderTrigger(TableDescription, Setup, connection, transaction);
+            return new MySqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderTable(TableDescription, Setup, connection, transaction);
+            return new MySqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlBuilderTrackingTable(TableDescription, Setup, connection, transaction);
+            return new MySqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
         {
-            return new MySqlSyncAdapter(TableDescription, Setup, connection, transaction);
+            return new MySqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
     }
 }

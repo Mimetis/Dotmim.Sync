@@ -25,13 +25,14 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlTransaction transaction;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public SqlBuilderTrackingTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
@@ -244,6 +245,67 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public async Task<bool> NeedToCreateTrackingTableAsync() =>
             !await SqlManagementUtils.TableExistsAsync(connection, transaction, trackingName.Schema().Quoted().ToString()).ConfigureAwait(false);
+
+
+        public async Task RenameTableAsync(ParserName oldTableName)
+        {
+            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+
+            try
+            {
+                using (var command = new SqlCommand())
+                {
+                    if (!alreadyOpened)
+                        await connection.OpenAsync().ConfigureAwait(false);
+
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    command.CommandText = this.RenameTableCommandText(oldTableName);
+                    command.Connection = this.connection;
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during RenameTableAsync : {ex}");
+                throw;
+
+            }
+            finally
+            {
+                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
+                    this.connection.Close();
+
+            }
+
+        }
+
+        public string RenameTableCommandText(ParserName oldTableName)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            
+            var schemaName = this.trackingName.SchemaName;
+            var tableName = this.trackingName.ObjectName;
+
+            schemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
+            var oldSchemaNameString = string.IsNullOrEmpty(oldTableName.SchemaName) ? "dbo" : oldTableName.SchemaName;
+
+            var oldFullName = $"{oldSchemaNameString}.{oldTableName}";
+
+            // First of all, renaming the table   
+            stringBuilder.Append($"EXEC sp_rename '{oldFullName}', '{tableName}'; ");
+
+            // then if necessary, move to another schema
+            if (!string.Equals(oldSchemaNameString, schemaName, SyncGlobalization.DataSourceStringComparison))
+            {
+                var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
+                stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
+            }
+
+            return stringBuilder.ToString();
+        }
+
 
     }
 }

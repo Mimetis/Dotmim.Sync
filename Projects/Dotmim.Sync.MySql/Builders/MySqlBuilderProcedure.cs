@@ -24,15 +24,16 @@ namespace Dotmim.Sync.MySql
         private MySqlDbMetadata mySqlDbMetadata;
         internal const string MYSQL_PREFIX_PARAMETER = "in_";
 
-        public MySqlBuilderProcedure(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
 
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(tableDescription, setup);
-            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 

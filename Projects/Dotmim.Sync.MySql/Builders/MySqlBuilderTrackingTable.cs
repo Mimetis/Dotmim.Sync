@@ -24,12 +24,13 @@ namespace Dotmim.Sync.MySql
         private MySqlDbMetadata mySqlDbMetadata;
 
 
-        public MySqlBuilderTrackingTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription, setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
@@ -114,7 +115,7 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
- 
+
         public async Task DropTableAsync()
         {
             var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
@@ -148,7 +149,41 @@ namespace Dotmim.Sync.MySql
 
         }
 
-        
+        public async Task RenameTableAsync(ParserName oldTableName)
+        {
 
+            var tableNameString = this.trackingName.Quoted();
+            var oldTableNameString = oldTableName.Quoted();
+
+            var commandText = $"RENAME TABLE {oldTableNameString} TO {tableNameString}; ";
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                using (var command = new MySqlCommand(commandText, connection))
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during RenameTableAsync : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
     }
 }
