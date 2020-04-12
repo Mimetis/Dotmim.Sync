@@ -40,13 +40,13 @@ namespace Dotmim.Sync
         /// Scope schema. stored locally on the client
         /// </summary>
         [IgnoreDataMember]
-        public string Schema { get; set; }
+        public SyncSet Schema { get; set; }
 
         /// <summary>
         /// Setup. stored locally on the client
         /// </summary>
         [IgnoreDataMember]
-        public string Setup { get; set; }
+        public SyncSetup Setup { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema version

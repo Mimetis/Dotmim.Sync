@@ -33,14 +33,14 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public SqliteSyncAdapter(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
+        public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
         {
             var sqlc = connection as SqliteConnection;
             this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqliteConnection");
 
             this.transaction = transaction as SqliteTransaction;
 
-            this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, this.Setup);
+            this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 

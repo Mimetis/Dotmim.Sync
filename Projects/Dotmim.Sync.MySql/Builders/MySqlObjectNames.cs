@@ -62,11 +62,12 @@ namespace Dotmim.Sync.MySql
             return (commandName, isStoredProc);
         }
 
-        public MySqlObjectNames(SyncTable tableDescription, SyncSetup setup)
+        public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
-            (tableName, trackingName) = MyTableSqlBuilder.GetParsers(this.TableDescription, this.Setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
 
             SetDefaultNames();
         }
