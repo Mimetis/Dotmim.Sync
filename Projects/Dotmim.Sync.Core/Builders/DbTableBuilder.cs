@@ -43,6 +43,16 @@ namespace Dotmim.Sync.Builders
         public bool UseChangeTracking { get; set; } = false;
 
         /// <summary>
+        /// Gets the table parsed name
+        /// </summary>
+        public ParserName TableName { get; }
+
+        /// <summary>
+        /// Gets the tracking table parsed name
+        /// </summary>
+        public ParserName TrackingTableName { get; }
+
+        /// <summary>
         /// You have to provide a proc builder implementation for your current database
         /// </summary>
         public abstract IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null);
@@ -67,6 +77,12 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public abstract DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null);
 
+
+        /// <summary>
+        /// Create table name and tracking name, accordingly to the setup
+        /// </summary>
+        public abstract (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup);
+
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
@@ -74,6 +90,8 @@ namespace Dotmim.Sync.Builders
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
+
+            (this.TableName, this.TrackingTableName) = GetParsers(tableDescription, setup);
         }
 
         /// <summary>
@@ -106,6 +124,24 @@ namespace Dotmim.Sync.Builders
                 connection.Close();
 
 
+        }
+
+        public async Task RenameTrackingTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction = null)
+        {
+            if (TableDescription.PrimaryKeys.Count <= 0)
+                throw new MissingPrimaryKeyException(TableDescription.TableName);
+
+            var alreadyOpened = connection.State != ConnectionState.Closed;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
+
+            await trackingTableBuilder.RenameTableAsync(oldTableName);
+
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public async Task CreateTrackingTableAsync(DbConnection connection, DbTransaction transaction = null)
@@ -221,7 +257,7 @@ namespace Dotmim.Sync.Builders
         /// Apply the config.
         /// Create the table if needed
         /// </summary>
-        public async Task CreateAsync(SyncProvision provision,  DbConnection connection, DbTransaction transaction = null)
+        public async Task CreateAsync(SyncProvision provision, DbConnection connection, DbTransaction transaction = null)
         {
             if (TableDescription.Columns.Count <= 0)
                 throw new MissingsColumnException(TableDescription.TableName);
@@ -294,7 +330,7 @@ namespace Dotmim.Sync.Builders
 
         }
 
- 
+
         public async Task DropTrackingTableAsync(DbConnection connection, DbTransaction transaction = null)
         {
             var alreadyOpened = connection.State != ConnectionState.Closed;

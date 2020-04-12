@@ -46,14 +46,15 @@ namespace Dotmim.Sync.MySql
 
             return name;
         }
-        public MySqlBuilderTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
 
             this.connection = connection as MySqlConnection;
             this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = MyTableSqlBuilder.GetParsers(this.tableDescription, setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
@@ -71,6 +72,7 @@ namespace Dotmim.Sync.MySql
             var referencesColumns = constraint.ParentKeys;
 
             var stringBuilder = new StringBuilder();
+            stringBuilder.Append("SET FOREIGN_KEY_CHECKS=0;");
             stringBuilder.Append("ALTER TABLE ");
             stringBuilder.AppendLine(tableName);
             stringBuilder.Append("ADD CONSTRAINT ");
@@ -94,7 +96,9 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append($"{empty} {referencesColumnName}");
                 empty = ", ";
             }
-            stringBuilder.Append(" ) ");
+            stringBuilder.AppendLine(" );");
+            stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=1;");
+
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;

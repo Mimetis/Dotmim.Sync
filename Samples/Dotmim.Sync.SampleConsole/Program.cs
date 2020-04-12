@@ -46,8 +46,8 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-       await SynchronizeThenChangeSetupAsync();
-      
+        await SyncHttpThroughKestrellAsync();
+
     }
 
 
@@ -440,7 +440,7 @@ internal class Program
         agent.Options.DisableConstraintsOnApplyChanges = true;
         //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
-        
+
 
 
         do
@@ -484,29 +484,9 @@ internal class Program
         var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
         var options = new SyncOptions { BatchSize = 500, SnapshotsDirectory = snapshotDirectory };
 
-        // ----------------------------------
-        // Web Server side
-        // ----------------------------------
-        var setup = new SyncSetup(new string[] { "ProductCategory" })
-        {
-            StoredProceduresPrefix = "s",
-            StoredProceduresSuffix = "",
-            TrackingTablesPrefix = "t",
-            TrackingTablesSuffix = "",
-            TriggersPrefix = "",
-            TriggersSuffix = "t"
-        };
 
 
-        // ----------------------------------
-        // Create a snapshot
-        // ----------------------------------
-        //Console.ForegroundColor = ConsoleColor.Yellow;
-        //Console.WriteLine($"Creating snapshot");
-        //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, "dd");
-        //await remoteOrchestrator.CreateSnapshotAsync();
-        //Console.WriteLine($"Done.");
-        //Console.ResetColor();
+
 
 
         // ----------------------------------
@@ -523,7 +503,31 @@ internal class Program
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
+            // ----------------------------------
+            // Web Server side
+            // ----------------------------------
+            var setup = new SyncSetup(new string[] { "ProductCategory", "Product" })
+            {
+                StoredProceduresPrefix = "s",
+                StoredProceduresSuffix = "",
+                TrackingTablesPrefix = "t",
+                TrackingTablesSuffix = "",
+                TriggersPrefix = "",
+                TriggersSuffix = "t"
+            };
+
             services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, "dd", setup, options);
+
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Creating snapshot");
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, "dd");
+            remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult() ;
+            Console.WriteLine($"Done.");
+            Console.ResetColor();
+
         });
 
         var serverHandler = new RequestDelegate(async context =>
@@ -550,9 +554,18 @@ internal class Program
                     Console.WriteLine("Web sync start");
                     try
                     {
-                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, "dd");
+                        var localSetup = new SyncSetup()
+                        {
+                            StoredProceduresPrefix = "cli",
+                            StoredProceduresSuffix = "",
+                            TrackingTablesPrefix = "cli",
+                            TrackingTablesSuffix = "",
+                            TriggersPrefix = "cli",
+                            TriggersSuffix = ""
+                        };
+                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, localSetup, "dd");
                         var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
-                        var s = await agent.SynchronizeAsync(progress);
+                        var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, progress);
                         Console.WriteLine(s);
                     }
                     catch (SyncException e)
@@ -719,9 +732,11 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("client.db");
 
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail", "BuildVersion" });
         // Add pref suf
         setup.StoredProceduresPrefix = "s";
         setup.StoredProceduresSuffix = "";
@@ -753,24 +768,44 @@ internal class Program
         Console.WriteLine(s1);
 
         // Change setup
-        setup.StoredProceduresPrefix = "sp";
+        setup.StoredProceduresPrefix = "dms";
+        setup.TrackingTablesPrefix = "dms";
+        setup.TriggersPrefix = "dms";
+        setup.Tables.Clear();
         setup.Tables.Add("Product");
 
-        // Get scope_server
-        var scope_server = await agent.RemoteOrchestrator.GetServerScopeAsync();
+        //// Get scope_server
+        //var scope_server = await agent.RemoteOrchestrator.GetServerScopeAsync();
+        //var oldSetup = scope_server.Setup;
 
-        var oldSchema = JsonConvert.DeserializeObject<SyncSetup>(scope_server.Schema);
-        var oldSetup = JsonConvert.DeserializeObject<SyncSetup>(scope_server.Setup);
+        //var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
 
-        var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
+        //await agent.RemoteOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
+        //await agent.LocalOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
 
-        await agent.RemoteOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
-        await agent.LocalOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                //if (!agent.Parameters.Contains("CompanyName"))
+                //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+
+                var r1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+
+                // Write results
+                Console.WriteLine(r1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
 
 
-        var r = await agent.SynchronizeAsync(progress);
-
-        Console.WriteLine(r);
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         Console.WriteLine("End");
     }

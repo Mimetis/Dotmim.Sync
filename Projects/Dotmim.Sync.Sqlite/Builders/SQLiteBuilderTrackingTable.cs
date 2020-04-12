@@ -24,13 +24,14 @@ namespace Dotmim.Sync.Sqlite
         private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SqliteBuilderTrackingTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 
@@ -166,6 +167,41 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-    
+        public async Task RenameTableAsync(ParserName oldTableName)
+        {
+
+            var tableNameString = this.trackingName.Quoted();
+            var oldTableNameString = oldTableName.Quoted();
+
+            var commandText = $"ALTER TABLE {oldTableNameString} RENAME TO {tableNameString};";
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                using (var command = new SqliteCommand(commandText, connection))
+                {
+                    if (transaction != null)
+                        command.Transaction = transaction;
+
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during RenameTableAsync : {ex}");
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+
+            }
+
+        }
     }
 }

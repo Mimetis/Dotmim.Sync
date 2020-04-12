@@ -328,11 +328,12 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            (var schema, var version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
 
-            this.Schema = schema;
+            this.Schema = serverScopeInfo.Schema;
+            this.Schema.EnsureSchema();
 
-            var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, schema, version);
+            var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
 
             return httpResponse;
 
@@ -352,10 +353,10 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                (var schema, var version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
 
-                schema.EnsureSchema();
-                this.Schema = schema;
+                this.Schema = serverScopeInfo.Schema;
+                this.Schema.EnsureSchema();
 
             }
 
@@ -413,10 +414,11 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var (schema, version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
 
-                schema.EnsureSchema();
-                this.Schema = schema;
+                this.Schema = serverScopeInfo.Schema;
+                this.Schema.EnsureSchema();
+
             }
 
             // ------------------------------------------------------------

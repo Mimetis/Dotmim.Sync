@@ -23,14 +23,15 @@ namespace Dotmim.Sync.Sqlite
         private SqliteConnection connection;
         private SqliteTransaction transaction;
         private SqliteObjectNames sqliteObjectNames;
-        public SqliteBuilderTrigger(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription, this.setup);
-            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription, tableName, trackingName, this.setup);
         }
 
         private string DeleteTriggerBodyText()

@@ -26,14 +26,15 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlDbMetadata sqlDbMetadata;
 
 
-        public SqlBuilderTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqlConnection;
             this.transaction = transaction as SqlTransaction;
 
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = SqlTableBuilder.GetParsers(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
