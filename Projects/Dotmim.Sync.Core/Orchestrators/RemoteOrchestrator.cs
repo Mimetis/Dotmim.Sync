@@ -348,11 +348,14 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
+            SyncSet schema;
 
             using (var connection = this.Provider.CreateConnection())
             {
                 try
                 {
+                    ctx.SyncStage = SyncStage.Migrating;
+
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
@@ -362,7 +365,6 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         // Get Schema from remote provider
-                        SyncSet schema;
                         (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                         schema.EnsureSchema();
 
@@ -388,18 +390,19 @@ namespace Dotmim.Sync
                         // Write scopes locally
                         ctx = await this.Provider.WriteServerScopeAsync(ctx, this.Options.ScopeInfoTableName, remoteScope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        // InterceptAsync Migrated
-                        var args = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
-                        await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                        this.ReportProgress(ctx, progress, args);
-
-
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         transaction.Commit();
                     }
 
+                    ctx.SyncStage = SyncStage.Migrated;
+
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    // InterceptAsync Migrated
+                    var args = new DatabaseMigratedArgs(ctx, schema, this.Setup);
+                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                    this.ReportProgress(ctx, progress, args);
 
                 }
                 catch (Exception ex)

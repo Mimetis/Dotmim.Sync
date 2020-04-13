@@ -55,7 +55,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets message about migration
         /// </summary>
-        public override string Message => $"[{Connection.Database}] migrated. Setup tables count:{Setup.Tables.Count}.";
+        public override string Message => $"Migrated. Setup tables count:{Setup.Tables.Count}.";
 
         /// <summary>
         /// Gets the schema currently used

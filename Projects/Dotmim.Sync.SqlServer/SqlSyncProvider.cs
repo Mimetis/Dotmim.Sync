@@ -63,7 +63,12 @@ namespace Dotmim.Sync.SqlServer
 
             }
         }
-    
+
+        /// <summary>
+        /// Gets a chance to make a retry connection
+        /// </summary>
+        public override bool ShouldRetryOn(Exception exception) => SqlServerTransientExceptionDetector.ShouldRetryOn(exception);
+
         public override void EnsureSyncException(SyncException syncException)
         {
             if (!string.IsNullOrEmpty(this.ConnectionString))

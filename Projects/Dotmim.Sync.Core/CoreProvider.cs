@@ -109,6 +109,11 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Let's a chance to retry on error if connection has been refused.
+        /// </summary>
+        public virtual bool ShouldRetryOn(Exception exception) => false;
+
+        /// <summary>
         /// Read a scope info
         /// </summary>
         public virtual async Task<long> GetLocalTimestampAsync(SyncContext context,
