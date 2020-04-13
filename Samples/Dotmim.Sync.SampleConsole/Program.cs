@@ -541,12 +541,12 @@ internal class Program
                 Console.ResetColor();
             });
 
-            // override sync type
-            var orch = webServerManager.GetOrchestrator(context);
-            orch.OnServerScopeLoaded(sla =>
-            {
-                sla.Context.SyncType = SyncType.Reinitialize;
-            });
+            //// override sync type
+            //var orch = webServerManager.GetOrchestrator(context);
+            //orch.OnServerScopeLoaded(sla =>
+            //{
+            //    sla.Context.SyncType = SyncType.Reinitialize;
+            //});
 
             await webServerManager.HandleRequestAsync(context, default, progress);
         });
