@@ -29,35 +29,35 @@ jobs:
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcpTests --logger trx
-        name: SqlServerTcpTests
+        name: sqlservertcptests
         displayName: "SQL Server Integration Tests SqlServerTcpTests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttpTests --logger trx
-        name: SqlServerHttpTests
+        name: sqlserverhttptests
         displayName: "SQL Server Integration Tests SqlServerHttpTests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcpFilterTests --logger trx
-        name: SqlServerTcpFilterTests
+        name: sqlservertcpfiltertests
         displayName: "SQL Server Integration Tests SqlServerTcpFilterTests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpFiltersTests --logger trx
-        name: SqlServerChangeTrackingTcpFiltersTests
+        name: sqlserverchangetrackingtcpfilterstests
         displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpFiltersTests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpTests --logger trx
-        name: SqlServerChangeTrackingTcpTests
+        name: sqlserverchangetrackingtcptests
         displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpTests"
         continueOnError: true
         env:
