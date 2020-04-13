@@ -51,6 +51,33 @@ namespace Dotmim.Sync
         public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}] Last sync:{ScopeInfo?.LastSync} Last sync duration:{ScopeInfo?.LastSyncDurationString} ";
     }
 
+
+    /// <summary>
+    /// Args generated when a server scope is about to be loaded from server
+    /// </summary>
+    public class ServerScopeLoadingArgs : ProgressArgs
+    {
+        public ServerScopeLoadingArgs(SyncContext context, string scopeName, string scopeTableInfoName, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.ScopeName = scopeName;
+            this.ScopeTableInfoName = scopeTableInfoName;
+        }
+
+        /// <summary>
+        /// Gets the scope name to load from the client database
+        /// </summary>
+        public string ScopeName { get; }
+
+        /// <summary>
+        /// Gets the table where the scope will be loaded from.
+        /// </summary>
+        public string ScopeTableInfoName { get; }
+
+        public override string Message => $"Loading server scope {this.ScopeName} from table {this.ScopeTableInfoName}";
+
+    }
+
     /// <summary>
     /// Args generated before and after a scope has been applied
     /// </summary>

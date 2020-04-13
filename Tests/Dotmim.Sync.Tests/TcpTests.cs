@@ -4035,12 +4035,21 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables), scopeName);
 
-                // Get the orchestrators
-                var localOrchestrator = agent.LocalOrchestrator;
-                var remoteOrchestrator = agent.RemoteOrchestrator;
-
                 // Making a first sync, will initialize everything we need
-                await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            foreach (var client in this.Clients)
+            {
+
+                // Defining options with Batchsize to enable serialization on disk
+                var options = new SyncOptions { BatchSize = 1000 };
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables), scopeName);
 
                 // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
                 var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync();
@@ -4078,11 +4087,9 @@ namespace Dotmim.Sync.Tests
 
                 var r = await agent.SynchronizeAsync();
                 var c = GetServerDatabaseRowsCount(this.Server);
-                var d = 0;
-                Assert.Equal(c + d, r.TotalChangesDownloaded);
+                Assert.Equal(c, r.TotalChangesDownloaded);
                 Assert.Equal(2, r.TotalChangesUploaded);
-                d += 2;
-
+              
             }
         }
 

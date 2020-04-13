@@ -66,6 +66,18 @@ namespace Dotmim.Sync.Web.Client
 
 
         /// <summary>
+        /// Sets the current context
+        /// </summary>
+        internal override void SetContext(SyncContext context)
+        {
+            // we get a different reference from the web server,
+            // so we copy the properties to the correct reference object
+            var ctx = this.GetContext();
+
+            context.CopyTo(ctx);
+        }
+
+        /// <summary>
         /// Gets a new web proxy orchestrator
         /// </summary>
         public WebClientOrchestrator(string serviceUri, ISerializerFactory serializerFactory = null, IConverter customConverter = null, HttpClient client = null)
@@ -147,6 +159,11 @@ namespace Dotmim.Sync.Web.Client
             if (ensureScopesResponse.ServerScopeInfo == null)
                 throw new ArgumentException("Server scope from EnsureScopesAsync can't be null and may contains a server scope");
 
+            // Affect local setup
+            this.Setup = ensureScopesResponse.ServerScopeInfo.Setup;
+
+            // Reaffect context
+            this.SetContext(ensureScopesResponse.SyncContext);
 
             // Return scopes and new shema
             return ensureScopesResponse.ServerScopeInfo;
@@ -155,7 +172,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
-        public override async Task<(SyncSet Schema, string Version)> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override async Task<ServerScopeInfo> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get context or create a new one
             var ctx = this.GetContext();
@@ -177,17 +194,23 @@ namespace Dotmim.Sync.Web.Client
                 (this.HttpClient, this.ServiceUri, binaryData, HttpStep.EnsureSchema, ctx.SessionId, this.ScopeName,
                  this.SerializerFactory, this.Converter, 0, cancellationToken).ConfigureAwait(false);
 
-
             if (ensureScopesResponse == null)
                 throw new ArgumentException("Http Message content for Ensure scope can't be null");
 
-            if (ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.Tables.Count <= 0)
+            if (ensureScopesResponse.ServerScopeInfo == null || ensureScopesResponse.Schema == null || ensureScopesResponse.Schema.Tables.Count <= 0)
                 throw new ArgumentException("Schema from EnsureScope can't be null and may contains at least one table");
 
             ensureScopesResponse.Schema.EnsureSchema();
+            ensureScopesResponse.ServerScopeInfo.Schema = ensureScopesResponse.Schema;
+
+            // Affect local setup
+            this.Setup = ensureScopesResponse.ServerScopeInfo.Setup;
+
+            // Reaffect context
+            this.SetContext(ensureScopesResponse.SyncContext);
 
             // Return scopes and new shema
-            return (ensureScopesResponse.Schema, ensureScopesResponse.Version);
+            return ensureScopesResponse.ServerScopeInfo;
         }
 
         /// <summary>
@@ -199,8 +222,6 @@ namespace Dotmim.Sync.Web.Client
         {
 
             SyncSet schema;
-            string version;
-
             // Get context or create a new one
             var ctx = this.GetContext();
 
@@ -211,14 +232,15 @@ namespace Dotmim.Sync.Web.Client
             //var changesSet = new SyncSet();
 
             // is it something that could happens ?
-            if (string.IsNullOrEmpty(scope.Schema))
+            if (scope.Schema == null)
             {
                 // Make a remote call to get Schema from remote provider
-                (schema, version) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                schema = serverScopeInfo.Schema;
             }
             else
             {
-                schema = JsonConvert.DeserializeObject<SyncSet>(scope.Schema);
+                schema = scope.Schema;
             }
 
             schema.EnsureSchema();
@@ -379,6 +401,9 @@ namespace Dotmim.Sync.Web.Client
             // generate the new scope item
             this.CompleteTime = DateTime.UtcNow;
 
+            // Reaffect context
+            this.SetContext(httpMessageContent.SyncContext);
+
             return (remoteClientTimestamp, serverBatchInfo,
                     httpMessageContent.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
         }
@@ -394,11 +419,11 @@ namespace Dotmim.Sync.Web.Client
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
-
             // Make a remote call to get Schema from remote provider
             if (schema == null)
             {
-                (schema, _) = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                schema = serverScopeInfo.Schema;
                 schema.EnsureSchema();
             }
 
@@ -474,6 +499,8 @@ namespace Dotmim.Sync.Web.Client
 
             } while (!isLastBatch);
 
+            // Reaffect context
+            this.SetContext(httpMessageContent.SyncContext);
 
             return (remoteClientTimestamp, serverBatchInfo);
         }

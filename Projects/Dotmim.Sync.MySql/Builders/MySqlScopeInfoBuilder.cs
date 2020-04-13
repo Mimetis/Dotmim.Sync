@@ -7,6 +7,7 @@ using System.Data.Common;
 using MySql.Data.MySqlClient;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Dotmim.Sync.MySql
 {
@@ -297,8 +298,8 @@ namespace Dotmim.Sync.MySql
                         {
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
-                            scopeInfo.Schema = reader["sync_scope_schema"] as string;
-                            scopeInfo.Setup = reader["sync_scope_setup"] as string;
+                            scopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
+                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = SyncTypeConverter.TryConvertTo<Guid>(reader["sync_scope_id"]);
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
@@ -367,8 +368,8 @@ namespace Dotmim.Sync.MySql
                         {
                             var scopeInfo = new ServerScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
-                            scopeInfo.Schema = reader["sync_scope_schema"] as string;
-                            scopeInfo.Setup = reader["sync_scope_setup"] as string;
+                            scopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
+                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long)reader["sync_scope_last_clean_timestamp"] : 0L;
                             scopes.Add(scopeInfo);
@@ -537,13 +538,13 @@ namespace Dotmim.Sync.MySql
 
                     p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_schema";
-                    p.Value = scopeInfo.Schema;
+                    p.Value = scopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Schema);
                     p.DbType = DbType.String;
                     command.Parameters.Add(p);
 
                     p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_setup";
-                    p.Value = scopeInfo.Setup;
+                    p.Value = scopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
                     p.DbType = DbType.String;
                     command.Parameters.Add(p);
 
@@ -590,8 +591,8 @@ namespace Dotmim.Sync.MySql
                             while (reader.Read())
                             {
                                 scopeInfo.Name = reader["sync_scope_name"] as string;
-                                scopeInfo.Schema = reader["sync_scope_schema"] as string;
-                                scopeInfo.Setup = reader["sync_scope_setup"] as string;
+                                scopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
+                                scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                                 scopeInfo.Version = reader["sync_scope_version"] as string;
                                 scopeInfo.Id = SyncTypeConverter.TryConvertTo<Guid>(reader["sync_scope_id"]);
                                 scopeInfo.LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? (long)reader["scope_last_sync_duration"] : 0L;
@@ -761,13 +762,13 @@ namespace Dotmim.Sync.MySql
 
                     p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_schema";
-                    p.Value = serverScopeInfo.Schema;
+                    p.Value = serverScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Schema);
                     p.DbType = DbType.String;
                     command.Parameters.Add(p);
 
                     p = command.CreateParameter();
                     p.ParameterName = "@sync_scope_setup";
-                    p.Value = serverScopeInfo.Setup;
+                    p.Value = serverScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Setup);
                     p.DbType = DbType.String;
                     command.Parameters.Add(p);
 
@@ -790,8 +791,8 @@ namespace Dotmim.Sync.MySql
                             while (reader.Read())
                             {
                                 serverScopeInfo.Name = reader["sync_scope_name"] as string;
-                                serverScopeInfo.Schema = reader["sync_scope_schema"] as string;
-                                serverScopeInfo.Setup = reader["sync_scope_setup"] as string;
+                                serverScopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
+                                serverScopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                                 serverScopeInfo.Version = reader["sync_scope_version"] as string;
                                 serverScopeInfo.LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long)reader["sync_scope_last_clean_timestamp"] : 0L;
                             }

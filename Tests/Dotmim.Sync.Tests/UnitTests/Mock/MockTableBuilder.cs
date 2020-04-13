@@ -26,5 +26,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
             => new MockBuilderTriggerHelper();
+
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -193,7 +193,10 @@ namespace Dotmim.Sync
 
             // get first scope
             var localScope = scopes.FirstOrDefault();
-
+            
+            if (localScope.Schema != null)
+                localScope.Schema.EnsureSchema();
+            
             return (context, localScope);
         }
 
@@ -230,6 +233,9 @@ namespace Dotmim.Sync
 
             // get first scope
             var localScope = serverScopes.FirstOrDefault();
+
+            if (localScope.Schema != null)
+                localScope.Schema.EnsureSchema();
 
             return (context, localScope);
         }

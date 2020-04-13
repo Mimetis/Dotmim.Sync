@@ -20,24 +20,24 @@ namespace Dotmim.Sync
         /// Scope schema. stored locally
         /// </summary>
         [IgnoreDataMember]
-        public string Schema { get; set; }
+        public SyncSet Schema { get; set; }
 
         /// <summary>
         /// Setup. stored locally
         /// </summary>
-        [IgnoreDataMember]
-        public string Setup { get; set; }
+        [DataMember(Name = "s", IsRequired = true, Order = 2)]
+        public SyncSetup Setup { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema version
         /// </summary>
-        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public string Version { get; set; }
 
         /// <summary>
         /// Gets or Sets the last timestamp a sync has occured. This timestamp is set just 'before' sync start.
         /// </summary>
-        [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public long LastCleanupTimestamp { get; set; }
 
 

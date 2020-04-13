@@ -7,6 +7,7 @@ using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -148,8 +149,8 @@ namespace Dotmim.Sync.Sqlite
                         {
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as String;
-                            scopeInfo.Schema = reader["sync_scope_schema"] as String;
-                            scopeInfo.Setup = reader["sync_scope_setup"] as String;
+                            scopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
+                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                             scopeInfo.Version = reader["sync_scope_version"] as String;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
@@ -255,13 +256,13 @@ namespace Dotmim.Sync.Sqlite
 
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_schema";
-                p.Value = string.IsNullOrEmpty(scopeInfo.Schema) ? DBNull.Value : (object)scopeInfo.Schema;
+                p.Value = scopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Schema);
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_setup";
-                p.Value = string.IsNullOrEmpty(scopeInfo.Setup) ? DBNull.Value : (object)scopeInfo.Setup;
+                p.Value = scopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -309,8 +310,8 @@ namespace Dotmim.Sync.Sqlite
                         {
 
                             scopeInfo.Name = reader["sync_scope_name"] as string;
-                            scopeInfo.Schema = reader["sync_scope_schema"] as string;
-                            scopeInfo.Setup = reader["sync_scope_setup"] as string;
+                            scopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
+                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id"));
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value
