@@ -897,7 +897,6 @@ namespace Dotmim.Sync.MySql
 
             if (filter != null)
             {
-                filter.ValidateColumnFilters(this.tableDescription);
                 commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
                 Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(filter);
                 await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
@@ -950,8 +949,6 @@ namespace Dotmim.Sync.MySql
 
                         if (this.transaction != null)
                             command.Transaction = this.transaction;
-
-                        filter.ValidateColumnFilters(this.tableDescription);
 
                         var commandNameWithFilter = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
 
@@ -1056,7 +1053,6 @@ namespace Dotmim.Sync.MySql
 
             if (filter != null)
             {
-                filter.ValidateColumnFilters(this.tableDescription);
                 commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
                 Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(filter);
                 await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
