@@ -388,6 +388,8 @@ namespace Dotmim.Sync
             {
                 try
                 {
+                    ctx.SyncStage = SyncStage.Migrating;
+
                     // If schema does not have any table, just return
                     if (schema == null || schema.Tables == null || !schema.HasTables)
                         throw new MissingTablesException();
@@ -425,17 +427,19 @@ namespace Dotmim.Sync
                         // Write scopes locally
                         ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, localScope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        // InterceptAsync Migrated
-                        var args = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
-                        await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                        this.ReportProgress(ctx, progress, args);
-
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         transaction.Commit();
                     }
 
+                    ctx.SyncStage = SyncStage.Migrated;
+
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    // InterceptAsync Migrated
+                    var args = new DatabaseMigratedArgs(ctx, schema, this.Setup);
+                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                    this.ReportProgress(ctx, progress, args);
 
                 }
                 catch (Exception ex)

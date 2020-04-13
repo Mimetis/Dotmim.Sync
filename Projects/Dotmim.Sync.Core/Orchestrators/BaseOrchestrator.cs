@@ -126,13 +126,19 @@ namespace Dotmim.Sync
             progress.Report(progressArgs);
         }
 
-
+        
+    
         /// <summary>
         /// Open a connection
         /// </summary>
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
-            await connection.OpenAsync().ConfigureAwait(false);
+            // Make a try and retry 
+            await _.WaitAndRetryAsync(3, 
+                    retryAttempt => TimeSpan.FromMilliseconds(Math.Pow(300, retryAttempt)), 
+                    ex => this.Provider.ShouldRetryOn(ex),
+                    d => connection.OpenAsync(), 
+                    cancellationToken);
 
             // Let provider knows a connection is opened
             this.Provider.OnConnectionOpened(connection);
