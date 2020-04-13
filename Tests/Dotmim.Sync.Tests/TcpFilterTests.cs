@@ -565,7 +565,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact]
+        [Fact, TestPriority(6)]
         public async Task Snapshot_Initialize()
         {
             // create a server schema with seeding
@@ -643,7 +643,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert rows on server, and ensure DISTINCT is applied correctly 
         /// </summary>
-        [Theory, TestPriority(3)]
+        [Theory, TestPriority(7)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_EnsureDistinct(SyncOptions options)
         {
