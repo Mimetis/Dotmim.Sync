@@ -472,12 +472,10 @@ namespace Dotmim.Sync
                         this.Schema = serverScopeInfo.Schema;
                     }
 
-
                     // Affect local setup (equivalent to this.Setup)
                     this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
                     this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
                     this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
-
 
                     // If one of the comparison is false, we make a migration
                     if (!hasSameOptions || !hasSameStructure)
@@ -491,10 +489,7 @@ namespace Dotmim.Sync
                     clientScopeInfo.Schema = serverScopeInfo.Schema;
                     clientScopeInfo.Setup = serverScopeInfo.Setup;
                     clientScopeInfo.Version = serverScopeInfo.Version;
-
-
                 }
-
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

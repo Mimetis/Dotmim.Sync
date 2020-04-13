@@ -392,9 +392,6 @@ namespace Dotmim.Sync
                     if (schema == null || schema.Tables == null || !schema.HasTables)
                         throw new MissingTablesException();
 
-                    // new setup is the one provided on ctor
-                    var newSetup = this.Setup;
-
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
@@ -403,8 +400,12 @@ namespace Dotmim.Sync
                     {
                         await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
+                        // Launch InterceptAsync on Migrating
+                        await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, oldSetup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+
                         // Migrate the db structure
-                        await this.Provider.MigrationAsync(ctx, schema, oldSetup, newSetup, connection, transaction, cancellationToken, progress);
+                        await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress);
 
                         // Now call the ProvisionAsync() to provision new tables
                         var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -418,12 +419,16 @@ namespace Dotmim.Sync
 
                         (ctx, localScope) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        localScope.Setup = newSetup;
+                        localScope.Setup = this.Setup;
                         localScope.Schema = schema;
 
                         // Write scopes locally
                         ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, localScope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                        // InterceptAsync Migrated
+                        var args = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
+                        await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                        this.ReportProgress(ctx, progress, args);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
