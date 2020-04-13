@@ -18,16 +18,22 @@ namespace Dotmim.Sync
         [DataMember(Name = "id", IsRequired = true, Order = 1)]
         public Guid SessionId { get; set; }
 
-       /// <summary>
+        /// <summary>
+        /// Current Session, in progress
+        /// </summary>
+        [DataMember(Name = "csid", IsRequired = true, Order = 2)]
+        public Guid ClientScopeId { get; set; }
+
+        /// <summary>
         /// Gets or Sets the ScopeName for this sync session
         /// </summary>
-        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
+        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public string ScopeName { get; set; }
 
         /// <summary>
         /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload
         /// </summary>
-        [DataMember(Name = "typ", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "typ", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncType SyncType { get; set; }
 
         /// <summary>
@@ -36,19 +42,19 @@ namespace Dotmim.Sync
         /// When remote GetChanges and locally ApplyChanges, we are in Download direction
         /// this Property is used to check SyncDirection on each table.
         /// </summary>
-        [DataMember(Name = "way", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(Name = "way", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public SyncWay SyncWay { get; set; }
 
         /// <summary>
         /// Actual sync stage
         /// </summary>
-        [DataMember(Name = "stage", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "stage", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public SyncStage SyncStage { get; set; }
 
         /// <summary>
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
         /// </summary>
-        [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public SyncParameters Parameters { get; set; }
 
         /// <summary>

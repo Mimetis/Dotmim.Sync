@@ -407,6 +407,9 @@ namespace Dotmim.Sync
                 // On local orchestrator, get scope info
                 var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(cancellationToken, progress);
 
+                // Register local scope id
+                context.ClientScopeId = clientScopeInfo.Id;
+
                 // if client is new or else schema does not exists
                 // We need to get it from server
                 if (clientScopeInfo.IsNewScope || clientScopeInfo.Schema == null)
