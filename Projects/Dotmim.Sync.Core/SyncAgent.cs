@@ -393,8 +393,9 @@ namespace Dotmim.Sync
 
                 ServerScopeInfo serverScopeInfo = null;
 
-                this.LocalOrchestrator.SetContext(context);
-                this.RemoteOrchestrator.SetContext(context);
+                // Internal set the good reference. Don't use the SetContext method here
+                this.LocalOrchestrator.syncContext = context;
+                this.RemoteOrchestrator.syncContext = context;
                 this.LocalOrchestrator.StartTime = startTime;
                 this.RemoteOrchestrator.StartTime = startTime;
 
