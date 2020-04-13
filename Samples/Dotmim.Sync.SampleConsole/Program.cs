@@ -541,6 +541,13 @@ internal class Program
                 Console.ResetColor();
             });
 
+            // override sync type
+            var orch = webServerManager.GetOrchestrator(context);
+            orch.OnServerScopeLoaded(sla =>
+            {
+                sla.Context.SyncType = SyncType.Reinitialize;
+            });
+
             await webServerManager.HandleRequestAsync(context, default, progress);
         });
 
@@ -554,18 +561,18 @@ internal class Program
                     Console.WriteLine("Web sync start");
                     try
                     {
-                        var localSetup = new SyncSetup()
-                        {
-                            StoredProceduresPrefix = "cli",
-                            StoredProceduresSuffix = "",
-                            TrackingTablesPrefix = "cli",
-                            TrackingTablesSuffix = "",
-                            TriggersPrefix = "cli",
-                            TriggersSuffix = ""
-                        };
-                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, localSetup, "dd");
+                        //var localSetup = new SyncSetup()
+                        //{
+                        //    StoredProceduresPrefix = "cli",
+                        //    StoredProceduresSuffix = "",
+                        //    TrackingTablesPrefix = "cli",
+                        //    TrackingTablesSuffix = "",
+                        //    TriggersPrefix = "cli",
+                        //    TriggersSuffix = ""
+                        //};
+                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, "dd");
                         var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
-                        var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, progress);
+                        var s = await agent.SynchronizeAsync(progress);
                         Console.WriteLine(s);
                     }
                     catch (SyncException e)
