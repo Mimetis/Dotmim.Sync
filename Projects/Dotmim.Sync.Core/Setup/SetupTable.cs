@@ -11,6 +11,13 @@ namespace Dotmim.Sync
     [DataContract(Name = "st"), Serializable]
     public class SetupTable : IEquatable<SetupTable>
     {
+        /// <summary>
+        /// public ctor for serialization purpose
+        /// </summary>
+        public SetupTable()
+        {
+
+        }
 
         /// <summary>
         /// Gets or Sets the table name
@@ -36,6 +43,8 @@ namespace Dotmim.Sync
         /// </summary>
         [DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncDirection SyncDirection { get; set; }
+
+
 
         /// <summary>
         /// Specify a table to add to the sync process

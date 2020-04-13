@@ -147,27 +147,28 @@ namespace Dotmim.Sync.Web.Client
         {
 
         }
-        public HttpMessageEnsureSchemaResponse(SyncContext context, SyncSet schema, string version)
+        public HttpMessageEnsureSchemaResponse(SyncContext context, ServerScopeInfo serverScopeInfo)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-            this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
-            this.Version = version ?? throw new ArgumentNullException(nameof(version));
+            this.ServerScopeInfo = serverScopeInfo ?? throw new ArgumentNullException(nameof(serverScopeInfo));
+            this.Schema = serverScopeInfo.Schema;
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
         /// <summary>
-        /// Gets or Sets the schema option (without schema itself, that is not serializable)
+        /// Gets or Sets the schema because the ServerScopeInfo won't have it since it's marked (on purpose) as IgnoreDataMember (and then not serialized)
         /// </summary>
         [DataMember(Name = "schema", IsRequired = true, Order = 2)]
         public SyncSet Schema { get; set; }
 
         /// <summary>
-        /// Gets or Sets the schema version
+        /// Gets or Sets the server scope info, from server
         /// </summary>
-        [DataMember(Name = "v", IsRequired = true, Order = 3)]
-        public string Version { get; set; }
+        [DataMember(Name = "ssi", IsRequired = true, Order = 3)]
+        public ServerScopeInfo ServerScopeInfo { get; set; }
+
     }
 
 

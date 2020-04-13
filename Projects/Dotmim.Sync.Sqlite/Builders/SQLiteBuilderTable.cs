@@ -21,13 +21,14 @@ namespace Dotmim.Sync.Sqlite
         private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SqliteBuilderTable(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
             this.connection = connection as SqliteConnection;
             this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
-            (this.tableName, this.trackingName) = SqliteTableBuilder.GetParsers(this.tableDescription, this.setup);
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
   

@@ -1429,7 +1429,7 @@ namespace Dotmim.Sync.Tests
                     var o = await serializer.DeserializeAsync(ms);
 
                     // check we have a schema
-                    Assert.NotNull(o.Schema);
+                    Assert.NotNull(o.ServerScopeInfo.Schema);
                 }
             });
 
@@ -1741,21 +1741,19 @@ namespace Dotmim.Sync.Tests
                 // create a new agent
                 var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
 
-                // Making a first sync, will initialize everything we need
-                var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
+                //// Making a first sync, will initialize everything we need
+                //var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
 
-                Assert.Equal(SyncSide.ClientSide, se.Side);
-                Assert.Equal("OutOfDateException", se.TypeName);
+                //Assert.Equal(SyncSide.ClientSide, se.Side);
+                //Assert.Equal("OutOfDateException", se.TypeName);
 
                 // Intercept outdated event, and make a reinitialize with upload action
                 agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.ReinitializeWithUpload);
 
                 var r = await agent.SynchronizeAsync();
                 var c = GetServerDatabaseRowsCount(this.Server);
-                var d = 0;
-                Assert.Equal(c + d, r.TotalChangesDownloaded);
+                Assert.Equal(c , r.TotalChangesDownloaded);
                 Assert.Equal(2, r.TotalChangesUploaded);
-                d += 2;
 
             }
             

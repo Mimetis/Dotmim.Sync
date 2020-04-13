@@ -16,7 +16,7 @@ namespace Dotmim.Sync
     {
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
-        private SyncContext syncContext;
+        internal SyncContext syncContext;
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -172,20 +172,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Sets the current context
         /// </summary>
-        internal void SetContext(SyncContext context) => this.syncContext = context;
+        internal virtual void SetContext(SyncContext context)
+        {
+            this.syncContext = context;
+        }
 
         /// <summary>
         /// Gets the current context
         /// </summary>
-        public SyncContext GetContext()
+        public virtual SyncContext GetContext()
         {
             if (this.syncContext != null)
                 return this.syncContext;
 
-            // Context, used to back and forth data between servers
-            var context = new SyncContext(Guid.NewGuid(), this.ScopeName);
-
-            this.SetContext(context);
+            this.syncContext = new SyncContext(Guid.NewGuid(), this.ScopeName); ;
 
             return this.syncContext;
         }
@@ -276,6 +276,21 @@ namespace Dotmim.Sync
                 return schema;
             }
         }
+
+        /// <summary>
+        /// Deprovision the orchestrator database based on the Setup table argument, and the provision enumeration
+        /// </summary>
+        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
+        public virtual Task DeprovisionAsync(SetupTable table, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var setup = new SyncSetup();
+            setup.Tables.Add(table);
+
+            return this.DeprovisionAsync(new SyncSet(setup), provision, cancellationToken, progress);
+        }
+
+
+
 
         /// <summary>
         /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
@@ -404,6 +419,9 @@ namespace Dotmim.Sync
                 return schema;
             }
         }
+
+
+
 
         /// <summary>
         /// Delete metadatas items from tracking tables

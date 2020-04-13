@@ -21,5 +21,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         public Task<bool> NeedToCreateTrackingTableAsync() => Task.FromResult(true);
+
+        
+        public Task RenameTableAsync(ParserName oldTableName) => Task.CompletedTask;
     }
 }

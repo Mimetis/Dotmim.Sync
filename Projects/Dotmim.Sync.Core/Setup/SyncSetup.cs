@@ -67,7 +67,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a list of tables to be added to the sync process
         /// </summary>
-        /// <param name="caseSensitive">Specify if table names are case sensitive. Default is false</param>
         public SyncSetup(IEnumerable<string> tables) : this() => this.Tables.AddRange(tables);
 
         /// <summary>
@@ -90,12 +89,13 @@ namespace Dotmim.Sync
         /// </summary>
         public bool HasColumns => this.Tables?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
-        public bool Equals(SyncSetup otherSetup)
+
+        /// <summary>
+        /// Check if two setups have the same local options
+        /// </summary>
+        public bool HasSameOptions(SyncSetup otherSetup)
         {
             if (otherSetup == null)
-                return false;
-
-            if (this.Tables.Count != otherSetup.Tables.Count)
                 return false;
 
             var sc = SyncGlobalization.DataSourceStringComparison;
@@ -107,6 +107,20 @@ namespace Dotmim.Sync
                 !string.Equals(this.TriggersPrefix, otherSetup.TriggersPrefix, sc) ||
                 !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc) ||
                 !string.Equals(this.Version, otherSetup.Version, sc))
+                return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Check if two setups have the same tables / filters structure
+        /// </summary>
+        public bool HasSameStructure(SyncSetup otherSetup)
+        {
+            if (otherSetup == null)
+                return false;
+
+            if (this.Tables.Count != otherSetup.Tables.Count)
                 return false;
 
             // Checking Filters
@@ -131,7 +145,19 @@ namespace Dotmim.Sync
                     return false;
             }
 
-   
+            return true;
+        }
+
+        public bool Equals(SyncSetup otherSetup)
+        {
+            if (otherSetup == null)
+                return false;
+
+            if (!HasSameOptions(otherSetup))
+                return false;
+
+            if (!HasSameStructure(otherSetup))
+                return false;
 
             return true;
         }
@@ -146,6 +172,7 @@ namespace Dotmim.Sync
         public static bool operator !=(SyncSetup left, SyncSetup right)
             => !(left == right);
 
+        public override string ToString() => $"{this.Tables.Count} tables";
 
     }
 }

@@ -100,6 +100,31 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Intercept the orchestrator when migrating a Setup
+        /// </summary>
+        public static void OnDatabaseMigrating(this BaseOrchestrator orchestrator, Func<DatabaseMigratingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when migrating a Setup
+        /// </summary>
+        public static void OnDatabaseMigrating(this BaseOrchestrator orchestrator, Action<DatabaseMigratingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when a Setup has been migrated
+        /// </summary>
+        public static void OnDatabaseMigrated(this BaseOrchestrator orchestrator, Func<DatabaseMigratedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when a Setup has been migrated
+        /// </summary>
+        public static void OnDatabaseMigrated(this BaseOrchestrator orchestrator, Action<DatabaseMigratedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
         /// Occurs just before saving a serialized set to disk
         /// </summary>
         public static void OnSerializingSet(this BaseOrchestrator orchestrator, Func<SerializingSetArgs, Task> func)
@@ -182,6 +207,31 @@ namespace Dotmim.Sync
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
         public static void OnScopeLoaded(this BaseOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from server database
+        /// </summary>
+        public static void OnServerScopeLoading(this BaseOrchestrator orchestrator, Func<ServerScopeLoadingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from ServerScope database
+        /// </summary>
+        public static void OnServerScopeScopeLoading(this BaseOrchestrator orchestrator, Action<ServerScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from Server database
+        /// </summary>
+        public static void OnServerScopeLoaded(this BaseOrchestrator orchestrator, Func<ServerScopeLoadedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from Server database
+        /// </summary>
+        public static void OnServerScopeLoaded(this BaseOrchestrator orchestrator, Action<ServerScopeLoadedArgs> action)
             => orchestrator.SetInterceptor(action);
 
 
