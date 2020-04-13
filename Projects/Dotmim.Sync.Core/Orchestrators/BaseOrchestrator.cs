@@ -172,7 +172,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Sets the current context
         /// </summary>
-        internal void SetContext(SyncContext context) => this.syncContext = context;
+        internal void SetContext(SyncContext context)
+        {
+            this.syncContext = context;
+            //if (this.syncContext == null)
+            //    this.syncContext = context;
+            //else
+            //    context.CopyTo(this.syncContext);
+        }
 
         /// <summary>
         /// Gets the current context
@@ -421,7 +428,7 @@ namespace Dotmim.Sync
         }
 
 
-    
+
 
         /// <summary>
         /// Delete metadatas items from tracking tables
