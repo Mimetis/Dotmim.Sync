@@ -66,6 +66,18 @@ namespace Dotmim.Sync.Web.Client
 
 
         /// <summary>
+        /// Sets the current context
+        /// </summary>
+        internal override void SetContext(SyncContext context)
+        {
+            // we get a different reference from the web server,
+            // so we copy the properties to the correct reference object
+            var ctx = this.GetContext();
+
+            context.CopyTo(ctx);
+        }
+
+        /// <summary>
         /// Gets a new web proxy orchestrator
         /// </summary>
         public WebClientOrchestrator(string serviceUri, ISerializerFactory serializerFactory = null, IConverter customConverter = null, HttpClient client = null)
