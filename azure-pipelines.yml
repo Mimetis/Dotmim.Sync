@@ -1,5 +1,5 @@
 jobs:
-  - job: Tests
+  - job: Tests SQL Server
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -11,10 +11,6 @@ jobs:
       buildConfiguration: "Release"
 
     steps:
-      # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
-
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL 2017 on Linux container"
 
@@ -32,12 +28,61 @@ jobs:
         env:
           "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServer --logger trx
-        name: sqlserverintegrationtests
-        displayName: "SQL Server Integration Tests"
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcpTests --logger trx
+        name: SqlServerTcpTests
+        displayName: "SQL Server Integration Tests SqlServerTcpTests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttpTests --logger trx
+        name: SqlServerHttpTests
+        displayName: "SQL Server Integration Tests SqlServerHttpTests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcpFilterTests --logger trx
+        name: SqlServerTcpFilterTests
+        displayName: "SQL Server Integration Tests SqlServerTcpFilterTests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpFiltersTests --logger trx
+        name: SqlServerChangeTrackingTcpFiltersTests
+        displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpFiltersTests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpTests --logger trx
+        name: SqlServerChangeTrackingTcpTests
+        displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpTests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - task: PublishTestResults@2
+        inputs:
+          testRunner: VSTest
+          testResultsFiles: "**/*.trx"
+
+  - job: Tests MySql
+
+    pool:
+      # get an Ubuntu image to be able to get the light SQL container
+      vmImage: "ubuntu-latest" # 'VS2017-Win2016'
+
+    variables:
+      solution: "**/*.sln"
+      buildPlatform: "Any CPU"
+      buildConfiguration: "Release"
+
+    steps:
+      # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+        displayName: "Run MySql on Linux container"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySql --logger trx
         name: mysqlintegrationtests
