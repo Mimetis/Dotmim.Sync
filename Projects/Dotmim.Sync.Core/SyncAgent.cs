@@ -88,7 +88,7 @@ namespace Dotmim.Sync
             remoteOrchestrator.OnApplyChangesFailed(func);
 
         }
-            
+
 
         /// <summary>
         /// Shortcut to Apply changed failed if remote orchestrator supports it
@@ -393,8 +393,9 @@ namespace Dotmim.Sync
 
                 ServerScopeInfo serverScopeInfo = null;
 
-                this.LocalOrchestrator.SetContext(context);
-                this.RemoteOrchestrator.SetContext(context);
+                // Internal set the good reference. Don't use the SetContext method here
+                this.LocalOrchestrator.syncContext = context;
+                this.RemoteOrchestrator.syncContext = context;
                 this.LocalOrchestrator.StartTime = startTime;
                 this.RemoteOrchestrator.StartTime = startTime;
 
@@ -407,55 +408,88 @@ namespace Dotmim.Sync
                 // On local orchestrator, get scope info
                 var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(cancellationToken, progress);
 
+                // Register local scope id
+                context.ClientScopeId = clientScopeInfo.Id;
+
                 // if client is new or else schema does not exists
                 // We need to get it from server
-                if (clientScopeInfo.IsNewScope || string.IsNullOrEmpty(clientScopeInfo.Schema))
+                if (clientScopeInfo.IsNewScope || clientScopeInfo.Schema == null)
                 {
                     // Ensure schema is defined on remote side
                     // This action will create schema on server if needed
-                    var (schema, version) = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, remoteProgress);
-                    clientScopeInfo.Schema = JsonConvert.SerializeObject(schema);
-                    clientScopeInfo.Version = version;
+                    // if schema already exists on server, then the server setup will be compared with this one
+                    // if setup is different, it will be migrated.
+                    // so serverScopeInfo.Setup MUST be equal to this.Setup
+                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, remoteProgress);
+                    clientScopeInfo.Schema = serverScopeInfo.Schema;
+                    clientScopeInfo.Setup = serverScopeInfo.Setup;
+                    clientScopeInfo.Version = serverScopeInfo.Version;
 
-                    // Set schema for agent, just to let the opportunity to user to use it.
-                    this.Schema = schema;
-                    this.Schema.EnsureSchema();
+                    // Affect local setup since the setup could potentially comes from Web server
+                    // Affect local setup (equivalent to this.Setup)
+                    if (this.Setup != serverScopeInfo.Setup)
+                    {
+                        this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
+                        this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
+                        this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
+                    }
 
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    await this.LocalOrchestrator.ProvisionAsync(schema, provision, cancellationToken, progress).ConfigureAwait(false);
+                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Set schema for agent, just to let the opportunity to user to use it.
+                    this.Schema = serverScopeInfo.Schema;
                 }
                 else
                 {
                     // on remote orchestrator get scope info as well
+                    // if setup is different, it will be migrated.
+                    // so serverScopeInfo.Setup MUST be equal to this.Setup
                     serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(cancellationToken, remoteProgress);
 
-                    // If coming from Web remote, the schema is null, so just compare version
-                    // if server schema is null, assuming they are identical, unless version are differents
-                    bool schemaAreTheSame = true;
-                    if (serverScopeInfo.Schema != null)
-                    {
-                        var serverSchema = JsonConvert.DeserializeObject<SyncSet>(serverScopeInfo.Schema);
-                        serverSchema.EnsureSchema();
-                        var localSchema = JsonConvert.DeserializeObject<SyncSet>(clientScopeInfo.Schema);
-                        localSchema.EnsureSchema();
+                    // compare local setup options with setup provided on SyncAgent constructor (check if pref / suf have changed)
+                    var hasSameOptions = clientScopeInfo.Setup.HasSameOptions(this.Setup);
 
-                        schemaAreTheSame = serverSchema == localSchema;
+                    // compare local setup strucutre with remote structure
+                    var hasSameStructure = clientScopeInfo.Setup.HasSameStructure(serverScopeInfo.Setup);
+
+                    if (hasSameStructure)
+                    {
+                        // Sett schema & setup
+                        this.Schema = clientScopeInfo.Schema;
+
+                        //schema could be null if from web server 
+                        if (serverScopeInfo.Schema == null)
+                            serverScopeInfo.Schema = clientScopeInfo.Schema;
+                    }
+                    else
+                    {
+                        // Get full schema from server
+                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, remoteProgress);
+
+                        // Set the correct schema
+                        this.Schema = serverScopeInfo.Schema;
                     }
 
-                    var serverVersion = serverScopeInfo.Version;
-                    var localVersion = clientScopeInfo.Version;
+                    // Affect local setup (equivalent to this.Setup)
+                    this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
+                    this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
+                    this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
 
-                    // Compare both string
-                    if (!schemaAreTheSame || serverVersion != localVersion)
-                        throw new ArgumentException("Schema from server is not the same as Client schema, should Deprovision then relaunch");
+                    // If one of the comparison is false, we make a migration
+                    if (!hasSameOptions || !hasSameStructure)
+                    {
+                        await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress);
+                        clientScopeInfo.Setup = this.Setup;
+                        clientScopeInfo.Schema = serverScopeInfo.Schema;
+                    }
 
-                    // Get schema
-                    this.Schema = JsonConvert.DeserializeObject<SyncSet>(clientScopeInfo.Schema);
-                    this.Schema.EnsureSchema();
-
+                    // get scope again
+                    clientScopeInfo.Schema = serverScopeInfo.Schema;
+                    clientScopeInfo.Setup = serverScopeInfo.Setup;
+                    clientScopeInfo.Version = serverScopeInfo.Version;
                 }
-
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

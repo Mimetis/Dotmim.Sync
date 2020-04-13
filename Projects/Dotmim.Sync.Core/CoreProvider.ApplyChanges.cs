@@ -427,7 +427,7 @@ namespace Dotmim.Sync
         /// Since we can disable at the database level
         /// Just check for one available table and execute for the whole db
         /// </summary>
-        private Task EnableConstraintsAsync(SyncContext context, SyncTable table, SyncSetup setup, DbConnection connection, DbTransaction transaction)
+        internal Task EnableConstraintsAsync(SyncContext context, SyncTable table, SyncSetup setup, DbConnection connection, DbTransaction transaction)
         {
             var builder = this.GetTableBuilder(table, setup);
             var syncAdapter = builder.CreateSyncAdapter(connection, transaction);

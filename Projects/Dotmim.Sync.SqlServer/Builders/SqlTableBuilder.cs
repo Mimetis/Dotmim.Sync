@@ -17,7 +17,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
             => this.ObjectNames = new SqlObjectNames(tableDescription, setup);
 
-        public static (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             var originalTableName = ParserName.Parse(tableDescription);
 
@@ -59,27 +59,27 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderProcedure(TableDescription, Setup, connection, transaction);
+            return new SqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderTrigger(TableDescription, Setup, connection, transaction);
+            return new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderTable(TableDescription, Setup, connection, transaction);
+            return new SqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderTrackingTable(TableDescription, Setup, connection, transaction);
+            return new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlSyncAdapter(TableDescription, Setup, connection, transaction);
+            return new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
     }
 }
