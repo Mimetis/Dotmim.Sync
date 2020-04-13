@@ -16,7 +16,7 @@ namespace Dotmim.Sync
     {
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
-        private SyncContext syncContext;
+        internal SyncContext syncContext;
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -172,27 +172,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Sets the current context
         /// </summary>
-        internal void SetContext(SyncContext context)
+        internal virtual void SetContext(SyncContext context)
         {
             this.syncContext = context;
-            //if (this.syncContext == null)
-            //    this.syncContext = context;
-            //else
-            //    context.CopyTo(this.syncContext);
         }
 
         /// <summary>
         /// Gets the current context
         /// </summary>
-        public SyncContext GetContext()
+        public virtual SyncContext GetContext()
         {
             if (this.syncContext != null)
                 return this.syncContext;
 
-            // Context, used to back and forth data between servers
-            var context = new SyncContext(Guid.NewGuid(), this.ScopeName);
-
-            this.SetContext(context);
+            this.syncContext = new SyncContext(Guid.NewGuid(), this.ScopeName); ;
 
             return this.syncContext;
         }
