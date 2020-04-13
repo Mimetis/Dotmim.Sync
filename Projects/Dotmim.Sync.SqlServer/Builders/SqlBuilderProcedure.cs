@@ -1582,8 +1582,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (filter != null)
             {
-                filter.ValidateColumnFilters(this.tableDescription);
-
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
                 SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
                 await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
@@ -1621,8 +1619,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         if (this.transaction != null)
                             command.Transaction = this.transaction;
-
-                        filter.ValidateColumnFilters(this.tableDescription);
 
                         var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
 
@@ -1716,8 +1712,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (filter != null)
             {
-                filter.ValidateColumnFilters(this.tableDescription);
-
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
                 SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(filter);
                 await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
@@ -1754,8 +1748,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         if (this.transaction != null)
                             command.Transaction = this.transaction;
-
-                        filter.ValidateColumnFilters(this.tableDescription);
 
                         var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
 
