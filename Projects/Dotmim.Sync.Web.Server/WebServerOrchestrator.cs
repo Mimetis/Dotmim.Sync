@@ -306,8 +306,6 @@ namespace Dotmim.Sync.Web.Server
             var httpResponse = new HttpMessageEnsureScopesResponse(ctx, serverScopeInfo);
 
             return httpResponse;
-
-
         }
 
 

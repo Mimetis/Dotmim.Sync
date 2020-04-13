@@ -21,13 +21,13 @@ namespace Dotmim.Sync
        /// <summary>
         /// Gets or Sets the ScopeName for this sync session
         /// </summary>
-        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string ScopeName { get; set; }
 
         /// <summary>
         /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload
         /// </summary>
-        [DataMember(Name = "typ", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "typ", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public SyncType SyncType { get; set; }
 
         /// <summary>
@@ -36,19 +36,19 @@ namespace Dotmim.Sync
         /// When remote GetChanges and locally ApplyChanges, we are in Download direction
         /// this Property is used to check SyncDirection on each table.
         /// </summary>
-        [DataMember(Name = "way", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        [DataMember(Name = "way", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncWay SyncWay { get; set; }
 
         /// <summary>
         /// Actual sync stage
         /// </summary>
-        [DataMember(Name = "stage", IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        [DataMember(Name = "stage", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public SyncStage SyncStage { get; set; }
 
         /// <summary>
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
         /// </summary>
-        [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 12)]
+        [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public SyncParameters Parameters { get; set; }
 
         /// <summary>
@@ -65,6 +65,21 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncContext()
         {
+
+        }
+
+        /// <summary>
+        /// Copy local properties to another syncContext instance
+        /// </summary>
+        /// <param name="otherSyncContext"></param>
+        public void CopyTo(SyncContext otherSyncContext)
+        {
+            otherSyncContext.Parameters = this.Parameters;
+            otherSyncContext.ScopeName = this.ScopeName;
+            otherSyncContext.SessionId = this.SessionId;
+            otherSyncContext.SyncStage = this.SyncStage;
+            otherSyncContext.SyncType = this.SyncType;
+            otherSyncContext.SyncWay = this.SyncWay;
 
         }
 

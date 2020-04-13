@@ -150,6 +150,8 @@ namespace Dotmim.Sync.Web.Client
             // Affect local setup
             this.Setup = ensureScopesResponse.ServerScopeInfo.Setup;
 
+            // Reaffect context
+            this.SetContext(ensureScopesResponse.SyncContext);
 
             // Return scopes and new shema
             return ensureScopesResponse.ServerScopeInfo;
@@ -191,6 +193,9 @@ namespace Dotmim.Sync.Web.Client
 
             // Affect local setup
             this.Setup = ensureScopesResponse.ServerScopeInfo.Setup;
+
+            // Reaffect context
+            this.SetContext(ensureScopesResponse.SyncContext);
 
             // Return scopes and new shema
             return ensureScopesResponse.ServerScopeInfo;
@@ -384,6 +389,9 @@ namespace Dotmim.Sync.Web.Client
             // generate the new scope item
             this.CompleteTime = DateTime.UtcNow;
 
+            // Reaffect context
+            this.SetContext(httpMessageContent.SyncContext);
+
             return (remoteClientTimestamp, serverBatchInfo,
                     httpMessageContent.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
         }
@@ -479,6 +487,8 @@ namespace Dotmim.Sync.Web.Client
 
             } while (!isLastBatch);
 
+            // Reaffect context
+            this.SetContext(httpMessageContent.SyncContext);
 
             return (remoteClientTimestamp, serverBatchInfo);
         }
