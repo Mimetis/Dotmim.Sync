@@ -1,6 +1,5 @@
 jobs:
-  - job: Tests SQL Server
-    name: testssqlserver
+  - job: testssqlserver
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -69,8 +68,7 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: Tests MySql
-    name: testsmysql
+  - job: testsmysql
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
