@@ -46,7 +46,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SyncHttpThroughKestrellAsync();
+        await SynchronizeAsync();
 
     }
 
@@ -441,6 +441,7 @@ internal class Program
         //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
 
+        var s1 = await agent.SynchronizeAsync(progress);
 
 
         do
@@ -453,7 +454,9 @@ internal class Program
                 //if (!agent.Parameters.Contains("CompanyName"))
                 //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                var s1 = await agent.SynchronizeAsync(progress);
+                setup.StoredProceduresPrefix = "sssss";
+
+                s1 = await agent.SynchronizeAsync(progress);
 
                 // Write results
                 Console.WriteLine(s1);
@@ -483,9 +486,6 @@ internal class Program
         // snapshot directory
         var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
         var options = new SyncOptions { BatchSize = 500, SnapshotsDirectory = snapshotDirectory };
-
-
-
 
 
 

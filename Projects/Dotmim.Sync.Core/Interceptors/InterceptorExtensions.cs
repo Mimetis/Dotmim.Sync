@@ -100,6 +100,31 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Intercept the orchestrator when migrating a Setup
+        /// </summary>
+        public static void OnDatabaseMigrating(this BaseOrchestrator orchestrator, Func<DatabaseMigratingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when migrating a Setup
+        /// </summary>
+        public static void OnDatabaseMigrating(this BaseOrchestrator orchestrator, Action<DatabaseMigratingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when a Setup has been migrated
+        /// </summary>
+        public static void OnDatabaseMigrated(this BaseOrchestrator orchestrator, Func<DatabaseMigratedArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Intercept the orchestrator when a Setup has been migrated
+        /// </summary>
+        public static void OnDatabaseMigrated(this BaseOrchestrator orchestrator, Action<DatabaseMigratedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
         /// Occurs just before saving a serialized set to disk
         /// </summary>
         public static void OnSerializingSet(this BaseOrchestrator orchestrator, Func<SerializingSetArgs, Task> func)
