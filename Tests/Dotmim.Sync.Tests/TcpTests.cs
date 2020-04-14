@@ -292,9 +292,6 @@ namespace Dotmim.Sync.Tests
         [Fact, TestPriority(3)]
         public async Task Bad_ConnectionFromServer_ShouldRaiseError()
         {
-            Console.WriteLine("Console start test should raise error server");
-            Debug.WriteLine("Debug start test should raise error server");
-
             // create empty client databases
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
