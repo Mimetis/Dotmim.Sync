@@ -60,10 +60,10 @@ body {
 }
 
 a {
-  color: #0079D6;
+  color: #d5000d;
 }
 a:hover {
-  color: #0079Dc;
+  color: #c5000c;
 }
 
 header {
@@ -101,15 +101,15 @@ header h2 {
   max-width: 100%;
 }
 
-// #navbar {
-//       float: left ;
-//       width: 20% ;
-//     }
+#navbar {
+      float: left ;
+      width: 20% ;
+    }
 
-// #main_content {
-//     float: left ;
-//     width: 78% ;
-//   }
+#main_content {
+    float: left ;
+    width: 78% ;
+  }
 #downloads {
   margin: 0px;
 }
@@ -358,8 +358,16 @@ footer a:hover {
 * html .clearfix {height: 1%;}
 .clearfix {display: block;}
 
-/* #Media Queries
-================================================== */
+
+.nav a {
+  color: #e7e7e7;
+}
+
+  .nav a:hover {
+      color: #ffffff;
+      text-decoration:none;
+  }
+
 @media (min-width:768px) {
   body {
       padding-top: 0
