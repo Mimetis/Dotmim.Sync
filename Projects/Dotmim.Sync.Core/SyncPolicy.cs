@@ -72,6 +72,8 @@ namespace Dotmim.Sync
             {
                 while (true)
                 {
+                    Console.WriteLine($"while (true) iteration index {tryCount}");
+
                     if (cancellationToken != null && cancellationToken != CancellationToken.None)
                         cancellationToken.ThrowIfCancellationRequested();
 
@@ -87,12 +89,17 @@ namespace Dotmim.Sync
                         // Did we excesseed the retry count ?
                         var canRetry = tryCount < this.RetryCount;
 
+                        Console.WriteLine($"can retry ? : Max retry count: {this.RetryCount}. trycount index: {tryCount}");
+
                         if (!canRetry)
                             throw ex;
 
                         // Do we have a Func that explicitely say if we can retry or not
                         if (this.isRetriable != null)
+                        {
                             canRetry = isRetriable(ex);
+                            Console.WriteLine($"is retriable ? : {canRetry}");
+                        }
 
                         if (!canRetry)
                             throw ex;
@@ -103,13 +110,14 @@ namespace Dotmim.Sync
 
                     TimeSpan waitDuration = this.sleepDurationProvider?.Invoke(tryCount) ?? TimeSpan.Zero;
 
+                    Console.WriteLine($"Delay : {waitDuration.Hours}:{waitDuration.Minutes}:{waitDuration.Seconds}.{waitDuration.Milliseconds}");
                     if (waitDuration > TimeSpan.Zero)
                         await Task.Delay(waitDuration, cancellationToken).ConfigureAwait(false);
                 }
             }
             finally
             {
-
+                Console.WriteLine("Finally reached");
             }
         }
 
