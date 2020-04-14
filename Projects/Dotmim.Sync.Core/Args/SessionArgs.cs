@@ -21,6 +21,39 @@ namespace Dotmim.Sync
 
     }
 
+
+    /// <summary>
+    /// Event args generated when trying to reconnect
+    /// </summary>
+    public class ReConnectArgs : ProgressArgs
+    {
+        public ReConnectArgs(SyncContext context, DbConnection connection, Exception handledException, int retry, TimeSpan waitingTimeSpan)
+            : base(context, connection)
+        {
+            this.HandledException = handledException;
+            this.Retry = retry;
+            this.WaitingTimeSpan = waitingTimeSpan;
+        }
+
+        public override string Message => $"";
+
+        /// <summary>
+        /// Gets the handled exception
+        /// </summary>
+        public Exception HandledException { get; }
+
+        /// <summary>
+        /// Gets the retry count
+        /// </summary>
+        public int Retry { get; }
+
+        /// <summary>
+        /// Gets the waiting timespan duration
+        /// </summary>
+        public TimeSpan WaitingTimeSpan { get; }
+    }
+
+
     /// <summary>
     /// Event args generated when a connection is closed 
     /// </summary>
