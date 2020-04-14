@@ -14,26 +14,54 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL 2017 on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx
-        name: standalonetests
-        displayName: "Standalone Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx
+      #  name: standalonetests
+      #  displayName: "Standalone Tests"
+      #  continueOnError: true
+      #  env:
+      #    "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx
-        name: unittests
-        displayName: "Unit Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx
+      #  name: unittests
+      #  displayName: "Unit Tests"
+      #  continueOnError: true
+      #  env:
+      #    "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServer --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcpTests --logger trx
         name: sqlservertcptests
         displayName: "SQL Server Integration Tests SqlServerTcpTests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
+
+      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttpTests --logger trx
+      #  name: sqlserverhttptests
+      #  displayName: "SQL Server Integration Tests SqlServerHttpTests"
+      #  continueOnError: true
+      #  env:
+      #    "AZUREDEV": "true"
+
+      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcpFilterTests --logger trx
+      #  name: sqlservertcpfiltertests
+      #  displayName: "SQL Server Integration Tests SqlServerTcpFilterTests"
+      #  continueOnError: true
+      #  env:
+      #    "AZUREDEV": "true"
+
+      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpFiltersTests --logger trx
+      #  name: sqlserverchangetrackingtcpfilterstests
+      #  displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpFiltersTests"
+      #  continueOnError: true
+      #  env:
+      #    "AZUREDEV": "true"
+
+      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpTests --logger trx
+      #  name: sqlserverchangetrackingtcptests
+      #  displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpTests"
+      #  continueOnError: true
+      #  env:
+      #    "AZUREDEV": "true"
 
       - task: PublishTestResults@2
         inputs:
