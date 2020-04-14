@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-
     /// <summary>
     /// Simulate a Polly Policy. You're defining a policy, then you're executing a code that could potentially be retried a number of times, based on your policy
     /// </summary>
@@ -26,7 +25,6 @@ namespace Dotmim.Sync
 
         // function that will return a new TimeSpan, based on the retry current index
         private Func<int, TimeSpan> sleepDurationProvider;
-
 
         /// <summary>
         /// Execute an operation based on a retry policy, synchronously
