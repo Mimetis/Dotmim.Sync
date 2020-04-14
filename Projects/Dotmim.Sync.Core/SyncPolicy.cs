@@ -110,7 +110,6 @@ namespace Dotmim.Sync
             }
             finally
             {
-                Console.WriteLine("Finally reached");
             }
         }
 
