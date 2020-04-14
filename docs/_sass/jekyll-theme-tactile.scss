@@ -362,8 +362,14 @@ footer a:hover {
   color: #e7e7e7;
 }
 
-.nav ul li{
+.nav-item li {
   list-style-type: none;
+  list-style: none;
+}
+
+li .nav-item{
+  list-style-type: none;
+  list-style: none;
 }
 
   .nav a:hover {
