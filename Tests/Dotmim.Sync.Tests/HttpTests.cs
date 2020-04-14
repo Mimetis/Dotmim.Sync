@@ -249,15 +249,23 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
+            var onReconnect = new Action<ReConnectArgs>(args =>
+                 Console.WriteLine($"Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
+
             // configure server orchestrator
             this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
             // change the remote orchestrator connection string
             this.WebServerOrchestrator.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
 
+            this.WebServerOrchestrator.OnReConnect(onReconnect);
+
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
                 var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri));
+
+
+                agent.LocalOrchestrator.OnReConnect(onReconnect);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
