@@ -305,7 +305,14 @@ namespace Dotmim.Sync.Tests
                 var str = $"{test.TestCase.DisplayName}. Client {client.ProviderType}";
                 Console.WriteLine(str);
 
+
                 var agent = new SyncAgent(client.Provider, Server.Provider, this.Tables);
+
+                var onReconnect = new Action<ReConnectArgs>(args =>
+                    Console.WriteLine($"Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
+
+                agent.LocalOrchestrator.OnReConnect(onReconnect);
+                agent.RemoteOrchestrator.OnReConnect(onReconnect);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -330,6 +337,13 @@ namespace Dotmim.Sync.Tests
                 client.Provider.ConnectionString = $@"Data Source=D;";
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, this.Tables);
+              
+                var onReconnect = new Action<ReConnectArgs>(args =>
+                    Console.WriteLine($"Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
+
+                agent.LocalOrchestrator.OnReConnect(onReconnect);
+                agent.RemoteOrchestrator.OnReConnect(onReconnect);
+
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {

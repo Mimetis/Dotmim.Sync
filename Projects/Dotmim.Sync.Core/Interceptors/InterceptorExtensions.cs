@@ -26,6 +26,18 @@ namespace Dotmim.Sync
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
+        /// Occurs when trying to reconnect to a database
+        /// </summary>
+        public static void OnReConnect(this BaseOrchestrator orchestrator, Func<ReConnectArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Occurs when trying to reconnect to a database
+        /// </summary>
+        public static void OnReConnect(this BaseOrchestrator orchestrator, Action<ReConnectArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
         /// Intercept the provider action whenever a transaction is opened
         /// </summary>
         public static void OnTransactionOpen(this BaseOrchestrator orchestrator, Action<TransactionOpenedArgs> action)

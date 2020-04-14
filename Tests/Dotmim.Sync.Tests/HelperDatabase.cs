@@ -93,15 +93,26 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static async Task CreateSqlServerDatabaseAsync(string dbName, bool recreateDb = true)
         {
-            using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
+            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
             {
-                masterConnection.Open();
-                
-                using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
-                    await cmdDb.ExecuteNonQueryAsync();
+                Console.WriteLine($"Creating SQL Server database failed when connecting to master ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                return Task.CompletedTask;
+            });
 
-                masterConnection.Close();
-            }
+            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+
+            await policy.ExecuteAsync(async () =>
+            {
+                using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
+                {
+                    masterConnection.Open();
+
+                    using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
+                        await cmdDb.ExecuteNonQueryAsync();
+
+                    masterConnection.Close();
+                }
+            });
         }
 
         /// <summary>
@@ -109,21 +120,32 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static async Task CreateMySqlDatabaseAsync(string dbName, bool recreateDb = true)
         {
-            using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
+            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
             {
-                sysConnection.Open();
+                Console.WriteLine($"Creating MySql database failed when connecting to sys ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                return Task.CompletedTask;
+            });
 
-                if (recreateDb)
+            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+
+            await policy.ExecuteAsync(async () =>
+            {
+                using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
                 {
-                    using (var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection))
-                        await cmdDrop.ExecuteNonQueryAsync();
+                    sysConnection.Open();
+
+                    if (recreateDb)
+                    {
+                        using (var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection))
+                            await cmdDrop.ExecuteNonQueryAsync();
+                    }
+
+                    using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                        cmdDb.ExecuteNonQuery();
+
+                    sysConnection.Close();
                 }
-
-                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
-                    cmdDb.ExecuteNonQuery();
-
-                sysConnection.Close();
-            }
+            });
         }
 
         /// <summary>
