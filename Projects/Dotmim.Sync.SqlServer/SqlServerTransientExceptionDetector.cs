@@ -19,6 +19,7 @@ namespace Dotmim.Sync.SqlServer
             {
                 foreach (SqlError err in sqlException.Errors)
                 {
+                    Console.WriteLine($"Error number : {err.Number}. Error: {err.Message}");
                     switch (err.Number)
                     {
                         // SQL error code : 4060
