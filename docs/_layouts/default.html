@@ -47,8 +47,14 @@
         </section>
         <hr>
         <div class="row">
-            <nav class="col-md-2 d-none d-md-block sidebar">
-                {% include summary.html %}
+            <nav class="navbar navbar-expand-lg col-md-2 d-none d-md-block sidebar">
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarTogglerDemo02"
+                    aria-controls="navbarTogglerDemo02" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarTogglerDemo02">
+                    {% include summary.html %}
+                </div>
             </nav>
 
             <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
