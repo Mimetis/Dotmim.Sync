@@ -133,7 +133,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
-            Defining my retry policy
+            // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
                                 3,
                                 retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt),
