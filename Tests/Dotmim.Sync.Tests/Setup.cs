@@ -53,9 +53,9 @@ namespace Dotmim.Sync.Tests
             }
             else if (isWindowsRuntime)
             {
-                builder.DataSource = @"localhost";
-                //builder.DataSource = @"(localdb)\MSSQLLocalDB";
-                //builder.IntegratedSecurity = true;
+                //builder.DataSource = @"localhost";
+                builder.DataSource = @"(localdb)\MSSQLLocalDB";
+                builder.IntegratedSecurity = true;
             }
 
             return builder.ToString();
