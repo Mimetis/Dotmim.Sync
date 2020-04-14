@@ -26,36 +26,37 @@
 </head>
 
 <body class="bg-light">
+
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Dotmim.Sync</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="https://github.com/Mimetis/Dotmim.Sync">Github</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+    
     <div id="container-fluid">
-
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <a class="navbar-brand" href="#">Dotmim.Sync</a>
-            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
-                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav mr-auto">
-                    <li class="nav-item active">
-                        <a class="nav-link" href="https://github.com/Mimetis/Dotmim.Sync">Github</a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-        <div id="container-fluid">
-            <div class="row">
-                <nav class="navbar navbar-expand-lg navbar-light bg-light  col-2 col-sm-3 col-md-3 col-lg-3">
-                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                        {% include summary.html %}
-                    </div>
-                </nav>
-                <main role="main" class="ml-sm-auto col-10 col-sm-9 col-md-9 col-lg-9">
-                    {{ content }}
-                </main>
-            </div>
+        <div class="row">
+            <nav class="navbar navbar-expand-lg navbar-light bg-light  col-2 col-sm-3 col-md-3 col-lg-3">
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    {% include summary.html %}
+                </div>
+            </nav>
+            <main role="main" class="ml-sm-auto col-10 col-sm-9 col-md-9 col-lg-9">
+                {{ content }}
+            </main>
         </div>
     </div>
+
 
     <footer>
         {% if site.github.is_project_page %}
