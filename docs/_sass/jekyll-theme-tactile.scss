@@ -55,7 +55,8 @@ body {
   font-size: 1em;
   line-height: 1.5;
   color: #6d6d6d;
-  background: #e7e7e7 url(../images/body-bg.png) 0 0 repeat;
+  padding-top: 90px;
+  margin-bottom: 60px;
 }
 
 a {
@@ -358,18 +359,13 @@ footer a:hover {
 .clearfix {display: block;}
 
 
+.nav li{
+  list-style: none;
+  list-style-type:none;
+}
+
 .nav a {
   color: #e7e7e7;
-}
-
-.nav-item li {
-  list-style-type: none;
-  list-style: none;
-}
-
-li .nav-item{
-  list-style-type: none;
-  list-style: none;
 }
 
   .nav a:hover {
