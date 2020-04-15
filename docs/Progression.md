@@ -59,6 +59,10 @@ public enum SyncStage
     // Cleaning tracking information from any tracking table
     MetadataCleaning,
     MetadataCleaned,
+
+    // Migrating a setup to a new one
+    Migrating,
+    Migrated,
 }
 ```
 
@@ -234,6 +238,10 @@ That way, you may be able to modify these rows, to meet your business / requirem
 To do so, you can use the **interceptors** `OnTableChangesSelecting` and `OnTableChangesSelected` to have more details on what changes are selected for each table.
 
 In the other hand, you can use the **interceptors** `OnTableChangesApplying` and `OnTableChangesApplied` to get all the rows that will be applied to a destination database.
+
+>
+> You will find the sample used for this chapter, here : [Spy sample](https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Spy)
+>
 
 
 ``` csharp
