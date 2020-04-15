@@ -302,6 +302,11 @@ namespace Dotmim.Sync
         /// </summary>
         public bool HasAutoIncrementColumns => this.Columns.Any(c => c.IsAutoIncrement);
 
+        /// <summary>
+        /// Gets a value indicating if the synctable has rows
+        /// </summary>
+        public bool HasRows => (this.Rows != null && this.Rows.Count > 0);
+
         public override string ToString()
         {
             if (!string.IsNullOrEmpty(this.SchemaName))
