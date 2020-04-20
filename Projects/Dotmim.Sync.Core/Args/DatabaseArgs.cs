@@ -24,6 +24,7 @@ namespace Dotmim.Sync
         public SyncSet Schema { get; }
         public override string Message => $"synced tables count: {this.Schema.Tables.Count}";
 
+        public override int EventId => 11;
     }
     public class OutdatedArgs : ProgressArgs
     {
@@ -49,6 +50,7 @@ namespace Dotmim.Sync
         /// Gets the server scope info to check if client is outdated
         /// </summary>
         public ServerScopeInfo ServerScopeInfo { get; }
+        public override int EventId => 12;
     }
 
     public enum OutdatedAction

@@ -19,6 +19,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{SchemaTable.GetFullName()}] provision:{Provision}";
 
+        public override int EventId => 21;
     }
 
     public class TableProvisioningArgs : ProgressArgs
@@ -35,6 +36,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{TableBuilder.TableDescription.GetFullName()}] provisioning:{Provision}";
 
+        public override int EventId => 22;
     }
 
 
@@ -44,6 +46,7 @@ namespace Dotmim.Sync
             : base(context, provision, schemaTable, connection, transaction)
         {
         }
+        public override int EventId => 23;
     }
 
     public class DatabaseProvisionedArgs : ProgressArgs
@@ -61,6 +64,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Count} provision:{Provision}";
 
+        public override int EventId => 24;
     }
 
     public class DatabaseProvisioningArgs : ProgressArgs
@@ -86,6 +90,7 @@ namespace Dotmim.Sync
         // public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Sum(t => t.Columns.Count)} provision:{Provision}";
         public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Count} provision:{Provision}";
 
+        public override int EventId => 25;
     }
 
     public class DatabaseDeprovisionedArgs : DatabaseProvisionedArgs
@@ -94,6 +99,7 @@ namespace Dotmim.Sync
             : base(context, provision, schema, connection, transaction)
         {
         }
+        public override int EventId => 26;
     }
 
     public class DatabaseDeprovisioningArgs : DatabaseProvisioningArgs
@@ -101,5 +107,6 @@ namespace Dotmim.Sync
         public DatabaseDeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction) : base(context, provision, schema, connection, transaction)
         {
         }
+        public override int EventId => 27;
     }
 }

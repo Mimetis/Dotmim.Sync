@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -125,9 +126,11 @@ namespace Dotmim.Sync
             // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
             // in client database is not the DefaultScopeInfoTableName
             var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, connection, transaction);
-            
+
             var localTime = await scopeInfoBuilder.GetLocalTimestampAsync().ConfigureAwait(false);
-            
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetLocalTimestamp, new { Timestamp = localTime });
+
             return localTime;
         }
 
@@ -138,6 +141,8 @@ namespace Dotmim.Sync
             var databaseBuilder = this.GetDatabaseBuilder();
 
             var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetHello, new { hello.DatabaseName, hello.Version });
 
             return (context, hello.DatabaseName, hello.Version);
         }

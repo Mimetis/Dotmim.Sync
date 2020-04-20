@@ -45,13 +45,13 @@ namespace Dotmim.Sync
 
         public MigrationSetupTable(SetupTable table)
         {
-            this.Table = table;
+            this.SetupTable = table;
         }
 
         /// <summary>
         /// Table to migrate
         /// </summary>
-        public SetupTable Table { get; set; }
+        public SetupTable SetupTable { get; set; }
 
         /// <summary>
         /// Gets or Sets a boolean indicating that this table should recreate the stored procedures
@@ -69,7 +69,10 @@ namespace Dotmim.Sync
         public MigrationAction TrackingTable { get; set; }
 
 
-
+        /// <summary>
+        /// Gets or Sets a boolean indicating that this table should be recreated
+        /// </summary>
+        public MigrationAction Table { get; set; }
 
     }
 
@@ -125,6 +128,7 @@ namespace Dotmim.Sync
                 migrationDeletedSetupTable.StoredProcedures = MigrationAction.Drop;
                 migrationDeletedSetupTable.TrackingTable = MigrationAction.Drop;
                 migrationDeletedSetupTable.Triggers = MigrationAction.Drop;
+                migrationDeletedSetupTable.Table = MigrationAction.Drop;
 
                 migrationSetup.Tables.Add(migrationDeletedSetupTable);
             }
@@ -152,7 +156,7 @@ namespace Dotmim.Sync
                     migrationSetupTable.StoredProcedures = MigrationAction.CreateOrRecreate;
                     migrationSetupTable.TrackingTable = MigrationAction.CreateOrRecreate;
                     migrationSetupTable.Triggers = MigrationAction.CreateOrRecreate;
-
+                    migrationSetupTable.Table = MigrationAction.CreateOrRecreate;
                 }
                 else
                 {
