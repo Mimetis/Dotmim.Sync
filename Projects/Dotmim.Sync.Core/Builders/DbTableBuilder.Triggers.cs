@@ -4,7 +4,6 @@ using System.Data.Common;
 using System.Text;
 using System.Linq;
 using System.Data;
-using Dotmim.Sync.Log;
 using System.Diagnostics;
 using System.Threading.Tasks;
 

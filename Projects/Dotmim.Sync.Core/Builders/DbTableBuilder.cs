@@ -5,8 +5,6 @@ using System.Data.Common;
 using System.Text;
 using System.Linq;
 using System.Data;
-using Dotmim.Sync.Log;
-
 using System.Diagnostics;
 using Dotmim.Sync.Enumerations;
 using System.Threading.Tasks;
@@ -138,13 +136,17 @@ namespace Dotmim.Sync.Builders
 
             var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
 
-            await trackingTableBuilder.RenameTableAsync(oldTableName);
+            // be sure the table actually exists
+            var hasbeenCreated = await CreateTrackingTableAsync(connection, transaction);
+
+            if (!hasbeenCreated)
+                await trackingTableBuilder.RenameTableAsync(oldTableName);
 
             if (!alreadyOpened)
                 connection.Close();
         }
 
-        public async Task CreateTrackingTableAsync(DbConnection connection, DbTransaction transaction = null)
+        public async Task<bool> CreateTrackingTableAsync(DbConnection connection, DbTransaction transaction = null)
         {
             if (TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(TableDescription.TableName);
@@ -153,6 +155,9 @@ namespace Dotmim.Sync.Builders
 
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
+
+
+            var hasBeenCreated = false;
 
             var trackingTableBuilder = CreateTrackingTableBuilder(connection, transaction);
             var tableBuilder = CreateTableBuilder(connection, transaction);
@@ -165,11 +170,13 @@ namespace Dotmim.Sync.Builders
                 await trackingTableBuilder.CreateTableAsync().ConfigureAwait(false);
                 await trackingTableBuilder.CreatePkAsync().ConfigureAwait(false);
                 await trackingTableBuilder.CreateIndexAsync().ConfigureAwait(false);
+                hasBeenCreated = true;
             }
 
             if (!alreadyOpened)
                 connection.Close();
 
+            return hasBeenCreated;
         }
 
         public async Task CreateStoredProceduresAsync(DbConnection connection, DbTransaction transaction = null)
@@ -378,7 +385,7 @@ namespace Dotmim.Sync.Builders
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            if (provision.HasFlag(SyncProvision.StoredProcedures))
+            if (provision.HasFlag(SyncProvision.StoredProcedures)) { }
                 await this.DropStoredProceduresAsync(connection, transaction).ConfigureAwait(false);
 
             if (provision.HasFlag(SyncProvision.Triggers))

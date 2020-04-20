@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -38,6 +39,8 @@ namespace Dotmim.Sync
 
             ctx.SyncStage = SyncStage.BeginSession;
 
+            this.logger.LogDebug(SyncEventsId.BeginSession, ctx);
+
             // Progress & interceptor
             var sessionArgs = new SessionBeginArgs(ctx, null, null);
             await this.InterceptAsync(sessionArgs, cancellationToken).ConfigureAwait(false);
@@ -56,6 +59,8 @@ namespace Dotmim.Sync
             var ctx = this.GetContext();
 
             ctx.SyncStage = SyncStage.EndSession;
+
+            this.logger.LogDebug(SyncEventsId.BeginSession, ctx);
 
             // Progress & interceptor
             var sessionArgs = new SessionEndArgs(ctx, null, null);
@@ -117,6 +122,9 @@ namespace Dotmim.Sync
                     if (connection != null && connection.State == ConnectionState.Open)
                         connection.Close();
                 }
+
+                this.logger.LogInformation(SyncEventsId.GetClientScope, localScope);
+
                 return localScope;
             }
         }
@@ -135,7 +143,6 @@ namespace Dotmim.Sync
             long clientTimestamp = 0L;
             BatchInfo clientBatchInfo = null;
             DatabaseChangesSelected clientChangesSelected = null;
-
 
             // Get context or create a new one
             var ctx = this.GetContext();
@@ -160,6 +167,7 @@ namespace Dotmim.Sync
                         if (localScopeInfo.Schema == null)
                             throw new MissingLocalOrchestratorSchemaException();
 
+                        this.logger.LogInformation(SyncEventsId.GetClientScope, localScopeInfo);
 
                         // On local, we don't want to chase rows from "others" 
                         // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
@@ -180,6 +188,8 @@ namespace Dotmim.Sync
 
                         // Call interceptor
                         await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        this.logger.LogInformation(SyncEventsId.GetChanges, message);
 
                         // Locally, if we are new, no need to get changes
                         if (isNew)
@@ -212,6 +222,8 @@ namespace Dotmim.Sync
                         connection.Close();
                 }
 
+                this.logger.LogInformation(SyncEventsId.GetChanges, new { ClientTimestamp = clientTimestamp, ClientBatchInfo = clientBatchInfo, ClientChangesSelected = clientChangesSelected });
+
                 return (clientTimestamp, clientBatchInfo, clientChangesSelected);
             }
         }
@@ -237,6 +249,7 @@ namespace Dotmim.Sync
                 {
                     ctx.SyncStage = SyncStage.ChangesApplying;
 
+
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
@@ -261,6 +274,8 @@ namespace Dotmim.Sync
 
                         // call interceptor
                         await this.InterceptAsync(new DatabaseChangesApplyingArgs(ctx, applyChanges, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        this.logger.LogDebug(SyncEventsId.ApplyChanges, applyChanges);
 
                         // Call apply changes on provider
                         (ctx, clientChangesApplied) = await this.Provider.ApplyChangesAsync(ctx, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -330,6 +345,9 @@ namespace Dotmim.Sync
             ctx.SyncStage = SyncStage.SnapshotApplying;
             await this.InterceptAsync(new SnapshotApplyingArgs(ctx), cancellationToken).ConfigureAwait(false);
 
+            var connection = this.Provider.CreateConnection();
+
+            this.logger.LogDebug(SyncEventsId.ApplySnapshot, new { connection.Database, ClientTimestamp = clientTimestamp, RemoteClientTimestamp = remoteClientTimestamp });
 
             if (clientScopeInfo.Schema == null)
                 throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
@@ -360,8 +378,6 @@ namespace Dotmim.Sync
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
-
-            var ctx = this.GetContext();
 
             // Get the min timestamp, where we can without any problem, delete metadatas
             var clientScopeInfo = await this.GetClientScopeAsync(cancellationToken, progress);
@@ -405,9 +421,11 @@ namespace Dotmim.Sync
                         // Launch InterceptAsync on Migrating
                         await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, oldSetup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
+                        this.logger.LogDebug(SyncEventsId.Migration, oldSetup);
+                        this.logger.LogDebug(SyncEventsId.Migration, this.Setup);
 
                         // Migrate the db structure
-                        await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress);
+                        await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, true, connection, transaction, cancellationToken, progress);
 
                         // Now call the ProvisionAsync() to provision new tables
                         var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;

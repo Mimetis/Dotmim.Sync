@@ -39,6 +39,7 @@ namespace Dotmim.Sync
         /// Gets the new setup to apply
         /// </summary>
         public SyncSetup NewSetup { get; }
+        public override int EventId => 19;
     }
 
     /// <summary>
@@ -66,5 +67,6 @@ namespace Dotmim.Sync
         /// Gets the new setup applied
         /// </summary>
         public SyncSetup Setup { get; }
+        public override int EventId => 20;
     }
 }

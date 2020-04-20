@@ -76,4 +76,5 @@ namespace Dotmim.Sync
         IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
 
     }
+
 }

@@ -1,5 +1,6 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -27,6 +28,8 @@ namespace Dotmim.Sync
             if (schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
 
+            this.Orchestrator.logger.LogTrace(SyncEventsId.Deprovision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName, DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges, });
+
             // get Database builder
             var builder = this.GetDatabaseBuilder();
             builder.UseChangeTracking = this.UseChangeTracking;
@@ -52,6 +55,8 @@ namespace Dotmim.Sync
                 // adding filter
                 this.AddFilters(schemaTable, tableBuilder);
 
+                this.Orchestrator.logger.LogTrace(SyncEventsId.Deprovision, schemaTable);
+                
                 await tableBuilder.DropAsync(provision, connection, transaction).ConfigureAwait(false);
 
                 // Interceptor
@@ -82,6 +87,8 @@ namespace Dotmim.Sync
 
             if (schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
+
+            this.Orchestrator.logger.LogTrace(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName});
 
             // get Database builder
             var builder = this.GetDatabaseBuilder();
@@ -117,6 +124,8 @@ namespace Dotmim.Sync
                 // adding filter
                 this.AddFilters(schemaTable, tableBuilder);
 
+                this.Orchestrator.logger.LogTrace(SyncEventsId.Provision, schemaTable);
+
                 // Interceptor
                 await this.Orchestrator.InterceptAsync(new TableProvisioningArgs(context, provision, tableBuilder, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -141,9 +150,9 @@ namespace Dotmim.Sync
             {
                 // get the all the filters for the table
                 builder.Filter = schemaTable.GetFilter();
+
+                this.Orchestrator.logger.LogTrace(SyncEventsId.AddFilter, builder.Filter);
             }
-
         }
-
     }
 }

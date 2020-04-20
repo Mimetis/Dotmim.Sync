@@ -19,6 +19,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
+        public override int EventId => 35;
     }
 
 
@@ -51,6 +52,7 @@ namespace Dotmim.Sync
         /// Gets the waiting timespan duration
         /// </summary>
         public TimeSpan WaitingTimeSpan { get; }
+        public override int EventId => 36;
     }
 
 
@@ -66,6 +68,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
+        public override int EventId => 37;
     }
 
     /// <summary>
@@ -80,6 +83,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
+        public override int EventId => 38;
     }
 
     /// <summary>
@@ -94,6 +98,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
+        public override int EventId => 39;
     }
 
 
@@ -107,10 +112,11 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"";
+        public override string Message => $"Session Id:{this.Context.SessionId}";
 
+        public override int EventId => 40;
     }
-   
+
     /// <summary>
     /// Event args generated during EndSession stage
     /// </summary>
@@ -121,7 +127,7 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"";
-
+        public override string Message => $"Session Id:{this.Context.SessionId}";
+        public override int EventId => 41;
     }
 }

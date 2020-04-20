@@ -26,6 +26,7 @@ namespace Dotmim.Sync
         public override string Message => $"[{Connection.Database}] getting changes ...";
 
         public MessageGetChangesBatch ChangesRequest { get; }
+        public override int EventId => 13;
     }
 
     /// <summary>
@@ -46,6 +47,7 @@ namespace Dotmim.Sync
         public long Timestamp { get; }
         public BatchInfo ClientBatchInfo { get; }
         public DatabaseChangesSelected ChangesSelected { get; }
+        public override int EventId => 14;
     }
 
     /// <summary>
@@ -65,6 +67,7 @@ namespace Dotmim.Sync
         /// All parameters that will be used to apply changes
         /// </summary>
         public MessageApplyChanges ApplyChanges { get; }
+        public override int EventId => 15;
     }
 
     /// <summary>
@@ -82,6 +85,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] applied:{ChangesApplied.TotalAppliedChanges} resolved conflicts:{ChangesApplied.TotalResolvedConflicts}";
 
+        public override int EventId => 16;
     }
 
 

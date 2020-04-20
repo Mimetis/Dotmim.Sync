@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -81,6 +82,11 @@ namespace Dotmim.Sync
         public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
         /// <summary>
+        /// Gets or Sets the default logger used for logging purpose
+        /// </summary>
+        public ILogger Logger { get; set; }
+
+        /// <summary>
         /// Create a new instance of options with default values
         /// </summary>
         public SyncOptions()
@@ -93,6 +99,7 @@ namespace Dotmim.Sync
             this.DisableConstraintsOnApplyChanges = true;
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+            this.Logger = new SyncLogger().AddDebug();
         }
 
 

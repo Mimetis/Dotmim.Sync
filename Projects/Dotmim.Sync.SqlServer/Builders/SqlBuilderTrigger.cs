@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 
 
-using Dotmim.Sync.Log;
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -89,7 +89,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public async Task CreateDeleteTriggerAsync()
+        public virtual async Task CreateDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -128,7 +128,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             }
         }
-        public async Task DropDeleteTriggerAsync()
+        public virtual async Task DropDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -163,7 +163,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public async Task AlterDeleteTriggerAsync()
+        public virtual async Task AlterDeleteTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -256,7 +256,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(stringPkAreNull.ToString());
             return stringBuilder.ToString();
         }
-        public async Task CreateInsertTriggerAsync()
+        public virtual async Task CreateInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -295,7 +295,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public async Task DropInsertTriggerAsync()
+        public virtual async Task DropInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -331,7 +331,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public async Task AlterInsertTriggerAsync()
+        public virtual async Task AlterInsertTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -459,7 +459,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return stringBuilder.ToString();
         }
-        public async Task CreateUpdateTriggerAsync()
+        public virtual async Task CreateUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -497,7 +497,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        public async Task DropUpdateTriggerAsync()
+        public virtual async Task DropUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
@@ -534,7 +534,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        public async Task AlterUpdateTriggerAsync()
+        public virtual async Task AlterUpdateTriggerAsync()
         {
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
 

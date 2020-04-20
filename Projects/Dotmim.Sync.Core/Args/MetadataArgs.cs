@@ -20,6 +20,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"tables cleaning count:{Setup.Tables.Count}";
 
+        public override int EventId => 17;
     }
 
     public class MetadataCleanedArgs : ProgressArgs
@@ -37,5 +38,6 @@ namespace Dotmim.Sync
 
         public override string Message => $"Tables cleaned count:{DatabaseMetadatasCleaned.Tables.Count}. Rows cleaned count:{DatabaseMetadatasCleaned.RowsCleanedCount}";
 
+        public override int EventId => 18;
     }
 }

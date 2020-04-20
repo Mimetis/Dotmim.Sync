@@ -32,6 +32,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using Dotmim.Sync.Setup;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+using Serilog;
+using Serilog.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Serilog.Sinks.SystemConsole.Themes;
+using Serilog.Events;
 
 internal class Program
 {
@@ -46,9 +53,75 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await SyncAccessRulesAsync();
 
     }
+
+
+    private static async Task SyncAccessRulesAsync()
+    {
+        var clientProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
+
+        // ----------------------------------
+        // Client side
+        // ----------------------------------
+        var clientOptions = new SyncOptions
+        {
+            ScopeInfoTableName = "client_scopeinfo",
+            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client"),
+            BatchSize = 50,
+            CleanMetadatas = true,
+            UseBulkOperations = true,
+            UseVerboseErrors = false,
+        };
+
+        var clientSetup = new SyncSetup
+        {
+            StoredProceduresPrefix = "cli",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "cli",
+            TrackingTablesSuffix = "",
+            TriggersPrefix = "",
+            TriggersSuffix = "",
+        };
+
+
+
+        var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup);
+
+        Console.WriteLine("Press a key to start (be sure web api is running ...)");
+        Console.ReadKey();
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Web sync start");
+            try
+            {
+                var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+
+                Console.WriteLine(s);
+
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+
+    }
+
 
 
     private static void TestSqliteDoubleStatement()
@@ -361,6 +434,46 @@ internal class Program
         Console.WriteLine("End");
     }
 
+
+    private static async Task TestAvbAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("TestAvg"));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup(new String[] { "avb.avb", "avb.avbg" });
+
+        // filter on table avb.avbg
+        var avbGFilter = new SetupFilter("avbg", "avb");
+
+        // add parameter from table avb.avb Column avb.avb.UserId
+        avbGFilter.AddParameter("UserId", "avb", "avb");
+
+        // join to table avb.avbg
+        avbGFilter.AddJoin(Join.Left, "avb.avb").On("avb.avb", "Id", "avb.avbg", "avbId");
+        avbGFilter.AddWhere("UserId", "avb", "UserId", "avb");
+
+        setup.Filters.Add(avbGFilter);
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        Guid userId = new Guid("a7ca90ef-f6b1-4a19-9e31-01a215abbb95");
+
+        agent.Parameters.Add("UserId", userId);
+
+        var s1 = await agent.SynchronizeAsync(progress);
+
+        Console.WriteLine(s1);
+    }
+
     /// <summary>
     /// Launch a simple sync, over TCP network, each sql server (client and server are reachable through TCP cp
     /// </summary>
@@ -374,9 +487,13 @@ internal class Program
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
         //var setup = new SyncSetup(new string[] { "Customer" });
-        var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(new[] { "Customer" });
+        setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
 
         //setup.Filters.Add("Customer", "CompanyName");
+
+        //_syncNewSetup.Filters.Add(avbGFilter);
+
 
         //var addressCustomerFilter = new SetupFilter("CustomerAddress");
         //addressCustomerFilter.AddParameter("CompanyName", "Customer");
@@ -412,26 +529,89 @@ internal class Program
         //setup.TrackingTablesPrefix = "t";
         //setup.TrackingTablesSuffix = "";
 
+        var options = new SyncOptions();
+        options.BatchSize = 500;
+
+
+        //Log.Logger = new LoggerConfiguration()
+        //    .Enrich.FromLogContext()
+        //    .MinimumLevel.Verbose()
+        //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        //    .WriteTo.Console()
+        //    .CreateLogger();
+
+        // 1) create a console logger
+        //var loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole().SetMinimumLevel(LogLevel.Trace); });
+        //var logger = loggerFactory.CreateLogger("Dotmim.Sync");
+        //options.Logger = logger;
+
+
+        // 1) create a serilog logger
+        //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog().SetMinimumLevel(LogLevel.Trace); });
+        //var logger = loggerFactory.CreateLogger("SyncAgent");
+        //options.Logger = logger;
+
+        //3) Using Serilog with Seq
+        var serilogLogger = new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .MinimumLevel.Information()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .WriteTo.Seq("http://localhost:5341")
+            //.WriteTo.Console()
+            .CreateLogger();
+
+
+        var actLogging = new Action<SyncLoggerOptions>(slo =>
+        {
+            slo.AddConsole();
+            slo.SetMinimumLevel(LogLevel.Information);
+        });
+
+        //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger)
+                                                                   .AddSyncLogger(actLogging)
+                                                                   .SetMinimumLevel(LogLevel.Critical));
+
+
+
+        // loggerFactory.AddSerilog(serilogLogger);
+
+        options.Logger = loggerFactory.CreateLogger("dms");
+        
+        // 2nd option to add serilog
+        //var loggerFactorySerilog = new SerilogLoggerFactory();
+        //var logger = loggerFactorySerilog.CreateLogger<SyncAgent>();
+        //options.Logger = logger;
+
+        //options.Logger = new SyncLogger().AddConsole().AddDebug().SetMinimumLevel(LogLevel.Trace);
+
+        //var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
+        //options.BatchSize = 500;
+        //options.SnapshotsDirectory = snapshotDirectory;
+        //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        //remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
+
+
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
         // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
+        //var progress = new SynchronousProgress<ProgressArgs>(s =>
+        //{
+        //    Console.ForegroundColor = ConsoleColor.Green;
+        //    Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+        //    Console.ResetColor();
+        //});
 
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
+        //var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        //{
+        //    Console.ForegroundColor = ConsoleColor.Yellow;
+        //    Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+        //    Console.ResetColor();
+        //});
 
 
-        agent.AddRemoteProgress(remoteProgress);
+        //agent.AddRemoteProgress(remoteProgress);
 
         //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
         // agent.Options.BatchSize = 1000;
@@ -441,12 +621,10 @@ internal class Program
         //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
         //agent.Options.UseVerboseErrors = false;
 
-        var s1 = await agent.SynchronizeAsync(progress);
-
 
         do
         {
-            Console.Clear();
+            // Console.Clear();
             Console.WriteLine("Sync Start");
             try
             {
@@ -454,16 +632,16 @@ internal class Program
                 //if (!agent.Parameters.Contains("CompanyName"))
                 //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                setup.StoredProceduresPrefix = "sssss";
+                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
-                s1 = await agent.SynchronizeAsync(progress);
+                await agent.RemoteOrchestrator.DeleteMetadatasAsync();
 
                 // Write results
                 Console.WriteLine(s1);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                //Console.WriteLine(e.Message);
             }
 
 
@@ -524,7 +702,7 @@ internal class Program
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"Creating snapshot");
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, "dd");
-            remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult() ;
+            remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
             Console.WriteLine($"Done.");
             Console.ResetColor();
 

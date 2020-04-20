@@ -44,7 +44,11 @@ namespace Dotmim.Sync
         [DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncDirection SyncDirection { get; set; }
 
-
+        /// <summary>
+        /// Check if SetupTable has columns. If not columns specified, all the columns from server database are retrieved
+        /// </summary>
+        [IgnoreDataMember]
+        public bool HasColumns => this.Columns?.Count > 0; 
 
         /// <summary>
         /// Specify a table to add to the sync process
@@ -84,13 +88,17 @@ namespace Dotmim.Sync
             this.Columns.AddRange(columnsName);
         }
 
-        public override string ToString()
-        {
-            if (string.IsNullOrEmpty(SchemaName))
-                return TableName;
-            else
-                return $"{SchemaName}.{TableName}";
-        }
+        /// <summary>
+        /// ToString override. Gets the full name + columns count
+        /// </summary>
+        public override string ToString() => GetFullName() + (HasColumns ? $" ({Columns.Count} columns)" : "");
+
+        /// <summary>
+        /// Gets the full name of the table, based on schema name + "." + table name (if schema name exists)
+        /// </summary>
+        /// <returns></returns>
+        public string GetFullName()
+            => string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
 
         public override bool Equals(object obj) => this.Equals(obj as SetupTable);
 

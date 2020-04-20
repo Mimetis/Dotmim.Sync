@@ -30,6 +30,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"Loading scope {this.ScopeName} from table {this.ScopeTableInfoName}";
 
+        public override int EventId => 28;
     }
 
     /// <summary>
@@ -49,6 +50,7 @@ namespace Dotmim.Sync
         public ScopeInfo ScopeInfo { get; }
 
         public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}] Last sync:{ScopeInfo?.LastSync} Last sync duration:{ScopeInfo?.LastSyncDurationString} ";
+        public override int EventId => 29;
     }
 
 
@@ -76,6 +78,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"Loading server scope {this.ScopeName} from table {this.ScopeTableInfoName}";
 
+        public override int EventId => 30;
     }
 
     /// <summary>
@@ -96,6 +99,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}]";
 
+        public override int EventId => 31;
     }
 
 
@@ -117,5 +121,6 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}]";
 
+        public override int EventId => 32;
     }
 }

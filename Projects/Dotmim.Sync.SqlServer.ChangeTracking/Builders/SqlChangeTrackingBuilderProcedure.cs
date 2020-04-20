@@ -5,7 +5,7 @@ using System.Text;
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using System.Data;
-using Dotmim.Sync.Log;
+
 using System.Linq;
 
 using Dotmim.Sync.SqlServer.Manager;

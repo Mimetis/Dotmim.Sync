@@ -71,5 +71,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"{this.Conflict.Type}";
 
+        public override int EventId => 10;
+
     }
 }

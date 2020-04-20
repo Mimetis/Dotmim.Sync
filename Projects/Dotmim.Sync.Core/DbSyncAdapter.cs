@@ -1,7 +1,5 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Log;
 using Dotmim.Sync.Manager;
-
 using System;
 using System.Collections.Generic;
 using System.Data;
