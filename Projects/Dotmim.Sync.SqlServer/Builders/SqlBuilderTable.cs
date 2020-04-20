@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 
-using Dotmim.Sync.Log;
+
 using Dotmim.Sync.SqlServer.Manager;
 using System;
 using System.Collections.Generic;

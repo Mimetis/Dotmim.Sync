@@ -3,6 +3,7 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -31,6 +32,8 @@ namespace Dotmim.Sync
             // batch info containing changes
             BatchInfo batchInfo;
 
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, message);
+
             // Statistics about changes that are selected
             DatabaseChangesSelected changesSelected;
 
@@ -42,7 +45,10 @@ namespace Dotmim.Sync
 
             // create local directory
             if (message.BatchSize > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
+            {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateDirectory, new { DirectoryPath = message.BatchDirectory } );
                 Directory.CreateDirectory(message.BatchDirectory);
+            }
 
             // numbers of batch files generated
             var batchIndex = 0;
@@ -62,6 +68,8 @@ namespace Dotmim.Sync
 
             foreach (var syncTable in message.Schema.Tables)
             {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, syncTable);
+
                 // if we are in upload stage, so check if table is not download only
                 if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
                     continue;
@@ -82,6 +90,9 @@ namespace Dotmim.Sync
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
 
+                // log
+                this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, selectIncrementalChangesCommand);
+
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
@@ -101,6 +112,9 @@ namespace Dotmim.Sync
 
                         // Add the row to the changes set
                         changesSetTable.Rows.Add(row);
+
+                        // Log trace row
+                        this.Orchestrator.logger.LogTrace(SyncEventsId.GetChanges, row);
 
                         // Set the correct state to be applied
                         if (row.RowState == DataRowState.Deleted)
@@ -131,6 +145,8 @@ namespace Dotmim.Sync
                             // add changes to batchinfo
                             await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this.Orchestrator).ConfigureAwait(false);
 
+                            this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, changesSet);
+
                             // increment batch index
                             batchIndex++;
 
@@ -156,6 +172,7 @@ namespace Dotmim.Sync
                 {
                     changes.TableChangesSelected.Add(tableChangesSelected);
                     var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+
                     await this.Orchestrator.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
                     if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
@@ -167,7 +184,10 @@ namespace Dotmim.Sync
             // We are in batch mode, and we are at the last batchpart info
             // Even if we don't have rows inside, we return the changesSet, since it contains at least schema
             if (changesSet != null && changesSet.HasTables && changesSet.HasRows)
+            {
                 await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this.Orchestrator).ConfigureAwait(false);
+                this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, changesSet);
+            }
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
@@ -188,8 +208,7 @@ namespace Dotmim.Sync
             // Create the batch info, in memory
             var batchInfo = new BatchInfo(!isBatched, message.Schema, message.BatchDirectory); ;
 
-            // add changes to batchInfo
-            // await batchInfo.AddChangesAsync(new SyncSet()).ConfigureAwait(false);
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, new DatabaseChangesSelected());
 
             // Create a new empty in-memory batch info
             return Task.FromResult((batchInfo, new DatabaseChangesSelected()));

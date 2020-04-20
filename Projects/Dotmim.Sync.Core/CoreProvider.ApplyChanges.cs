@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -27,7 +28,10 @@ namespace Dotmim.Sync
             var hasChanges = await message.Changes.HasDataAsync(this.Orchestrator);
 
             if (!hasChanges)
+            {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.ApplyChanges, changesApplied);
                 return (context, changesApplied);
+            }
 
             // Disable check constraints
             // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
@@ -85,6 +89,8 @@ namespace Dotmim.Sync
             // clear the changes because we don't need them anymore
             message.Changes.Clear(cleanFolder);
 
+            this.Orchestrator.logger.LogDebug(SyncEventsId.ApplyChanges, changesApplied);
+
             return (context, changesApplied);
 
         }
@@ -100,6 +106,9 @@ namespace Dotmim.Sync
             for (var i = 0; i < schema.Tables.Count; i++)
             {
                 var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
+                
+                this.Orchestrator.logger.LogDebug(SyncEventsId.ResetTable, tableDescription);
+
                 var builder = this.GetTableBuilder(tableDescription, setup);
                 var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
 
@@ -122,6 +131,8 @@ namespace Dotmim.Sync
             DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.ApplyChanges, message);
 
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && schemaTable.SyncDirection == SyncDirection.DownloadOnly)
@@ -164,6 +175,10 @@ namespace Dotmim.Sync
                     var schemaChangesTable = syncTable.Clone();
                     changesSet.Tables.Add(schemaChangesTable);
                     schemaChangesTable.Rows.AddRange(filteredRows.ToList());
+
+                    if (this.Orchestrator.logger.IsEnabled(LogLevel.Trace))
+                        foreach(var row in schemaChangesTable.Rows)
+                            this.Orchestrator.logger.LogTrace(SyncEventsId.ApplyChanges, row);
 
                     // Launch any interceptor if available
                     await this.Orchestrator.InterceptAsync(new TableChangesApplyingArgs(context, schemaChangesTable, applyType, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -227,6 +242,8 @@ namespace Dotmim.Sync
                     {
                         await this.Orchestrator.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
                         this.Orchestrator.ReportProgress(context, progress, tableChangesAppliedArgs, connection, transaction);
+
+                        this.Orchestrator.logger.LogDebug(SyncEventsId.ApplyChanges, tableChangesAppliedArgs);
                     }
                 }
             }
@@ -248,6 +265,16 @@ namespace Dotmim.Sync
             foreach (var conflict in conflicts)
             {
                 var fromScopeLocalTimeStamp = message.LastTimestamp;
+
+                this.Orchestrator.logger.LogDebug(SyncEventsId.ResolveConflicts, conflict);
+                this.Orchestrator.logger.LogDebug(SyncEventsId.ResolveConflicts, new
+                {
+                    LocalScopeId = localScopeId,
+                    SenderScopeId = senderScopeId,
+                    FromScopeLocalTimeStamp= fromScopeLocalTimeStamp,
+                    message.Policy
+                }); ;
+
 
                 var (conflictResolvedCount, resolvedRow, rowAppliedCount) =
                     await this.HandleConflictAsync(localScopeId, senderScopeId, syncAdapter, context, conflict,
@@ -388,6 +415,8 @@ namespace Dotmim.Sync
 
             // Interceptor
             var arg = new ApplyChangesFailedArgs(context, conflict, conflictAction, connection, transaction);
+            this.Orchestrator.logger.LogDebug(SyncEventsId.ResolveConflicts, arg);
+
             await this.Orchestrator.InterceptAsync(arg, cancellationToken).ConfigureAwait(false);
 
             // if ConflictAction is ServerWins or MergeRow it's Ok to set to Continue

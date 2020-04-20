@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Batch
@@ -13,7 +14,7 @@ namespace Dotmim.Sync.Batch
     /// Represents a Batch, containing a full or serialized change set
     /// </summary>
     [DataContract(Name = "bi"), Serializable]
-    public class BatchInfo
+    public class BatchInfo : ILoggable
     {
 
         /// <summary>
@@ -283,6 +284,23 @@ namespace Dotmim.Sync.Batch
 
             this.BatchPartsInfo.Clear();
 
+        }
+
+        public (string Message, object[] Args) GetLog()
+        {
+            var sb = new StringBuilder();
+            var args = new List<object>();
+
+            sb.Append("InMemory={InMemory}");
+            args.Add(this.InMemory);
+            sb.Append("GetDirectoryFullPath={GetDirectoryFullPath}");
+            args.Add(this.GetDirectoryFullPath());
+            sb.Append("Timestamp={Timestamp}");
+            args.Add(this.Timestamp);
+            sb.Append("BatchPartsInfo={BatchPartsInfo}");
+            args.Add(this.BatchPartsInfo != null ? this.BatchPartsInfo.Count : 0);
+
+            return (sb.ToString(), args.ToArray());
         }
     }
 }

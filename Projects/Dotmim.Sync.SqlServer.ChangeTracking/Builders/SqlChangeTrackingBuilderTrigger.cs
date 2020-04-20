@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 
 
-using Dotmim.Sync.Log;
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -24,5 +24,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         public override Task<bool> NeedToCreateTriggerAsync(DbTriggerType type) => Task.FromResult(false);
+
+        public override Task DropDeleteTriggerAsync() => Task.CompletedTask;
+        public override Task DropInsertTriggerAsync() => Task.CompletedTask;
+        public override Task DropUpdateTriggerAsync() => Task.CompletedTask;
+
     }
 }

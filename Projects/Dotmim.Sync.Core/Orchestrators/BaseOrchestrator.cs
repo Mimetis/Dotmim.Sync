@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,7 @@ namespace Dotmim.Sync
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
         internal SyncContext syncContext;
+        internal ILogger logger;
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -66,6 +68,7 @@ namespace Dotmim.Sync
 
             this.Provider.Orchestrator = this;
             this.Provider.Options = options;
+            this.logger = options.Logger;
         }
 
         /// <summary>
@@ -104,12 +107,21 @@ namespace Dotmim.Sync
         /// </summary>
         internal bool ContainsInterceptor<T>() where T : ProgressArgs => this.interceptors.Contains<T>();
 
-
         /// <summary>
         /// Try to report progress
         /// </summary>
         internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
+            // Check logger, because we make some reflection here
+            if (this.logger.IsEnabled(LogLevel.Information))
+            {
+                var argsTypeName = args.GetType().Name;
+                this.logger.LogInformation(new EventId(args.EventId, argsTypeName), args);
+
+                if (this.logger.IsEnabled(LogLevel.Debug))
+                    this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
+            }
+
             if (progress == null)
                 return;
 
@@ -126,13 +138,14 @@ namespace Dotmim.Sync
             progress.Report(progressArgs);
         }
 
-
-
         /// <summary>
         /// Open a connection
         /// </summary>
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
+            this.logger.LogDebug(SyncEventsId.OpenConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
+            this.logger.LogTrace(SyncEventsId.OpenConnection, new { connection.ConnectionString });
+
             var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
                 this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), cancellationToken));
 
@@ -146,9 +159,6 @@ namespace Dotmim.Sync
             // Execute my OpenAsync in my policy context
             await policy.ExecuteAsync(ct => connection.OpenAsync(ct), cancellationToken);
 
-
-            //await connection.OpenAsync();
-
             // Let provider knows a connection is opened
             this.Provider.OnConnectionOpened(connection);
 
@@ -160,6 +170,9 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
+            this.logger.LogDebug(SyncEventsId.CloseConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
+            this.logger.LogTrace(SyncEventsId.CloseConnection, new { connection.ConnectionString });
+
             connection.Close();
 
             await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
@@ -167,7 +180,6 @@ namespace Dotmim.Sync
             // Let provider knows a connection is closed
             this.Provider.OnConnectionClosed(connection);
         }
-
 
         /// <summary>
         /// Encapsulates an error in a SyncException, let provider enrich the error if needed, then throw again
@@ -180,9 +192,10 @@ namespace Dotmim.Sync
             this.Provider.EnsureSyncException(syncException);
             syncException.Side = this.Side;
 
+            this.logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
+
             throw syncException;
         }
-
 
         /// <summary>
         /// Sets the current context
@@ -228,6 +241,9 @@ namespace Dotmim.Sync
 
             using (var connection = this.Provider.CreateConnection())
             {
+                // log
+                this.logger.LogInformation(SyncEventsId.Provision, new { connection.Database, Provision = provision });
+
                 try
                 {
                     ctx.SyncStage = SyncStage.Provisioning;
@@ -240,6 +256,7 @@ namespace Dotmim.Sync
                         throw new InvalidProvisionForLocalOrchestratorException();
                     else if (!(this is LocalOrchestrator) && provision.HasFlag(SyncProvision.ClientScope))
                         throw new InvalidProvisionForRemoteOrchestratorException();
+
 
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
@@ -326,12 +343,15 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
+
             using (var connection = this.Provider.CreateConnection())
             {
                 // Encapsulate in a try catch for a better exception handling
                 // Especially when called from web proxy
                 try
                 {
+                    this.logger.LogInformation(SyncEventsId.Deprovision, new { connection.Database, Provision = provision });
+
                     ctx.SyncStage = SyncStage.Deprovisioning;
 
                     // If schema does not have any table, just return
@@ -387,6 +407,7 @@ namespace Dotmim.Sync
             // Get context or create a new one
             var ctx = this.GetContext();
 
+
             SyncSet schema = null;
             using (var connection = this.Provider.CreateConnection())
             {
@@ -394,6 +415,9 @@ namespace Dotmim.Sync
                 // Especially whew called from web proxy
                 try
                 {
+
+                    this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
+
                     ctx.SyncStage = SyncStage.SchemaReading;
 
                     if (this.Setup.Tables.Count <= 0)
@@ -456,6 +480,8 @@ namespace Dotmim.Sync
             {
                 try
                 {
+                    this.logger.LogInformation(SyncEventsId.MetadataCleaning, new { connection.Database, TimeStampStart = timeStampStart });
+
                     ctx.SyncStage = SyncStage.MetadataCleaning;
 
                     // Open connection
@@ -522,7 +548,10 @@ namespace Dotmim.Sync
             // Check if the provider is not outdated
             // We can have negative value where we want to compare anyway
             if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
+            {
                 isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
+                this.logger.LogInformation(SyncEventsId.IsOutdated, new { serverScopeInfo.LastCleanupTimestamp, clientScopeInfo.LastServerSyncTimestamp, IsOutDated = isOutdated });
+            }
 
             // Get a chance to make the sync even if it's outdated
             if (isOutdated)
@@ -533,7 +562,10 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(outdatedArgs, cancellationToken).ConfigureAwait(false);
 
                 if (outdatedArgs.Action != OutdatedAction.Rollback)
+                {
                     ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
+                    this.logger.LogDebug(SyncEventsId.IsOutdated, outdatedArgs);
+                }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
                     throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);

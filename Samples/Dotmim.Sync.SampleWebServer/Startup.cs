@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -13,6 +14,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Hosting;
 
 namespace Dotmim.Sync.SampleWebServer
 {
@@ -25,11 +28,28 @@ namespace Dotmim.Sync.SampleWebServer
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
-
+            services.AddControllers();
             // Mandatory to be able to handle multiple sessions
             services.AddMemoryCache();
 
+            // Get a connection string for your server data source
+            var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+
+            var tables = new string[] { "Customer" };
+
+            var syncSetup = new SyncSetup(tables);
+            //syncSetup.Tables["Customer"].SyncDirection = SyncDirection.UploadOnly;
+            syncSetup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerId", "FirstName", "LastName" });
+
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, syncSetup);
+
+
+            // Example1(services);
+
+        }
+
+        private void Example1(IServiceCollection services)
+        {
             // Get a connection string for your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
 
@@ -104,25 +124,26 @@ namespace Dotmim.Sync.SampleWebServer
 
             // add a SqlSyncProvider acting as the server hub
             services.AddSyncServer<SqlSyncProvider>(connectionString, "ProdScope", setup, options);
-
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
-            else
-            {
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-                app.UseHsts();
-            }
 
             app.UseHttpsRedirection();
-            app.UseMvc();
+
+            app.UseRouting();
+
+            app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
         }
     }
 }

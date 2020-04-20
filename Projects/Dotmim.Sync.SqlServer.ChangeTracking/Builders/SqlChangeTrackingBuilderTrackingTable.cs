@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 
 
-using Dotmim.Sync.Log;
+
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
 using System;

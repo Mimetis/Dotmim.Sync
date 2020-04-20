@@ -3,6 +3,7 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -27,17 +28,22 @@ namespace Dotmim.Sync
 
             // create local directory
             if (!Directory.Exists(snapshotDirectory))
+            {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateDirectory, new { SnapshotDirectory = snapshotDirectory });
                 Directory.CreateDirectory(snapshotDirectory);
+            }
 
             // cleansing scope name
             var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
 
             var directoryFullPath = Path.Combine(snapshotDirectory, directoryScopeName);
-      
+
             // create local directory with scope inside
             if (!Directory.Exists(directoryFullPath))
+            {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateDirectory, new { DirectoryFullPath = directoryFullPath });
                 Directory.CreateDirectory(directoryFullPath);
-
+            }
 
             // numbers of batch files generated
             var batchIndex = 0;
@@ -50,7 +56,7 @@ namespace Dotmim.Sync
 
             if (context.Parameters != null)
             {
-                foreach (var p in context.Parameters.OrderBy(p =>p.Name))
+                foreach (var p in context.Parameters.OrderBy(p => p.Name))
                 {
                     var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
@@ -70,7 +76,10 @@ namespace Dotmim.Sync
             directoryFullPath = Path.Combine(directoryFullPath, directoryName);
 
             if (Directory.Exists(directoryFullPath))
+            {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.DropDirectory, new { DirectoryFullPath = directoryFullPath });
                 Directory.Delete(directoryFullPath, true);
+            }
 
             foreach (var syncTable in schema.Tables)
             {
@@ -85,6 +94,15 @@ namespace Dotmim.Sync
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, null, true, 0, selectIncrementalChangesCommand);
+
+                // log
+                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateSnapshot, new
+                {
+                    SelectChangesCommandText = selectIncrementalChangesCommand.CommandText,
+                    ExcludingScopeId = Guid.Empty,
+                    IsNew = true,
+                    LastTimestamp = 0
+                });
 
                 // Get the reader
                 using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
@@ -103,6 +121,9 @@ namespace Dotmim.Sync
                         // Add the row to the changes set
                         changesSetTable.Rows.Add(row);
 
+                        // Log trace row
+                        this.Orchestrator.logger.LogTrace(SyncEventsId.CreateSnapshot, row);
+
                         var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
                         var finalFieldSize = fieldsSize / 1024d;
 
@@ -118,6 +139,8 @@ namespace Dotmim.Sync
 
                         // add changes to batchinfo
                         await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this.Orchestrator).ConfigureAwait(false);
+
+                        this.Orchestrator.logger.LogDebug(SyncEventsId.CreateBatch, changesSet);
 
                         // increment batch index
                         batchIndex++;
@@ -140,7 +163,10 @@ namespace Dotmim.Sync
 
 
             if (changesSet != null && changesSet.HasTables)
+            {
                 await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this.Orchestrator).ConfigureAwait(false);
+                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateBatch, changesSet);
+            }
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
@@ -154,6 +180,7 @@ namespace Dotmim.Sync
 
             using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateSnapshotSummary, batchInfo);
                 var bytes = await jsonConverter.SerializeAsync(batchInfo).ConfigureAwait(false);
                 f.Write(bytes, 0, bytes.Length);
             }
@@ -190,7 +217,10 @@ namespace Dotmim.Sync
             }
 
             var directoryName = sb.ToString();
+
             directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetSnapshot, new { DirectoryName = directoryName });
 
             // cleansing scope name
             var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
@@ -200,7 +230,10 @@ namespace Dotmim.Sync
 
             // if no snapshot present, just return null value.
             if (!Directory.Exists(directoryFullPath))
+            {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.DirectoryNotExists, new { DirectoryPath = directoryFullPath });
                 return (context, null);
+            }
 
             // Serialize on disk.
             var jsonConverter = new JsonConverter<BatchInfo>();
@@ -218,15 +251,14 @@ namespace Dotmim.Sync
 
             using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
             {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.LoadSnapshotSummary, new { FileName = summaryFileName });
                 batchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                this.Orchestrator.logger.LogDebug(SyncEventsId.LoadSnapshotSummary, batchInfo);
             }
 
             batchInfo.SanitizedSchema = changesSet;
 
             return (context, batchInfo);
-
         }
-
-
     }
 }

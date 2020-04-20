@@ -16,6 +16,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"Applying snapshot.";
+        public override int EventId => 42;
     }
 
 
@@ -29,6 +30,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"Snapshot applied.";
+        public override int EventId => 43;
     }
 
 
@@ -66,6 +68,7 @@ namespace Dotmim.Sync
         public long Timestamp { get; }
 
         public override string Message => $"Creating snapshot.";
+        public override int EventId => 44;
     }
 
 
@@ -91,5 +94,6 @@ namespace Dotmim.Sync
         /// Gets the batch info summarizing the snapshot created
         /// </summary>
         public BatchInfo BatchInfo { get; }
+        public override int EventId => 45;
     }
 }

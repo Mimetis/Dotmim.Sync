@@ -37,12 +37,14 @@ namespace Dotmim.Sync
             this.Context = context;
             this.Connection = connection;
             this.Transaction = transaction;
+            this.Message = this.GetType().Name;
         }
 
         public ProgressArgs(SyncContext context, DbConnection connection)
         {
             this.Context = context;
             this.Connection = connection;
+            this.Message = this.GetType().Name;
         }
 
         public ProgressArgs(SyncContext context, string message, DbConnection connection, DbTransaction transaction)
@@ -54,6 +56,12 @@ namespace Dotmim.Sync
         /// return a global message about current progress
         /// </summary>
         public virtual string Message { get; } = string.Empty;
+
+
+        /// <summary>
+        /// Gets the event id, used for logging purpose
+        /// </summary>
+        public virtual int EventId { get; } = 99;
 
     }
 }

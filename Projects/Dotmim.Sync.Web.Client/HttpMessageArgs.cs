@@ -15,6 +15,7 @@ namespace Dotmim.Sync.Web.Client
             => this.Content = content;
 
         public byte[] Content{ get; }
+        public override int EventId => 50;
     }
 
     public class HttpMessageGetMoreChangesRequestArgs : ProgressArgs
@@ -23,6 +24,7 @@ namespace Dotmim.Sync.Web.Client
             => this.Content = content;
 
         public byte[] Content { get; }
+        public override int EventId => 51;
     }
 
     public class HttpMessageSendChangesRequestArgs : ProgressArgs
@@ -31,6 +33,7 @@ namespace Dotmim.Sync.Web.Client
             => this.Content = content;
 
         public byte[] Content { get; }
+        public override int EventId => 52;
     }
 
 
@@ -40,6 +43,7 @@ namespace Dotmim.Sync.Web.Client
             => this.Content = content;
 
         public byte[] Content { get; }
+        public override int EventId => 53;
     }
 
     public class HttpMessageEnsureSchemaResponseArgs : ProgressArgs
@@ -48,6 +52,7 @@ namespace Dotmim.Sync.Web.Client
             => this.Content = content;
 
         public byte[] Content { get; }
+        public override int EventId => 54;
     }
 
     public class HttpMessageEnsureScopesRequestArgs : ProgressArgs
@@ -56,5 +61,6 @@ namespace Dotmim.Sync.Web.Client
             => this.Content = content;
 
         public byte[] Content { get; }
+        public override int EventId => 55;
     }
 }

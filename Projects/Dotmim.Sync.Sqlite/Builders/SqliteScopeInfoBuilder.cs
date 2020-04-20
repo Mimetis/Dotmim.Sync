@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Log;
+
 using System;
 using System.Collections.Generic;
 using System.Data;

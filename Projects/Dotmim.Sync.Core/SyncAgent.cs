@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -363,8 +364,18 @@ namespace Dotmim.Sync
             if (this.RemoteOrchestrator?.Provider != null)
                 this.RemoteOrchestrator.Provider.Options = this.Options;
 
+            // Create a logger
+            var logger = this.Options.Logger ?? new SyncLogger().AddDebug();
+
             // Lock sync to prevent multi call to sync at the same time
             LockSync();
+
+            //logger.LogError(SyncStage.BeginSession, "Session Begins");
+            //logger.LogWarning(SyncStage.BeginSession, "Session Begins");
+            //logger.LogTrace(SyncStage.BeginSession, "Session Begins");
+            //logger.LogInformation(SyncStage.BeginSession, "Session Begins");
+            //logger.LogDebug(SyncStage.BeginSession, "Session Begins");
+            //logger.LogCritical(SyncStage.BeginSession, "Session Begins");
 
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid(), this.ScopeName)
@@ -385,6 +396,7 @@ namespace Dotmim.Sync
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
+
 
             try
             {
@@ -564,12 +576,12 @@ namespace Dotmim.Sync
             }
             catch (SyncException se)
             {
-                Debug.WriteLine($"Sync Exception: {se.Message}. TypeName:{se.TypeName}.");
+                this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
                 throw;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Unknwon Exception: {ex.Message}.");
+                this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
                 throw new SyncException(ex, SyncStage.None);
             }
             finally

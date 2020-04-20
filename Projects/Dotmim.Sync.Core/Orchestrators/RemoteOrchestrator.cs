@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -129,6 +130,8 @@ namespace Dotmim.Sync
                         // Compare serverscope setup with current
                         if (serverScopeInfo.Setup != this.Setup)
                         {
+                            this.logger.LogDebug(SyncEventsId.GetServerScope, $"[{ctx.SyncStage}] database {connection.Database}. serverScopeInfo.Setup != this.Setup. Need migrations ");
+
                             SyncSet schema;
                             // 1) Get Schema from remote provider
                             (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -138,7 +141,7 @@ namespace Dotmim.Sync
                             await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                             // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
-                            await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction, cancellationToken, progress);
+                            await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress);
 
                             // Now call the ProvisionAsync() to provision new tables
                             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -182,6 +185,8 @@ namespace Dotmim.Sync
                         connection.Close();
                 }
 
+                this.logger.LogInformation(SyncEventsId.GetServerScope, serverScopeInfo);
+
                 return serverScopeInfo;
             }
         }
@@ -205,6 +210,9 @@ namespace Dotmim.Sync
             {
                 try
                 {
+                    // log setup
+                    this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
+
                     // starting with scope loading
                     ctx.SyncStage = SyncStage.ScopeLoading;
 
@@ -249,6 +257,8 @@ namespace Dotmim.Sync
                         // - Read schema from database based on this.Setup
                         if (serverScopeInfo.Schema == null)
                         {
+                            this.logger.LogDebug(SyncEventsId.EnsureSchema, $"[{ctx.SyncStage}] serverScopeInfo.Schema == null.");
+
                             // So far, we don't have already a database provisionned
                             ctx.SyncStage = SyncStage.Provisioning;
 
@@ -292,7 +302,7 @@ namespace Dotmim.Sync
                                 await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                                 // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
-                                await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction, cancellationToken, progress);
+                                await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress);
 
                                 // Now call the ProvisionAsync() to provision new tables
                                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -333,6 +343,8 @@ namespace Dotmim.Sync
                         connection.Close();
                 }
 
+                this.logger.LogInformation(SyncEventsId.EnsureSchema, serverScopeInfo);
+
                 return serverScopeInfo;
             }
         }
@@ -372,7 +384,7 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, oldSetup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         // Migrate the db structure
-                        await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress);
+                        await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress);
 
                         // Now call the ProvisionAsync() to provision new tables
                         var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -441,6 +453,7 @@ namespace Dotmim.Sync
             {
                 try
                 {
+
                     ctx.SyncStage = SyncStage.ChangesApplying;
 
                     //Direction set to Upload
@@ -763,6 +776,8 @@ namespace Dotmim.Sync
             BatchInfo serverBatchInfo = null;
             try
             {
+                var connection = this.Provider.CreateConnection();
+
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
                     return (0, null);
 
@@ -814,6 +829,7 @@ namespace Dotmim.Sync
             {
                 try
                 {
+
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 

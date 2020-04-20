@@ -37,6 +37,7 @@ namespace Dotmim.Sync
         /// Directory containing the file, about to be serialized
         /// </summary>
         public string DirectoryPath { get; }
+        public override int EventId => 33;
     }
 
 
@@ -73,5 +74,6 @@ namespace Dotmim.Sync
         /// </summary>
         public ContainerSet Result { get; set; }
 
+        public override int EventId => 34;
     }
 }

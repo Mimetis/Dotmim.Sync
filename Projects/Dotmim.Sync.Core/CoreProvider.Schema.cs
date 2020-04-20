@@ -1,6 +1,7 @@
 
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -34,6 +35,9 @@ namespace Dotmim.Sync
 
             foreach (var setupTable in setup.Tables)
             {
+
+                this.Orchestrator.logger.LogDebug(SyncEventsId.GetSchema, setupTable);
+
                 var builderTable = this.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
                 var tblManager = builderTable.CreateManagerTable(connection, transaction);
 
@@ -45,6 +49,10 @@ namespace Dotmim.Sync
 
                 // get columns list
                 var lstColumns = await tblManager.GetColumnsAsync().ConfigureAwait(false);
+
+                if (this.Orchestrator.logger.IsEnabled(LogLevel.Trace))
+                    foreach(var col in lstColumns)
+                        this.Orchestrator.logger.LogTrace(SyncEventsId.GetSchema, col);
 
                 // Validate the column list and get the dmTable configuration object.
                 this.FillSyncTableWithColumns(setupTable, syncTable, lstColumns, tblManager);

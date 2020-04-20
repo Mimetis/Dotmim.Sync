@@ -3,7 +3,7 @@ using System;
 using System.Text;
 
 using System.Data.Common;
-using Dotmim.Sync.Log;
+
 using System.Data;
 using Microsoft.Data.Sqlite;
 

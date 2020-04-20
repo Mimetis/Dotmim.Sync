@@ -49,6 +49,9 @@ namespace Dotmim.Sync
                 }
 
             }
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.MetadataCleaning, databaseMetadatasCleaned);
+
             return (context, databaseMetadatasCleaned);
         }
 
