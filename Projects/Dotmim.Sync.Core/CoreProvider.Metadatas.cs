@@ -45,6 +45,7 @@ namespace Dotmim.Sync
                     tableMetadatasCleaned.RowsCleanedCount = rowsCleanedCount;
                     tableMetadatasCleaned.TimestampLimit = timestampLimit;
 
+                    this.Orchestrator.logger.LogDebug(SyncEventsId.MetadataCleaning, tableMetadatasCleaned);
                     databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
                 }
 

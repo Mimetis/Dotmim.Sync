@@ -1,8 +1,11 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
 using System.Text;
 
 namespace Dotmim.Sync
@@ -29,6 +32,21 @@ namespace Dotmim.Sync
                 builder.Services.Configure(configure);
 
             return builder;
+        }
+
+        public static string ToLogString(this DbConnection connection)
+        {
+            if (connection == null)
+                return "null";
+
+            return JsonConvert.SerializeObject(new { connection.DataSource, connection.Database, State=connection.State.ToString() });
+        }
+        public static string ToLogString(this DbTransaction transaction)
+        {
+            if (transaction == null)
+                return "null";
+
+            return transaction.Connection != null ? "In progress" : "Done";
         }
     }
 }

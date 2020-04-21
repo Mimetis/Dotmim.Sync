@@ -99,6 +99,15 @@ namespace Dotmim.Sync
 
             var interceptor = this.interceptors.GetInterceptor<T>();
 
+            // Check logger, because we make some reflection here
+            if (this.logger.IsEnabled(LogLevel.Debug))
+            {
+                var argsTypeName = args.GetType().Name;
+                this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
+                this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
+            }
+
+
             return interceptor.RunAsync(args, cancellationToken);
         }
 
@@ -146,6 +155,7 @@ namespace Dotmim.Sync
             this.logger.LogDebug(SyncEventsId.OpenConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
             this.logger.LogTrace(SyncEventsId.OpenConnection, new { connection.ConnectionString });
 
+            // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
                 this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), cancellationToken));
 
@@ -270,7 +280,10 @@ namespace Dotmim.Sync
                         // If we don't have any columns it's most probably because user called method with the Setup only
                         // So far we have only tables names, it's enough to get the schema
                         if (schema.HasTables && !schema.HasColumns)
+                        {
+                            this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
                             (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        }
 
                         if (!schema.HasTables)
                             throw new MissingTablesException();
