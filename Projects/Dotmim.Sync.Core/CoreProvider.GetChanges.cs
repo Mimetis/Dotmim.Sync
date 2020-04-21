@@ -46,7 +46,7 @@ namespace Dotmim.Sync
             // create local directory
             if (message.BatchSize > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
             {
-                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateDirectory, new { DirectoryPath = message.BatchDirectory } );
+                this.Orchestrator.logger.LogDebug(SyncEventsId.CreateDirectory, new { DirectoryPath = message.BatchDirectory });
                 Directory.CreateDirectory(message.BatchDirectory);
             }
 
