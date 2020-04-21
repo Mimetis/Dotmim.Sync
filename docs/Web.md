@@ -38,7 +38,7 @@ Once we have added these **DMS** packages to our project, we are configuring the
 
 Read carefully the next portion of code, since some services are required, but not part of **DMS** (like `MemoryCache` for instance)
 
-``` cs
+``` csharp
 public void ConfigureServices(IServiceCollection services)
 {
     services.AddControllers();
@@ -67,7 +67,7 @@ Once we have correctly configured our sync process, we can create our controller
 * Use it in the `POST` method, call the `HandleRequestAsync` method and ... **that's all** !
 * We can optionally add a `GET` method, to see our configuration from within the web browser. Useful to check if everything is configured correctly.
 
-``` cs
+``` csharp
 [Route("api/[controller]")]
 [ApiController]
 public class SyncController : ControllerBase
@@ -109,7 +109,7 @@ If your configuration is not correct, you should have an error message, like thi
 The client side is pretty similar to the starter sample, except we will have to use a proxy orchestrator instead of the server provider:
 
 
-``` cs
+``` csharp
     var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync");
 
     // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment

@@ -31,7 +31,7 @@ To be able to create a multi scopes scenario, you just have to create two `SyncS
 Here is a full example, where we sync separately the products, then the customers:
 
 
-``` cs
+``` csharp
 // Create 2 Sql Sync providers
 var serverProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
 var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
