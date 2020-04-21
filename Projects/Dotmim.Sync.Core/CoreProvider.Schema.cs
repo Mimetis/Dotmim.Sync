@@ -50,9 +50,9 @@ namespace Dotmim.Sync
                 // get columns list
                 var lstColumns = await tblManager.GetColumnsAsync().ConfigureAwait(false);
 
-                if (this.Orchestrator.logger.IsEnabled(LogLevel.Trace))
+                if (this.Orchestrator.logger.IsEnabled(LogLevel.Debug))
                     foreach(var col in lstColumns)
-                        this.Orchestrator.logger.LogTrace(SyncEventsId.GetSchema, col);
+                        this.Orchestrator.logger.LogDebug(SyncEventsId.GetSchema, col);
 
                 // Validate the column list and get the dmTable configuration object.
                 this.FillSyncTableWithColumns(setupTable, syncTable, lstColumns, tblManager);

@@ -210,9 +210,6 @@ namespace Dotmim.Sync
             {
                 try
                 {
-                    // log setup
-                    this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
-
                     // starting with scope loading
                     ctx.SyncStage = SyncStage.ScopeLoading;
 
@@ -239,6 +236,8 @@ namespace Dotmim.Sync
                         // Get scope if exists
                         (ctx, serverScopeInfo) = await this.Provider.GetServerScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                        this.logger.LogInformation(SyncEventsId.GetServerScope, serverScopeInfo);
+
                         // raise scope loaded
                         ctx.SyncStage = SyncStage.ScopeLoaded;
                         var scopeArgs = new ServerScopeLoadedArgs(ctx, serverScopeInfo, connection, transaction);
@@ -257,10 +256,10 @@ namespace Dotmim.Sync
                         // - Read schema from database based on this.Setup
                         if (serverScopeInfo.Schema == null)
                         {
-                            this.logger.LogDebug(SyncEventsId.EnsureSchema, $"[{ctx.SyncStage}] serverScopeInfo.Schema == null.");
-
                             // So far, we don't have already a database provisionned
                             ctx.SyncStage = SyncStage.Provisioning;
+
+                            this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
 
                             // 1) Get Schema from remote provider
                             (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -509,6 +508,9 @@ namespace Dotmim.Sync
 
                     ctx.SyncStage = SyncStage.ChangesApplied;
 
+
+                    this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
+
                     var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(ctx, clientChangesApplied, connection, transaction);
                     await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
                     this.ReportProgress(ctx, progress, databaseChangesAppliedArgs, connection, transaction);
@@ -567,6 +569,8 @@ namespace Dotmim.Sync
                     ctx.SyncStage = SyncStage.ChangesSelected;
 
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    this.logger.LogInformation(SyncEventsId.GetChanges, serverChangesSelected);
 
                     var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, connection, transaction);
                     this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
@@ -658,6 +662,8 @@ namespace Dotmim.Sync
 
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
+                    this.logger.LogInformation(SyncEventsId.GetChanges, serverChangesSelected);
+
                     var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, connection);
                     this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
                     await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
@@ -742,6 +748,8 @@ namespace Dotmim.Sync
                     ctx.SyncStage = SyncStage.SnapshotCreated;
 
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    this.logger.LogInformation(SyncEventsId.CreateSnapshot, batchInfo);
 
                     var snapshotCreated = new SnapshotCreatedArgs(ctx, schema, batchInfo, connection);
                     await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);

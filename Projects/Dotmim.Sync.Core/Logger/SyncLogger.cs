@@ -70,14 +70,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets if the logger can log something, according to the minimum log level parameterized
         /// </summary>
-        //public bool IsEnabled(LogLevel logLevel) => this.MinimumLevel <= logLevel;
-
-        /// <summary>
-        /// For now, until release, it's disabled
-        /// </summary>
-        /// <param name="logLevel"></param>
-        /// <returns></returns>
-        public bool IsEnabled(LogLevel logLevel) => false;
+        public bool IsEnabled(LogLevel logLevel) => this.MinimumLevel <= logLevel;
 
         /// <summary>
         /// Log to all output writers configured
@@ -219,7 +212,7 @@ namespace Dotmim.Sync
         //    else
         //    {
         //        membersInfos = GetProperties(typeofT);
-            
+
         //        if (!MembersInfo.ContainsKey(typeofT))
         //            lock (MembersInfo)
         //                if (!MembersInfo.ContainsKey(typeofT))
@@ -295,13 +288,16 @@ namespace Dotmim.Sync
         private static object GetValue(MemberInfo member, object obj)
         {
 
-            FieldInfo fi = member as FieldInfo;
-            if (fi != null)
-                return fi.GetValue(obj);
-
             PropertyInfo pi = member as PropertyInfo;
             if (pi != null)
-                return pi.GetValue(obj);
+            {
+                if (pi.PropertyType != null && pi.PropertyType == typeof(DbConnection))
+                    return ((DbConnection)pi.GetValue(obj)).ToLogString();
+                else if (pi.PropertyType != null && pi.PropertyType == typeof(DbTransaction))
+                    return ((DbTransaction)pi.GetValue(obj)).ToLogString();
+                else
+                    return pi.GetValue(obj);
+            }
 
             return null;
 
@@ -400,7 +396,7 @@ namespace Dotmim.Sync
             public ConsoleColor? Background { get; }
         }
 
-        
+
     }
 
 

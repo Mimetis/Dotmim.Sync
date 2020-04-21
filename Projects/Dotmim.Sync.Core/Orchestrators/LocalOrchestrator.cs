@@ -39,7 +39,7 @@ namespace Dotmim.Sync
 
             ctx.SyncStage = SyncStage.BeginSession;
 
-            this.logger.LogDebug(SyncEventsId.BeginSession, ctx);
+            this.logger.LogInformation(SyncEventsId.BeginSession, ctx);
 
             // Progress & interceptor
             var sessionArgs = new SessionBeginArgs(ctx, null, null);
@@ -60,7 +60,7 @@ namespace Dotmim.Sync
 
             ctx.SyncStage = SyncStage.EndSession;
 
-            this.logger.LogDebug(SyncEventsId.BeginSession, ctx);
+            this.logger.LogInformation(SyncEventsId.BeginSession, ctx);
 
             // Progress & interceptor
             var sessionArgs = new SessionEndArgs(ctx, null, null);
@@ -189,7 +189,7 @@ namespace Dotmim.Sync
                         // Call interceptor
                         await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        this.logger.LogInformation(SyncEventsId.GetChanges, message);
+                        this.logger.LogDebug(SyncEventsId.GetChanges, message);
 
                         // Locally, if we are new, no need to get changes
                         if (isNew)
@@ -275,10 +275,9 @@ namespace Dotmim.Sync
                         // call interceptor
                         await this.InterceptAsync(new DatabaseChangesApplyingArgs(ctx, applyChanges, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        this.logger.LogDebug(SyncEventsId.ApplyChanges, applyChanges);
-
                         // Call apply changes on provider
                         (ctx, clientChangesApplied) = await this.Provider.ApplyChangesAsync(ctx, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
 
                         if (cancellationToken.IsCancellationRequested)
                             cancellationToken.ThrowIfCancellationRequested();
@@ -308,6 +307,8 @@ namespace Dotmim.Sync
                     ctx.SyncStage = SyncStage.ChangesApplied;
 
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
 
                     var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(ctx, clientChangesApplied, connection);
                     await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
@@ -360,9 +361,12 @@ namespace Dotmim.Sync
             // We don't want to download everything from server, so change syncType to Normal
             ctx.SyncType = SyncType.Normal;
 
+            this.logger.LogInformation(SyncEventsId.ApplyChanges, changesApplied);
+
             // Progress & Interceptor
             ctx.SyncStage = SyncStage.SnapshotApplied;
             var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx);
+
             this.ReportProgress(ctx, progress, snapshotAppliedArgs);
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
 

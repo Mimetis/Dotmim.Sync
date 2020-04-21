@@ -53,7 +53,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SyncAccessRulesAsync();
+        await SynchronizeAsync();
 
     }
 
@@ -554,10 +554,10 @@ internal class Program
         //3) Using Serilog with Seq
         var serilogLogger = new LoggerConfiguration()
             .Enrich.FromLogContext()
-            .MinimumLevel.Information()
+            .MinimumLevel.Debug()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .WriteTo.Seq("http://localhost:5341")
-            //.WriteTo.Console()
+            .WriteTo.Console()
             .CreateLogger();
 
 
@@ -568,10 +568,7 @@ internal class Program
         });
 
         //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger)
-                                                                   .AddSyncLogger(actLogging)
-                                                                   .SetMinimumLevel(LogLevel.Critical));
-
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
 
 
         // loggerFactory.AddSerilog(serilogLogger);
