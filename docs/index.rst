@@ -6,7 +6,7 @@
 Welcome to Dotmim.Sync
 =============================================
 
-.. image:: assets/SmallIcon.png
+.. image:: assets/Smallicon.png
    :align: center
 
 
