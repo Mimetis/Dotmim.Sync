@@ -5,7 +5,7 @@ Use the `SyncDirection` enumeration for each table in the `SyncSetup` object.
 
 > `Bidirectional` is the default value for all tables added.
 
-``` cs
+``` csharp
 public enum SyncDirection
 {
     Bidirectional = 1,
@@ -16,7 +16,7 @@ public enum SyncDirection
 
 In this example, `Customer` `CustomerAddress` and `Address` are defined as `DownloadOnly` :
 
-``` cs
+``` csharp
 var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
                                 "SalesLT.Address", "SalesLT.Customer", "SalesLT.CustomerAddress"};
 

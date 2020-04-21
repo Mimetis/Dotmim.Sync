@@ -35,13 +35,13 @@ On the client side, the web orchestrator `WebClientOrchestrator` instance uses i
 So far, to increase the timeout, you can either:
 
 * Provide your own `HttpClient` instance with the `Timeout` property correctly set:
-``` cs
+``` csharp
 var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
 var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(20) };
 var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync", null, null, client);
 ```
 * Increase the existing `HttpClient` instance, created by `WebClientOrchestrator`:
-``` cs
+``` csharp
 var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
 proxyClientProvider.HttpClient.Timeout = TimeSpan.FromMinutes(20);
 

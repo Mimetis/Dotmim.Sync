@@ -64,14 +64,14 @@ public class SyncSetup
 ```
 
 For instance, these two instructions are equivalent:
-``` CS
+``` csharp
 var tables = new string[] {"ProductCategory", "ProductModel", "Product",
     "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 var agent = new SyncAgent(clientProvider, serverProvider, tables);
 
 ```
 
-``` cs
+``` csharp
 var tables = new string[] {"ProductCategory", "ProductModel", "Product",
         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
@@ -86,7 +86,7 @@ The main advantage of using `SyncSetup` is you can personalize what you want fro
 ### Filtering Columns
 Once your `SyncSetup` instance is created (with your tables list), you can specify the columns you want to sync:
 
-``` cs
+``` csharp
 var tables = new string[] {"ProductCategory", "ProductModel", "Product",
         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
@@ -104,7 +104,7 @@ All others tables will sync all their columns.
 ### Filtering Rows
 From your `SyncSetup` instance, you can also specify a `SetupFilter` on each table, allowing you to filter rows.
 
-``` cs
+``` csharp
 setup.Filters.Add("Customer", "CustomerID");
 setup.Filters.Add("CustomerAddress", "CustomerID");
 setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
@@ -266,7 +266,7 @@ Even worth, when you're in a web environment, you don't want to make a web reque
 
 The `BatchSize` property from the `SyncOptions` object allows you to define the maximum size of any payload:
 
-``` cs
+``` csharp
 var clientOptions = new SyncOptions { BatchSize = 500 };
 ```
 Be careful, the batch size value **is not** a kb maximum size. The maximum size depends on compression, converters and so on...   
@@ -285,7 +285,7 @@ Go 100000
 
 By default, here is the sync process, where we download everything from the server, without any `BatchSize` option:
 
-``` cs
+``` csharp
 var agent = new SyncAgent(clientProvider, proxyClientProvider);
 await agent.SynchronizeAsync();
 ```
@@ -297,7 +297,7 @@ As you can see, the fiddler trace shows a http response around **16 Mb** (approx
 
 Here is the same sync, with the batch mode enabled:
 
-``` cs
+``` csharp
 // ----------------------------------
 // Client side
 // ----------------------------------
@@ -395,7 +395,7 @@ Be careful, the delete method will:
 
 You can also manually delete metadatas from both server or client, using the method `DeleteMetadatasAsync`, available from `LocalOrchestrator` and `RemoteOrchestrator` also:
 
-``` cs
+``` csharp
 var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 var localOrchestrator = new LocalOrchestrator(clientProvider);
 await localOrchestrator.DeleteMetadatasAsync();

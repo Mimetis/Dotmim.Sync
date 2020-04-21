@@ -7,7 +7,7 @@ You have two way to configure schemas :
 
 Directly during the tables declaration, as string:
 
-``` cs
+``` csharp
 var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
                                 "Address", "Customer", "CustomerAddress"};
 
@@ -16,7 +16,7 @@ SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
 
 On each table, from the `SyncConfiguration` action:
 
-``` cs
+``` csharp
 var tables = new string[] { "ProductCategory", "ProductModel", "Product",
                                 "Address", "Customer", "CustomerAddress"};
 

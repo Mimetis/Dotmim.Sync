@@ -29,7 +29,7 @@ Once all clients have made a sync and are up to date at time **T**, we can theor
 
 The easiest way to achieve that, on the server side, is to create a schedule task and call the `DeleteMetadatasAsync` method (from a console application, service windows, whatever...) with this kind of code:
 
-``` cs
+``` csharp
 var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
 remoteOrchestrator.DeleteMetadatasAsync();
 
@@ -97,7 +97,7 @@ Well, can make this assumption
 
 The code became:
 
-``` cs
+``` csharp
 // get all history lines from `scope_info_history`
 var histories = await remoteOrchestrator.GetServerHistoryScopes();
 

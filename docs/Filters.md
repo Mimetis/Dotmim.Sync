@@ -18,7 +18,7 @@ In a nutshell, adding a filter for a specific table requires:
 ### The easy way
 
 You have a straightforward method to add a filter, from your `SyncSetup` instance:
-``` cs
+``` csharp
 setup.Filters.Add("Customer", "CustomerID");
 ```
 
@@ -53,7 +53,7 @@ The main difference with the *easy way* method, is that we will details all the 
 
 The `SetupFilter` class will allows you to personalize your filter on a defined table (`Customer` in this example):
 
-``` cs
+``` csharp
 var customerFilter = new SetupFilter("Customer");
 ```
 
@@ -69,7 +69,7 @@ This method can be called with two kind of arguments:
 - Your parameter is a **mapped**  column. Easier, you just have to define its name and the mapped column. This way, `Dotmim.Sync` will determine the parameter properties, based on the schema
 
 For instance, the parameters declaration for the table `Customer` looks like:
-``` cs
+``` csharp
 customerFilter.AddParameter("City", "Address", true);
 customerFilter.AddParameter("postal", DbType.String, true, null, 20);
 
@@ -94,7 +94,7 @@ Where `@City` is a mapped parameter and `@postal` is a custom parameter.
 If your filter is applied on a column in the actual table, you don't need to add any `join` statement.
 But, in our example, the `Customer` table is two levels below the `Address` table (where we have the filtered columns `City` and `PostalCode`)
 So far, we can add some join statement here, going from `Customer` to `CustomerAddress` then to `Address`:
-``` cs
+``` csharp
 customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
 customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
 ```
@@ -145,7 +145,7 @@ Here is the full sample, where we define the filters (`City` and `postal` code) 
 
 You will find the source code in the last commit, project `Dotmim.Sync.SampleConsole.csproj`, file `program.cs`, method `SynchronizeAsync()`:
 
-``` cs
+``` csharp
 var setup = new SyncSetup(new string[] {"ProductCategory",
   "ProductModel", "Product",
   "Address", "Customer", "CustomerAddress",
@@ -223,7 +223,7 @@ setup.Filters.Add(orderDetailsFilter);
 ```
 And you `SyncAgent` now looks like:
 
-``` cs
+``` csharp
 // Creating an agent that will handle all the process
 var agent = new SyncAgent(clientProvider, serverProvider, setup);
 
@@ -249,7 +249,7 @@ If you're using the http mode, you will notice some differences between the **cl
 You have to declare your `SetupFilters` from within your `ConfigureServices()` method.
 Pretty similar from the last example, excepting you do not add any `SyncParameter` value at the end:
 
-``` cs
+``` csharp
 public void ConfigureServices(IServiceCollection services)
 {
     services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
@@ -337,7 +337,7 @@ public void ConfigureServices(IServiceCollection services)
 
 The client side shoud be familiar to you:
 
-``` cs
+``` csharp
 
 // Defining the local provider
 var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
