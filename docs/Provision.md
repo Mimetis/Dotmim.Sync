@@ -121,7 +121,7 @@ Here is how you could handle it:
 * Re apply the triggers and the stored procédures. They will be re-generated with the new column !
 * Re launch a new sync process (don't use the same `SyncAgent` as before, recreate a new one).
 
-``` cs
+``` csharp
 private static async Task AlterSchemasAsync()
 {
     SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));

@@ -3,12 +3,12 @@
 It's quite complicated, once you have created your sync configuration, and once it's running, to add or remove tables to a named scope...
 
 For example going from this:
-``` cs
+``` csharp
 var setup = new SyncSetup(new string[] { "ProductCategory", "Product" })
 ```
 
 to this:
-``` cs
+``` csharp
 var setup = new SyncSetup(new string[] { "ProductCategory", "Product", "ProductDescription" })
 ```
 Is really complicated...
@@ -27,11 +27,11 @@ And then will merge the databases, adding *tracking tables*, *stored procedures*
 ## Example 1
 
 Going from this:
-``` cs
+``` csharp
 var setup = new SyncSetup(new string[] { "ProductCategory", "Product" })
 ```
 to this:
-``` cs
+``` csharp
 var setup = new SyncSetup(new string[] { "ProductCategory", "Product", "ProductDescription" })
 ```
 Will generate:
@@ -43,11 +43,11 @@ Will generate:
 ## Example 2
 
 Going from this:
-``` cs
+``` csharp
 var setup = new SyncSetup(new string[] { "ProductCategory", "Product" })
 ```
 to this:
-``` cs
+``` csharp
 var setup = new SyncSetup(new string[] { "ProductCategory", "Product" })
 {
     TrackingTablesPrefix = "t",
@@ -72,7 +72,7 @@ You have 2 new methods on both orchestrators:
 
 On `LocalOrchestrator`:
 
-``` cs
+``` csharp
 public virtual async Task MigrationAsync(SyncSetup oldSetup, SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
 ```
 Basically, you need the old setup to migrate `oldSetup`, and the new `schema`. 
@@ -82,7 +82,7 @@ Why do you need the `schema` ? If you are adding a new table, that is not presen
 
 Here is an example, using this method on your local database:
 
-``` cs
+``` csharp
 // adding 2 new tables
 var newSetup = new SyncSetup(new string[] { "ProductCategory", "Product", "ProdutModel", "ProductDescription" });
 
@@ -106,14 +106,14 @@ await localOrchestrator.MigrationAsync(oldSetup, schema);
 ```
 On `RemoteOrchestrator`:
 
-``` cs
+``` csharp
 public virtual async Task MigrationAsync(SyncSetup oldSetup, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
 ```
 Basically, it's the same method as on `LocalOrchestrator` but we don't need to pass a schema, since we are on the server side, and we know how to get the schema :)
 
 The same example will become:
 
-``` cs
+``` csharp
 // adding 2 new tables
 var newSetup = new SyncSetup(new string[] { "ProductCategory", "Product", "ProdutModel", "ProductDescription" });
 
@@ -182,7 +182,7 @@ Fortunatelly, using an interceptor, from the **server side**, you are able to *f
 
 On the server side, from your controller, just modify the request `SyncContext` with the correct value, like this:
 
-``` cs
+``` csharp
 [HttpPost]
 public async Task Post()
 {

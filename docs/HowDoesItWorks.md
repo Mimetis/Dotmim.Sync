@@ -16,7 +16,7 @@ Here is the big picture of the components used in a simple synchronization, over
 
 If we take a close look to the `HelloSync` sample:
 
-``` cs
+``` csharp
 var serverProvider = new MySqlSyncProvider(serverConnectionString);
 var clientProvider = new SqliteSyncProvider(clientConnectionString);
 
@@ -32,7 +32,7 @@ Console.WriteLine(result);
 There is no mention of any `Orchestrators` here. It's basically because the `SyncAgent` instance will create them under the hood, for simplicity.  
 We can rewrite this code, this way:
 
-``` cs
+``` csharp
 
 // Create 2 providers, one for MySql, one for Sqlite.
 var serverProvider = new MySqlSyncProvider(serverConnectionString);

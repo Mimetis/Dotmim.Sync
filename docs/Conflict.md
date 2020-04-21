@@ -9,7 +9,7 @@ You can choose:
 
 > Default value is `ServerWins`.
 
-``` cs
+``` csharp
 var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
 ``` 
 
@@ -31,7 +31,7 @@ Depending on your policy resolution, the workflow could be:
 If you decide to manually resolve a conflict, the `ConflictResolutionPolicy` option will be ignored.  
 To be able to resolve a conflict, you just have to *Intercept*  the `ApplyChangedFailed` method and choose the correct version.  
 
-``` cs
+``` csharp
 agent.OnApplyChangesFailed(args =>
 {
  // do stuff and choose correct resolution policy
@@ -60,7 +60,7 @@ Eventually, the `FinalRow` property is used when you specify an Action to `Confl
 
 Manually resolving a conflict based on a column value:
 
-``` cs
+``` csharp
 agent.OnApplyChangesFailed(e =>
 {
     if (e.Conflict.RemoteRow.Table.TableName == "Region")
@@ -72,7 +72,7 @@ agent.OnApplyChangesFailed(e =>
 
 Manually resolving a conflict based on the conflict type :
 
-``` cs
+``` csharp
 agent.OnApplyChangesFailed(args =>
 {
     switch (args.Conflict.Type)
@@ -95,7 +95,7 @@ agent.OnApplyChangesFailed(args =>
 
 Resolving a conflict by specifying a merged row :
 
-``` cs
+``` csharp
 agent.OnApplyChangesFailed(e =>
 {
     if (e.Conflict.RemoteRow.Table.TableName == "Region")

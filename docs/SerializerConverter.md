@@ -118,7 +118,7 @@ Now the communication between the server side and the client side will be comple
 
 To check if everything is serialized correctly, you can use a web debugging proxy, like [Fiddler](https://www.telerik.com/fiddler) or you can use an `Interceptor<T>`, available from the `WebClientOrchestrator` orchestrator instance:
 
-``` cs
+``` csharp
 //Spy the changes sent
 serverProxyOrchestrator.OnSendingChanges(args =>
 {

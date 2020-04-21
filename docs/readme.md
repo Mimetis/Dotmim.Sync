@@ -1,4 +1,4 @@
-## Dotmim.Sync
+# Dotmim.Sync
 
 ![DMS](assets/Smallicon.png)
 
@@ -23,7 +23,7 @@ No need to handle any configuration file, or any generation code or whatever. Ju
 
 
 
-``` cs
+``` csharp
 // Create 2 Sql Sync providers
 // First provider is using the Sql change tracking feature. Don't forget to enable it on your database until running this code !
 // For instance, use this SQL statement on your server database : ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)  

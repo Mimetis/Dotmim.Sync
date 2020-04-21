@@ -23,7 +23,7 @@ Here is the steps to create a server snapshot and the configuration from both se
 
 - Create a new method, that will generate a *snapshot* at a current time *T* with all rows / tables, available for all new clients:
 
-``` cs
+``` csharp
 var serverProvider = new SqlSyncProvider("Data Source= ...");
 
 // new setup with all tables involved
@@ -112,7 +112,7 @@ For filtered client, the snapshot should be a little bit different, since it wil
 More, each filtered client will have its own snapshot, based on its filter parameters values  !
 
 To generate a filtered snapshot, just add the `SyncParameters` values to the new `SyncContext` instance argument:
-``` cs
+``` csharp
 // Setup with a filter on CustomerId, on table Customer
 var setup = new SyncSetup(allTables);
 setup.Filters.Add("Customer", "CustomerId");
@@ -131,7 +131,7 @@ await Server.RemoteOrchestrator.CreateSnapshotAsync();
 To activate this snapshot, the server should know where each snapshot is located.   
 
 The `SyncOptions` has a new property called `SnapshotsDirectory`:
-``` cs
+``` csharp
 // Options used for client and server when used in a direct TCP mode:
 var options = new SyncOptions { SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots") };
 ```
@@ -140,7 +140,7 @@ var options = new SyncOptions { SnapshotsDirectory = Path.Combine(Environment.Ge
 
 The `ASP.NET Core` web api looks like this, now:
 
-``` cs
+``` csharp
 public void ConfigureServices(IServiceCollection services)
 {
     services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
@@ -177,7 +177,7 @@ public void ConfigureServices(IServiceCollection services)
 
 On the client side, you don't have anything to do, just a normal new sync processus:
 
-``` cs
+``` csharp
 var s = await agent.SynchronizeAsync(progress);
 ```
 Here is an output of new client coming with a new client database :

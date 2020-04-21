@@ -16,7 +16,7 @@ First of all, during a full synchronization, we have **two distincts** progressi
 We have a lot of progress values raised by both the **server** and the **client** side.
 * Each progress value is catch from a callback from the assiocated **Orchestrator** instance.
 * Each progress value in a sync process is associated with a specific *stage*, represented by a **SyncStage** enumeration:
-``` cs
+``` csharp
 public enum SyncStage
 {
     None,
@@ -119,7 +119,7 @@ So far, we can use a `Progress<ProgressArgs>` instance that we will pass to the 
 
 Here is a quick example used to provide some feedback to the users:   
 
-``` cs
+``` csharp
 var serverProvider = new SqlSyncChangeTrackingProvider(serverConnectionString);
 var clientProvider = new SqlSyncProvider(clientConnectionString);
 
