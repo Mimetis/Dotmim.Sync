@@ -173,7 +173,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
             var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id, ind_col.key_ordinal 
@@ -181,16 +181,25 @@ namespace Dotmim.Sync.SqlServer
                                   left outer join sys.index_columns ind_col on ind_col.object_id = ind.object_id and ind_col.index_id = ind.index_id
                                   inner join sys.columns col on col.object_id = ind_col.object_id and col.column_id = ind_col.column_id
                                   inner join sys.tables tbl on tbl.object_id = ind.object_id
-                                  where tbl.name = @tableName and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
+                                  inner join sys.schemas as sch on tbl.schema_id = sch.schema_id
+                                  where tbl.name = @tableName and sch.name = @schemaName and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
                                   order by ind.index_id, ind_col.key_ordinal";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
+            var schemaNameString = "dbo";
+            if (!string.IsNullOrEmpty(schemaName))
+            {
+                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
+            }
+
             var syncTable = new SyncTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
