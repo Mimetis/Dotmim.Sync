@@ -13,7 +13,9 @@ Welcome to Dotmim.Sync
 **DotMim.Sync** (**DMS**) is a straightforward framework for syncing relational databases, developed on top of **.Net Standard 2.0**, available and ready to use within  **IOT**, **Xamarin**, **.NET**, **.NET Core**, **UWP** and so on :)  
 
 
-.. note:: This docs cover the latest version on master. The current version on master is **0.5.3**.
+.. note:: The source code is available on `Github <https://www.github.com/mimetis/dotmim.sync>`_. 
+   
+   This framework is still in beta. There is no support other than me and the time I can put on it. Don't be afraid to reach me out, but expect delay sometimes :)
 
 .. image:: assets/allinone.png
    :align: center
