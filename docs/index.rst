@@ -89,7 +89,7 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
 
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
    :hidden:
    :caption: DMS
 
