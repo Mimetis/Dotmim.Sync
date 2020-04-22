@@ -144,7 +144,7 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync()
         {
-            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName).ConfigureAwait(false);
+            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.sqlConnection, this.sqlTransaction, this.tableName, this.schemaName).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
 

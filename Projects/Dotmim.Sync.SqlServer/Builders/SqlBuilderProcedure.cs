@@ -99,7 +99,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     stringBuilder3.Append(" NULL");
 
                 if (param.Value != null)
-                    stringBuilder3.Append($" = {param.Value.ToString()}");
+                    stringBuilder3.Append($" = {param.Value}");
 
                 if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
                     stringBuilder3.Append(" OUTPUT");
