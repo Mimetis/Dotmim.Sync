@@ -93,7 +93,7 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    :hidden:
    :caption: DMS
 
-   readme
+   Overview
    HowDoesItWorks
    Progression
    ChangeTracking

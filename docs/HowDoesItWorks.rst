@@ -20,7 +20,7 @@ Here is the big picture of the components used in a simple synchronization, over
   :align: center
 
 
-If we take a close look to the ``HelloSync`` sample::
+If we take a close look to the `HelloSync <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/HelloSync>`_  sample::
 
   var serverProvider = new MySqlSyncProvider(serverConnectionString);
   var clientProvider = new SqliteSyncProvider(clientConnectionString);
@@ -93,5 +93,5 @@ Here is the big picture of this more advanced scenario:
    :align: center
 
 
-You can read more on the web architecture and how to implement it, here: :ref:`Asp.net Core Web Api sync proxy <Web>`
+You can read more on the web architecture and how to implement it, here: `Asp.net Core Web Api sync proxy <./Web.html>`_ 
 
