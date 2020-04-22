@@ -55,6 +55,7 @@ internal class Program
     {
         await SyncAccessRulesAsync();
 
+       
     }
 
     private static async Task SyncAccessRulesAsync()
