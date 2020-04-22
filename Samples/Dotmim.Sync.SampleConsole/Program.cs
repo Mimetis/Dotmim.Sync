@@ -53,10 +53,9 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await SyncAccessRulesAsync();
 
     }
-
 
     private static async Task SyncAccessRulesAsync()
     {
@@ -574,7 +573,7 @@ internal class Program
         // loggerFactory.AddSerilog(serilogLogger);
 
         options.Logger = loggerFactory.CreateLogger("dms");
-        
+
         // 2nd option to add serilog
         //var loggerFactorySerilog = new SerilogLoggerFactory();
         //var logger = loggerFactorySerilog.CreateLogger<SyncAgent>();
