@@ -82,9 +82,11 @@ First sync
 
    Before running this code, use this SQL statement on your server database to enable Change Tracking: 
    
-   ``ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)``
+   .. code-block:: sql
    
-   
+        ALTER DATABASE AdventureWorks SET CHANGE_TRACKING=ON 
+        (CHANGE_RETENTION=2 DAYS,AUTO_CLEANUP=ON)
+     
    Otherwise, if you don't want to use Change Tracking feature, just change ``SqlSyncChangeTrackingProvider`` to ``SqlSyncProvider``
 
 
