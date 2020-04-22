@@ -48,15 +48,15 @@ namespace Dotmim.Sync.Tests.Models
                 {
                     case ProviderType.Sql:
                         if (this.Connection != null)
-                            optionsBuilder.UseSqlServer(this.Connection);
+                            optionsBuilder.UseSqlServer(this.Connection, options => options.EnableRetryOnFailure(5));
                         else
-                            optionsBuilder.UseSqlServer(this.ConnectionString);
+                            optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.MySql:
                         if (this.Connection != null)
-                            optionsBuilder.UseMySql(this.Connection, opt => opt.EnableRetryOnFailure(10));
+                            optionsBuilder.UseMySql(this.Connection, options => options.EnableRetryOnFailure(5));
                         else
-                            optionsBuilder.UseMySql(this.ConnectionString, opt => opt.EnableRetryOnFailure(10));
+                            optionsBuilder.UseMySql(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.Sqlite:
                         if (this.Connection != null)
