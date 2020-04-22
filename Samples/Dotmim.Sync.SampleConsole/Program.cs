@@ -53,7 +53,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SyncAccessRulesAsync();
+        await SynchronizeAsync();
 
        
     }
@@ -481,7 +481,7 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider("Data Source=sql2008r2seb.westeurope.cloudapp.azure.com;Initial Catalog=AdventureWorks;Integrated Security=false;User Id=spertus;Password=DB56hy76bz3kayfj");
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
