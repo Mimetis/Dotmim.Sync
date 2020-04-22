@@ -5,30 +5,31 @@ Overview
     :align: center
 
 
-**Dotmim.Sync** (**DMS**) is the easiest way to handle a full **synchronization** between one server database and multiples clients databases.  
-**Dotmim.Sync** (**DMS**) is cross-platforms, multi-databases and based on **.Net Standard 2.0**.   
-Choose either **SQL Server**, **SQLite**, **MySQL**, and (hopefully, I hope soon...) Oracle and PostgreSQL !
+| **Dotmim.Sync** (**DMS**) is the easiest way to handle a full **synchronization** between one server database and multiples clients databases.  
+| **Dotmim.Sync** is cross-platforms, multi-databases and based on **.Net Standard 2.0**.   
+| Choose either **SQL Server**, **SQLite**, **MySQL**, and (hopefully, I hope soon...) Oracle or PostgreSQL !
 
-For simplicity, we can say **Dotmim.Sync** or **DMS** framework.
+For simplicity, we can say **DMS** framework.
 
-No need to handle any configuration file, or any generation code or whatever. Just code the list of tables you need to synchronize, call ``SynchronizeAsync()`` and that's all !
+| No need to handle any configuration file, or code generation code or whatever. 
+| Just a few lines of code, with the list of tables you want to synchronize then call ``SynchronizeAsync()`` and you're done !
 
 Nuget packages
 ^^^^^^^^^^^^^^^
 
-You can add your database type provider, through nuget, from **Visual Studio**:  
+Basically, **DMS** is working with *sync database providers*, that are available through nuget, from the **Visual Studio** interface:  
 
 .. image:: assets/Packages.png
 
 
-Or you can add them through your command line, assuming you are developing with **Visual Studio Code**, **Rider** or even **Notepad** :)
+Obviously, you can add them through your command line, assuming you are developing with **Visual Studio Code**, **Rider** or even **Notepad** :)
 
 
 .. code-block:: bash
 
     # Adding the package required to synchronize a SQL Server database:
     dotnet add package Dotmim.Sync.SqlServer
-    # Adding the package required to synchronize a SQL Server database, using the Change Tracking feature:
+    # Adding the package required to synchronize a SQL Server database, using Change Tracking feature:
     dotnet add package Dotmim.Sync.SqlServer.ChangeTracking
     # Adding the package required to synchronize a MySQL database:
     dotnet add package Dotmim.Sync.MySql
@@ -38,11 +39,11 @@ Or you can add them through your command line, assuming you are developing with 
 
 For instance, if you need to synchronize two **MySql** databases, the only package you need to install, on both Server and Client side, is ``Dotmim.Sync.MySql``.
 
-On the other side, if you need to synchronize a SQL server database, with multiple SQLite client databases, install ``Dotmim.Sync.SqlServer`` (or ``Dotmim.Sync.SqlServer.ChangeTracking``) on the server side and then install ``Dotmim.Sync.Sqlite`` on the client side.
+On the other side, if you need to synchronize a SQL server database, with multiple SQLite client databases, install ``Dotmim.Sync.SqlServer`` (or ``Dotmim.Sync.SqlServer.ChangeTracking``) on the server side and then install ``Dotmim.Sync.Sqlite`` on each client.
 
 .. note:: The package ``Dotmim.Sync.Core`` is the core framework, and is used by all the providers. You don't have to explicitely add it to your projects, since it's always part of the provider you've just installed.
 
-The last two packages available, ``Dotmim.Sync.Web.Client`` and ``Dotmim.Sync.Web.Server`` are packages used on a specific scenario, where you server database is not accessible directly, and is exposed with a web api.
+The last two packages available, ``Dotmim.Sync.Web.Client`` and ``Dotmim.Sync.Web.Server`` are used for a specific scenario, where you server database is not accessible directly, but instead is available and exposed through a **Web Api**, built with **ASP.Net Core** or **ASP.NET**.
 
 All packages are available through **nuget.org**:
 
@@ -62,8 +63,7 @@ Tutorial: First sync
 First sync
 ----------------------
 
-
-**TL,DR** : Here is the most straightforward way to synchronize two relational databases:
+This tutorial will describe all the steps required to create a first sync between two relational databases:
 
 * If you don't have any databases ready for testing, you can use:
 
@@ -79,16 +79,16 @@ First sync
          
           You can see this sample as well, live, hosted on `dotnetfiddle <https://dotnetfiddle.net>`_  : `Hello Sync On dotnetfiddle <https://dotnetfiddle.net/CZgNDm>`_ 
 
-.. warning:: In the new code sample, we are using a special provider called Create ``SqlSyncChangeTrackingProvider`` using the **CHANGE_TRACKING** feature from **SQL SERVER**. 
+.. warning:: In the code sample below, we are using a special provider called ``SqlSyncChangeTrackingProvider``. This provider is using the **CHANGE_TRACKING** feature from **SQL SERVER**. 
 
-   Before running this code, use this SQL statement on your server database to enable Change Tracking: 
+   Before running this code, use this SQL statement on your server database to enable the *Change Tracking*: 
    
    .. code-block:: sql
    
         ALTER DATABASE AdventureWorks SET CHANGE_TRACKING=ON 
         (CHANGE_RETENTION=2 DAYS,AUTO_CLEANUP=ON)
      
-   Otherwise, if you don't want to use Change Tracking feature, just change ``SqlSyncChangeTrackingProvider`` to ``SqlSyncProvider``
+   Otherwise, if you don't want to use the *Change Tracking* feature, just change ``SqlSyncChangeTrackingProvider`` to ``SqlSyncProvider``
 
 
 .. code-block:: csharp
