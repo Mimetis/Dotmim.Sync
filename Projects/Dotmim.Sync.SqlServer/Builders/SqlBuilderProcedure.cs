@@ -95,11 +95,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 stringBuilder3.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
 
-                if (param.IsNullable)
-                    stringBuilder3.Append(" NULL");
-
                 if (param.Value != null)
                     stringBuilder3.Append($" = {param.Value}");
+                else if (param.IsNullable)
+                    stringBuilder3.Append(" = NULL");
 
                 if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
                     stringBuilder3.Append(" OUTPUT");
