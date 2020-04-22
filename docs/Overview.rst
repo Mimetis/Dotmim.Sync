@@ -75,8 +75,9 @@ First sync
   * A lightweight AdvenureWorks database, acting as the Server database (called AdventureWorks)
   * An empty database, acting as the Client database (called Client)
 
-* You will find this sample here : `HelloSync sample <https://github.com/Mimetis/Dotmim.Sync/blob/master/Samples/HelloSync>`_ 
-* You can see this sample as well, live, hosted on `dotnetfiddle <https://dotnetfiddle.net>`_  : `Hello Sync On dotnetfiddle <https://dotnetfiddle.net/CZgNDm>`_ 
+.. hint:: You will find this sample here : `HelloSync sample <https://github.com/Mimetis/Dotmim.Sync/blob/master/Samples/HelloSync>`_ 
+         
+          You can see this sample as well, live, hosted on `dotnetfiddle <https://dotnetfiddle.net>`_  : `Hello Sync On dotnetfiddle <https://dotnetfiddle.net/CZgNDm>`_ 
 
 .. warning:: In the new code sample, we are using a special provider called Create ``SqlSyncChangeTrackingProvider`` using the **CHANGE_TRACKING** feature from **SQL SERVER**. 
 
