@@ -1,22 +1,25 @@
 ![DMS](Assets/Icon.png)
 
-[![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Dotmim.Sync%20Full%20Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=5)
+[![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Dotmim.Sync%20Full%20Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=5) [![Documentation Status](https://readthedocs.org/projects/dotmimsync/badge/?version=latest)](https://dotmimsync.readthedocs.io/?badge=latest)
 
 See the Azure Devops CI : [https://dev.azure.com/dotmim/Dotmim.Sync](https://dev.azure.com/dotmim/Dotmim.Sync)
 
 ## Sources
 **Release and pre-release** are hosted on [nuget.org](https://www.nuget.org) : [https://www.nuget.org/packages?q=dotmim.sync](https://www.nuget.org/packages?q=dotmim.sync)
 
+## Documentation
+Read the full documentation on [https://dotmimsync.readthedocs.io/](https://dotmimsync.readthedocs.io/)
+
 ## Dotmim.Sync
 
 **DotMim.Sync** (**DMS**) is a straightforward framework for syncing relational databases, developed on top of **.Net Standard 2.0**, available and ready to use within  **IOT**, **Xamarin**, **.NET**, **UWP** and so on :)  
-
-**The full documentation** is available here : [https://mimetis.github.io/Dotmim.Sync/](https://mimetis.github.io/Dotmim.Sync/)  
 
 Multi Databases | Cross Plaform |  .Net Standard 2.0 
 -------------|---------------------|--------------------
 ![](Assets/CrossPlatform.png) | ![](Assets/MultiOS.png) | ![](Assets/NetCore.png) 
 
+
+![](Assets/Architecture01.png)
 
 ## TL;DR;
 
@@ -80,5 +83,5 @@ Yes it's blazing fast !
 
 ## Need Help
 
-* Check the full documentation, available here : [https://mimetis.github.io/Dotmim.Sync/](https://mimetis.github.io/Dotmim.Sync/)
+* Check the full documentation, available here : [https://dotmimsync.readthedocs.io/](https://dotmimsync.readthedocs.io/)
 * Feel free to ping me: [@sebpertus](http://www.twitter.com/sebpertus)
