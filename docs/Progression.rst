@@ -1,9 +1,8 @@
 Progression
 =====================
 
-Getting useful information during a sync process could be complex.
-
-You can have a lot of information from an in-going sync, through two kinds of things:
+| Getting useful information during a sync process could be complex.
+| You can have a lot of information from an in-going sync, through two kinds of things:
 
 * ``IProgress<ProgressArgs>`` : A best practice using `IProgress<T> <https://docs.microsoft.com/en-us/dotnet/api/system.progress-1>`_ to handle progress from within an *awaitable* method.
 * ``Ìnterceptor<T>`` : A more advanced technic to handle a lot of more events from within **DMS**
@@ -138,7 +137,7 @@ Here is a quick example used to provide some feedback to the user:
 
     // Using the IProgress<T> pattern to handle progession dring the synchronization
     var progress = new SynchronousProgress<ProgressArgs>(args => 
-            Console.WriteLine($"{args.Context.SyncStage}:\t{args.Message}"));
+            Console.WriteLine('$'"{args.Context.SyncStage}:{args.Message}"));
 
     do
     {
@@ -197,7 +196,7 @@ To be able to get progress from the server side (if you are not in a web proxy m
     var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+        Console.WriteLine('$'"{s.Context.SyncStage}:\t{s.Message}");
         Console.ResetColor();
     });
     agent.AddRemoteProgress(remoteProgress);
@@ -257,14 +256,14 @@ In the other hand, you can use the **interceptors** ``OnTableChangesApplying`` a
     // Intercept a table changes selecting stage.
     agent.LocalOrchestrator.OnTableChangesSelecting(args =>
     {
-        Console.WriteLine($"-- Getting changes from table {args.Table.GetFullName()} ...");
+        Console.WriteLine('$'"-- Getting changes from table {args.Table.GetFullName()} ...");
     });
 
     // Intercept a table changes applying stage, with a particular state [Upsert] or [Deleted]
     // The rows included in the args.Changes table will be applied right after.
     agent.LocalOrchestrator.OnTableChangesApplying(args =>
     {
-        Console.WriteLine($"-- Applying changes {args.State} to table {args.Changes.GetFullName()}");
+        Console.WriteLine('$'"-- Applying changes {args.State} to table {args.Changes.GetFullName()}");
 
         if (args.Changes == null || args.Changes.Rows.Count == 0)
             return;
