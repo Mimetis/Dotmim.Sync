@@ -1,4 +1,4 @@
-![DMS](Assets/Icon.png)
+![DMS](docs/assets/Smallicon.png)
 
 [![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Dotmim.Sync%20Full%20Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=5) [![Documentation Status](https://readthedocs.org/projects/dotmimsync/badge/?version=latest)](https://dotmimsync.readthedocs.io/?badge=latest)
 
@@ -16,19 +16,20 @@ Read the full documentation on [https://dotmimsync.readthedocs.io/](https://dotm
 
 Multi Databases | Cross Plaform |  .Net Standard 2.0 
 -------------|---------------------|--------------------
-![](Assets/CrossPlatform.png) | ![](Assets/MultiOS.png) | ![](Assets/NetCore.png) 
+![](docs/assets/CrossPlatform.png) | ![](docs/assets/MultiOS.png) | ![](docs/assets/NetCore.png) 
 
 
-![](Assets/Architecture01.png)
+![](docs/assets/Architecture01.png)
 
 ## TL;DR;
 
 Here is the easiest way to create a first sync, from scratch : 
 
 * Create a **.Net Standard 2.0** compatible project, like a **.Net Core 2.0 / 3.1** or **.Net Fx 4.8** console application.  
-* Add the nugets packages [DotMim.Sync.SqlServer](https://www.nuget.org/packages/Dotmim.Sync.SqlServer/) and [DotMim.Sync.Sqlite](https://www.nuget.org/packages/Dotmim.Sync.Sqlite/) 
-* If you don't have any hub database for testing purpose, use this one : [AdventureWorks lightweight script for SQL Server](/CreateAdventureWorks.sql)  
-* If you want to test **MySql**, use this script :  [AdventureWorks lightweight script for MySQL Server](/CreateMySqlAdventureWorks.sql)  
+* Add the **nugets** packages [Dotmim.Sync.SqlServer](https://www.nuget.org/packages/Dotmim.Sync.SqlServer/) (or [Dotmim.Sync.MySql](https://www.nuget.org/packages/Dotmim.Sync.MySql/) if you want to tests MySql) and [Dotmim.Sync.Sqlite](https://www.nuget.org/packages/Dotmim.Sync.Sqlite/) 
+* Choose one database for testing: 
+    * Either **SQL Server** test database : [AdventureWorks lightweight script for SQL Server](/CreateAdventureWorks.sql)  
+    * Or **MySql** test database :  [AdventureWorks lightweight script for MySQL Server](/CreateMySqlAdventureWorks.sql)  
 * Add this code :   
 
 ``` csharp
