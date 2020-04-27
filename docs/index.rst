@@ -95,9 +95,9 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
 
    Overview
    HowDoesItWorks
+   Synchronize
    Progression
    ChangeTracking
-   Synchronize
    Web
    SerializerConverter
    Timeout
