@@ -7,14 +7,16 @@
     <Title>Dotmim.Sync.Sqlite</Title>
     <Summary>SQLite Sync Provider. Client provider .Net Standard 2.0</Summary>
     <Description>SQLite Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used only as Client provider. Use SqlSyncProvider or MySqlSyncProvider for the server side .Net Standard 2.0</Description>
-    <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
+    <PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+    <PackageIconFullPath>../../docs/assets/packageIcon.png</PackageIconFullPath>
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.5.3</Version>
+    <Version>0.5.4</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>7.3</LangVersion>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->
@@ -23,6 +25,11 @@
     <IncludeSource>True</IncludeSource>
     <IncludeSymbols>True</IncludeSymbols>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(PackageIconFullPath)" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SQLite" Version="3.1.3" />
   </ItemGroup>
