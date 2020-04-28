@@ -199,5 +199,45 @@ SyncType.ReinitializeWithUpload
 In this case, as you can see, the ``SyncType.ReinitializeWithUpload`` value has marked the client database to be fully resynchronized, but the edited row has been sent correctly to the server.  
 
 
+Forcing Reinitialize 
+^^^^^^^^^^^^^^^^^^^^^
 
+.. warning:: This part covers some concept explained later in the next chapters:
+
+			* Progression : `Using interceptors <Progression.html#interceptor-t>`_.
+			* HTTP architecture : `Using ASP.Net Web API <Web.html>`_ 
+
+
+| This technic applies if you do not have access to the client machine, allowing you to *force* the reinitialization of the client.
+| It could be useful to *override* a normal synchronization with a reinitialization for a particular client, from the server side.
+
+.. note:: Forcing a reinitialization from the server is a good practice if you have an **HTTP** architecture.
+
+Using an `interceptor <Progression.html#interceptor-t>`_, from the **server side**, you are able to *force* the reinitialization from the client.
+
+
+On the server side, from your controller, just modify the request ``SyncContext`` with the correct value, like this:
+
+.. code-block:: csharp
+
+	[HttpPost]
+	public async Task Post()
+	{
+
+		// Get Orchestrator regarding the incoming scope name (from http context)
+		var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
+
+		// override sync type to force a reinitialization from a particular client
+		orchestrator.OnServerScopeLoaded(sla =>
+		{
+			// ClientId represents one client. If you want to reinitialize ALL clients, just remove this condition
+			if (sla.Context.ClientScopeId == clientId)
+			{
+				sla.Context.SyncType = SyncType.Reinitialize;
+			}
+		});
+
+		// handle request
+		await webServerManager.HandleRequestAsync(this.HttpContext);
+	}
 
