@@ -29,40 +29,12 @@ jobs:
         env:
           "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServer --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
-
-      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttpTests --logger trx
-      #  name: sqlserverhttptests
-      #  displayName: "SQL Server Integration Tests SqlServerHttpTests"
-      #  continueOnError: true
-      #  env:
-      #    "AZUREDEV": "true"
-
-      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcpFilterTests --logger trx
-      #  name: sqlservertcpfiltertests
-      #  displayName: "SQL Server Integration Tests SqlServerTcpFilterTests"
-      #  continueOnError: true
-      #  env:
-      #    "AZUREDEV": "true"
-
-      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpFiltersTests --logger trx
-      #  name: sqlserverchangetrackingtcpfilterstests
-      #  displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpFiltersTests"
-      #  continueOnError: true
-      #  env:
-      #    "AZUREDEV": "true"
-
-      #- script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTrackingTcpTests --logger trx
-      #  name: sqlserverchangetrackingtcptests
-      #  displayName: "SQL Server Integration Tests SqlServerChangeTrackingTcpTests"
-      #  continueOnError: true
-      #  env:
-      #    "AZUREDEV": "true"
+      # - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServer --logger trx
+      #   name: sqlservertcptests
+      #   displayName: "SQL Server Integration Tests"
+      #   continueOnError: true
+      #   env:
+      #     "AZUREDEV": "true"
 
       - task: PublishTestResults@2
         inputs:
@@ -86,12 +58,12 @@ jobs:
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySql --logger trx
-        name: mysqlintegrationtests
-        displayName: "MySql  Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+      # - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySql --logger trx
+      #   name: mysqlintegrationtests
+      #   displayName: "MySql  Integration Tests"
+      #   continueOnError: true
+      #   env:
+      #     "AZUREDEV": "true"
 
       - task: PublishTestResults@2
         inputs:
