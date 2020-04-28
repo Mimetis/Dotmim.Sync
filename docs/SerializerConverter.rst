@@ -118,10 +118,11 @@ On the server side, add the serializer to the web server serializers collection:
     webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
 
     // Don't forget to add this converter when calling the DI AddSyncServer() method !
-    services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, null, webServerOptions);
+    services.AddSyncServer<SqlSyncChangeTrackingProvider>
+                (connectionString, tables, null, webServerOptions);
 
 
-On the client side, add this serializer as the default serialized used:
+On the client side, add this serializer as the default serializer:
 
 .. code-block:: csharp
 
