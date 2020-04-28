@@ -17,6 +17,8 @@
     <LangVersion>7.3</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
     <PackageIcon>packageIcon.png</PackageIcon>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->
@@ -42,6 +44,7 @@
   
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
 
 </Project>
