@@ -9,7 +9,6 @@
     <Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider. Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
     <PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
     <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
-    <PackageIconFullPath>../../docs/assets/packageIcon.png</PackageIconFullPath>
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
@@ -17,6 +16,8 @@
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>7.3</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
+    <PackageIcon>packageIcon.png</PackageIcon>
+
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->
@@ -24,10 +25,14 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <IncludeSource>True</IncludeSource>
     <IncludeSymbols>True</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
   
   <ItemGroup>
-    <None Include="$(PackageIconFullPath)" Pack="true" PackagePath="\" />
+    <None Include="..\..\docs\assets\packageIcon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
   </ItemGroup>
 
   
