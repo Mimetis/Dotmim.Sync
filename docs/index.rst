@@ -107,7 +107,6 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    Metadatas
    Migration
    Schemas
-   Direction
    Conflict
    Filters
    AlreadyExisting

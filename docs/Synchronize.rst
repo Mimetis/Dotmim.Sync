@@ -230,7 +230,9 @@ On the server side, from your controller, just modify the request ``SyncContext`
 		// override sync type to force a reinitialization from a particular client
 		orchestrator.OnServerScopeLoaded(sla =>
 		{
-			// ClientId represents one client. If you want to reinitialize ALL clients, just remove this condition
+			// ClientId represents one client. 
+			// If you want to reinitialize ALL clients, 
+			// just remove this condition
 			if (sla.Context.ClientScopeId == clientId)
 			{
 				sla.Context.SyncType = SyncType.Reinitialize;
@@ -240,4 +242,61 @@ On the server side, from your controller, just modify the request ``SyncContext`
 		// handle request
 		await webServerManager.HandleRequestAsync(this.HttpContext);
 	}
+
+SyncDirection
+^^^^^^^^^^^^^^^^^^^^
+
+| The `SyncType` enumeration allows you to synchronize **all** the tables.  
+| Another way to synchronize your tables is to set a direction on each of them, through the `SyncDirection` enumeration. 
+| This options is not global to all the tables, but should be set on each table.
+
+You can specify three types of direction: **Bidirectional**, **UploadOnly** or **DownloadOnly**.
+
+You can use the ``SyncDirection`` enumeration for each table in the ``SyncSetup`` object.
+
+.. code-block:: csharp
+	public enum SyncDirection
+	{
+		Bidirectional = 1,
+		DownloadOnly = 2,
+		UploadOnly = 3
+	}
+
+.. note:: ``Bidirectional`` is the default value for all tables added.
+
+Since, we need to specify the direction on each table, the ``SyncDirection`` option is available on each ``SetupTable``:
+
+.. code-block:: csharp
+
+	var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
+			"SalesLT.Address", "SalesLT.Customer", "SalesLT.CustomerAddress"};
+
+	var syncSetup = new SyncSetup(tables);
+	syncSetup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
+	syncSetup.Tables["CustomerAddress"].SyncDirection = SyncDirection.DownloadOnly;
+	syncSetup.Tables["Address"].SyncDirection = SyncDirection.DownloadOnly;
+
+	var agent = new SyncAgent(clientProvider, serverProvider, syncSetup);
+
+
+SyncDirection.Bidirectional
+---------------------------------
+
+This mode is the default one. Both server and client will upload and download their rows. 
+
+Using this mode, all your tables are fully synchronized with the server.
+
+SyncDirection.DownloadOnly
+---------------------------------
+
+This mode allows you to specify some tables to be only downloaded from the server to the client.
+
+Using this mode, your server will not receive any rows from any clients, on the configured tables with the download only option.
+
+SyncDirection.UploadOnly
+---------------------------------
+
+This mode allows you to specify some tables to be uploaded from the client to the server only.
+
+Using this mode, your server will not send any rows to any clients, but clients will sent their own modified rows to the server. 
 
