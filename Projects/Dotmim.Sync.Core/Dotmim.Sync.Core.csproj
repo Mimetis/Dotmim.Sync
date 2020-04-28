@@ -7,15 +7,16 @@
     <Title>Dotmim.Sync.Core</Title>
     <Summary>Manage a sync process beetween two relational databases provider. Core assembly .Net Standard 2.0</Summary>
     <Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider. Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
-    <PackageProjectUrl>https://mimetis.github.io/Dotmim.Sync/</PackageProjectUrl>
+    <PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
     <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+    <PackageIconFullPath>../../docs/assets/packageIcon.png</PackageIconFullPath>
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.5.3</Version>
+    <Version>0.5.4</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
-
     <LangVersion>7.3</LangVersion>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!--generate NUGET package including symbols ans source on each release build -->
@@ -24,12 +25,12 @@
     <IncludeSource>True</IncludeSource>
     <IncludeSymbols>True</IncludeSymbols>
   </PropertyGroup>
+  
   <ItemGroup>
-    <Compile Remove="Dm\**" />
-    <EmbeddedResource Remove="Dm\**" />
-    <None Remove="Dm\**" />
+    <None Include="$(PackageIconFullPath)" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
