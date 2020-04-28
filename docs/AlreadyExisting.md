@@ -5,7 +5,7 @@ You may want to initiate a **new** synchronization beetween **existing** databas
 The quick answer to this is : It's working by default, with no additionnal steps to do.  
 Here is a basic solution showing you how you can deal with it.
 
-# Solution
+## Solution
 
 Basically, the starter solution is this one:
 You have both an **already existing SQLite** client database and an **already existing SQL Server** master database.  
