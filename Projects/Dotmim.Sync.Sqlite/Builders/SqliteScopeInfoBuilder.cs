@@ -37,7 +37,7 @@ namespace Dotmim.Sync.Sqlite
                     await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText =
-                    $@"CREATE TABLE {scopeTableName.Quoted()}(
+                    $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
 	                    sync_scope_schema text NULL,
@@ -131,7 +131,7 @@ namespace Dotmim.Sync.Sqlite
                            , scope_last_server_sync_timestamp
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
-                    FROM  {scopeTableName.Unquoted()}
+                    FROM  {scopeTableName.Unquoted().ToString()}
                     WHERE sync_scope_name = @sync_scope_name";
 
                 var p = command.CreateParameter();
