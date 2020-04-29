@@ -334,9 +334,6 @@ namespace Dotmim.Sync
             return this.DeprovisionAsync(new SyncSet(setup), provision, cancellationToken, progress);
         }
 
-
-
-
         /// <summary>
         /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
         /// </summary>
@@ -471,9 +468,6 @@ namespace Dotmim.Sync
                 return schema;
             }
         }
-
-
-
 
         /// <summary>
         /// Delete metadatas items from tracking tables

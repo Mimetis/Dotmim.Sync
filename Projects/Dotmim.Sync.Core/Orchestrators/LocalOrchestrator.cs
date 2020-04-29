@@ -130,6 +130,73 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Write a server scope 
+        /// </summary>
+        public virtual async Task<ScopeInfo> WriteClientScopeAsync(ScopeInfo scopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    ctx.SyncStage = SyncStage.ScopeWriting;
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    DbTransaction transaction;
+                    // Create a transaction
+                    using (transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // await this.InterceptAsync(new ServerScopeLoadingArgs(ctx, this.ScopeName, this.Options.ScopeInfoTableName, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // Create scope server
+                        ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Write scopes locally
+                        ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    ctx.SyncStage = SyncStage.ScopeWrited;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    //var scopeArgs = new ServerScopeLoadedArgs(ctx, serverScopeInfo, connection, transaction);
+                    //await this.InterceptAsync(scopeArgs, cancellationToken).ConfigureAwait(false);
+                    //this.ReportProgress(ctx, progress, scopeArgs);
+
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State == ConnectionState.Open)
+                        connection.Close();
+                }
+
+                this.logger.LogInformation(SyncEventsId.WriteServerScope, scopeInfo);
+
+                return scopeInfo;
+            }
+        }
+
+
+
+
+        /// <summary>
         /// Get changes from local database
         /// </summary>
         /// <returns></returns>
