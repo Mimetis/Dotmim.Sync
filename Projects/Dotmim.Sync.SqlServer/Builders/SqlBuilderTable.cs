@@ -177,7 +177,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{tableName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY(");
+            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted()} ADD CONSTRAINT [PK_{tableName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY(");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
                 var pkColumn = this.tableDescription.PrimaryKeys[i];
@@ -265,10 +265,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             return new SqlCommand(createTableCommandString);
         }
 
-        private SqlCommand BuildDeleteTableCommand()
-        {
-            return new SqlCommand($"DROP TABLE {tableName.Schema().Quoted().ToString()};");
-        }
+        private SqlCommand BuildDeleteTableCommand() 
+            => new SqlCommand($"ALTER TABLE {tableName.Schema().Quoted()} NOCHECK CONSTRAINT ALL; DROP TABLE {tableName.Schema().Quoted()};");
 
         public async Task CreateSchemaAsync()
         {

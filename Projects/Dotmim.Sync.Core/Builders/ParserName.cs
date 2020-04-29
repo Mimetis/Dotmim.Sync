@@ -24,7 +24,6 @@ namespace Dotmim.Sync.Builders
         public string ObjectName => GlobalParser.GetParserString(this.key).ObjectName;
         public string DatabaseName => GlobalParser.GetParserString(this.key).DatabaseName;
 
-
         /// <summary>
         /// Add database name if available to the final string
         /// </summary>
@@ -131,10 +130,10 @@ namespace Dotmim.Sync.Builders
             sb.Append(name);
 
             // now we have the correct string, reset options for the next time we call the same instance
-            withDatabase = false;
-            withSchema = false;
-            withQuotes = false;
-            withNormalized = false;
+            //withDatabase = false;
+            //withSchema = false;
+            //withQuotes = false;
+            //withNormalized = false;
 
             return sb.ToString();
 

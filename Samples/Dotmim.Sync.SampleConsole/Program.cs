@@ -1,43 +1,23 @@
 ﻿using Dotmim.Sync;
-
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.MySql;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
-using MessagePack;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http2.HPack;
 using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Configuration.EnvironmentVariables;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Security.Cryptography;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using Dotmim.Sync.Setup;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Console;
 using Serilog;
-using Serilog.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Serilog.Sinks.SystemConsole.Themes;
 using Serilog.Events;
 
 internal class Program
@@ -53,76 +33,129 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await SynchronizeThenDeprovisionThenProvisionAsync();
 
-       
+
     }
-
-    private static async Task SyncAccessRulesAsync()
+    private static async Task SynchronizeThenDeprovisionThenProvisionAsync()
     {
-        var clientProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
-        var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
-        // ----------------------------------
+        // Create standard Setup and Options
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+        var options = new SyncOptions();
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+
+        // First sync to have a starting point
+        var s1 = await agent.SynchronizeAsync(progress);
+
+        Console.WriteLine(s1);
+
+        // -----------------------------------------------------------------
+        // Migrating a table by adding a new column
+        // -----------------------------------------------------------------
+
+        // Adding a new column called CreatedDate to Address table, on the server, and on the client.
+        await AddNewColumnToAddressAsync(serverProvider.CreateConnection());
+        await AddNewColumnToAddressAsync(clientProvider.CreateConnection());
+
+        // -----------------------------------------------------------------
+        // Server side
+        // -----------------------------------------------------------------
+
+        // Creating a setup regarding only the table Address
+        var setupAddress = new SyncSetup(new string[] { "Address" });
+
+        // Create a server orchestrator used to Deprovision and Provision only table Address
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setupAddress);
+
+        // Unprovision the Address triggers / stored proc. 
+        // We can conserve the Address tracking table, since we just add a column, 
+        // that is not a primary key used in the tracking table
+        // That way, we are preserving historical data
+        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+        // Provision the Address triggers / stored proc again, 
+        // This provision method will fetch the address schema from the database, 
+        // so it will contains all the columns, including the new Address column added
+        await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+        // Now we need the full setup to get the full schema.
+        // Setup includes [Address] [Customer] and [CustomerAddress]
+        remoteOrchestrator.Setup = setup;
+        var newSchema = await remoteOrchestrator.GetSchemaAsync();
+
+        // Now we need to save this new schema to the serverscope table
+        // get the server scope again
+        var serverScope = await remoteOrchestrator.GetServerScopeAsync();
+
+        // affect good values
+        serverScope.Setup = setup;
+        serverScope.Schema = newSchema;
+
+        // save it
+        await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+
+        // -----------------------------------------------------------------
         // Client side
-        // ----------------------------------
-        var clientOptions = new SyncOptions
-        {
-            ScopeInfoTableName = "client_scopeinfo",
-            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync_client"),
-            BatchSize = 50,
-            CleanMetadatas = true,
-            UseBulkOperations = true,
-            UseVerboseErrors = false,
-        };
+        // -----------------------------------------------------------------
 
-        var clientSetup = new SyncSetup
-        {
-            StoredProceduresPrefix = "cli",
-            StoredProceduresSuffix = "",
-            TrackingTablesPrefix = "cli",
-            TrackingTablesSuffix = "",
-            TriggersPrefix = "",
-            TriggersSuffix = "",
-        };
+        // Now go for local orchestrator
+        var localOrchestrator = new LocalOrchestrator(clientProvider, options, setupAddress);
 
+        // Unprovision the Address triggers / stored proc. We can conserve tracking table, since we just add a column, that is not a primary key used in the tracking table
+        // In this case, we will 
+        await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
 
+        // Provision the Address triggers / stored proc again, 
+        // This provision method will fetch the address schema from the database, so it will contains all the columns, including the new one added
+        await localOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
 
-        var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup);
+        // Now we need to save this to clientscope
+        // get the server scope again
+        var clientScope = await localOrchestrator.GetClientScopeAsync();
 
-        Console.WriteLine("Press a key to start (be sure web api is running ...)");
-        Console.ReadKey();
+        // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
+        // You can create a WebClientOrchestrator and get the schema as well
+        // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
+        // var newSchema = proxyClientProvider.GetSchemaAsync();
+
+        // affect good values
+        clientScope.Setup = setup;
+        clientScope.Schema = newSchema;
+
+        // save it
+        await localOrchestrator.WriteClientScopeAsync(clientScope);
+
+        // Now test a new sync, everything should work as expected.
         do
         {
-            Console.Clear();
-            Console.WriteLine("Web sync start");
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
             try
             {
-                var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
-
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-
-                Console.WriteLine(s);
-
-            }
-            catch (SyncException e)
-            {
-                Console.WriteLine(e.Message);
+                var s2 = await agent.SynchronizeAsync();
+                
+                // Write results
+                Console.WriteLine(s2);
             }
             catch (Exception e)
             {
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                Console.WriteLine(e.Message);
             }
 
-
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         Console.WriteLine("End");
 
     }
-
-
 
     private static void TestSqliteDoubleStatement()
     {
@@ -220,6 +253,17 @@ internal class Program
         Console.WriteLine(s1);
 
         Console.WriteLine("End");
+    }
+
+    private static async Task AddNewColumnToAddressAsync(DbConnection c)
+    {
+        using (var command = c.CreateCommand())
+        {
+            command.CommandText = "ALTER TABLE dbo.Address ADD CreatedDate datetime NULL;";
+            c.Open();
+            await command.ExecuteNonQueryAsync();
+            c.Close();
+        }
     }
     private static int InsertOneProductCategoryId(IDbConnection c, string updatedName)
     {
