@@ -58,14 +58,12 @@ namespace Dotmim.Sync.Builders
         {
             this.withQuotes = false;
             return this;
-
         }
 
         public ParserName Normalized()
         {
             this.withNormalized = true;
             return this;
-
         }
 
     
@@ -74,7 +72,7 @@ namespace Dotmim.Sync.Builders
         public static ParserName Parse(string input, string leftQuote = null, string rightQuote = null) => new ParserName(input, leftQuote, rightQuote);
 
 
-
+        private ParserName() { }
 
         private ParserName(string input, string leftQuote = null, string rightQuote = null) => this.ParseString(input, leftQuote, rightQuote);
         private ParserName(SyncColumn column, string leftQuote = null, string rightQuote = null) => this.ParseString(column.ColumnName, leftQuote, rightQuote);
@@ -103,7 +101,7 @@ namespace Dotmim.Sync.Builders
             else if (!string.IsNullOrEmpty(leftQuote))
                 this.key = $"{leftQuote}^{leftQuote}^{input}";
 
-            var s = GlobalParser.GetParserString(this.key);
+            GlobalParser.GetParserString(this.key);
 
         }
 
@@ -140,7 +138,31 @@ namespace Dotmim.Sync.Builders
 
         }
 
+        //public string ToString(bool addQuote = false, bool addSchema = false, bool isNormalized = false, bool addDatabase = false)
+        //{
+        //    var sb = new StringBuilder();
 
+        //    var parsedName = GlobalParser.GetParserString(this.key);
+
+
+        //    if (addDatabase && !string.IsNullOrEmpty(this.DatabaseName))
+        //    {
+        //        sb.Append(addQuote ? parsedName.QuotedDatabaseName : this.DatabaseName);
+        //        sb.Append(isNormalized ? "_" : ".");
+        //    }
+        //    if (addSchema && !string.IsNullOrEmpty(this.SchemaName))
+        //    {
+        //        sb.Append(addQuote ? parsedName.QuotedSchemaName : this.SchemaName);
+        //        sb.Append(isNormalized ? "_" : ".");
+        //    }
+
+        //    var name = addQuote ? parsedName.QuotedObjectName : this.ObjectName;
+        //    name = isNormalized ? name.Replace(" ", "_").Replace(".", "_") : name;
+        //    sb.Append(name);
+
+        //    return sb.ToString();
+
+        //}
     }
 
 }

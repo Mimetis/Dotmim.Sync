@@ -38,7 +38,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText =
-                    $@"CREATE TABLE [dbo].{scopeTableName.Quoted()}(
+                    $@"CREATE TABLE [dbo].{scopeTableName.Quoted().ToString()}(
                         [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [sync_scope_schema] [nvarchar](max) NULL,
@@ -48,7 +48,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         [scope_last_sync_timestamp] [bigint] NULL,
                         [scope_last_sync_duration] [bigint] NULL,
                         [scope_last_sync] [datetime] NULL
-                        CONSTRAINT [PK_{scopeTableName.Unquoted().Normalized()}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
+                        CONSTRAINT [PK_{scopeTableName.Unquoted().Normalized().ToString()}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -79,7 +79,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                command.CommandText = $"DROP Table [dbo].{scopeTableName.Quoted()}";
+                command.CommandText = $"DROP Table [dbo].{scopeTableName.Quoted().ToString()}";
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -110,7 +110,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_history";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
                 command.CommandText =
                     $@"CREATE TABLE [dbo].[{tableName}](
@@ -150,7 +150,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_history";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
                 command.CommandText = $"DROP Table [dbo].[{tableName}]";
 
@@ -192,7 +192,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 	                    [sync_scope_setup] [nvarchar](max) NULL,
 	                    [sync_scope_version] [nvarchar](10) NULL,
                         [sync_scope_last_clean_timestamp] [bigint] NULL,
-                        CONSTRAINT [PK_{scopeTableName.Unquoted().Normalized()}_server] PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
+                        CONSTRAINT [PK_{scopeTableName.Unquoted().Normalized().ToString()}_server] PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
                         )";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -223,7 +223,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
                 command.CommandText = $"DROP Table [dbo].[{tableName}]";
 
@@ -366,7 +366,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText = $@"
-                    MERGE {scopeTableName.Quoted()} AS [base] 
+                    MERGE {scopeTableName.Quoted().ToString()} AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
@@ -505,7 +505,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
                 command.CommandText = $@"
                     MERGE {tableName} AS [base] 
@@ -713,7 +713,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 command.CommandText =
                     $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
-                            WHERE t.name = N'{this.scopeTableName.Unquoted()}')
+                            WHERE t.name = N'{this.scopeTableName.Unquoted().ToString()}')
                      SELECT 1 
                      ELSE
                      SELECT 0";
@@ -791,7 +791,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
                 command.CommandText =
                     $@"IF EXISTS (SELECT t.name FROM sys.tables t 
@@ -815,7 +815,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
             using (var command = connection.CreateCommand())
             {
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
                 if (transaction != null)
                     command.Transaction = transaction;
@@ -872,7 +872,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
             using (var command = connection.CreateCommand())
             {
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_history";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
                 if (transaction != null)
                     command.Transaction = transaction;

@@ -1,14 +1,27 @@
-# Provision and Deprovision
+Provision and Deprovision
+===================================
 
-## Introduction
+Overview
+^^^^^^^^^^^
 
-First of all, you have to know that provisionning is basically automatic and managed for you by the **Dotmim.Sync** framework.   
+During the first sync, **DMS** will provision everything, on the server side and on the client side.
 
-When you launch for the first time a sync process, the **Dotmim.Sync** will:
-* Get schemas from the server database.
-* Create all the stuff needed to be able to sync on the server side : Stored procedures, triggers and tracking tables.
-* If necessary, create all the tables on the client.
-* Then create all the stuff needed to be able to sync on the client : Stored procedures, triggers and tracking tables
+When you launch for the first time a sync process, **DMS** will:
+
+- **[Server Side]**: Get the database schema from the server database.
+- **[Server Side]**: Create **Stored procedures**, **triggers** and **tracking tables**.
+- **[Client Side]**: Fetch the server schema.
+- **[Client Side]**: Create **tables** on the client database, if needed.
+- **[Client Side]**: Create **Stored procedures**, **triggers** and **tracking tables**
+
+.. note:: If you're using the ``SqlSyncChangeTrackingProvider``, **DMS** will skip the creation of triggers and tracking tables, relying on the *Change Tracking* feature from SQL Server.
+
+| Basically, all these steps are managed by the ``RemoteOrchestrator`` on the server side, and by the ``LocalOrchestrator`` on the client side. 
+| All the methods used to provision and deprovision tables are available from bot the ``LocalOrchestrator`` and ``RemoteOrchestrator`` instances.
+
+
+
+
 
 ### Automatic provisionning sample
 

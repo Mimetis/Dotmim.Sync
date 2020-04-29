@@ -111,9 +111,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         }
 
 
-        private string CreateDropTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted()} DISABLE CHANGE_TRACKING;";
+        private string CreateDropTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;";
 
-        private string CreateTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
+        private string CreateTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
 
         public async Task<bool> NeedToCreateTrackingTableAsync()
         {

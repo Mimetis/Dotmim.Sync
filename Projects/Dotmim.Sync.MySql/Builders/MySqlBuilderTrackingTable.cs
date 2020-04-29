@@ -152,8 +152,8 @@ namespace Dotmim.Sync.MySql
         public async Task RenameTableAsync(ParserName oldTableName)
         {
 
-            var tableNameString = this.trackingName.Quoted();
-            var oldTableNameString = oldTableName.Quoted();
+            var tableNameString = this.trackingName.Quoted().ToString();
+            var oldTableNameString = oldTableName.Quoted().ToString();
 
             var commandText = $"RENAME TABLE {oldTableNameString} TO {tableNameString}; ";
 

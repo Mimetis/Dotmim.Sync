@@ -186,7 +186,7 @@ namespace Dotmim.Sync.Sqlite
 
             try
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted()}", connection))
+                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}", connection))
                 {
                     if (!alreadyOpened)
                         await connection.OpenAsync().ConfigureAwait(false);

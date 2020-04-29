@@ -73,7 +73,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string CreateIndexCommandText()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.Schema().Unquoted().Normalized()}_timestamp_index] ON {trackingName.Schema().Quoted()} (");
+            var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
+            var tableName = trackingName.Schema().Quoted().ToString();
+
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {tableName} (");
             stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
             stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
