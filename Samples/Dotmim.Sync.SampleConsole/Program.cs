@@ -142,7 +142,7 @@ internal class Program
             try
             {
                 var s2 = await agent.SynchronizeAsync();
-                
+
                 // Write results
                 Console.WriteLine(s2);
             }
