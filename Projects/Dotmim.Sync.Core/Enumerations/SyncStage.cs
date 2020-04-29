@@ -19,6 +19,9 @@ namespace Dotmim.Sync.Enumerations
         ScopeLoading,
         ScopeLoaded,
 
+        ScopeWriting,
+        ScopeWrited,
+
         SnapshotCreating,
         SnapshotCreated,
 
