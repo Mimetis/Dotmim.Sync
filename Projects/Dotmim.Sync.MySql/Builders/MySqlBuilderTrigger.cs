@@ -37,7 +37,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("BEGIN");
 
-            stringBuilder.AppendLine($"\tINSERT INTO {this.trackingName.Quoted()} (");
+            stringBuilder.AppendLine($"\tINSERT INTO {this.trackingName.Quoted().ToString()} (");
 
             StringBuilder stringBuilderArguments = new StringBuilder();
             StringBuilder stringBuilderArguments2 = new StringBuilder();
@@ -47,11 +47,11 @@ namespace Dotmim.Sync.MySql
             string argAnd = string.Empty;
             foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted();
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
 
                 stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
                 stringBuilderArguments2.AppendLine($"\t\t{argComma}old.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted()}.{columnName} IS NULL");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }

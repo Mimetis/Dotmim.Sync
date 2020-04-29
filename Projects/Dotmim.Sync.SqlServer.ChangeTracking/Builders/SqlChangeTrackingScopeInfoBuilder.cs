@@ -81,7 +81,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                var tableName = $"{scopeTableName.Unquoted().Normalized()}_server";
+                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
                 command.CommandText = $@"
                     Declare @minVersion int;
