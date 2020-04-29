@@ -1,8 +1,19 @@
-Provision and Deprovision
+Provision,Deprovision and Migration
 ===================================
 
 Overview
 ^^^^^^^^^^^
+
+|If your sync architecture is evolving over the time, you may need to update the sync generated code as well. 
+|We have several situations, some of them are automatically handled by **DMS** and some of them, not. 
+|Fortunately, **DMS** provides some useful methods for all these scenario.
+
+We may distinguish 2 mains reasons to make an *update* of your databases schemas:
+
+* Adding or Removing tables from your sync setup (represented by a ```SyncSetup`` instance.
+* Second 
+
+
 
 During the first sync, **DMS** will provision everything, on the server side and on the client side.
 
@@ -20,35 +31,45 @@ When you launch for the first time a sync process, **DMS** will:
 | All the methods used to provision and deprovision tables are available from bot the ``LocalOrchestrator`` and ``RemoteOrchestrator`` instances.
 
 
+.. code-block:: csharp
+
+    public async Task<SyncSet> ProvisionAsync(SyncProvision provision)
+    public async Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision)
+ 
+    public async Task DeprovisionAsync(SyncProvision provision)
+    public virtual async Task DeprovisionAsync(SyncSet schema, SyncProvision provision)
 
 
-
-### Automatic provisionning sample
+Automatic provisionning
+------------------------------
 
 Basically, we have a simple database containing two tables *Customers* and *Region*:
 
-![Norhwind database](assets/Provision_Northwind01.png)
+.. image:: assets/Provision_Northwind01.png
+
 
 And here the most straightforward code to be able to sync a client db :
 
-```csharp
-SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
-SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+.. code-block:: csharp
 
-SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-"Customers", "Region"});
+    SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
+    SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
 
-var syncContext = await agent.SynchronizeAsync();
+    SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
+    "Customers", "Region"});
 
-Console.WriteLine(syncContext);
+    var syncContext = await agent.SynchronizeAsync();
 
-```
+    Console.WriteLine(syncContext);
+
 
 Once your sync process is finished, you will have a full configured database :
 
-![Norhwind database](assets/Provision_Northwind02.png)
+.. image:: assets/Provision_Northwind02.png
 
-## Manually provisionning
+
+Provisionning
+^^^^^^^^^^^^^^^^
 
 In some circumstances, you may want to provision manually your database (server or client as well).  
 * If you have a really big database, the provision step could be really long, so it could be better to provision the server side before any sync process.
