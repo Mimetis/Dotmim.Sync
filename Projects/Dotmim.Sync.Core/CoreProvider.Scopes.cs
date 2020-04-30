@@ -244,7 +244,9 @@ namespace Dotmim.Sync
                 // create a new scope id for the current owner (could be server or client as well)
                 var scope = new ServerScopeInfo
                 {
-                    Name = scopeName
+                    Name = scopeName,
+                    LastCleanupTimestamp = 0,
+                    Version = "1"
                 };
 
                 scope = await scopeInfoBuilder.InsertOrUpdateServerScopeInfoAsync(scope).ConfigureAwait(false);

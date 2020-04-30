@@ -33,10 +33,12 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await SynchronizeThenDeprovisionThenProvisionAsync();
-
-
     }
+
+
+
+
+
     private static async Task SynchronizeThenDeprovisionThenProvisionAsync()
     {
         // Create 2 Sql Sync providers

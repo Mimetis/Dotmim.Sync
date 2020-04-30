@@ -35,33 +35,54 @@ namespace Dotmim.Sync
             builder.UseChangeTracking = this.UseChangeTracking;
             builder.UseBulkProcedures = this.SupportBulkOperations;
 
-            // Disable check constraints
-            if (disableConstraintsOnApplyChanges)
-                foreach (var table in schema.Tables.Reverse())
-                    await this.DisableConstraintsAsync(context, table, setup, connection, transaction).ConfigureAwait(false);
 
             // Sorting tables based on dependencies between them
             var schemaTables = schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
 
-            foreach (var schemaTable in schemaTables)
+
+            // Disable check constraints
+            if (disableConstraintsOnApplyChanges)
+                foreach (var table in schemaTables.Reverse())
+                    await this.DisableConstraintsAsync(context, table, setup, connection, transaction).ConfigureAwait(false);
+
+            // Creating a local function to mutualize call
+            var deprovisionFuncAsync = new Func<SyncProvision, IEnumerable<SyncTable>, Task>(async (p, tables) =>
             {
-                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
-                // set if the builder supports creating the bulk operations proc stock
-                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
-                tableBuilder.UseChangeTracking = this.UseChangeTracking;
+                foreach (var schemaTable in tables)
+                {
+                    var tableBuilder = this.GetTableBuilder(schemaTable, setup);
+                    // set if the builder supports creating the bulk operations proc stock
+                    tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
+                    tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
-                // adding filter
-                this.AddFilters(schemaTable, tableBuilder);
+                    // adding filter
+                    this.AddFilters(schemaTable, tableBuilder);
 
-                this.Orchestrator.logger.LogDebug(SyncEventsId.Deprovision, schemaTable);
-                
-                await tableBuilder.DropAsync(provision, connection, transaction).ConfigureAwait(false);
+                    this.Orchestrator.logger.LogDebug(SyncEventsId.Deprovision, schemaTable);
 
-                // Interceptor
-                await this.Orchestrator.InterceptAsync(new TableDeprovisionedArgs(context, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
-            }
+                    await tableBuilder.DropAsync(p, connection, transaction).ConfigureAwait(false);
+
+                    // Interceptor
+                    await this.Orchestrator.InterceptAsync(new TableDeprovisionedArgs(context, p, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
+                }
+            });
+
+            // Checking if we have to deprovision tables
+            bool hasDeprovisionTableFlag = provision.HasFlag(SyncProvision.Table);
+
+            // Firstly, removing the flag from the provision, because we need to drop everything in correct order, then drop tables in reverse side
+            if (hasDeprovisionTableFlag)
+                provision ^= SyncProvision.Table;
+
+            // Deprovision everything in order, excepting table
+            await deprovisionFuncAsync(provision, schemaTables).ConfigureAwait(false);
+
+            // then in reverse side, deprovision tables, if Table was part of Provision enumeration.
+            if (hasDeprovisionTableFlag)
+                await deprovisionFuncAsync(SyncProvision.Table, schemaTables.Reverse()).ConfigureAwait(false);
+
 
             if (provision.HasFlag(SyncProvision.ClientScope))
                 context = await this.DropClientScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -88,7 +109,7 @@ namespace Dotmim.Sync
             if (schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
 
-            this.Orchestrator.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName});
+            this.Orchestrator.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName });
 
             // get Database builder
             var builder = this.GetDatabaseBuilder();
