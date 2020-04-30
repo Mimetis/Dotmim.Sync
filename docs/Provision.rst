@@ -119,7 +119,7 @@ First of all, if you are just using ``agent.SynchronizeAsync()``, everything wil
 
 But you can use the **orchestrators** to do the job. It will allow you to migrate your setup, without having to make a synchronization.
 
-You have 2 new methods on both orchestrators:
+You have one new method on both orchestrators:
 
 On ``LocalOrchestrator``:
 
@@ -192,7 +192,7 @@ For instance, the ``RemoteOrchestrator`` ``MigrationAsync`` could be really usef
 
 Once migrated, all new clients, will get the new setup from the server, and will apply locally the migration, automatically.
 
-What Setup migration doesn't do !
+What Setup migration does not do !
 -----------------------------------
 
 Be careful, the migration stuff will **only** allows you to migrate your setup (adding or removing tables from your sync, renaming stored proc and so on ...)
@@ -212,6 +212,62 @@ But, it won't work if:
 | Too complicated to handle, too much possibilities and scenario.
 
 If you have to deal with this kind of situation, the best solution is to handle this migration by yourself using ``ProvisionAsync`` and ``DeprovisionAsync`` methods.
+
+
+Last timestamp sync
+-----------------------
+
+| What happens if you're adding a new table ?
+| What will happen on the next sync ?  
+| Well as we said the new table will be provisioned (stored proc, triggers and tracking table) on both databases (server / client) and the table will be created on the client.
+
+Then the **DMS** framework will make a sync ....
+
+And this sync will get all the rows from the server side **that have changed since the last sucessful sync**
+
+And your new table on the client database has ... **NO ROWS** !!!
+
+| Because no rows have been marked as **changed** in the server tracking table since the last sync process.
+| Indeed, we've just created this tracking table on the server !!
+
+So, if you're adding a new table, you **MUST** do a full sync, calling the ``SynchronizeAsync()`` method with a ``SyncType.Reinitialize`` or  ``SyncType.ReinitializeWithUpload`` parameter.
+
+| Adding a new table is not trivial.   
+| Hopefully if you are using ``snapshots`` it should not be too heavy for your server database :) 
+
+Forcing Reinitialize sync type from server side.
+-------------------------------------------------
+
+| As we saw, it could be useful to force a reinitialize from a client, to get all the needed data.   
+| Unfortunatelly, you should have a *special* routine from the client side, to launch the synchronization with a ``SynchronizeAsync(SyntType.Reinitialize)``, like an admin button or whatever.   
+
+Fortunatelly, using an interceptor, from the **server side**, you are able to *force* the reinitialization from the client.
+
+On the server side, from your controller, just modify the request `SyncContext` with the correct value, like this:
+
+.. code-block:: csharp
+
+    [HttpPost]
+    public async Task Post()
+    {
+
+        // Get Orchestrator regarding the incoming scope name (from http context)
+        var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
+
+        // override sync type to force a reinitialization from a particular client
+        orchestrator.OnServerScopeLoaded(sla =>
+        {
+            // ClientId represents one client. If you want to reinitialize ALL clients, 
+            // just remove this condition
+            if (sla.Context.ClientScopeId == clientId)
+            {
+                sla.Context.SyncType = SyncType.Reinitialize;
+            }
+        });
+
+        // handle request
+        await webServerManager.HandleRequestAsync(this.HttpContext);
+    }
 
 
 Provision / Deprovision
