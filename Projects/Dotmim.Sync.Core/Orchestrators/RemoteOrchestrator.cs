@@ -196,12 +196,22 @@ namespace Dotmim.Sync
                         // Compare serverscope setup with current
                         if (serverScopeInfo.Setup != this.Setup)
                         {
-                            this.logger.LogDebug(SyncEventsId.GetServerScope, $"[{ctx.SyncStage}] database {connection.Database}. serverScopeInfo.Setup != this.Setup. Need migrations ");
-
                             SyncSet schema;
                             // 1) Get Schema from remote provider
                             (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                             schema.EnsureSchema();
+
+                            // Initialize serverscope setup with current if not existing yet
+                            if (serverScopeInfo.Setup == null)
+                            {
+                                // Generated the first serverscope to be updated
+                                serverScopeInfo.LastCleanupTimestamp = 0;
+                                serverScopeInfo.Schema = schema;
+                                serverScopeInfo.Setup = this.Setup;
+                                serverScopeInfo.Version = "1";
+                            }
+
+                            this.logger.LogDebug(SyncEventsId.GetServerScope, $"[{ctx.SyncStage}] database {connection.Database}. serverScopeInfo.Setup != this.Setup. Need migrations ");
 
                             // Launch InterceptAsync on Migrating
                             await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
