@@ -172,7 +172,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Send a request to remote web proxy for First step : Ensure scopes and schema
         /// </summary>
-        public override async Task<ServerScopeInfo> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal override async Task<ServerScopeInfo> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get context or create a new one
             var ctx = this.GetContext();

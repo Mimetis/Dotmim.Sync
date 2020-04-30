@@ -1,4 +1,4 @@
-Provision,Deprovision and Migration
+Provision, Deprovision & Migration
 ===================================
 
 Overview
@@ -276,12 +276,12 @@ Once your sync process is finished, you will have a full configured database :
 
 
 Provision
-^^^^^^^^^^^
+-------------
 
-In some circumstances, you may want to provision manually your database (server or client as well):
+In some circumstances, you may want to provision manually your database, on the server using a remote orchestrator, or on the client side using a local orchestrator.
 
 * If you have a really big database, the provision step could be really long, so it could be better to provision the server side before any sync process happens.
-* If you have to modify your schema. You will have to **deprovision** then **edit** your schema and finally **provision** again your database.
+* If you have to modify your schema, you will have to **deprovision**, **edit** your schema and finally **provision** again your database.
 
 That's why **DMS** exposes several methods to let you control how, and when, you want to provision and deprovision your database.
 
@@ -309,124 +309,324 @@ The ``SyncProvision`` enum parameter lets you decide which kind of objects (tabl
     }
 
 
-For instance, here is the code you need to implement to be able to provision a database :
+.. warning:: Each time you are provisioning or deprovisioning your local / server database, do not forget to update the scope tables:
+
+             * **scope_info** table from local orchestrator using the ``WriteClientScopeAsync`` method.
+             * **scope_info_server** table from remote orchestrator using the ``WriteServerScopeAsync`` method.
+
+             It's important to stay synchronized between your actual database schema, and the metadata contained in the scope tables.
+             
+
+The remote (server side) provisioning is quite simple, since the schema is already there. 
+
+| But the local (client side) provisioning could a little bit more tricky since we may miss tables. 
+| In that particular case, we will rely on the schema returned by the remote orchestrator.
+
+
+.. hint:: You will find this complete sample here : `Provision & Deprovision sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/ProvisionDeprovision>`_ 
+
+
+Provisioning from server side, using a remote orchestrator:
 
 .. code-block:: csharp
 
-    var serverProvider = new SqlSyncProvider(serverConnectionString);
-    var clientProvider = new SqlSyncProvider(clientConnectionString);
+    var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
 
-    // Create a local orchestrator, to manage the local database
-    var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
+    // Create standard Setup and Options
+    var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+    var options = new SyncOptions();
 
-    // Create a remote orchestrator, to manage hub server database
+    // -----------------------------------------------------------------
+    // Server side
+    // -----------------------------------------------------------------
+
+    // This method is useful if you want to provision by yourself the server database
+    // You will need to :
+    // - Create a remote orchestrator with the correct setup to create
+    // - Get the server scope that will contains serialized version of your scope / schema
+    // - Provision everything
+    // - Save the server scope information
+
+    // Create a server orchestrator used to Deprovision and Provision only table Address
     var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
 
-    // Get schema from server side
-    var schema = await remoteOrchestrator.GetSchemaAsync();
+    // Now we need to save this new schema to the serverscope table
+    // get the server scope
+    var serverScope = await remoteOrchestrator.GetServerScopeAsync();
 
-    var provision = SyncProvision.ClientScope | SyncProvision.StoredProcedures 
-        | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
+    // Server scope is created on the server side.
+    // but Setup and Schema are both null, since nothing have been created so far
+    //
+    // serverScope.Setup = null;
+    // serverScope.Schema = null;
+    //
+    // Provision everything needed (sp, triggers, tracking tables)
+    // Internally provision will fectch the schema a will return it to the caller. 
+    var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures 
+        | SyncProvision.Triggers | SyncProvision.TrackingTable);
 
-    // provision the local database
-    await localOrchestrator.ProvisionAsync(schema, provision);
+    // affect good values
+    serverScope.Setup = setup;
+    serverScope.Schema = newSchema;
+
+    // save the server scope
+    await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+
+Provision on the client side is quite similar, despite the fact we will rely on the server schema to create any missing table.
+
+.. code-block:: csharp
+
+    // Create 2 Sql Sync providers
+    var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+    var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+    // Create standard Setup and Options
+    var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+    var options = new SyncOptions();
+
+    // -----------------------------------------------------------------
+    // Client side
+    // -----------------------------------------------------------------
+
+    // This method is useful if you want to provision by yourself the client database
+    // You will need to :
+    // - Create a local orchestrator with the correct setup to provision
+    // - Get the local scope that will contains after provisioning, 
+    //   the serialized version of your scope / schema
+    // - Get the schema from the server side using a RemoteOrchestrator or a WebClientOrchestrator
+    // - Provision everything locally
+    // - Save the local scope information
+
+    // Create a local orchestrator used to provision everything locally
+    var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
+
+    // Because we need the schema from remote side, create a remote orchestrator
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+
+    // Getting the schema from server side
+    var serverSchema = await remoteOrchestrator.GetSchemaAsync();
+
+    // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
+    // You can create a WebClientOrchestrator and get the schema as well
+    // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
+    // var serverSchema = proxyClientProvider.GetSchemaAsync();
+
+    // get the local scope
+    var clientScope = await localOrchestrator.GetClientScopeAsync();
+
+    // Provision everything needed (sp, triggers, tracking tables, AND TABLES)
+    await localOrchestrator.ProvisionAsync(serverSchema, SyncProvision.StoredProcedures 
+            | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.Table);
+
+    // affect good values
+    clientScope.Setup = setup;
+    clientScope.Schema = serverSchema;
+
+    // save the client scope
+    await localOrchestrator.WriteClientScopeAsync(clientScope);
 
 
 
 Deprovision
-^^^^^^^^^^^^^^
+-------------
 
-Like provisioning, deprovisioning uses basically the same method.
-We don't need the full schema to be able to deprovision a table, so far, a ``SyncSetup`` instance is enough:
+Like provisioning, deprovisioning uses basically the same kind of algorithm.
+
+.. hint:: We don't need the full schema to be able to deprovision a table, so far, a ``SyncSetup`` instance is enough to be able to deprovision a database.
+
+.. warning:: Once again, do not forget to save the metadatas in the scope tables, if needed.
+
+Deprovisioning from server side, using a remote orchestrator:
 
 .. code-block:: csharp
 
-    var serverProvider = new SqlSyncProvider(serverConnectionString);
-    var clientProvider = new SqlSyncProvider(clientConnectionString);
+    // Create server provider
+    var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
 
-    var setup = new SyncSetup(new string[]{"Product", "ProductCategory"});
+    // Create standard Setup and Options
+    var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+    var options = new SyncOptions();
 
-    // Create a local orchestrator, to manage the local database
-    var localOrchestrator = new LocalOrchestrator(clientProvider, new SyncOptions(), setup);
+    // Create a server orchestrator used to Deprovision everything on the server side
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
 
-    var provision = SyncProvision.ClientScope | SyncProvision.StoredProcedures 
-        | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
+    // Get the server scope
+    var serverScope = await remoteOrchestrator.GetServerScopeAsync();
 
-    // provision the local database
-    await localOrchestrator.DeprovisionAsync(schema, provision);
+    // Deprovision everything
+    await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures 
+        | SyncProvision.Triggers | SyncProvision.TrackingTable);
+
+    // Affect good values
+    serverScope.Setup = null;
+    serverScope.Schema = null;
+
+    // save the server scope
+    await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+
+
+Deprovisioning from client side, using a local orchestrator:
+
+.. code-block:: csharp
+
+    // Create client provider
+    var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+    // Create standard Setup and Options
+    var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+    var options = new SyncOptions();
+
+    // Create a local orchestrator used to Deprovision everything
+    var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
+
+    // Get the local scope
+    var clientScope = await localOrchestrator.GetClientScopeAsync();
+
+    // Deprovision everything
+    await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures 
+        | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.Table);
+
+    // affect good values
+    clientScope.Setup = null;
+    clientScope.Schema = null;
+
+    // save the local scope
+    await localOrchestrator.WriteClientScopeAsync(clientScope);
+
 
 
 Migrating a database schema
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+-----------------------------
 
 | During any dev cycle, you will probably have to make some evolutions on your server database.  
 | Adding or deleting columns will break the sync process.  
 | Manually, without the ``ProvisionAsync()`` and ``DeprovisionAsync()`` methods, you will have to edit all the stored procedures, triggers and so on to be able to recreate a full sync processus.  
 
-| We are going to handle, with a little example, how we could add a new column on an existing sync typo:
-| Now imagine you want to add this new column, called ``Comments`` on the ``Customers`` table.   
-| Here is how you could handle it:
+We are going to handle, with a little example, how we could add a new column on an already existing sync architecture:
 
-* Create the providers.
-* Delete the stored procedures and the triggers.
-* We don't want to loose the ``Customers_tracking`` tracking table rows, to keep the sync historic, so we don't delete it. Here we have to be sure the primary key from ``Customers`` is still the same (So don't touch primary keys or this technic won't work)
-* Edit the client and server schema (you can use here the EF migration)
-* Re apply the triggers and the stored procédures. They will be re-generated with the new column !
-* Re launch a new sync process (don't use the same ``SyncAgent`` as before, recreate a new one).
+.. hint:: You will find this complete sample here : `Migration sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Migration>`_ 
+
+
+Basically, we can imagine having a sync process already in place:
 
 .. code-block:: csharp
 
-    private static async Task AlterSchemasAsync()
-    {
-        SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
-        SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
+    // Create 2 Sql Sync providers
+    var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+    var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
-        var options = new SyncOptions();
+    // Create standard Setup and Options
+    var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+    var options = new SyncOptions();
 
-        // tables to deprovision
-        var setup new SyncSetup(new string[]{"Customers"});
+    // Creating an agent that will handle all the process
+    var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
-        var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
-        var remoteOrchestrator = new RemoteOrchestrator(clientProvider, options, setup);
+    // First sync to have a starting point
+    var s1 = await agent.SynchronizeAsync(progress);
 
+    Console.WriteLine(s1);
 
-        // delete triggers and sp
-        await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
-        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+Now, we are adding a new column on both side, in the **Address** table:
 
-        // use whatever you want to edit your schema
-        // add column on server
-        using (SqlConnection cs = serverProvider.CreateConnection() as SqlConnection)
-        {
-            cs.Open();
-            SqlCommand cmd = new SqlCommand("ALTER TABLE dbo.Customers ADD Comments nvarchar(50) NULL", cs);
-            cmd.ExecuteNonQuery();
-            cs.Close();
-        }
-        // add column on client
-        using (SqlConnection cs = clientProvider.CreateConnection() as SqlConnection)
-        {
-            cs.Open();
-            SqlCommand cmd = new SqlCommand("ALTER TABLE dbo.Customers ADD Comments nvarchar(50) NULL", cs);
-            cmd.ExecuteNonQuery();
-            cs.Close();
-        }
+.. hint:: Here, using a tool like EF Migrations could be really useful.
 
-        // Get schema from server side
-        var schema = await remoteOrchestrator.GetSchemaAsync();
+.. code-block:: csharp
 
-        // Provision again
-        await serverProvider.ProvisionAsync(schema, SyncProvision.StoredProcedures | SyncProvision.Triggers);
-        await clientProvider.ProvisionAsync(schema, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    // -----------------------------------------------------------------
+    // Migrating a table by adding a new column
+    // -----------------------------------------------------------------
 
-        // sync !
-        await this.SynchronizeAsync();
-    }
+    // Adding a new column called CreatedDate to Address table, on the server, and on the client.
+    await AddNewColumnToAddressAsync(serverProvider.CreateConnection());
+    await AddNewColumnToAddressAsync(clientProvider.CreateConnection());
 
+Then, using ``ProvisionAsync`` and ``DeprovisionAsync`` we can handle the server side:
 
+.. code-block:: csharp
 
+    // -----------------------------------------------------------------
+    // Server side
+    // -----------------------------------------------------------------
 
+    // Creating a setup regarding only the table Address
+    var setupAddress = new SyncSetup(new string[] { "Address" });
+
+    // Create a server orchestrator used to Deprovision and Provision only table Address
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setupAddress);
+
+    // Deprovision the Address triggers / stored proc. 
+    // We can keep the Address tracking table, since we just add a column, 
+    // that is not a primary key used in the tracking table
+    // That way, we are preserving historical data
+    await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures 
+                    | SyncProvision.Triggers);
+
+    // Provision the Address triggers / stored proc again, 
+    // This provision method will fetch the address schema from the database, 
+    // so it will contains all the columns, including the new Address column added
+    await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures 
+                    | SyncProvision.Triggers);
+
+    // Now we need the full setup to get the full schema.
+    // Setup includes [Address] [Customer] and [CustomerAddress]
+    remoteOrchestrator.Setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+    var newSchema = await remoteOrchestrator.GetSchemaAsync();
+
+    // Now we need to save this new schema to the serverscope table
+    // get the server scope again
+    var serverScope = await remoteOrchestrator.GetServerScopeAsync();
+
+    // affect good values
+    serverScope.Setup = setup;
+    serverScope.Schema = newSchema;
+
+    // save it
+    await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+
+Then, on the client side, using the schema already in place:
+
+.. code-block:: csharp
+
+    // -----------------------------------------------------------------
+    // Client side
+    // -----------------------------------------------------------------
+    
+    // Creating a setup regarding only the table Address
+    var setupAddress = new SyncSetup(new string[] { "Address" });
+
+    // Now go for local orchestrator
+    var localOrchestrator = new LocalOrchestrator(clientProvider, options, setupAddress);
+
+    // Deprovision the Address triggers / stored proc. 
+    // We can kepp the tracking table, since we just add a column, 
+    // that is not a primary key used in the tracking table
+    // In this case, we will 
+    await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+    // Provision the Address triggers / stored proc again, 
+    // This provision method will fetch the address schema from the database, 
+    // so it will contains all the columns, including the new one added
+    await localOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+    // Now we need to save this to clientscope
+    // get the server scope again
+    var clientScope = await localOrchestrator.GetClientScopeAsync();
+
+    remoteOrchestrator.Setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+    var newSchema = await remoteOrchestrator.GetSchemaAsync();
+
+    // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
+    // You can create a WebClientOrchestrator and get the schema as well
+    // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
+    // var newSchema = proxyClientProvider.GetSchemaAsync();
+
+    // affect good values
+    clientScope.Setup = setup;
+    clientScope.Schema = newSchema;
+
+    // save it
+    await localOrchestrator.WriteClientScopeAsync(clientScope);
 
 
 

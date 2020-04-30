@@ -22,28 +22,7 @@ namespace HelloSync
         }
 
 
-        /// <summary>
-        /// Using a remote orchestrator to get schema and a local orchestrator to provision a local client database
-        /// </summary>
-        private static async Task ProvisionClientDatabaseAsync()
-        {
-            var serverProvider = new SqlSyncProvider(serverConnectionString);
-            var clientProvider = new SqlSyncProvider(clientConnectionString);
-
-            // Create a local orchestrator, to manage the local database
-            var localOrchestrator = new LocalOrchestrator(clientProvider, Config.GetClientOptions(), Config.GetSetup());
-
-            // Create a remote orchestrator, to manage hub server database
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, Config.GetClientOptions(), Config.GetSetup());
-
-            // Get schema from server side
-            var schema = await remoteOrchestrator.GetSchemaAsync();
-
-            // provision the local database
-            await localOrchestrator.ProvisionAsync(schema, Config.GetClientProvision(), CancellationToken.None, Config.GetProgress());
-
-            Console.WriteLine("End");
-        }
+      
 
         /// <summary>
         /// Create a localorchestrator, and get changes that should be sent to server

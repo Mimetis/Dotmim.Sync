@@ -193,6 +193,10 @@ namespace Dotmim.Sync
                         // Get scope if exists
                         (ctx, serverScopeInfo) = await this.Provider.GetServerScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                        // if serverscopeinfo is a new, because we never run any sync before, just return serverscope empty
+                        if (serverScopeInfo.Setup == null && serverScopeInfo.Schema == null)
+                            return serverScopeInfo;
+
                         // Compare serverscope setup with current
                         if (serverScopeInfo.Setup != this.Setup)
                         {
@@ -263,7 +267,7 @@ namespace Dotmim.Sync
         /// Then return the schema readed
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
-        public virtual async Task<ServerScopeInfo> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<ServerScopeInfo> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;

@@ -385,7 +385,7 @@ namespace Dotmim.Sync.Builders
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            if (provision.HasFlag(SyncProvision.StoredProcedures)) { }
+            if (provision.HasFlag(SyncProvision.StoredProcedures))
                 await this.DropStoredProceduresAsync(connection, transaction).ConfigureAwait(false);
 
             if (provision.HasFlag(SyncProvision.Triggers))
