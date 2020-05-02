@@ -34,6 +34,7 @@ namespace Dotmim.Sync.Tests
 
             if (IsOnAzureDev)
             {
+                builder.IntegratedSecurity = false;
                 builder.DataSource = @"localhost";
                 builder.UserID = "sa";
                 builder.Password = "Password12!";
