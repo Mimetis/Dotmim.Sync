@@ -36,4 +36,12 @@
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.local.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
