@@ -81,8 +81,8 @@ internal class Program
     private static async Task SynchronizeThenDeprovisionThenProvisionAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         // Create standard Setup and Options
         var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
@@ -239,8 +239,8 @@ internal class Program
     }
     private static async Task TestDeleteWithoutBulkAsync()
     {
-        var cs = DbHelper.GetDatabaseConnectionString(serverProductCategoryDbName);
-        var cc = DbHelper.GetDatabaseConnectionString(clientDbName);
+        var cs = DBHelper.GetDatabaseConnectionString(serverProductCategoryDbName);
+        var cc = DBHelper.GetDatabaseConnectionString(clientDbName);
 
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(cs);
@@ -367,7 +367,7 @@ internal class Program
     private static async Task CreateSnapshotAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
 
         // specific Setup with only 2 tables, and one filtered
         var setup = new SyncSetup(allTables);
@@ -400,7 +400,7 @@ internal class Program
 
         await remoteOrchestrator.CreateSnapshotAsync(null, default, remoteProgress);
         // client provider
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         // Insert a value after snapshot created
         using (var c = serverProvider.CreateConnection())
@@ -449,8 +449,8 @@ internal class Program
     private static async Task SynchronizeMultiScopesAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         // Create 2 tables list (one for each scope)
         string[] productScopeTables = new string[] { "ProductCategory", "ProductModel", "Product" };
@@ -522,8 +522,8 @@ internal class Program
 
     private static async Task TestAvbAsync()
     {
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString("TestAvg"));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("TestAvg"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var setup = new SyncSetup(new String[] { "avb.avb", "avb.avbg" });
 
@@ -566,8 +566,8 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
@@ -737,8 +737,8 @@ internal class Program
     {
         // server provider
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         // ----------------------------------
         // Client & Server side
@@ -924,7 +924,7 @@ internal class Program
     /// </summary>
     private static async Task SyncThroughWebApiAsync()
     {
-        var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
         var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
@@ -998,9 +998,9 @@ internal class Program
     private static async Task SynchronizeThenChangeSetupAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("client.db");
 
         var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail", "BuildVersion" });
