@@ -4,6 +4,9 @@
 # tmp
 Dotmim.Sync.JS.Core/
 
+# local settings
+*.local.json
+
 # User-specific files
 *.suo
 *.user
