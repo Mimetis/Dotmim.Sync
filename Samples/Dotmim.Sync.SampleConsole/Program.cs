@@ -20,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using Npgsql;
+using Microsoft.Extensions.Configuration;
 
 internal class Program
 {
@@ -34,7 +35,8 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-        await TestNpgsqlAsync();
+
+        await SynchronizeAsync();
     }
 
 
@@ -564,7 +566,7 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider("Data Source=sql2008r2seb.westeurope.cloudapp.azure.com;Initial Catalog=AdventureWorks;Integrated Security=false;User Id=spertus;Password=DB56hy76bz3kayfj");
+        var serverProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 

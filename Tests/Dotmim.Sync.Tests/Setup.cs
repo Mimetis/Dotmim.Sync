@@ -3,6 +3,7 @@ using MySql.Data.MySqlClient;
 using System;
 using Microsoft.Data.SqlClient;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Configuration;
 
 namespace Dotmim.Sync.Tests
 {
@@ -11,99 +12,58 @@ namespace Dotmim.Sync.Tests
     /// </summary>
     public class Setup
     {
+        private static IConfigurationRoot configuration;
+
         static Setup()
         {
+            configuration = new ConfigurationBuilder()
+              .AddJsonFile("appsettings.json", false, true)
+              .AddJsonFile("appsettings.local.json", true, true)
+              .Build();
+
         }
 
         /// <summary>
-        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor SQL Server 2016 instance!
-        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// Returns the database connection string for Sql
         /// </summary>
         internal static string GetSqlDatabaseConnectionString(string dbName)
         {
-            // check if we are running localy on windows or linux
-            bool isWindowsRuntime = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["SqlConnection"], dbName);
 
-            string userId = "sa";
-            string password = "Password12!";
+            var builder = new SqlConnectionStringBuilder(cstring);
 
-            var builder = new SqlConnectionStringBuilder
-            {
-                UserID = userId,
-                Password = password,
-                DataSource = "localhost",
-                InitialCatalog = dbName,
-                PersistSecurityInfo = false,
-                MultipleActiveResultSets = false,
-                TrustServerCertificate = false,
-                ConnectTimeout = 5,
-                IntegratedSecurity = false,
-                ConnectRetryCount = 4,
-                ConnectRetryInterval = 4
-            };
-
-
-            if (IsOnAppVeyor)
-            {
-                builder.DataSource = @"(local)\SQL2016";
-            }
-            else if (IsOnAzureDev)
+            if (IsOnAzureDev)
             {
                 builder.DataSource = @"localhost";
-            }
-            else if (isWindowsRuntime)
-            {
-                //builder.DataSource = @"localhost";
-                builder.DataSource = @"(localdb)\MSSQLLocalDB";
-                builder.IntegratedSecurity = true;
+                builder.UserID = "sa";
+                builder.Password = "Password12!";
             }
 
             return builder.ToString();
 
-        }
-
-        internal static string GetSqlAzureDatabaseConnectionString(string dbName)
-        {
-            string userId = "";
-            string password = "";
-
-            var builder = new SqlConnectionStringBuilder
-            {
-                UserID = userId,
-                Password = password,
-                DataSource = "tcp:spertus.database.windows.net",
-                InitialCatalog = dbName,
-                PersistSecurityInfo = false,
-                MultipleActiveResultSets = false,
-                TrustServerCertificate = false,
-                ConnectTimeout = 30
-            };
-
-            return builder.ToString();
         }
 
         /// <summary>
-        /// Returns the database server to be used in the untittests - note that this is the connection to appveyor MySQL 5.7 x64 instance!
-        /// see: https://www.appveyor.com/docs/services-databases/#mysql
+        /// Returns the database connection string for Azure Sql
+        /// </summary>
+        internal static string GetSqlAzureDatabaseConnectionString(string dbName) =>
+            string.Format(configuration.GetSection("ConnectionStrings")["AzureSqlConnection"], dbName);
+
+        /// <summary>
+        /// Returns the database connection string for MySql
         /// </summary>
         internal static string GetMySqlDatabaseConnectionString(string dbName)
         {
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MySqlConnection"], dbName);
 
-            var builder = new MySqlConnectionStringBuilder
+            var builder = new MySqlConnectionStringBuilder(cstring);
+
+            if (IsOnAzureDev)
             {
-                Server = "127.0.0.1",
-                Port = 3306,
-                UserID = "root",
-                Password = "Password12!",
-                Database = dbName
-            };
-
-            if (IsOnAppVeyor)
-                builder.Port = 3306;
-            else if (IsOnAzureDev)
                 builder.Port = 3307;
-            else
-                builder.Port = 3307;
+                builder.UserID = "root";
+                builder.Password = "Password12!";
+            }
 
             var cn = builder.ToString();
             return cn;
