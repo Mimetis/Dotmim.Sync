@@ -27,6 +27,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{2E7C
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.SqlServer.ChangeTracking", "Projects\Dotmim.Sync.SqlServer.ChangeTracking\Dotmim.Sync.SqlServer.ChangeTracking.csproj", "{8DB5316F-FE85-4C16-B3FF-3D5077523EC2}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.PostgreSql", "Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj", "{9C363E70-F405-43B1-AFA3-4232688AB292}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -198,6 +200,22 @@ Global
 		{8DB5316F-FE85-4C16-B3FF-3D5077523EC2}.Release|x64.Build.0 = Release|Any CPU
 		{8DB5316F-FE85-4C16-B3FF-3D5077523EC2}.Release|x86.ActiveCfg = Release|Any CPU
 		{8DB5316F-FE85-4C16-B3FF-3D5077523EC2}.Release|x86.Build.0 = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|ARM.Build.0 = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|x64.Build.0 = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Debug|x86.Build.0 = Debug|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|ARM.ActiveCfg = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|ARM.Build.0 = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|x64.ActiveCfg = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|x64.Build.0 = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|x86.ActiveCfg = Release|Any CPU
+		{9C363E70-F405-43B1-AFA3-4232688AB292}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -208,8 +226,8 @@ Global
 		{5D23F616-DBAD-40EC-B588-2925C96DB9A0} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 		BuildVersion_StartDate = 2000/1/1
+		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

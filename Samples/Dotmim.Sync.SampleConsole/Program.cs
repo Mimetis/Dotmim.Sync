@@ -19,6 +19,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
+using Npgsql;
 
 internal class Program
 {
@@ -33,10 +34,46 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
+        await TestNpgsqlAsync();
     }
 
 
 
+
+    private static async Task TestNpgsqlAsync()
+    {
+        var commandText = $"SELECT * " +
+               " FROM information_schema.tables " +
+               " WHERE table_type = 'BASE TABLE' " +
+               " AND table_schema != 'pg_catalog' AND table_schema != 'information_schema' " +
+               " AND table_name=@tableName AND table_schema=@schemaName " +
+               " ORDER BY table_schema, table_name " +
+               " LIMIT 1";
+
+        var schemaNameString = "public";
+        var tableNameString = "actor";
+
+        var connection = new NpgsqlConnection("Host=localhost;Database=rental;User ID=postgres;Password=azerty31*;");
+
+        using (var command = new NpgsqlCommand(commandText, connection))
+        {
+            command.Parameters.AddWithValue("@tableName", tableNameString);
+            command.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+            await connection.OpenAsync().ConfigureAwait(false);
+
+            using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                while (reader.Read())
+                {
+                    Console.WriteLine(reader["table_schema"].ToString() + "." + reader["table_name"].ToString());
+                }
+            }
+
+            connection.Close();
+
+        }
+    }
 
 
     private static async Task SynchronizeThenDeprovisionThenProvisionAsync()
