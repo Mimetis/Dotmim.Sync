@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Tests
         static Setup()
         {
             configuration = new ConfigurationBuilder()
-              .AddJsonFile("appsettings.json", false, true)
+              .AddJsonFile("appsettings.json", false, true) 
               .AddJsonFile("appsettings.local.json", true, true)
               .Build();
 

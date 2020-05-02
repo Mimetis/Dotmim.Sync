@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SampleConsole
 {
-    public class DbHelper
+    public class DbHelper 
     {
         private static IConfiguration configuration;
 
