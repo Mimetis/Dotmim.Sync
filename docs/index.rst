@@ -105,7 +105,6 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    Configuration
    Provision
    Metadatas
-   Schemas
    Conflict
    Filters
    AlreadyExisting

@@ -94,7 +94,8 @@ You will determinate the correct version through the `Action` property of type `
         ClientWins,
 
         /// <summary>
-        /// Indicates that you will manage the conflict by filling the final row and sent it to both client and server
+        /// Indicates that you will manage the conflict by filling the final row and sent it to 
+        /// both client and server
         /// </summary>
         MergeRow,
 
