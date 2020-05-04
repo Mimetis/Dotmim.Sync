@@ -17,19 +17,20 @@ Here is the diagram of the situation:
 
 .. image:: assets/Conflict01.png
 
-By default, conflicts are resolved automaticaly using the configuration policy property `ConflictResolutionPolicy` set in the `SyncOptions` object :  
+By default, conflicts are resolved automaticaly using the configuration policy property ``ConflictResolutionPolicy`` set in the ``SyncOptions`` object :  
+
 You can choose: 
 
-* ``ConflictResolutionPolicy.ServerWins`` : The server is allways the winner of any conflict. this behavior is the default behavior.
-* ``ConflictResolutionPolicy.ClientWins`` : The client is allways the winner of any conflict.
+* ``ConflictResolutionPolicy.ServerWins`` : The server is the winner of any conflict. this behavior is the default behavior.
+* ``ConflictResolutionPolicy.ClientWins`` : The client is the winner of any conflict.
 
-.. hint:: Default value is `ServerWins`.
+.. hint:: Default value is ``ServerWins``.
 
 .. code-block:: csharp
 
     var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins };
 
-Here is the same diagram with the final step, where resolution is set to ```ServerWins`` (default value, by the way)
+Here is the same diagram with the final step, where resolution is set to ``ServerWins`` (default value, by the way)
 
 
 .. image:: assets/Conflict02.png
@@ -62,8 +63,8 @@ Here is the same workflow, when the conflict resolution is now set to ``ClientWi
 Handling conflicts manually
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-| If you decide to manually resolve a conflict, the `ConflictResolutionPolicy` option will be ignored.  
-| To be able to resolve a conflict, you just have to *Intercept*  the `ApplyChangedFailed` method and choose the correct version.  
+| If you decide to manually resolve a conflict, the ``ConflictResolutionPolicy`` option will be ignored.  
+| To be able to resolve a conflict, you just have to *Intercept*  the ``ApplyChangedFailed`` method and choose the correct version.  
 
 .. code-block:: csharp
 
@@ -73,13 +74,41 @@ Handling conflicts manually
     });
 
 
-The ``ApplyChangeFailedEventArgs`` argument contains all the required properties to be able to resolve your conflict:
+The ``ApplyChangeFailedEventArgs`` argument contains all the required properties to be able to resolve your conflict.
 
-You will determinate the correct version through the `Action` property of type ``ConflictAction``:
+You will determinate the correct version through the `Action` property of type ``ConflictResolution``:
 
-* ``ConflictAction.ClientWins`` : The client row will be applied on server, even if there is a conflict, so the client row wins.
-* ``ConflictAction.ServerWins`` : The client row won't be applied on the server, so the server row wins.
-* ``ConflictAction.MergeRow``   : It's up to you to choose the correct row to send on both server and client. the ``FinalRow`` instance will be used instead of Server or Client row.
+
+.. code-block:: csharp
+
+    public enum ConflictResolution
+    {
+        /// <summary>
+        /// Indicates that the change on the server is the conflict winner
+        /// </summary>
+        ServerWins,
+
+        /// <summary>
+        /// Indicates that the change sent by the client is the conflict winner
+        /// </summary>
+        ClientWins,
+
+        /// <summary>
+        /// Indicates that you will manage the conflict by filling the final row and sent it to both client and server
+        /// </summary>
+        MergeRow,
+
+        /// <summary>
+        /// Indicates that you want to rollback the whole sync process
+        /// </summary>
+        Rollback
+    }
+
+
+
+* ``ConflictResolution.ClientWins`` : The client row will be applied on server, even if there is a conflict, so the client row wins.
+* ``ConflictResolution.ServerWins`` : The client row won't be applied on the server, so the server row wins.
+* ``ConflictResolution.MergeRow``   : It's up to you to choose the correct row to send on both server and client. the ``FinalRow`` instance will be used instead of Server or Client row.
 
 You are able to compare the row in conflict through the ``Conflict`` property of type ``SyncConflict``:
 
@@ -162,7 +191,8 @@ We saw that conflicts are resolved on the server side, if you are in an **HTTP**
         private WebServerManager webServerManager;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerManager webServerManager) => this.webServerManager = webServerManager;
+        public SyncController(WebServerManager webServerManager) 
+                            => this.webServerManager = webServerManager;
 
         [HttpPost]
         public async Task Post()
