@@ -103,60 +103,58 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
-                if (table == null)
-                    throw new MissingTableException(tableName);
+                return table;
+            }
+        }
+
+        /// <summary>
+        /// Get a table by its name
+        /// </summary>
+        public SetupTable this[string tableName, string schemaName]
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(tableName))
+                    throw new ArgumentNullException("tableName");
+
+                schemaName = schemaName == null ? string.Empty : schemaName;
+
+                var sc = SyncGlobalization.DataSourceStringComparison;
+
+                var table = InnerCollection.FirstOrDefault(innerTable =>
+                {
+                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                    return string.Equals(innerTable.TableName, tableName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                });
 
                 return table;
             }
-}
+        }
 
-/// <summary>
-/// Get a table by its name
-/// </summary>
-public SetupTable this[string tableName, string schemaName]
-{
-    get
-    {
-        if (string.IsNullOrEmpty(tableName))
-            throw new ArgumentNullException("tableName");
+        /// <summary>
+        /// Check if Setup has tables
+        /// </summary>
+        public bool HasTables => this.InnerCollection?.Count > 0;
 
-        // Create a tmp SetupTable to benefit the use of SetupTable.Equals()
-        var tmpTable = new SetupTable(tableName, schemaName);
+        /// <summary>
+        /// Check if Setup has at least one table with columns
+        /// </summary>
+        public bool HasColumns => this.InnerCollection?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
-
-        var table = InnerCollection.FirstOrDefault(c => c == tmpTable);
-
-        if (table == null)
-            throw new MissingTableException(tmpTable.ToString());
-
-        return table;
-    }
-}
-
-/// <summary>
-/// Check if Setup has tables
-/// </summary>
-public bool HasTables => this.InnerCollection?.Count > 0;
-
-/// <summary>
-/// Check if Setup has at least one table with columns
-/// </summary>
-public bool HasColumns => this.InnerCollection?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
-
-public void Clear() => this.InnerCollection.Clear();
-public SetupTable this[int index] => InnerCollection[index];
-public int Count => InnerCollection.Count;
-public bool IsReadOnly => false;
-SetupTable IList<SetupTable>.this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
-public bool Remove(SetupTable item) => InnerCollection.Remove(item);
-public bool Contains(SetupTable item) => InnerCollection.Any(st => st == item);
-public void CopyTo(SetupTable[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
-public int IndexOf(SetupTable item) => InnerCollection.IndexOf(item);
-public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
-public override string ToString() => this.InnerCollection.Count.ToString();
-public void Insert(int index, SetupTable item) => this.InnerCollection.Insert(index, item);
-public IEnumerator<SetupTable> GetEnumerator() => InnerCollection.GetEnumerator();
-IEnumerator<SetupTable> IEnumerable<SetupTable>.GetEnumerator() => this.InnerCollection.GetEnumerator();
-IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
+        public void Clear() => this.InnerCollection.Clear();
+        public SetupTable this[int index] => InnerCollection[index];
+        public int Count => InnerCollection.Count;
+        public bool IsReadOnly => false;
+        SetupTable IList<SetupTable>.this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
+        public bool Remove(SetupTable item) => InnerCollection.Remove(item);
+        public bool Contains(SetupTable item) => InnerCollection.Any(st => st == item);
+        public void CopyTo(SetupTable[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
+        public int IndexOf(SetupTable item) => InnerCollection.IndexOf(item);
+        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
+        public override string ToString() => this.InnerCollection.Count.ToString();
+        public void Insert(int index, SetupTable item) => this.InnerCollection.Insert(index, item);
+        public IEnumerator<SetupTable> GetEnumerator() => InnerCollection.GetEnumerator();
+        IEnumerator<SetupTable> IEnumerable<SetupTable>.GetEnumerator() => this.InnerCollection.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
     }
 }

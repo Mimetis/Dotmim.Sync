@@ -128,6 +128,31 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
+
+        /// <summary>
+        /// Get the schema from server, by sending an http request to the server
+        /// </summary>
+        public override async Task<SyncSet> GetSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress);
+
+            return serverScopeInfo.Schema;
+
+        }
+
+        public override Task<bool> IsOutDated(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            return base.IsOutDated(clientScopeInfo, serverScopeInfo, cancellationToken, progress);
+        }
+
+
         /// <summary>
         /// Get server scope from server, by sending an http request to the server 
         /// </summary>

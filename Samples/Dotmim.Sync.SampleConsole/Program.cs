@@ -36,7 +36,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeAsync();
+        await SyncThroughWebApiAsync();
     }
 
 
@@ -962,8 +962,6 @@ internal class Program
 
         var agent = new SyncAgent(clientProvider, proxyClientProvider, clientOptions, clientSetup);
 
-        agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.Reinitialize);
-
         agent.Parameters.Add("CompanyName", "A Bike Store");
 
         Console.WriteLine("Press a key to start (be sure web api is running ...)");
@@ -976,9 +974,17 @@ internal class Program
             {
                 var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
 
-                var s = await agent.SynchronizeAsync(progress);
 
-                Console.WriteLine(s);
+
+                var serverSchema = await proxyClientProvider.GetSchemaAsync(default, progress);
+                
+                var serverScope = await proxyClientProvider.GetServerScopeAsync();
+
+                var isOutdated = await proxyClientProvider.IsOutDated()
+
+                // var s = await agent.SynchronizeAsync(progress);
+
+                //Console.WriteLine(s);
 
             }
             catch (SyncException e)
