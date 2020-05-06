@@ -59,10 +59,17 @@ namespace Dotmim.Sync
                 var parser = ParserName.Parse(tableName);
                 var tblName = parser.ObjectName;
                 var schemaName = parser.SchemaName;
+                schemaName = schemaName == null ? string.Empty : schemaName;
 
-                // Create a tmp synctable to benefit the SyncTable.Equals() method
-                using (var tmpSt = new SyncTable(tblName, schemaName)) 
-                    return InnerCollection.FirstOrDefault(st => st == tmpSt);
+                var sc = SyncGlobalization.DataSourceStringComparison;
+
+                var table = InnerCollection.FirstOrDefault(innerTable =>
+                {
+                    var innerTableSchemaName = String.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                });
+
+                return table;
             }
         }
 
@@ -76,11 +83,17 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
 
-                schemaName = schemaName ?? string.Empty;
+                schemaName = schemaName == null ? string.Empty : schemaName;
 
-                // Create a tmp synctable to benefit the SyncTable.Equals() method
-                using (var tmpSt = new SyncTable(tableName, schemaName))
-                    return InnerCollection.FirstOrDefault(c => c == tmpSt);
+                var sc = SyncGlobalization.DataSourceStringComparison;
+
+                var table = InnerCollection.FirstOrDefault(innerTable =>
+                {
+                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                    return string.Equals(innerTable.TableName, tableName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                });
+
+                return table;
             }
         }
 

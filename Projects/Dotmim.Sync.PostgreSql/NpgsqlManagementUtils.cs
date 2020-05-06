@@ -399,7 +399,7 @@ namespace Dotmim.Sync.Postgres
 
                 var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
-                tableExist = (int)result != 0;
+                tableExist = (long)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -448,7 +448,7 @@ namespace Dotmim.Sync.Postgres
 
                 var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
-                tableExist = (int)result != 0;
+                tableExist = (long)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -483,7 +483,7 @@ namespace Dotmim.Sync.Postgres
 
                 var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
-                schemaExist = (int)result != 0;
+                schemaExist = (long)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();
@@ -515,7 +515,7 @@ namespace Dotmim.Sync.Postgres
 
                 var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
-                triggerExist = (int)result != 0;
+                triggerExist = (long)result != 0;
 
                 if (!alreadyOpened)
                     connection.Close();

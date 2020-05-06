@@ -3,6 +3,9 @@ using Dotmim.Sync.Manager;
 using System.Data.Common;
 using Npgsql;
 using System;
+using Dotmim.Sync.Postgres.Scope;
+using Dotmim.Sync.Postgres.Builders;
+using Dotmim.Sync.Postgres.Manager;
 
 namespace Dotmim.Sync.Postgres
 {

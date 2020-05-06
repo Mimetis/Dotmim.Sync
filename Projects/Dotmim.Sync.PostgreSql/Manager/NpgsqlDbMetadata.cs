@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using System.Linq;
-
+using NpgsqlTypes;
 
 namespace Dotmim.Sync.Postgres
 {
@@ -22,60 +22,122 @@ namespace Dotmim.Sync.Postgres
         {
             switch (typeName.ToLowerInvariant())
             {
+                case "smallint":
+                case "int2":
+                case "int2vector":
+                case "smallserial":
+                case "serial2":
+                    return DbType.Int16;
+
+                case "integer":
+                case "int":
+                case "int4":
+                case "serial":
+                case "serial4":
+                    return DbType.Int32;
+
                 case "bigint":
+                case "int8":
+                case "bigserial":
+                case "serial8":
                     return DbType.Int64;
-                case "binary":
-                    return DbType.Binary;
+
+                // Bit strings are strings of 1's and 0's.They can be used to store or visualize bit masks.  
+                // https://www.postgresql.org/docs/current/datatype-bit.html
                 case "bit":
+                case "varbit":
+                case "bit varying":
+                    return DbType.String;
+
+                case "boolean":
+                case "bool":
                     return DbType.Boolean;
+
+
+                // IPv4, IPv6, and MAC addresses
+                // https://www.postgresql.org/docs/current/datatype-net-types.html
+                case "cid":
+                case "cidr":
+                case "inet":
+                case "macaddr":
+                case "macaddr8":
+                    return DbType.String;
+
+                // Full text search text
+                // https://www.postgresql.org/docs/current/datatype-textsearch.html
+                case "tsquery":
+                case "tsvector":
+                    return DbType.String;
+
+                // Geometry
+                case "geometry":
+                case "box":
+                case "circle":
+                case "line":
+                case "lseg":
+                case "path":
+                case "polygon":
+                    return DbType.String;
+
+                case "bytea":
+                    return DbType.Binary;
+
+                case "character":
                 case "char":
+                case "name":
                     return DbType.AnsiStringFixedLength;
+
+
+                case "character varying":
+                case "varchar":
+                case "refcursor":
+                case "citext":
+                case "text":
+                    return DbType.AnsiString;
+
                 case "date":
                     return DbType.Date;
-                case "datetime":
+
+                case "timestamp":
                     return DbType.DateTime;
-                case "datetime2":
-                    return DbType.DateTime2;
-                case "datetimeoffset":
+
+                case "timestamptz":
+                case "timetz":
                     return DbType.DateTimeOffset;
-                case "decimal":
-                    return DbType.Decimal;
-                case "float":
-                    return DbType.Double;
-                case "int":
-                    return DbType.Int32;
-                case "money":
-                case "smallmoney":
-                    return DbType.Currency;
-                case "nchar":
-                    return DbType.StringFixedLength;
-                case "numeric":
-                    return DbType.VarNumeric;
-                case "nvarchar":
-                    return maxLength <= 0 ? DbType.String : DbType.StringFixedLength;
-                case "real":
-                    return DbType.Decimal;
-                case "smalldatetime":
-                    return DbType.DateTime;
-                case "smallint":
-                    return DbType.Int16;
-                case "sql_variant":
-                case "variant":
-                    return DbType.Object;
+
                 case "time":
                     return DbType.Time;
-                case "timestamp":
-                    return DbType.Int64;
-                case "tinyint":
-                    return DbType.Int16;
-                case "uniqueidentifier":
+
+
+                case "double precision":
+                case "float8":
+                case "double":
+                    return DbType.Double;
+
+                // https://www.postgresql.org/docs/current/hstore.html
+                case "hstore":
+                    return DbType.String;
+
+                case "json":
+                case "jsonb":
+                    return DbType.String;
+
+                case "money":
+                    return DbType.Currency;
+
+                case "numeric":
+                    return DbType.VarNumeric;
+
+                case "float4":
+                case "real":
+                    return DbType.Decimal;
+
+                case "uuid":
                     return DbType.Guid;
-                case "varbinary":
-                    return DbType.Binary;
-                case "varchar":
-                    return maxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
+
                 case "xml":
                     return DbType.String;
+
             }
             throw new Exception($"this type {typeName} is not supported");
         }
@@ -85,63 +147,117 @@ namespace Dotmim.Sync.Postgres
         /// </summary>
         public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
+
             switch (typeName.ToLowerInvariant())
             {
+                case "array":
+                    return NpgsqlDbType.Array;
                 case "bigint":
-                    return SqlDbType.BigInt;
-                case "binary":
-                    return SqlDbType.Binary;
+                    return NpgsqlDbType.Bigint;
                 case "bit":
-                    return SqlDbType.Bit;
+                    return NpgsqlDbType.Bit;
+                case "boolean":
+                    return NpgsqlDbType.Boolean;
+                case "box":
+                    return NpgsqlDbType.Box;
+                case "bytea":
+                    return NpgsqlDbType.Bytea;
                 case "char":
-                    return SqlDbType.Char;
+                    return NpgsqlDbType.Char;
+                case "cid":
+                    return NpgsqlDbType.Cid;
+                case "cidr":
+                    return NpgsqlDbType.Cidr;
+                case "circle":
+                    return NpgsqlDbType.Circle;
+                case "citext":
+                    return NpgsqlDbType.Citext;
                 case "date":
-                    return SqlDbType.Date;
-                case "datetime":
-                    return SqlDbType.DateTime;
-                case "datetime2":
-                    return SqlDbType.DateTime2;
-                case "datetimeoffset":
-                    return SqlDbType.DateTimeOffset;
-                case "decimal":
-                    return SqlDbType.Decimal;
-                case "float":
-                    return SqlDbType.Float;
-                case "int":
-                    return SqlDbType.Int;
+                    return NpgsqlDbType.Date;
+                case "double":
+                    return NpgsqlDbType.Double;
+                case "geography":
+                    return NpgsqlDbType.Geography;
+                case "geometry":
+                    return NpgsqlDbType.Geometry;
+                case "hstore":
+                    return NpgsqlDbType.Hstore;
+                case "inet":
+                    return NpgsqlDbType.Inet;
+                case "int2vector":
+                    return NpgsqlDbType.Int2Vector;
+                case "integer":
+                    return NpgsqlDbType.Integer;
+                case "internalchar":
+                    return NpgsqlDbType.InternalChar;
+                case "interval":
+                    return NpgsqlDbType.Interval;
+                case "json":
+                    return NpgsqlDbType.Json;
+                case "jsonb":
+                    return NpgsqlDbType.Jsonb;
+                case "line":
+                    return NpgsqlDbType.Line;
+                case "lseg":
+                    return NpgsqlDbType.LSeg;
+                case "macaddr":
+                    return NpgsqlDbType.MacAddr;
+                case "macaddr8":
+                    return NpgsqlDbType.MacAddr8;
                 case "money":
-                    return SqlDbType.Money;
-                case "smallmoney":
-                    return SqlDbType.SmallMoney;
-                case "nchar":
-                    return SqlDbType.NChar;
+                    return NpgsqlDbType.Money;
+                case "name":
+                    return NpgsqlDbType.Name;
                 case "numeric":
-                    return SqlDbType.Decimal;
-                case "nvarchar":
-                    return SqlDbType.NVarChar;
+                    return NpgsqlDbType.Numeric;
+                case "oid":
+                    return NpgsqlDbType.Oid;
+                case "oidvector":
+                    return NpgsqlDbType.Oidvector;
+                case "path":
+                    return NpgsqlDbType.Path;
+                case "point":
+                    return NpgsqlDbType.Point;
+                case "polygon":
+                    return NpgsqlDbType.Polygon;
+                case "range":
+                    return NpgsqlDbType.Range;
                 case "real":
-                    return SqlDbType.Real;
-                case "smalldatetime":
-                    return SqlDbType.SmallDateTime;
+                    return NpgsqlDbType.Real;
+                case "refcursor":
+                    return NpgsqlDbType.Refcursor;
+                case "regconfig":
+                    return NpgsqlDbType.Regconfig;
+                case "regtype":
+                    return NpgsqlDbType.Regtype;
                 case "smallint":
-                    return SqlDbType.SmallInt;
-                case "sql_variant":
-                case "variant":
-                    return SqlDbType.Variant;
+                    return NpgsqlDbType.Smallint;
+                case "text":
+                    return NpgsqlDbType.Text;
+                case "tid":
+                    return NpgsqlDbType.Tid;
                 case "time":
-                    return SqlDbType.Time;
+                    return NpgsqlDbType.Time;
                 case "timestamp":
-                    return SqlDbType.Timestamp;
-                case "tinyint":
-                    return SqlDbType.TinyInt;
-                case "uniqueidentifier":
-                    return SqlDbType.UniqueIdentifier;
-                case "varbinary":
-                    return SqlDbType.VarBinary;
+                    return NpgsqlDbType.Timestamp;
+                case "timestamptz":
+                    return NpgsqlDbType.TimestampTz;
+                case "timetz":
+                    return NpgsqlDbType.TimeTz;
+                case "tsquery":
+                    return NpgsqlDbType.TsQuery;
+                case "tsvector":
+                    return NpgsqlDbType.TsVector;
+                case "uuid":
+                    return NpgsqlDbType.Uuid;
+                case "varbit":
+                    return NpgsqlDbType.Varbit;
                 case "varchar":
-                    return SqlDbType.VarChar;
+                    return NpgsqlDbType.Varchar;
+                case "xid":
+                    return NpgsqlDbType.Xid;
                 case "xml":
-                    return SqlDbType.Xml;
+                    return NpgsqlDbType.Xml;
             }
             throw new Exception($"this type name {typeName} is not supported");
         }
@@ -151,18 +267,7 @@ namespace Dotmim.Sync.Postgres
         /// </summary>
         public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
-            var sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode, maxLength);
-
             var iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
-
-            // special length for nchar and nvarchar
-            if ((sqlDbType == SqlDbType.NChar || sqlDbType == SqlDbType.NVarChar) && iMaxLength > 0)
-                iMaxLength = iMaxLength / 2;
-
-            if (iMaxLength > 0 && sqlDbType != SqlDbType.VarChar && sqlDbType != SqlDbType.NVarChar &&
-                sqlDbType != SqlDbType.Char && sqlDbType != SqlDbType.NChar &&
-                sqlDbType != SqlDbType.Binary && sqlDbType != SqlDbType.VarBinary)
-                iMaxLength = 0;
 
             return iMaxLength;
         }
@@ -178,29 +283,29 @@ namespace Dotmim.Sync.Postgres
                 case DbType.AnsiStringFixedLength:
                     return "varchar";
                 case DbType.Binary:
-                    return "varbinary";
+                    return "bytea";
                 case DbType.Boolean:
-                    return "bit";
+                    return "boolean";
                 case DbType.Byte:
-                    return "tinyint";
+                    return "smallint";
                 case DbType.Currency:
                     return "money";
                 case DbType.Date:
                     return "date";
                 case DbType.DateTime:
-                    return "datetime";
+                    return "timestamp";
                 case DbType.DateTime2:
-                    return "datetime2";
+                    return "timestamp";
                 case DbType.DateTimeOffset:
-                    return "datetimeoffset";
+                    return "timestamptz";
                 case DbType.Decimal:
                 case DbType.Double:
                 case DbType.Single:
-                    return "decimal";
+                    return "double";
                 case DbType.VarNumeric:
                     return "numeric";
                 case DbType.Guid:
-                    return "uniqueidentifier";
+                    return "uuid";
                 case DbType.Int16:
                     return "smallint";
                 case DbType.Int32:
@@ -219,74 +324,101 @@ namespace Dotmim.Sync.Postgres
                 case DbType.Time:
                     return "time";
                 case DbType.Object:
-                    return "sql_variant";
+                    return "bytea";
             }
             throw new Exception($"this DbType {dbType.ToString()} is not supported");
         }
 
         /// <summary>
-        /// Gets a Sql type name form a SqlDbType enum value
+        /// Gets a npgsql type name form a NpgsqlType enum value
         /// </summary>
         public override string GetStringFromOwnerDbType(object ownerType)
         {
-            SqlDbType sqlDbType = (SqlDbType)ownerType;
+            NpgsqlDbType npgsqlDbType = (NpgsqlDbType)ownerType;
 
-            switch (sqlDbType)
+
+            switch (npgsqlDbType)
             {
-                case SqlDbType.BigInt:
+                case NpgsqlDbType.Bigint:
                     return "bigint";
-                case SqlDbType.Binary:
-                    return "binary";
-                case SqlDbType.Bit:
-                    return "bit";
-                case SqlDbType.Char:
-                    return "char";
-                case SqlDbType.Date:
-                    return "date";
-                case SqlDbType.DateTime:
-                    return "datetime";
-                case SqlDbType.DateTime2:
-                    return "datetime2";
-                case SqlDbType.DateTimeOffset:
-                    return "datetimeoffset";
-                case SqlDbType.Decimal:
-                    return "decimal";
-                case SqlDbType.Float:
-                    return "float";
-                case SqlDbType.Int:
-                    return "int";
-                case SqlDbType.Money:
-                    return "money";
-                case SqlDbType.NChar:
-                    return "nchar";
-                case SqlDbType.NVarChar:
-                    return "nvarchar";
-                case SqlDbType.Real:
+                case NpgsqlDbType.Double:
+                    return "double";
+                case NpgsqlDbType.Integer:
+                    return "integer";
+                case NpgsqlDbType.Numeric:
+                    return "numeric";
+                case NpgsqlDbType.Real:
                     return "real";
-                case SqlDbType.SmallDateTime:
-                    return "smalldatetime";
-                case SqlDbType.SmallInt:
+                case NpgsqlDbType.Smallint:
                     return "smallint";
-                case SqlDbType.SmallMoney:
-                    return "smallmoney";
-                case SqlDbType.Time:
-                    return "time";
-                case SqlDbType.Timestamp:
-                    return "timestamp";
-                case SqlDbType.TinyInt:
-                    return "tinyint";
-                case SqlDbType.UniqueIdentifier:
-                    return "uniqueidentifier";
-                case SqlDbType.VarBinary:
-                    return "varbinary";
-                case SqlDbType.VarChar:
+                case NpgsqlDbType.Money:
+                    return "money";
+                case NpgsqlDbType.Boolean:
+                    return "boolean";
+                case NpgsqlDbType.Char:
+                    return "char";
+                case NpgsqlDbType.Text:
+                    return "text";
+                case NpgsqlDbType.Varchar:
                     return "varchar";
-                case SqlDbType.Variant:
-                    return "sql_variant";
-                case SqlDbType.Xml:
+                case NpgsqlDbType.Name:
+                    return "name";
+                case NpgsqlDbType.Citext:
+                    return "citext";
+                case NpgsqlDbType.Bytea:
+                    return "bytea";
+                case NpgsqlDbType.Date:
+                    return "date";
+                case NpgsqlDbType.Time:
+                    return "time";
+                case NpgsqlDbType.Timestamp:
+                    return "timestamp";
+                case NpgsqlDbType.TimestampTz:
+                    return "timestamptz";
+                case NpgsqlDbType.TimeTz:
+                    return "timetz";
+                case NpgsqlDbType.Inet:
+                    return "inet";
+                case NpgsqlDbType.Cidr:
+                    return "cidr";
+                case NpgsqlDbType.MacAddr:
+                    return "macaddr";
+                case NpgsqlDbType.MacAddr8:
+                    return "macaddr8";
+                case NpgsqlDbType.Bit:
+                    return "bit";
+                case NpgsqlDbType.Varbit:
+                    return "varbit";
+                case NpgsqlDbType.TsVector:
+                    return "tsvector";
+                case NpgsqlDbType.TsQuery:
+                    return "tsquery";
+                case NpgsqlDbType.Uuid:
+                    return "uuid";
+                case NpgsqlDbType.Xml:
                     return "xml";
+                case NpgsqlDbType.Json:
+                    return "json";
+                case NpgsqlDbType.Jsonb:
+                    return "jsonb";
+                case NpgsqlDbType.Hstore:
+                    return "hstore";
+                case NpgsqlDbType.Array:
+                    return "array";
+                case NpgsqlDbType.Refcursor:
+                    return "refcursor";
+                case NpgsqlDbType.Int2Vector:
+                    return "int2vector";
+                case NpgsqlDbType.Oid:
+                    return "";
+                case NpgsqlDbType.Xid:
+                    return "xid";
+                case NpgsqlDbType.Cid:
+                    return "cidr";
             }
-            throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
+
+
+            throw new Exception($"this NpgsqlDbType {ownerType.ToString()} is not supported");
         }
 
 
@@ -298,12 +430,12 @@ namespace Dotmim.Sync.Postgres
                     if (maxLength > 0 && maxLength <= 8000)
                         return $"({maxLength})";
                     else
-                        return $"(MAX)";
+                        return $"(8000)";
                 case DbType.String:
                     if (maxLength > 0 && maxLength <= 4000)
                         return $"({maxLength})";
                     else
-                        return $"(MAX)";
+                        return $"(4000)";
                 case DbType.AnsiStringFixedLength:
                 case DbType.Binary:
                     return $"({Math.Min(8000, maxLength)})";
@@ -361,13 +493,13 @@ namespace Dotmim.Sync.Postgres
                     if (maxLength > 0 && maxLength <= 4000)
                         return $"({maxLength})";
                     else
-                        return "(MAX)";
+                        return "(4000)";
                 case SqlDbType.VarBinary:
                 case SqlDbType.VarChar:
                     if (maxLength > 0 && maxLength <= 8000)
                         return $"({maxLength})";
                     else
-                        return "(MAX)";
+                        return "(8000)";
                 case SqlDbType.NChar:
                     return $"({Math.Min(4000, maxLength)})";
                 case SqlDbType.Char:
@@ -397,49 +529,49 @@ namespace Dotmim.Sync.Postgres
             {
                 case DbType.AnsiString:
                 case DbType.AnsiStringFixedLength:
-                    return SqlDbType.VarChar;
+                    return NpgsqlDbType.Varchar;
                 case DbType.Binary:
-                    return SqlDbType.VarBinary;
+                    return NpgsqlDbType.Bytea;
                 case DbType.Boolean:
-                    return SqlDbType.Bit;
+                    return NpgsqlDbType.Boolean;
                 case DbType.Byte:
-                    return SqlDbType.TinyInt;
+                    return NpgsqlDbType.Smallint;
                 case DbType.Currency:
-                    return SqlDbType.Money;
+                    return NpgsqlDbType.Money;
                 case DbType.Date:
-                    return SqlDbType.Date;
+                    return NpgsqlDbType.Date;
                 case DbType.DateTime:
-                    return SqlDbType.DateTime;
+                    return NpgsqlDbType.Timestamp;
                 case DbType.DateTime2:
-                    return SqlDbType.DateTime2;
+                    return NpgsqlDbType.Timestamp;
                 case DbType.DateTimeOffset:
-                    return SqlDbType.DateTimeOffset;
+                    return NpgsqlDbType.TimestampTz;
                 case DbType.Decimal:
                 case DbType.Double:
                 case DbType.Single:
                 case DbType.VarNumeric:
-                    return SqlDbType.Decimal;
+                    return NpgsqlDbType.Double;
                 case DbType.Guid:
-                    return SqlDbType.UniqueIdentifier;
+                    return NpgsqlDbType.Uuid;
                 case DbType.Int16:
-                    return SqlDbType.SmallInt;
+                    return NpgsqlDbType.Smallint;
                 case DbType.Int32:
                 case DbType.UInt16:
-                    return SqlDbType.Int;
+                    return NpgsqlDbType.Integer;
                 case DbType.Int64:
                 case DbType.UInt32:
                 case DbType.UInt64:
-                    return SqlDbType.BigInt;
+                    return NpgsqlDbType.Bigint;
                 case DbType.SByte:
-                    return SqlDbType.SmallInt;
+                    return NpgsqlDbType.Smallint;
                 case DbType.String:
                 case DbType.StringFixedLength:
                 case DbType.Xml:
-                    return SqlDbType.NVarChar;
+                    return NpgsqlDbType.Varchar;
                 case DbType.Time:
-                    return SqlDbType.Time;
+                    return NpgsqlDbType.Time;
                 case DbType.Object:
-                    return SqlDbType.Variant;
+                    return NpgsqlDbType.Bytea;
             }
 
             throw new Exception($"this type {dbType} is not supported");
@@ -451,65 +583,56 @@ namespace Dotmim.Sync.Postgres
         /// </summary>
         public override Type ValidateType(object ownerType)
         {
-            SqlDbType sqlDbType = (SqlDbType)ownerType;
+            NpgsqlDbType sqlDbType = (NpgsqlDbType)ownerType;
 
             switch (sqlDbType)
             {
-                case SqlDbType.BigInt:
+                case NpgsqlDbType.Bigint:
                     return Type.GetType("System.Int64");
-                case SqlDbType.Binary:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.Bit:
-                    return Type.GetType("System.Boolean");
-                case SqlDbType.Char:
-                    return Type.GetType("System.String");
-                case SqlDbType.Date:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.DateTime:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.DateTime2:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.DateTimeOffset:
-                    return Type.GetType("System.DateTimeOffset");
-                case SqlDbType.Decimal:
-                    return Type.GetType("System.Decimal");
-                case SqlDbType.Float:
+                case NpgsqlDbType.Double:
                     return Type.GetType("System.Double");
-                case SqlDbType.Int:
+                case NpgsqlDbType.Int2Vector:
+                case NpgsqlDbType.Integer:
                     return Type.GetType("System.Int32");
-                case SqlDbType.Money:
+                case NpgsqlDbType.Numeric:
+                case NpgsqlDbType.Real:
+                case NpgsqlDbType.Money:
                     return Type.GetType("System.Decimal");
-                case SqlDbType.NChar:
-                    return Type.GetType("System.String");
-                case SqlDbType.NVarChar:
-                    return Type.GetType("System.String");
-                case SqlDbType.Real:
-                    return Type.GetType("System.Single");
-                case SqlDbType.SmallDateTime:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.SmallInt:
+                case NpgsqlDbType.Smallint:
                     return Type.GetType("System.Int16");
-                case SqlDbType.SmallMoney:
-                    return Type.GetType("System.Decimal");
-                case SqlDbType.Structured:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.Time:
-                    return Type.GetType("System.TimeSpan");
-                case SqlDbType.Timestamp:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.TinyInt:
-                    return Type.GetType("System.Byte");
-                case SqlDbType.Udt:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.UniqueIdentifier:
-                    return Type.GetType("System.Guid");
-                case SqlDbType.VarBinary:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.VarChar:
+                case NpgsqlDbType.Boolean:
+                    return Type.GetType("System.Boolean");
+                case NpgsqlDbType.Char:
+                case NpgsqlDbType.Text:
+                case NpgsqlDbType.Varchar:
+                case NpgsqlDbType.Name:
+                case NpgsqlDbType.Citext:
                     return Type.GetType("System.String");
-                case SqlDbType.Variant:
-                    return Type.GetType("System.Object");
-                case SqlDbType.Xml:
+                case NpgsqlDbType.Bytea:
+                    return Type.GetType("System.Byte[]");
+                case NpgsqlDbType.Date:
+                case NpgsqlDbType.Timestamp:
+                    return Type.GetType("System.DateTime");
+                case NpgsqlDbType.Time:
+                    return Type.GetType("System.TimeSpan");
+                case NpgsqlDbType.TimestampTz:
+                case NpgsqlDbType.TimeTz:
+                    return Type.GetType("System.DateTimeOffset");
+                case NpgsqlDbType.Inet:
+                case NpgsqlDbType.Cidr:
+                case NpgsqlDbType.MacAddr:
+                case NpgsqlDbType.MacAddr8:
+                case NpgsqlDbType.Bit:
+                case NpgsqlDbType.Varbit:
+                case NpgsqlDbType.TsVector:
+                case NpgsqlDbType.TsQuery:
+                    return Type.GetType("System.String");
+                case NpgsqlDbType.Uuid:
+                    return Type.GetType("System.Guid");
+                case NpgsqlDbType.Xml:
+                case NpgsqlDbType.Json:
+                case NpgsqlDbType.Jsonb:
+                case NpgsqlDbType.Hstore:
                     return Type.GetType("System.String");
             }
             throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
@@ -521,10 +644,11 @@ namespace Dotmim.Sync.Postgres
             {
                 case "decimal":
                 case "real":
-                case "float":
+                case "float4":
                 case "numeric":
                 case "money":
-                case "smallmoney":
+                case "double precision":
+                case "float8":
                     return true;
             }
             return false;
@@ -534,15 +658,25 @@ namespace Dotmim.Sync.Postgres
             switch (typeName.ToLowerInvariant())
             {
                 case "bigint":
-                case "decimal":
-                case "float":
+                case "int8":
+                case "bigserial":
+                case "serial8":
+                case "double precision":
+                case "float8":
+                case "integer":
                 case "int":
+                case "int4":
                 case "numeric":
+                case "decimal":
                 case "real":
+                case "float4":
                 case "smallint":
-                case "tinyint":
-                case "money":
-                case "smallmoney":
+                case "int2":
+                case "smallserial":
+                case "serial2":
+                case "serial":
+                case "serial4":
+
                     return true;
             }
             return false;
@@ -552,11 +686,28 @@ namespace Dotmim.Sync.Postgres
         {
             switch (typeName.ToLowerInvariant())
             {
-                case "char":
-                case "nchar":
-                case "nvarchar":
-                case "varchar":
                 case "xml":
+                case "json":
+                case "jsonb":
+                case "hstore":
+                case "character varying":
+                case "varchar":
+                case "refcursor":
+                case "citext":
+                case "text":
+                case "character":
+                case "char":
+                case "name":
+                case "bit":
+                case "varbit":
+                case "bit varying":
+                case "cid":
+                case "cidr":
+                case "inet":
+                case "macaddr":
+                case "macaddr8":
+                case "tsquery":
+                case "tsvector":
                     return true;
             }
             return false;
@@ -566,51 +717,81 @@ namespace Dotmim.Sync.Postgres
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
-                case "bigint":
-                case "binary":
-                case "bit":
-                case "char":
-                case "date":
-                case "datetime":
-                case "datetime2":
-                case "datetimeoffset":
-                case "decimal":
-                case "float":
-                case "int":
-                case "money":
-                case "nchar":
-                case "numeric":
-                case "nvarchar":
-                case "real":
-                case "smalldatetime":
                 case "smallint":
-                case "smallmoney":
-                case "sql_variant":
-                case "variant":
-                case "time":
-                case "timestamp":
-                case "tinyint":
-                case "uniqueidentifier":
-                case "varbinary":
+                case "int2":
+                case "int2vector":
+                case "smallserial":
+                case "serial2":
+                case "integer":
+                case "int":
+                case "int4":
+                case "serial":
+                case "serial4":
+                case "bigint":
+                case "int8":
+                case "bigserial":
+                case "serial8":
+                case "bit":
+                case "varbit":
+                case "bit varying":
+                case "boolean":
+                case "bool":
+                case "cid":
+                case "cidr":
+                case "inet":
+                case "macaddr":
+                case "macaddr8":
+                case "tsquery":
+                case "tsvector":
+                case "geometry":
+                case "box":
+                case "circle":
+                case "line":
+                case "lseg":
+                case "path":
+                case "polygon":
+                case "bytea":
+                case "character":
+                case "char":
+                case "name":
+                case "character varying":
                 case "varchar":
+                case "refcursor":
+                case "citext":
+                case "text":
+                case "date":
+                case "timestamp":
+                case "timestamptz":
+                case "timetz":
+                case "time":
+                case "double precision":
+                case "float8":
+                case "double":
+                case "hstore":
+                case "json":
+                case "jsonb":
+                case "money":
+                case "numeric":
+                case "float4":
+                case "real":
+                case "uuid":
                 case "xml":
                     return true;
             }
             return false;
         }
 
-       
+
 
         public override bool ValidateIsReadonly(SyncColumn columnDefinition)
         {
-            return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" ||
-                   columnDefinition.IsCompute;
+            return columnDefinition.IsCompute;
         }
 
         public override byte ValidatePrecision(SyncColumn columnDefinition)
         {
             var (p, s) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
-            
+
             return p;
         }
 
@@ -654,18 +835,7 @@ namespace Dotmim.Sync.Postgres
 
         public override int GetMaxLengthFromOwnerDbType(object ownerDbType, int maxLength)
         {
-            SqlDbType sqlDbType = (SqlDbType)ownerDbType;
-            switch (sqlDbType)
-            {
-                case SqlDbType.Binary:
-                case SqlDbType.Char:
-                case SqlDbType.NChar:
-                case SqlDbType.NVarChar:
-                case SqlDbType.VarBinary:
-                case SqlDbType.VarChar:
-                    return maxLength;
-            }
-            return 0;
+            return maxLength;
         }
 
         public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
