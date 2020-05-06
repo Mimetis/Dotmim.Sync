@@ -50,14 +50,13 @@ namespace Dotmim.Sync
         /// <param name="setup"></param>
         public SyncSet(SyncSetup setup) : this()
         {
-            // Create the schema
-            var schema = new SyncSet();
-
             foreach (var filter in setup.Filters)
-                schema.Filters.Add(filter);
+                this.Filters.Add(filter);
 
             foreach (var setupTable in setup.Tables)
                 this.Tables.Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+
+            this.EnsureSchema();
         }
 
         /// <summary>

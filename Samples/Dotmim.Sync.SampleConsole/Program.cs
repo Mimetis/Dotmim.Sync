@@ -36,7 +36,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SyncThroughWebApiAsync();
+        await SynchronizeWithFiltersAsync();
     }
 
 
@@ -563,54 +563,44 @@ internal class Program
         Console.WriteLine(s1);
     }
 
-    /// <summary>
-    /// Launch a simple sync, over TCP network, each sql server (client and server are reachable through TCP cp
-    /// </summary>
-    /// <returns></returns>
-    private static async Task SynchronizeAsync()
+     private static async Task SynchronizeWithFiltersAsync()
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
-        //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
-        //var setup = new SyncSetup(new string[] { "Customer" });
-        var setup = new SyncSetup(new[] { "Customer" });
-        setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+  
+        setup.Filters.Add("Customer", "CompanyName");
 
-        //setup.Filters.Add("Customer", "CompanyName");
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("CompanyName", "Customer");
+        addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(addressCustomerFilter);
 
-        //_syncNewSetup.Filters.Add(avbGFilter);
+        var addressFilter = new SetupFilter("Address");
+        addressFilter.AddParameter("CompanyName", "Customer");
+        addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(addressFilter);
 
+        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+        orderHeaderFilter.AddParameter("CompanyName", "Customer");
+        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(orderHeaderFilter);
 
-        //var addressCustomerFilter = new SetupFilter("CustomerAddress");
-        //addressCustomerFilter.AddParameter("CompanyName", "Customer");
-        //addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        //addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        //setup.Filters.Add(addressCustomerFilter);
-
-        //var addressFilter = new SetupFilter("Address");
-        //addressFilter.AddParameter("CompanyName", "Customer");
-        //addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        //addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        //addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        //setup.Filters.Add(addressFilter);
-
-        //var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        //orderHeaderFilter.AddParameter("CompanyName", "Customer");
-        //orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        //orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        //orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        //setup.Filters.Add(orderHeaderFilter);
-
-        //var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-        //orderDetailsFilter.AddParameter("CompanyName", "Customer");
-        //orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
-        //orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        //orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        //orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        //setup.Filters.Add(orderDetailsFilter);
+        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+        orderDetailsFilter.AddParameter("CompanyName", "Customer");
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(orderDetailsFilter);
 
         // Add pref suf
         //setup.StoredProceduresPrefix = "s";
@@ -618,6 +608,74 @@ internal class Program
         //setup.TrackingTablesPrefix = "t";
         //setup.TrackingTablesSuffix = "";
 
+        var options = new SyncOptions();
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                if (!agent.Parameters.Contains("CompanyName"))
+                    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+
+                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                // Write results
+                Console.WriteLine(s1);
+
+                // Get the server scope
+                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+
+
+                await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+                                                                     | SyncProvision.Triggers | SyncProvision.TrackingTable);
+
+                // Affect good values
+                serverScope.Setup = null;
+                serverScope.Schema = null;
+
+                // save the server scope
+                await agent.RemoteOrchestrator.WriteServerScopeAsync(serverScope);
+
+            }
+            catch (Exception e)
+            {
+                //Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+    private static async Task SynchronizeWithLoggerAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("clientX.db");
+
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        //var setup = new SyncSetup(new string[] { "Customer" });
+        //var setup = new SyncSetup(new[] { "Customer" });
+        //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
+
+   
         var options = new SyncOptions();
         options.BatchSize = 500;
 
@@ -641,28 +699,28 @@ internal class Program
         //options.Logger = logger;
 
         //3) Using Serilog with Seq
-        var serilogLogger = new LoggerConfiguration()
-            .Enrich.FromLogContext()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .WriteTo.Seq("http://localhost:5341")
-            .WriteTo.Console()
-            .CreateLogger();
+        //var serilogLogger = new LoggerConfiguration()
+        //    .Enrich.FromLogContext()
+        //    .MinimumLevel.Debug()
+        //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        //    .WriteTo.Seq("http://localhost:5341")
+        //    .WriteTo.Console()
+        //    .CreateLogger();
 
 
-        var actLogging = new Action<SyncLoggerOptions>(slo =>
-        {
-            slo.AddConsole();
-            slo.SetMinimumLevel(LogLevel.Information);
-        });
+        //var actLogging = new Action<SyncLoggerOptions>(slo =>
+        //{
+        //    slo.AddConsole();
+        //    slo.SetMinimumLevel(LogLevel.Information);
+        //});
 
-        //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
+        ////var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
+        //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
 
 
         // loggerFactory.AddSerilog(serilogLogger);
 
-        options.Logger = loggerFactory.CreateLogger("dms");
+        //options.Logger = loggerFactory.CreateLogger("dms");
 
         // 2nd option to add serilog
         //var loggerFactorySerilog = new SerilogLoggerFactory();
@@ -720,7 +778,124 @@ internal class Program
 
                 var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
-                await agent.RemoteOrchestrator.DeleteMetadatasAsync();
+                // Get the server scope
+                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+
+
+                await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+                                                                     | SyncProvision.Triggers | SyncProvision.TrackingTable);
+
+                // Affect good values
+                serverScope.Setup = null;
+                serverScope.Schema = null;
+
+                // save the server scope
+                await agent.RemoteOrchestrator.WriteServerScopeAsync(serverScope);
+
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                //Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+    private static async Task SynchronizeAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("clientX.db");
+
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        //var setup = new SyncSetup(new string[] { "Customer" });
+        //var setup = new SyncSetup(new[] { "Customer" });
+        //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
+
+        setup.Filters.Add("Customer", "CompanyName");
+
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("CompanyName", "Customer");
+        addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(addressCustomerFilter);
+
+        var addressFilter = new SetupFilter("Address");
+        addressFilter.AddParameter("CompanyName", "Customer");
+        addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(addressFilter);
+
+        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+        orderHeaderFilter.AddParameter("CompanyName", "Customer");
+        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(orderHeaderFilter);
+
+        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+        orderDetailsFilter.AddParameter("CompanyName", "Customer");
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        setup.Filters.Add(orderDetailsFilter);
+
+        // Add pref suf
+        //setup.StoredProceduresPrefix = "s";
+        //setup.StoredProceduresSuffix = "";
+        //setup.TrackingTablesPrefix = "t";
+        //setup.TrackingTablesSuffix = "";
+
+        var options = new SyncOptions();
+        options.BatchSize = 500;
+
+
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                if (!agent.Parameters.Contains("CompanyName"))
+                    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+
+                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                // Get the server scope
+                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+
+
+                await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+                                                                     | SyncProvision.Triggers | SyncProvision.TrackingTable);
+
+                // Affect good values
+                serverScope.Setup = null;
+                serverScope.Schema = null;
+
+                // save the server scope
+                await agent.RemoteOrchestrator.WriteServerScopeAsync(serverScope);
 
                 // Write results
                 Console.WriteLine(s1);
@@ -980,7 +1155,7 @@ internal class Program
                 
                 var serverScope = await proxyClientProvider.GetServerScopeAsync();
 
-                var isOutdated = await proxyClientProvider.IsOutDated()
+                
 
                 // var s = await agent.SynchronizeAsync(progress);
 
