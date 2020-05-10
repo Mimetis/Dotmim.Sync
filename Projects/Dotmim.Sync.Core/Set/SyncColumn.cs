@@ -156,7 +156,7 @@ namespace Dotmim.Sync
                 return System.Data.DbType.Double;
 
             if (DataType == "5")
-                return System.Data.DbType.Double;
+                return System.Data.DbType.Single;
 
             if (DataType == "6")
                 return System.Data.DbType.Int32;

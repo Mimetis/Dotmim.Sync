@@ -111,7 +111,6 @@ namespace Dotmim.Sync.Postgres
 
                 case "double precision":
                 case "float8":
-                case "double":
                     return DbType.Double;
 
                 // https://www.postgresql.org/docs/current/hstore.html
@@ -143,7 +142,7 @@ namespace Dotmim.Sync.Postgres
         }
 
         /// <summary>
-        /// Gets the SqlDbType issued from the server type name
+        /// Gets the NpgsqlDbType issued from the server type name
         /// </summary>
         public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
@@ -153,15 +152,18 @@ namespace Dotmim.Sync.Postgres
                 case "array":
                     return NpgsqlDbType.Array;
                 case "bigint":
+                case "int8":
                     return NpgsqlDbType.Bigint;
                 case "bit":
                     return NpgsqlDbType.Bit;
                 case "boolean":
+                case "bool":
                     return NpgsqlDbType.Boolean;
                 case "box":
                     return NpgsqlDbType.Box;
                 case "bytea":
                     return NpgsqlDbType.Bytea;
+                case "character":
                 case "char":
                     return NpgsqlDbType.Char;
                 case "cid":
@@ -174,7 +176,8 @@ namespace Dotmim.Sync.Postgres
                     return NpgsqlDbType.Citext;
                 case "date":
                     return NpgsqlDbType.Date;
-                case "double":
+                case "double precision":
+                case "float8":
                     return NpgsqlDbType.Double;
                 case "geography":
                     return NpgsqlDbType.Geography;
@@ -187,6 +190,8 @@ namespace Dotmim.Sync.Postgres
                 case "int2vector":
                     return NpgsqlDbType.Int2Vector;
                 case "integer":
+                case "int":
+                case "int4":
                     return NpgsqlDbType.Integer;
                 case "internalchar":
                     return NpgsqlDbType.InternalChar;
@@ -208,6 +213,7 @@ namespace Dotmim.Sync.Postgres
                     return NpgsqlDbType.Money;
                 case "name":
                     return NpgsqlDbType.Name;
+                case "decimal":
                 case "numeric":
                     return NpgsqlDbType.Numeric;
                 case "oid":
@@ -223,6 +229,7 @@ namespace Dotmim.Sync.Postgres
                 case "range":
                     return NpgsqlDbType.Range;
                 case "real":
+                case "float4":
                     return NpgsqlDbType.Real;
                 case "refcursor":
                     return NpgsqlDbType.Refcursor;
@@ -253,6 +260,7 @@ namespace Dotmim.Sync.Postgres
                 case "varbit":
                     return NpgsqlDbType.Varbit;
                 case "varchar":
+                case "character varying":
                     return NpgsqlDbType.Varchar;
                 case "xid":
                     return NpgsqlDbType.Xid;
@@ -298,10 +306,11 @@ namespace Dotmim.Sync.Postgres
                     return "timestamp";
                 case DbType.DateTimeOffset:
                     return "timestamptz";
-                case DbType.Decimal:
                 case DbType.Double:
+                    return "double precision";
                 case DbType.Single:
-                    return "double";
+                    return "real";
+                case DbType.Decimal:
                 case DbType.VarNumeric:
                     return "numeric";
                 case DbType.Guid:
@@ -320,7 +329,7 @@ namespace Dotmim.Sync.Postgres
                 case DbType.String:
                 case DbType.StringFixedLength:
                 case DbType.Xml:
-                    return "nvarchar";
+                    return "varchar";
                 case DbType.Time:
                     return "time";
                 case DbType.Object:
@@ -342,7 +351,7 @@ namespace Dotmim.Sync.Postgres
                 case NpgsqlDbType.Bigint:
                     return "bigint";
                 case NpgsqlDbType.Double:
-                    return "double";
+                    return "double precision";
                 case NpgsqlDbType.Integer:
                     return "integer";
                 case NpgsqlDbType.Numeric:
@@ -438,12 +447,13 @@ namespace Dotmim.Sync.Postgres
                         return $"(4000)";
                 case DbType.AnsiStringFixedLength:
                 case DbType.Binary:
-                    return $"({Math.Min(8000, maxLength)})";
+                    if (maxLength > 0 && maxLength <= 8000)
+                        return $"({maxLength})";
+                    else
+                        return $"";
                 case DbType.StringFixedLength:
                     return $"({Math.Min(4000, maxLength)})";
                 case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
                 case DbType.VarNumeric:
                     var (p, s) = CoercePrecisionAndScale(precision, scale);
 
@@ -486,26 +496,15 @@ namespace Dotmim.Sync.Postgres
         /// </summary>
         public override string GetPrecisionStringFromOwnerDbType(object ownerDbType, int maxLength, byte precision, byte scale)
         {
-            SqlDbType sqlDbType = (SqlDbType)ownerDbType;
+            NpgsqlDbType sqlDbType = (NpgsqlDbType)ownerDbType;
             switch (sqlDbType)
             {
-                case SqlDbType.NVarChar:
-                    if (maxLength > 0 && maxLength <= 4000)
-                        return $"({maxLength})";
-                    else
-                        return "(4000)";
-                case SqlDbType.VarBinary:
-                case SqlDbType.VarChar:
+                case NpgsqlDbType.Varchar:
                     if (maxLength > 0 && maxLength <= 8000)
                         return $"({maxLength})";
                     else
-                        return "(8000)";
-                case SqlDbType.NChar:
-                    return $"({Math.Min(4000, maxLength)})";
-                case SqlDbType.Char:
-                case SqlDbType.Binary:
-                    return $"({Math.Min(8000, maxLength)})";
-                case SqlDbType.Decimal:
+                        return "";
+                case NpgsqlDbType.Numeric:
                     var (p, s) = CoercePrecisionAndScale(precision, scale);
 
                     if (p > 0 && s <= 0)
@@ -520,7 +519,7 @@ namespace Dotmim.Sync.Postgres
         }
 
         /// <summary>
-        /// Gets the corresponding SqlDbType from a classic DbType
+        /// Gets the corresponding NpgsqlDbType from a classic DbType
         /// </summary>
         public override object GetOwnerDbTypeFromDbType(DbType dbType)
         {
@@ -546,9 +545,10 @@ namespace Dotmim.Sync.Postgres
                     return NpgsqlDbType.Timestamp;
                 case DbType.DateTimeOffset:
                     return NpgsqlDbType.TimestampTz;
+                case DbType.Single:
+                    return NpgsqlDbType.Real;
                 case DbType.Decimal:
                 case DbType.Double:
-                case DbType.Single:
                 case DbType.VarNumeric:
                     return NpgsqlDbType.Double;
                 case DbType.Guid:
@@ -579,7 +579,7 @@ namespace Dotmim.Sync.Postgres
         }
 
         /// <summary>
-        /// Gets a managed type from a SqlDbType
+        /// Gets a managed type from a NpgsqlDbType
         /// </summary>
         public override Type ValidateType(object ownerType)
         {
@@ -587,6 +587,7 @@ namespace Dotmim.Sync.Postgres
 
             switch (sqlDbType)
             {
+                
                 case NpgsqlDbType.Bigint:
                     return Type.GetType("System.Int64");
                 case NpgsqlDbType.Double:
@@ -594,8 +595,9 @@ namespace Dotmim.Sync.Postgres
                 case NpgsqlDbType.Int2Vector:
                 case NpgsqlDbType.Integer:
                     return Type.GetType("System.Int32");
-                case NpgsqlDbType.Numeric:
                 case NpgsqlDbType.Real:
+                    return Type.GetType("System.Single");
+                case NpgsqlDbType.Numeric:
                 case NpgsqlDbType.Money:
                     return Type.GetType("System.Decimal");
                 case NpgsqlDbType.Smallint:
@@ -635,7 +637,7 @@ namespace Dotmim.Sync.Postgres
                 case NpgsqlDbType.Hstore:
                     return Type.GetType("System.String");
             }
-            throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
+            throw new Exception($"this NpgsqlDbType {ownerType.ToString()} is not supported");
         }
 
         public override bool SupportScale(string typeName)
@@ -643,12 +645,7 @@ namespace Dotmim.Sync.Postgres
             switch (typeName.ToLowerInvariant())
             {
                 case "decimal":
-                case "real":
-                case "float4":
                 case "numeric":
-                case "money":
-                case "double precision":
-                case "float8":
                     return true;
             }
             return false;
@@ -766,7 +763,6 @@ namespace Dotmim.Sync.Postgres
                 case "time":
                 case "double precision":
                 case "float8":
-                case "double":
                 case "hstore":
                 case "json":
                 case "jsonb":
@@ -797,10 +793,10 @@ namespace Dotmim.Sync.Postgres
 
         public override (byte precision, byte scale) GetPrecisionFromOwnerDbType(object ownerDbType, byte precision, byte scale)
         {
-            SqlDbType sqlDbType = (SqlDbType)ownerDbType;
+            NpgsqlDbType sqlDbType = (NpgsqlDbType)ownerDbType;
             switch (sqlDbType)
             {
-                case SqlDbType.Decimal:
+                case NpgsqlDbType.Numeric:
                     return CoercePrecisionAndScale(precision, scale);
             }
             return (0, 0);

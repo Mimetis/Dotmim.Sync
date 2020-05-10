@@ -102,8 +102,8 @@ namespace Dotmim.Sync.Postgres.Builders
         private NpgsqlCommand BuildForeignKeyConstraintsCommand(SyncRelation constraint)
         {
             var sqlCommand = new NpgsqlCommand();
-            var tableName = ParserName.Parse(constraint.GetTable()).Quoted().Schema().ToString();
-            var parentTableName = ParserName.Parse(constraint.GetParentTable()).Quoted().Schema().ToString();
+            var tableName = ParserName.Parse(constraint.GetTable(), "\"").Quoted().Schema().ToString();
+            var parentTableName = ParserName.Parse(constraint.GetParentTable(), "\"").Quoted().Schema().ToString();
 
             var relationName = NormalizeRelationName(constraint.RelationName);
 
@@ -116,7 +116,7 @@ namespace Dotmim.Sync.Postgres.Builders
             string empty = string.Empty;
             foreach (var column in constraint.Keys)
             {
-                var childColumnName = ParserName.Parse(column.ColumnName).Quoted().ToString();
+                var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
                 stringBuilder.Append($"{empty} {childColumnName}");
                 empty = ", ";
             }
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Postgres.Builders
             empty = string.Empty;
             foreach (var parentdColumn in constraint.ParentKeys)
             {
-                var parentColumnName = ParserName.Parse(parentdColumn.ColumnName).Quoted().ToString();
+                var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
                 stringBuilder.Append($"{empty} {parentColumnName}");
                 empty = ", ";
             }
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Postgres.Builders
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
                 var pkColumn = this.tableDescription.PrimaryKeys[i];
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 stringBuilder.Append(quotedColumnName);
 
                 if (i < this.tableDescription.PrimaryKeys.Count - 1)
@@ -204,8 +204,8 @@ namespace Dotmim.Sync.Postgres.Builders
                         command.Transaction = transaction;
 
                     command.Connection = connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -223,12 +223,12 @@ namespace Dotmim.Sync.Postgres.Builders
  
         private NpgsqlCommand BuildTableCommand()
         {
-            var stringBuilder = new StringBuilder($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Schema().Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = ParserName.Parse(column).Quoted().ToString();
+                var columnName = ParserName.Parse(column, "\"").Quoted().ToString();
 
                 var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
                 var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
@@ -238,7 +238,7 @@ namespace Dotmim.Sync.Postgres.Builders
                 if (column.IsAutoIncrement)
                 {
                     var s = column.GetAutoIncrementSeedAndStep();
-                    identity = $"IDENTITY({s.Seed},{s.Step})";
+                    identity = $"GENERATED ALWAYS AS IDENTITY ( INCREMENT {s.Step} START {s.Seed})";
                 }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 

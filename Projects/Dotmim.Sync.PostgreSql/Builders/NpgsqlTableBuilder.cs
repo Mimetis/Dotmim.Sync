@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Postgres.Builders
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
-            var originalTableName = ParserName.Parse(tableDescription);
+            var originalTableName = ParserName.Parse(tableDescription, "\"");
 
             var pref = setup.TrackingTablesPrefix;
             var suf = setup.TrackingTablesSuffix;
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Postgres.Builders
             if (!string.IsNullOrEmpty(originalTableName.SchemaName))
                 trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
 
-            var trackingTableName = ParserName.Parse(trakingTableNameString);
+            var trackingTableName = ParserName.Parse(trakingTableNameString, "\"");
 
             return (originalTableName, trackingTableName);
         }
@@ -59,7 +59,7 @@ namespace Dotmim.Sync.Postgres.Builders
 
         public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+            return new NpgsqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
         public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)

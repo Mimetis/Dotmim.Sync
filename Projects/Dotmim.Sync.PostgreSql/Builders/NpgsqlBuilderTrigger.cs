@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Postgres;
+using Dotmim.Sync.Postgres.Scope;
 using Npgsql;
 using System;
 using System.Collections.Generic;
@@ -37,22 +38,11 @@ namespace Dotmim.Sync.Postgres.Builders
         private string DeleteTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("SET NOCOUNT ON;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[d]"));
-            stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
+            var stringBuilderArguments3 = new StringBuilder();
             var stringPkAreNull = new StringBuilder();
 
             string argComma = " ";
@@ -61,29 +51,36 @@ namespace Dotmim.Sync.Postgres.Builders
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[d].{columnName}");
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                stringBuilderArguments.AppendLine($"\t{argComma}OLD.{columnName}");
                 stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
+                stringBuilderArguments3.Append($"{argComma}{columnName}");
+                stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
 
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
-            stringBuilder.AppendLine("\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[last_change_datetime]");
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
+            stringBuilder.AppendLine($"\t,update_scope_id");
+            stringBuilder.AppendLine($"\t,sync_row_is_tombstone");
+            stringBuilder.AppendLine($"\t,last_change_datetime");
+            stringBuilder.AppendLine($"\t,timestamp");
+            stringBuilder.AppendLine($") ");
+            stringBuilder.AppendLine($"VALUES (");
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,1");
-            stringBuilder.AppendLine("\t,GetUtcDate()");
-            stringBuilder.AppendLine("FROM DELETED [d]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[side]"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
+            stringBuilder.AppendLine($"\t,NULL");
+            stringBuilder.AppendLine($"\t,true");
+            stringBuilder.AppendLine($"\t,now()");
+            stringBuilder.AppendLine($"\t,{NpgsqlScopeInfoBuilder.TimestampValue}");
+            stringBuilder.AppendLine($")");
+            stringBuilder.AppendLine($"ON CONFLICT({stringBuilderArguments3.ToString()})");
+            stringBuilder.AppendLine($"DO UPDATE SET");
+            stringBuilder.AppendLine($"\tsync_row_is_tombstone = true");
+            stringBuilder.AppendLine($"\t,update_scope_id = NULL");
+            stringBuilder.AppendLine($"\t,last_change_datetime = now()");
+            stringBuilder.AppendLine($"\t,timestamp = {NpgsqlScopeInfoBuilder.TimestampValue};");
+
             return stringBuilder.ToString();
         }
 
@@ -102,10 +99,22 @@ namespace Dotmim.Sync.Postgres.Builders
                         command.Transaction = this.transaction;
 
                     var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+                    var delTriggerParseName = ParserName.Parse(delTriggerName, "\"");
 
-                    var createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
-                    createTrigger.AppendLine();
+                    var createTrigger = new StringBuilder();
+                    createTrigger.AppendLine($"CREATE OR REPLACE FUNCTION {delTriggerName}()");
+                    createTrigger.AppendLine($"RETURNS TRIGGER AS");
+                    createTrigger.AppendLine($"$BODY$");
+                    createTrigger.AppendLine($"BEGIN");
                     createTrigger.AppendLine(this.DeleteTriggerBodyText());
+                    createTrigger.AppendLine($"RETURN NULL;");
+                    createTrigger.AppendLine($"END;");
+                    createTrigger.AppendLine($"$BODY$");
+                    createTrigger.AppendLine($"lANGUAGE 'plpgsql';");
+                    createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {delTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
+                    createTrigger.AppendLine($"CREATE TRIGGER {delTriggerParseName.Quoted().ToString()} AFTER DELETE ON {tableName.Schema().Quoted().ToString()}");
+                    createTrigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {delTriggerName}();");
+                    createTrigger.AppendLine($"");
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
@@ -203,58 +212,12 @@ namespace Dotmim.Sync.Postgres.Builders
 
         private string InsertTriggerBodyText()
         {
-
-            //CREATE OR REPLACE FUNCTION "public"."Address_trigger_insert_function"() 
-            //RETURNS TRIGGER AS 
-            //$BODY$
-            //BEGIN
-            //    UPDATE "side" 
-
-            //    SET  "sync_row_is_tombstone" = 0
-		          //  ,"update_scope_id" = NULL -- scope id is always NULL when update is made locally
-            //        ,"last_change_datetime" = GetUtcDate()
-
-            //    FROM "tProduct" "side"
-	           // JOIN NEW AS "i" ON "side"."ProductID" = "i"."ProductID";
-
-	           // INSERT INTO "tProduct" (
-		          //   "ProductID"
-		          //  ,"update_scope_id"
-		          //  ,"sync_row_is_tombstone"
-		          //  ,"last_change_datetime"
-	           // ) 
-	           // SELECT
-		          //   "i"."ProductID"
-		          //  ,NULL
-		          //  ,0
-		          //  ,GetUtcDate()
-
-            //    FROM NEW AS "i"
-	           // LEFT JOIN "tProduct" "side" ON "i"."ProductID" = "side"."ProductID"
-	           // WHERE "side"."ProductID" IS NULL;
-            //        END;
-            //$BODY$ 
-            //LANGUAGE 'plpgsql';
-            //CREATE TRIGGER "Address_trigger_insert" AFTER INSERT ON "public"."Address"
-            //EXECUTE PROCEDURE "public"."Address_trigger_insert_function"(); 
-
-
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
-            stringBuilder.AppendLine("UPDATE side ");
-            stringBuilder.AppendLine("SET sync_row_is_tombstone = 0");
-            stringBuilder.AppendLine("\t,update_scope_id = NULL -- scope id is always NULL when update is made locally");
-            stringBuilder.AppendLine("\t,last_change_datetime = now()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} AS side");
-            stringBuilder.Append($"JOIN NEW AS i ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "side", "i"));
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+      
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
+            var stringBuilderArguments3 = new StringBuilder();
             var stringPkAreNull = new StringBuilder();
 
             string argComma = " ";
@@ -263,29 +226,36 @@ namespace Dotmim.Sync.Postgres.Builders
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                stringBuilderArguments.AppendLine($"\t{argComma}NEW.{columnName}");
                 stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
+                stringBuilderArguments3.Append($"{argComma}{columnName}");
                 stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
 
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
-            stringBuilder.AppendLine("\t,update_scope_id");
-            stringBuilder.AppendLine("\t,sync_row_is_tombstone");
-            stringBuilder.AppendLine("\t,last_change_datetime");
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
+            stringBuilder.AppendLine($"\t,update_scope_id");
+            stringBuilder.AppendLine($"\t,sync_row_is_tombstone");
+            stringBuilder.AppendLine($"\t,last_change_datetime");
+            stringBuilder.AppendLine($"\t,timestamp");
+            stringBuilder.AppendLine($") ");
+            stringBuilder.AppendLine($"VALUES (");
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,now() at time zone 'utc'");
-            stringBuilder.AppendLine("FROM NEW i");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} side ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "i", "side"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
+            stringBuilder.AppendLine($"\t,NULL");
+            stringBuilder.AppendLine($"\t,false");
+            stringBuilder.AppendLine($"\t,now()");
+            stringBuilder.AppendLine($"\t,{NpgsqlScopeInfoBuilder.TimestampValue}");
+            stringBuilder.AppendLine($")");
+            stringBuilder.AppendLine($"ON CONFLICT({stringBuilderArguments3.ToString()})");
+            stringBuilder.AppendLine($"DO UPDATE SET");
+            stringBuilder.AppendLine($"\tsync_row_is_tombstone = false");
+            stringBuilder.AppendLine($"\t,update_scope_id = NULL");
+            stringBuilder.AppendLine($"\t,last_change_datetime = now()");
+            stringBuilder.AppendLine($"\t,timestamp = {NpgsqlScopeInfoBuilder.TimestampValue};");
+
             return stringBuilder.ToString();
         }
         public virtual async Task CreateInsertTriggerAsync()
@@ -303,18 +273,21 @@ namespace Dotmim.Sync.Postgres.Builders
                         command.Transaction = this.transaction;
 
                     var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-                  
+                    var insTriggerParseName = ParserName.Parse(insTriggerName, "\"");
+
                     var createTrigger = new StringBuilder();
-                    createTrigger.AppendLine($"CREATE OR REPLACE FUNCTION public.{insTriggerName}_function()");
+                    createTrigger.AppendLine($"CREATE OR REPLACE FUNCTION {insTriggerName}()");
                     createTrigger.AppendLine($"RETURNS TRIGGER AS");
-                    createTrigger.AppendLine($"$$BODY$$");
+                    createTrigger.AppendLine($"$BODY$");
                     createTrigger.AppendLine($"BEGIN");
                     createTrigger.AppendLine(this.InsertTriggerBodyText());
+                    createTrigger.AppendLine($"RETURN NULL;");
                     createTrigger.AppendLine($"END;");
-                    createTrigger.AppendLine($"$$BODY$$");
+                    createTrigger.AppendLine($"$BODY$");
                     createTrigger.AppendLine($"lANGUAGE 'plpgsql';");
-                    createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {insTriggerName} on public.{tableName.Schema().Quoted().ToString()};");
-                    createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON public.{tableName.Schema().Quoted().ToString()}");
+                    createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {insTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
+                    createTrigger.AppendLine($"CREATE TRIGGER {insTriggerParseName.Quoted().ToString()} AFTER INSERT ON {tableName.Schema().Quoted().ToString()}");
+                    createTrigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {insTriggerName}();");
                     createTrigger.AppendLine($"");
 
                     command.CommandText = createTrigger.ToString();
@@ -415,58 +388,11 @@ namespace Dotmim.Sync.Postgres.Builders
         private string UpdateTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("SET NOCOUNT ON;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
-
-            if (this.tableDescription.GetMutableColumns().Count() > 0)
-            {
-                stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-                stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
-
-                stringBuilder.AppendLine("WHERE (");
-                string or = "";
-                foreach (var column in this.tableDescription.GetMutableColumns())
-                {
-                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
-
-                    stringBuilder.Append("\t");
-                    stringBuilder.Append(or);
-                    stringBuilder.Append("ISNULL(");
-                    stringBuilder.Append("NULLIF(");
-                    stringBuilder.Append("[d].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("[i].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(")");
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("NULLIF(");
-                    stringBuilder.Append("[i].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("[d].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(")");
-                    stringBuilder.AppendLine(") IS NOT NULL");
-
-                    or = " OR ";
-                }
-                stringBuilder.AppendLine(") ");
-            }
-
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
+            var stringBuilderArguments3 = new StringBuilder();
             var stringPkAreNull = new StringBuilder();
 
             string argComma = " ";
@@ -475,29 +401,33 @@ namespace Dotmim.Sync.Postgres.Builders
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                stringBuilderArguments.AppendLine($"\t{argComma}NEW.{columnName}");
                 stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
+                stringBuilderArguments3.Append($"{argComma}{columnName}");
+                stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
 
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
-            stringBuilder.AppendLine("\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[last_change_datetime]");
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
+            stringBuilder.AppendLine($"\t,update_scope_id");
+            stringBuilder.AppendLine($"\t,last_change_datetime");
+            stringBuilder.AppendLine($"\t,timestamp");
+            stringBuilder.AppendLine($") ");
+            stringBuilder.AppendLine($"VALUES (");
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,GetUtcDate()");
-            stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
+            stringBuilder.AppendLine($"\t,NULL");
+            stringBuilder.AppendLine($"\t,now()");
+            stringBuilder.AppendLine($"\t,{NpgsqlScopeInfoBuilder.TimestampValue}");
+            stringBuilder.AppendLine($")");
+            stringBuilder.AppendLine($"ON CONFLICT({stringBuilderArguments3.ToString()})");
+            stringBuilder.AppendLine($"DO UPDATE SET");
+            stringBuilder.AppendLine($"\tsync_row_is_tombstone = false");
+            stringBuilder.AppendLine($"\t,update_scope_id = NULL");
+            stringBuilder.AppendLine($"\t,last_change_datetime = now()");
+            stringBuilder.AppendLine($"\t,timestamp = {NpgsqlScopeInfoBuilder.TimestampValue};");
 
             return stringBuilder.ToString();
         }
@@ -516,9 +446,22 @@ namespace Dotmim.Sync.Postgres.Builders
                         command.Transaction = this.transaction;
 
                     var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-                    var createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
-                    createTrigger.AppendLine();
+                    var updTriggerParseName = ParserName.Parse(updTriggerName, "\"");
+
+                    var createTrigger = new StringBuilder();
+                    createTrigger.AppendLine($"CREATE OR REPLACE FUNCTION {updTriggerName}()");
+                    createTrigger.AppendLine($"RETURNS TRIGGER AS");
+                    createTrigger.AppendLine($"$BODY$");
+                    createTrigger.AppendLine($"BEGIN");
                     createTrigger.AppendLine(this.UpdateTriggerBodyText());
+                    createTrigger.AppendLine($"RETURN NULL;");
+                    createTrigger.AppendLine($"END;");
+                    createTrigger.AppendLine($"$BODY$");
+                    createTrigger.AppendLine($"lANGUAGE 'plpgsql';");
+                    createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {updTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
+                    createTrigger.AppendLine($"CREATE TRIGGER {updTriggerParseName.Quoted().ToString()} AFTER UPDATE ON {tableName.Schema().Quoted().ToString()}");
+                    createTrigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {updTriggerName}();");
+                    createTrigger.AppendLine($"");
 
                     command.CommandText = createTrigger.ToString();
                     command.Connection = this.connection;
