@@ -21,6 +21,11 @@ using Serilog;
 using Serilog.Events;
 using Npgsql;
 using Microsoft.Extensions.Configuration;
+using NpgsqlTypes;
+using Newtonsoft.Json;
+using System.Collections.Generic;
+using Dotmim.Sync.Postgres;
+using Dotmim.Sync.Postgres.Builders;
 
 internal class Program
 {
@@ -36,9 +41,99 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeWithFiltersAsync();
+        await TestPrimaryKeyLasPositionAsync();
     }
 
+    private static async Task TestPrimaryKeyLasPositionAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("clientX.db");
+
+        var setup = new SyncSetup(new string[] { "TestTable1", "TestTable2"});
+   
+        var options = new SyncOptions();
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var s = await agent.SynchronizeAsync();
+
+                // Write results
+                Console.WriteLine(s);
+            }
+            catch (Exception e)
+            {
+                //Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+
+    private static async Task TestInsertJsonArrayPostgreSqlAsync()
+    {
+        var connection = new NpgsqlConnection("Host=localhost;Database=Client;User ID=postgres;Password=azerty31*;");
+
+        var lstscopes = new List<scope>
+        {
+            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope1" },
+            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope2" },
+            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope3" },
+            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope4" },
+            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope5" },
+            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope6" }
+        };
+
+
+        var p = new NpgsqlParameter
+        {
+            ParameterName = "scopes",
+            NpgsqlDbType = NpgsqlDbType.Json,
+            NpgsqlValue = JsonConvert.SerializeObject(lstscopes)
+        };
+
+        try
+        {
+            using (var command = new NpgsqlCommand("fn_upsert_scope_info_json", connection))
+            {
+                command.Parameters.Add(p);
+                command.CommandType = CommandType.StoredProcedure;
+
+                await connection.OpenAsync().ConfigureAwait(false);
+
+                await command.ExecuteNonQueryAsync();
+
+
+
+                connection.Close();
+
+            }
+        }
+        catch (Exception ex)
+        {
+
+            throw;
+        }
+
+    }
 
 
 
@@ -55,7 +150,7 @@ internal class Program
         var schemaNameString = "public";
         var tableNameString = "actor";
 
-        var connection = new NpgsqlConnection("Host=localhost;Database=rental;User ID=postgres;Password=azerty31*;");
+        var connection = new NpgsqlConnection(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
 
         using (var command = new NpgsqlCommand(commandText, connection))
         {
@@ -563,7 +658,7 @@ internal class Program
         Console.WriteLine(s1);
     }
 
-     private static async Task SynchronizeWithFiltersAsync()
+    private static async Task SynchronizeWithFiltersAsync()
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
@@ -571,7 +666,7 @@ internal class Program
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
-  
+
         setup.Filters.Add("Customer", "CompanyName");
 
         var addressCustomerFilter = new SetupFilter("CustomerAddress");
@@ -675,7 +770,7 @@ internal class Program
         //var setup = new SyncSetup(new[] { "Customer" });
         //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
 
-   
+
         var options = new SyncOptions();
         options.BatchSize = 500;
 
@@ -811,7 +906,7 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
         var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
@@ -819,49 +914,10 @@ internal class Program
         //var setup = new SyncSetup(new[] { "Customer" });
         //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
 
-        setup.Filters.Add("Customer", "CompanyName");
-
-        var addressCustomerFilter = new SetupFilter("CustomerAddress");
-        addressCustomerFilter.AddParameter("CompanyName", "Customer");
-        addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(addressCustomerFilter);
-
-        var addressFilter = new SetupFilter("Address");
-        addressFilter.AddParameter("CompanyName", "Customer");
-        addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(addressFilter);
-
-        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        orderHeaderFilter.AddParameter("CompanyName", "Customer");
-        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(orderHeaderFilter);
-
-        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-        orderDetailsFilter.AddParameter("CompanyName", "Customer");
-        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
-        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(orderDetailsFilter);
-
-        // Add pref suf
-        //setup.StoredProceduresPrefix = "s";
-        //setup.StoredProceduresSuffix = "";
-        //setup.TrackingTablesPrefix = "t";
-        //setup.TrackingTablesSuffix = "";
 
         var options = new SyncOptions();
-        options.BatchSize = 500;
-
-
-
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -877,28 +933,47 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
-                // Launch the sync process
-                if (!agent.Parameters.Contains("CompanyName"))
-                    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+                var schema = await agent.RemoteOrchestrator.GetSchemaAsync();
 
-                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                // await agent.LocalOrchestrator.ProvisionAsync(schema, SyncProvision.ClientScope | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers);
 
-                // Get the server scope
-                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+                using (var c = clientProvider.CreateConnection())
+                {
+                    c.Open();
 
+                    var schemaTable = schema.Tables["Address"];
 
-                await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-                                                                     | SyncProvision.Triggers | SyncProvision.TrackingTable);
+                    NpgsqlTableBuilder tableBuilder = new NpgsqlTableBuilder(schemaTable, setup);
 
-                // Affect good values
-                serverScope.Setup = null;
-                serverScope.Schema = null;
+                    var procBuilder = tableBuilder.CreateProcBuilder(c);
 
-                // save the server scope
-                await agent.RemoteOrchestrator.WriteServerScopeAsync(serverScope);
+                    await procBuilder.CreateDeleteAsync();
+                    await procBuilder.CreateSelectRowAsync();
+
+                    Console.WriteLine($"Stored Proc for {schemaTable.GetFullName()} created.");
+
+                    c.Close();
+                }
+
+                //using (var c = clientProvider.CreateConnection())
+                //{
+                //    c.Open();
+                //    foreach (var schemaTable in schema.Tables)
+                //    {
+                //        NpgsqlTableBuilder tableBuilder = new NpgsqlTableBuilder(schemaTable, setup);
+
+                //        var procBuilder = tableBuilder.CreateProcBuilder(c);
+
+                //        await procBuilder.CreateDeleteAsync();
+                //        await procBuilder.CreateSelectRowAsync();
+
+                //        Console.WriteLine($"Stored Proc for {schemaTable.GetFullName()} created.");
+                //    }
+                //    c.Close();
+                //}
 
                 // Write results
-                Console.WriteLine(s1);
+                //Console.WriteLine(s1);
             }
             catch (Exception e)
             {
@@ -1152,10 +1227,10 @@ internal class Program
 
 
                 var serverSchema = await proxyClientProvider.GetSchemaAsync(default, progress);
-                
+
                 var serverScope = await proxyClientProvider.GetServerScopeAsync();
 
-                
+
 
                 // var s = await agent.SynchronizeAsync(progress);
 
@@ -1264,3 +1339,8 @@ internal class Program
 
 }
 
+internal class scope
+{
+    public Guid sync_scope_id { get; set; }
+    public string sync_scope_name { get; set; }
+}

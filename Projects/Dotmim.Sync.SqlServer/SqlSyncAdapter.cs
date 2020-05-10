@@ -275,12 +275,18 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     while (dataReader.Read())
                     {
-                        var itemArray = new object[dataReader.FieldCount];
+                        //var itemArray = new object[dataReader.FieldCount];
+                        var itemArray = new object[failedRows.Columns.Count];
                         for (var i = 0; i < dataReader.FieldCount; i++)
                         {
                             var columnValueObject = dataReader.GetValue(i);
+                            var columnName = dataReader.GetName(i);
+
                             var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-                            itemArray[i] = columnValue;
+
+                            var failedColumn = failedRows.Columns[columnName];
+                            var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
+                            itemArray[failedIndexColumn] = columnValue;
                         }
 
                         // don't care about row state 

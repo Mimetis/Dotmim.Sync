@@ -72,13 +72,13 @@ namespace Dotmim.Sync.Postgres.Builders
             var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
             var tableName = trackingName.Schema().Quoted().ToString();
 
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {tableName} (");
-            stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
-            stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
-            stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
+            stringBuilder.AppendLine($"CREATE INDEX {indexName}_timestamp_index ON {tableName} (");
+            stringBuilder.AppendLine($"\t  timestamp ASC");
+            stringBuilder.AppendLine($"\t, update_scope_id ASC");
+            stringBuilder.AppendLine($"\t, sync_row_is_tombstone ASC");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 stringBuilder.AppendLine($"\t,{columnName} ASC");
             }
             stringBuilder.Append(")");
@@ -122,13 +122,13 @@ namespace Dotmim.Sync.Postgres.Builders
         public string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT \"PK_{trackingName.Schema().Unquoted().Normalized().ToString()}\" PRIMARY KEY (");
 
             var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
             for (int i = 0; i < primaryKeysColumns.Count; i++)
             {
                 var pkColumn = primaryKeysColumns[i];
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 stringBuilder.Append(quotedColumnName);
 
                 if (i < primaryKeysColumns.Count - 1)
@@ -220,23 +220,21 @@ namespace Dotmim.Sync.Postgres.Builders
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
 
                 var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
                 var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-                var columnType = $"{quotedColumnType} {columnPrecisionString}";
+                var columnType = $"{columnTypeString} {columnPrecisionString}";
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
                 stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[update_scope_id] [uniqueidentifier] NULL, ");
-            stringBuilder.AppendLine($"[timestamp] [timestamp] NULL, ");
-            stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
-            stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
-            stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
+            stringBuilder.AppendLine($"update_scope_id uuid NULL, ");
+            stringBuilder.AppendLine($"timestamp bigint NULL, ");
+            stringBuilder.AppendLine($"sync_row_is_tombstone boolean NOT NULL default(false), ");
+            stringBuilder.AppendLine($"last_change_datetime timestamp NULL ");
 
             stringBuilder.Append(")");
             return stringBuilder.ToString();
@@ -298,7 +296,7 @@ namespace Dotmim.Sync.Postgres.Builders
             // then if necessary, move to another schema
             if (!string.Equals(oldSchemaNameString, schemaName, SyncGlobalization.DataSourceStringComparison))
             {
-                var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
+                var tmpName = $"{oldSchemaNameString}.{tableName}";
                 stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
             }
 

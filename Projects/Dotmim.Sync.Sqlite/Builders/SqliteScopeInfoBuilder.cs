@@ -199,7 +199,7 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                    long result = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false));
+                long result = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false));
 
                 return result;
             }

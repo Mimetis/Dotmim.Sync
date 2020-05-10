@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
 using Npgsql;
+using Dotmim.Sync.Postgres.Builders;
 
 namespace Dotmim.Sync.Postgres
 {
@@ -29,13 +30,13 @@ namespace Dotmim.Sync.Postgres
                            " ORDER BY table_schema, table_name " +
                            " LIMIT 1";
 
-            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
-            var tableNameString = ParserName.Parse(tableName).ToString();
+            var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName, "\"").ToString();
 
             var schemaNameString = "public";
             if (!string.IsNullOrEmpty(schemaName))
             {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = ParserName.Parse(schemaName, "\"").ToString();
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "public" : schemaNameString;
             }
 
@@ -73,13 +74,13 @@ namespace Dotmim.Sync.Postgres
                            "Where trigger_name = @triggerName and trigger_schema = @schemaName";
 
 
-            var triggerNameNormalized = ParserName.Parse(triggerName).Unquoted().Normalized().ToString();
-            var triggerNameString = ParserName.Parse(triggerName).ToString();
+            var triggerNameNormalized = ParserName.Parse(triggerName, "\"").Unquoted().Normalized().ToString();
+            var triggerNameString = ParserName.Parse(triggerName, "\"").ToString();
 
             var schemaNameString = "public";
             if (!string.IsNullOrEmpty(schemaName))
             {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = ParserName.Parse(schemaName, "\"").ToString();
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "public" : schemaNameString;
             }
 
@@ -129,13 +130,13 @@ namespace Dotmim.Sync.Postgres
                                 $"from information_schema.columns " +
                                 $"where table_name = @tableName and table_schema = @schemaName ";
 
-            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
-            var tableNameString = ParserName.Parse(tableName).ToString();
+            var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName, "\"").ToString();
 
             var schemaNameString = "public";
             if (!string.IsNullOrEmpty(schemaName))
             {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = ParserName.Parse(schemaName, "\"").ToString();
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "public" : schemaNameString;
             }
 
@@ -177,13 +178,13 @@ namespace Dotmim.Sync.Postgres
                                     AND tc.table_name = c.table_name AND ccu.column_name = c.column_name
                                   WHERE tc.constraint_type = 'PRIMARY KEY' and tc.table_name = @tableName and tc.table_schema=@schemaName;";
 
-            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
-            var tableNameString = ParserName.Parse(tableName).ToString();
+            var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName, "\"").ToString();
 
             var schemaNameString = "public";
             if (!string.IsNullOrEmpty(schemaName))
             {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
+                schemaNameString = ParserName.Parse(schemaName, "\"").ToString();
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "public" : schemaNameString;
             }
 
@@ -229,12 +230,12 @@ namespace Dotmim.Sync.Postgres
                 JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name  AND ccu.table_schema = tc.table_schema
                 WHERE tc.constraint_type = 'FOREIGN KEY' and tc.table_name = @tableName AND tc.table_schema = @schemaName";
 
-            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
-            var tableNameString = ParserName.Parse(tableName).ToString();
+            var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName, "\"").ToString();
 
-            var schemaNameString = ParserName.Parse(schemaName).ToString();
-            // default as dbo
-            schemaNameString = string.IsNullOrEmpty(schemaNameString) ? "dbo" : schemaNameString;
+            var schemaNameString = ParserName.Parse(schemaName, "\"").ToString();
+            // default as public
+            schemaNameString = string.IsNullOrEmpty(schemaNameString) ? "public" : schemaNameString;
 
             var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
 
@@ -267,7 +268,7 @@ namespace Dotmim.Sync.Postgres
 
         public static async Task DropTableIfExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, int commandTimeout, string quotedTableName)
         {
-            var tableName = ParserName.Parse(quotedTableName).ToString();
+            var tableName = ParserName.Parse(quotedTableName, "\"").ToString();
 
             using (var sqlCommand = new NpgsqlCommand(
                 string.Format(CultureInfo.InvariantCulture, "DROP TABLE IF EXISTS {0}", quotedTableName), connection))
@@ -290,12 +291,12 @@ namespace Dotmim.Sync.Postgres
             }
         }
 
-        public static async Task DropTriggerIfExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, int commandTimeout, 
+        public static async Task DropTriggerIfExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, int commandTimeout,
             string quotedTriggerName, string quotedTableName)
         {
-            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
+            var triggerName = ParserName.Parse(quotedTriggerName, "\"").ToString();
 
-            using (var sqlCommand = new NpgsqlCommand(string.Format(CultureInfo.InvariantCulture, 
+            using (var sqlCommand = new NpgsqlCommand(string.Format(CultureInfo.InvariantCulture,
                 "DROP TRIGGER IF EXISTS {0} ON TABLE {1}", quotedTriggerName, quotedTableName), connection))
             {
                 bool alreadyOpened = connection.State == ConnectionState.Open;
@@ -330,7 +331,7 @@ namespace Dotmim.Sync.Postgres
             return parser.SchemaName;
         }
 
-      
+
         public static async Task<(string DatabaseName, string EngineVersion)> GetHelloAsync(NpgsqlConnection connection, NpgsqlTransaction transaction)
         {
             string dbName = null;
@@ -408,15 +409,46 @@ namespace Dotmim.Sync.Postgres
         }
 
 
-        public static Task<bool> ProcedureExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string quotedProcedureName)
+        public static async Task<bool> ProcedureExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string quotedProcedureName)
         {
-            throw new NotImplementedException();
+            bool tableExist;
+
+            var proname = ParserName.Parse(quotedProcedureName, "\"").ObjectName;
+
+
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "select count(*) from pg_proc where proname = @proname;";
+
+                NpgsqlParameter sqlParameter = new NpgsqlParameter()
+                {
+                    ParameterName = "@proname",
+                    Value = proname
+                };
+                dbCommand.Parameters.Add(sqlParameter);
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                tableExist = (long)result != 0;
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return tableExist;
         }
 
         public static async Task<bool> TableExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string quotedTableName)
         {
             bool tableExist;
-            var tableName = ParserName.Parse(quotedTableName).ObjectName;
+            var tableName = ParserName.Parse(quotedTableName, "\"").ObjectName;
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
@@ -434,7 +466,7 @@ namespace Dotmim.Sync.Postgres
                 sqlParameter = new NpgsqlParameter()
                 {
                     ParameterName = "@schemaName",
-                    Value = GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName))
+                    Value = GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName, "\""))
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
@@ -495,7 +527,7 @@ namespace Dotmim.Sync.Postgres
         public static async Task<bool> TriggerExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
-            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
+            var triggerName = ParserName.Parse(quotedTriggerName, "\"").ToString();
 
             var commandText = "Select count(*) from Information_schema.triggers " +
                               "Where trigger_name = @triggerName and trigger_schema = @schemaName";
@@ -503,7 +535,7 @@ namespace Dotmim.Sync.Postgres
             using (var sqlCommand = new NpgsqlCommand(commandText, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", NpgsqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
+                sqlCommand.Parameters.AddWithValue("@schemaName", NpgsqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName, "\"")));
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -539,7 +571,7 @@ namespace Dotmim.Sync.Postgres
             string str = "";
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var quotedColumn = ParserName.Parse(column, "\"").Quoted().ToString();
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
@@ -560,14 +592,14 @@ namespace Dotmim.Sync.Postgres
             string str1 = "";
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
-                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+                var quotedColumn = ParserName.Parse(column, "\"").Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(column, "\"").Unquoted().Normalized().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{unquotedColumn}");
+                stringBuilder.Append($"\"{NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}{unquotedColumn}\"");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -580,10 +612,10 @@ namespace Dotmim.Sync.Postgres
             string strSeparator = "";
             foreach (var mutableColumn in table.GetMutableColumns(false))
             {
-                var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
-                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+                var quotedColumn = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(mutableColumn, "\"").Unquoted().Normalized().ToString();
 
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = \"{NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}{unquotedColumn}\"");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

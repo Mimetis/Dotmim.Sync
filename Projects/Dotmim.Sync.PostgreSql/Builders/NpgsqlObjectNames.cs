@@ -9,32 +9,32 @@ namespace Dotmim.Sync.Postgres.Builders
 {
     public class NpgsqlObjectNames
     {
-        internal const string insertTriggerName = "[{0}].[{1}_insert_trigger]";
-        internal const string updateTriggerName = "[{0}].[{1}_update_trigger]";
-        internal const string deleteTriggerName = "[{0}].[{1}_delete_trigger]";
+        internal const string insertTriggerName = "\"{0}\".\"{1}_insert_trigger\"";
+        internal const string updateTriggerName = "\"{0}\".\"{1}_update_trigger\"";
+        internal const string deleteTriggerName = "\"{0}\".\"{1}_delete_trigger\"";
 
-        internal const string selectChangesProcName = "[{0}].[{1}_changes]";
-        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_changes]";
+        internal const string selectChangesProcName = "\"{0}\".\"{1}_changes\"";
+        internal const string selectChangesProcNameWithFilters = "\"{0}\".\"{1}_{2}_changes\"";
 
-        internal const string initializeChangesProcName = "[{0}].[{1}_initialize]";
-        internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}_{2}_initialize]";
+        internal const string initializeChangesProcName = "\"{0}\".\"{1}_initialize\"";
+        internal const string initializeChangesProcNameWithFilters = "\"{0}\".\"{1}_{2}_initialize\"";
 
-        internal const string selectRowProcName = "[{0}].[{1}_selectrow]";
+        internal const string selectRowProcName = "\"{0}\".\"{1}_selectrow\"";
 
-        internal const string insertProcName = "[{0}].[{1}_insert]";
-        internal const string updateProcName = "[{0}].[{1}_update]";
-        internal const string deleteProcName = "[{0}].[{1}_delete]";
+        internal const string insertProcName = "\"{0}\".\"{1}_insert\"";
+        internal const string updateProcName = "\"{0}\".\"{1}_update\"";
+        internal const string deleteProcName = "\"{0}\".\"{1}_delete\"";
 
-        internal const string insertMetadataProcName = "[{0}].[{1}_insertmetadata]";
-        internal const string updateMetadataProcName = "[{0}].[{1}_updatemetadata]";
-        internal const string deleteMetadataProcName = "[{0}].[{1}_deletemetadata]";
+        internal const string insertMetadataProcName = "\"{0}\".\"{1}_insertmetadata\"";
+        internal const string updateMetadataProcName = "\"{0}\".\"{1}_updatemetadata\"";
+        internal const string deleteMetadataProcName = "\"{0}\".\"{1}_deletemetadata\"";
 
-        internal const string resetMetadataProcName = "[{0}].[{1}_reset]";
+        internal const string resetMetadataProcName = "\"{0}\".\"{1}_reset\"";
 
-        internal const string bulkTableTypeName = "[{0}].[{1}_BulkType]";
-        internal const string bulkInsertProcName = "[{0}].[{1}_bulkinsert]";
-        internal const string bulkUpdateProcName = "[{0}].[{1}_bulkupdate]";
-        internal const string bulkDeleteProcName = "[{0}].[{1}_bulkdelete]";
+        internal const string bulkTableTypeName = "\"{0}\".\"{1}_BulkType\"";
+        internal const string bulkInsertProcName = "\"{0}\".\"{1}_bulkinsert\"";
+        internal const string bulkUpdateProcName = "\"{0}\".\"{1}_bulkupdate\"";
+        internal const string bulkDeleteProcName = "\"{0}\".\"{1}_bulkdelete\"";
 
         internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
         internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
@@ -86,7 +86,7 @@ namespace Dotmim.Sync.Postgres.Builders
 
             var tableName = ParserName.Parse(TableDescription);
 
-            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
+            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "public" : tableName.SchemaName;
 
             this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);

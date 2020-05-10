@@ -14,6 +14,9 @@ namespace Dotmim.Sync.Postgres.Scope
 {
     public class NpgsqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
+
+        public const string TimestampValue = "to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint";
+
         protected readonly ParserName scopeTableName;
         protected readonly NpgsqlConnection connection;
         protected readonly NpgsqlTransaction transaction;
@@ -39,7 +42,7 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 command.CommandText =
                     $@"
-                      CREATE TABLE public.{scopeTableName.Quoted().ToString()}(
+                      CREATE TABLE IF NOT EXISTS public.{scopeTableName.Quoted().ToString()}(
                         sync_scope_id uuid NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    sync_scope_schema varchar NULL,
@@ -80,7 +83,7 @@ namespace Dotmim.Sync.Postgres.Scope
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                command.CommandText = $@"DROP Table ""public"".{scopeTableName.Quoted().ToString()}";
+                command.CommandText = $@"DROP Table public.{scopeTableName.Quoted().ToString()}";
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -114,13 +117,13 @@ namespace Dotmim.Sync.Postgres.Scope
                 var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
                 command.CommandText =
-                    $@"CREATE TABLE ""public"".""{tableName}""(
-                        ""sync_scope_id"" ""uniqueidentifier"" NOT NULL,
-	                    ""sync_scope_name"" ""nvarchar""(100) NOT NULL,
-                        ""scope_last_sync_timestamp"" ""bigint"" NULL,
-                        ""scope_last_sync_duration"" ""bigint"" NULL,
-                        ""scope_last_sync"" ""datetime"" NULL
-                        CONSTRAINT ""PK_{tableName}"" PRIMARY KEY CLUSTERED (""sync_scope_id"" ASC)
+                    $@"CREATE TABLE public.""{tableName}""(
+                        sync_scope_id uniqueidentifier NOT NULL,
+	                    sync_scope_name nvarchar(100) NOT NULL,
+                        scope_last_sync_timestamp bigint NULL,
+                        scope_last_sync_duration bigint NULL,
+                        scope_last_sync datetime NULL
+                        CONSTRAINT PK_{tableName} PRIMARY KEY CLUSTERED (sync_scope_id ASC)
                         )";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -153,7 +156,7 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
-                command.CommandText = $@"DROP Table ""public"".""{tableName}""";
+                command.CommandText = $@"DROP Table public.""{tableName}""";
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -187,13 +190,13 @@ namespace Dotmim.Sync.Postgres.Scope
                 var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
                 command.CommandText =
-                    $@"CREATE TABLE ""public"".""{tableName}"" (
-	                    ""sync_scope_name"" ""nvarchar""(100) NOT NULL,
-	                    ""sync_scope_schema"" ""nvarchar""(max) NULL,
-	                    ""sync_scope_setup"" ""nvarchar""(max) NULL,
-	                    ""sync_scope_version"" ""nvarchar""(10) NULL,
-                        ""sync_scope_last_clean_timestamp"" ""bigint"" NULL,
-                        CONSTRAINT ""PK_{scopeTableName.Unquoted().Normalized().ToString()}_server"" PRIMARY KEY CLUSTERED (""sync_scope_name"" ASC)
+                    $@"CREATE TABLE public.""{tableName}"" (
+	                    sync_scope_name nvarchar(100) NOT NULL,
+	                    sync_scope_schema nvarchar(max) NULL,
+	                    sync_scope_setup nvarchar(max) NULL,
+	                    sync_scope_version nvarchar(10) NULL,
+                        sync_scope_last_clean_timestamp bigint NULL,
+                        CONSTRAINT PK_{scopeTableName.Unquoted().Normalized().ToString()}_server PRIMARY KEY CLUSTERED (sync_scope_name ASC)
                         )";
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -226,7 +229,7 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
-                command.CommandText = $@"DROP Table ""public"".""{tableName}""";
+                command.CommandText = $@"DROP Table public.""{tableName}""";
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
@@ -321,31 +324,22 @@ namespace Dotmim.Sync.Postgres.Scope
         {
             using (var command = connection.CreateCommand())
             {
+                long result = 0;
+
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (transaction != null)
                     command.Transaction = transaction;
 
-                // UPDATE Nov 2019 : We don't use min_active_rowversion anymore, since we are in a transaction
-                // and we still need the last row version, so check back to @@DBTS
-                command.CommandText = "SELECT @sync_new_timestamp = @@DBTS";
-                DbParameter p = command.CreateParameter();
-                p.ParameterName = "@sync_new_timestamp";
-                p.DbType = DbType.Int64;
-                p.Direction = ParameterDirection.Output;
-                command.Parameters.Add(p);
+                command.CommandText = $"SELECT {NpgsqlScopeInfoBuilder.TimestampValue}";
 
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                var outputParameter = DbTableManagerFactory.GetParameter(command, "sync_new_timestamp");
-
-                if (outputParameter == null)
-                    return 0L;
-
-                long.TryParse(outputParameter.Value.ToString(), out long result);
+                result = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false));
 
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
@@ -367,9 +361,8 @@ namespace Dotmim.Sync.Postgres.Scope
                     await connection.OpenAsync().ConfigureAwait(false);
 
                 command.CommandText = $@"
-                    MERGE INTO {scopeTableName.Quoted().ToString()} AS base 
-                    USING (
-                               SELECT  @sync_scope_id AS sync_scope_id,  
+
+                    WITH base AS (SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_schema AS sync_scope_schema,  
 	                                   @sync_scope_setup AS sync_scope_setup,  
@@ -377,30 +370,22 @@ namespace Dotmim.Sync.Postgres.Scope
                                        @scope_last_sync AS scope_last_sync,
                                        @scope_last_sync_timestamp AS scope_last_sync_timestamp,
                                        @scope_last_server_sync_timestamp AS scope_last_server_sync_timestamp,
-                                       @scope_last_sync_duration AS scope_last_sync_duration
-                           ) AS changes 
-                    ON base.sync_scope_id = changes.sync_scope_id
-                    WHEN NOT MATCHED THEN
-	                    INSERT (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_id, scope_last_sync, scope_last_sync_timestamp,           scope_last_server_sync_timestamp,           scope_last_sync_duration)
-	                    VALUES (changes.sync_scope_name, changes.sync_scope_schema, changes.sync_scope_setup, changes.sync_scope_version, changes.sync_scope_id, changes.scope_last_sync,  changes.scope_last_sync_timestamp, changes.scope_last_server_sync_timestamp, changes.scope_last_sync_duration)
-                    WHEN MATCHED THEN
-	                    UPDATE SET sync_scope_name = changes.sync_scope_name, 
-                                   sync_scope_schema = changes.sync_scope_schema, 
-                                   sync_scope_setup = changes.sync_scope_setup, 
-                                   sync_scope_version = changes.sync_scope_version, 
-                                   scope_last_sync = changes.scope_last_sync,
-                                   scope_last_sync_timestamp = changes.scope_last_sync_timestamp,
-                                   scope_last_server_sync_timestamp = changes.scope_last_server_sync_timestamp,
-                                   scope_last_sync_duration = changes.scope_last_sync_duration
-                    OUTPUT  INSERTED.sync_scope_name, 
-                            INSERTED.sync_scope_schema, 
-                            INSERTED.sync_scope_setup, 
-                            INSERTED.sync_scope_version, 
-                            INSERTED.sync_scope_id, 
-                            INSERTED.scope_last_sync,
-                            INSERTED.scope_last_sync_timestamp,
-                            INSERTED.scope_last_server_sync_timestamp,
-                            INSERTED.scope_last_sync_duration;
+                                       @scope_last_sync_duration AS scope_last_sync_duration)
+                    INSERT INTO public.{scopeTableName.Quoted().ToString()} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_id, scope_last_sync, scope_last_sync_timestamp, scope_last_server_sync_timestamp, scope_last_sync_duration)
+	                SELECT changes.sync_scope_name, changes.sync_scope_schema, changes.sync_scope_setup, changes.sync_scope_version, changes.sync_scope_id, changes.scope_last_sync,  changes.scope_last_sync_timestamp, changes.scope_last_server_sync_timestamp, changes.scope_last_sync_duration
+                    FROM base
+ 	                ON CONFLICT(sync_scope_id)
+	                DO UPDATE SET sync_scope_name = EXCLUDED.sync_scope_name, 
+                                   sync_scope_schema = EXCLUDED.sync_scope_schema, 
+                                   sync_scope_setup = EXCLUDED.sync_scope_setup, 
+                                   sync_scope_version = EXCLUDED.sync_scope_version, 
+                                   scope_last_sync = EXCLUDED.scope_last_sync,
+                                   scope_last_sync_timestamp = EXCLUDED.scope_last_sync_timestamp,
+                                   scope_last_server_sync_timestamp = EXCLUDED.scope_last_server_sync_timestamp,
+                                   scope_last_sync_duration = EXCLUDED.scope_last_sync_duration
+                    RETURNING *;
+
+
                 ";
 
                 var p = command.CreateParameter();

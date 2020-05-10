@@ -33,6 +33,10 @@ namespace Dotmim.Sync.SampleConsole
             string.Format(configuration.GetSection("ConnectionStrings")["MySqlConnection"], dbName);
 
 
+        public static string GetNpgsqlDatabaseConnectionString(string dbName) =>
+            string.Format(configuration.GetSection("ConnectionStrings")["NpgsqlConnection"], dbName);
+
+
 
         /// <summary>
         /// create a server database with datas and an empty client database
