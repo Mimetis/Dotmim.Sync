@@ -339,7 +339,7 @@ namespace Dotmim.Sync.MySql
             return procExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<string> pkeys, string leftName, string rightName)
+        internal static string JoinTwoTablesOnClause(IEnumerable<SyncColumn> pkeys, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
@@ -362,7 +362,7 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        internal static string ColumnsAndParameters(IEnumerable<string> pkeys, string fromPrefix)
+        internal static string ColumnsAndParameters(IEnumerable<SyncColumn> pkeys, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
@@ -381,7 +381,7 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<string> primaryKeys, string fromPrefix)
+        internal static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));

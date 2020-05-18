@@ -183,7 +183,7 @@ namespace Dotmim.Sync.SqlServer
                                   inner join sys.tables tbl on tbl.object_id = ind.object_id
                                   inner join sys.schemas as sch on tbl.schema_id = sch.schema_id
                                   where tbl.name = @tableName and sch.name = @schemaName and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
-                                  order by ind.index_id, ind_col.key_ordinal";
+                                  order by ind_col.column_id";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();

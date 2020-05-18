@@ -228,42 +228,36 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("--Select all ids not inserted / deleted / updated as conflict");
             stringBuilder.Append("SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-
-                stringBuilder.Append($"{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{cc}");
+                pkeyComma = " ,";
             }
 
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine($"FROM @changeTable [t]");
             stringBuilder.AppendLine("WHERE NOT EXISTS (");
             stringBuilder.Append("\t SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i])
-                                   .Quoted().ToString();
 
-                stringBuilder.Append($"{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{cc}");
+                pkeyComma = " ,";
             }
+
             stringBuilder.AppendLine("\t FROM @dms_changed [i]");
             stringBuilder.Append("\t WHERE ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i])
-                                .Quoted().ToString();
-                stringBuilder.Append($"[t].{cc} = [i].{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append("AND ");
-                else
-                    stringBuilder.AppendLine();
+                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}[t].{cc} = [i].{cc}");
+                pkeyComma = " AND ";
             }
             stringBuilder.AppendLine("\t)");
             return stringBuilder.ToString();
@@ -449,13 +443,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{columnName} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            string pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
@@ -528,15 +524,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
             stringBuilder.Append($"\tOUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"INSERTED.{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                pkeyComma = ", ";
             }
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\tINTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
@@ -726,21 +722,23 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{columnName} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
             stringBuilder.Append($"OUTPUT ");
             string comma = "";
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
                 stringBuilder.Append($"{comma}DELETED.{columnName}");
                 comma = ", ";
             }
@@ -892,7 +890,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             var stringBuilder1 = new StringBuilder();
             string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
@@ -913,7 +911,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
 
             string str = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
@@ -992,7 +990,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             //stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
             stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
             str = "";
-            foreach (var c in this.tableDescription.PrimaryKeys)
+            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
                 stringBuilder.Append($"{str}{columnName} ASC");
@@ -1119,13 +1117,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{columnName} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
@@ -1208,15 +1208,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.Append($"OUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"INSERTED.{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                pkeyComma = ", ";
             }
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine($"INTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
@@ -1507,7 +1507,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             // Add all columns
             // ----------------------------------
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[side].{columnName}, ");
@@ -1529,7 +1529,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
 
             string empty = "";
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");

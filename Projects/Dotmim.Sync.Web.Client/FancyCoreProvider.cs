@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Web.Client
 
         public override bool SupportBulkOperations => throw new NotImplementedException();
 
-        public override bool CanBeServerProvider => throw new NotImplementedException();
+        public override bool CanBeServerProvider => true;
 
         public override DbConnection CreateConnection() => throw new NotImplementedException();
 

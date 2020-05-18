@@ -240,7 +240,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
 
             stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
+            stringBuilder.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "new"));
 
             if (this.tableDescription.GetMutableColumns().Count() > 0)
             {

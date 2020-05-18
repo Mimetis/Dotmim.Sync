@@ -28,6 +28,8 @@ namespace Dotmim.Sync
         public RemoteOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
            : base(provider, options, setup, scopeName)
         {
+            if (!this.Provider.CanBeServerProvider)
+                throw new UnsupportedServerProviderException(this.Provider.ProviderTypeName);
         }
 
 
