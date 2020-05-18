@@ -317,6 +317,17 @@ namespace Dotmim.Sync
     }
 
 
+    /// <summary>
+    /// Occurs when a provider not supported as a server provider is used with a RemoteOrchestrator.
+    /// </summary>
+    public class UnsupportedServerProviderException : Exception
+    {
+        const string message = "The provider {0} can not be used as a server provider";
+
+        public UnsupportedServerProviderException(string provider) : base(string.Format(message, provider)) { }
+    }
+
+
 
     /// <summary>
     /// Occurs when sync metadatas are out of date

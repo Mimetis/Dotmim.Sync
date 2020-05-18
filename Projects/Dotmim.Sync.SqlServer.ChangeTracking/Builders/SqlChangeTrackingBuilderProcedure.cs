@@ -80,14 +80,14 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"{ParserName.Parse(c).Quoted().ToString()} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{cc}");
-
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
@@ -113,15 +113,15 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
             stringBuilder.Append($"OUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"DELETED.{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}DELETED.{columnName}");
+                pkeyComma = ", ";
             }
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine($"INTO @dms_changed ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"JOIN {trackingName.Quoted().ToString()} [changes] ON {str5}");
@@ -176,13 +176,14 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"{columnName} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
@@ -252,15 +253,15 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
             stringBuilder.AppendLine();
             stringBuilder.Append($"OUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"INSERTED.{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                pkeyComma = ", ";
             }
+
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\tINTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
@@ -372,7 +373,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             string empty = string.Empty;
             string comma = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
@@ -582,7 +583,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($";WITH ");
             stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
             stringBuilder.Append($"\tSELECT ");
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append($"[CT].{columnName}, ");
@@ -595,7 +596,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"\t)");
 
             stringBuilder.AppendLine("SELECT DISTINCT");
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[side].{columnName}, ");
@@ -612,7 +613,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append($"ON ");
 
             string empty = "";
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");

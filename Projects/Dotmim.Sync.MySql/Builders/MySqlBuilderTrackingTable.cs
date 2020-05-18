@@ -100,15 +100,16 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"`last_change_datetime` DATETIME NULL, ");
 
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+
+            var comma = "";
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var pkColumn = this.tableDescription.PrimaryKeys[i];
                 var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
+                stringBuilder.Append(comma);
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
+                comma = ", ";
             }
             stringBuilder.Append("))");
 

@@ -41,16 +41,16 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await TestPrimaryKeyLasPositionAsync();
+        await TestAsync();
     }
 
-    private static async Task TestPrimaryKeyLasPositionAsync()
+    private static async Task TestAsync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("clientX.db");
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("clientX23.db");
 
-        var setup = new SyncSetup(new string[] { "TestTable1", "TestTable2"});
+        var setup = new SyncSetup(new string[] { "NewsClient", "NewsClientLanguages" });
    
         var options = new SyncOptions();
         // Creating an agent that will handle all the process

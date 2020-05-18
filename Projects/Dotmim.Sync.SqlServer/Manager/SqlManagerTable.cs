@@ -151,7 +151,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             foreach (var dmKey in syncTableKeys.Rows)
             {
                 var keyColumn = SyncColumn.Create<string>((string)dmKey["columnName"]);
-                keyColumn.Ordinal = Convert.ToInt32(dmKey["key_ordinal"]);
+                keyColumn.Ordinal = Convert.ToInt32(dmKey["column_id"]);
                 lstKeys.Add(keyColumn);
             }
 
