@@ -375,7 +375,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{pkey}");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -394,7 +394,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{column}");
+                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
