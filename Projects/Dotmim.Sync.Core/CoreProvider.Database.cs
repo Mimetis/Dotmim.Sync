@@ -175,5 +175,39 @@ namespace Dotmim.Sync
                 this.Orchestrator.logger.LogDebug(SyncEventsId.AddFilter, builder.Filter);
             }
         }
+
+
+        public virtual async Task<SyncContext> UpdateUntrackedRowsAsync(SyncContext context, SyncSet schema, SyncSetup setup,
+                                                 DbConnection connection, DbTransaction transaction,
+                                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            if (schema.Tables == null || !schema.HasTables)
+                throw new MissingTablesException();
+
+            //this.Orchestrator.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName });
+
+            foreach (var syncTable in schema.Tables)
+            {
+                var tableBuilder = this.GetTableBuilder(syncTable, setup);
+                var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
+
+
+                // Get correct Select incremental changes command 
+                var updateUntrackedRowsCommand = syncAdapter.GetCommand(DbCommandType.UpdateUntrackedRows);
+
+                if (updateUntrackedRowsCommand == null)
+                    throw new MissingCommandException(DbCommandType.UpdateUntrackedRows.ToString());
+
+                // Add common parameters
+                await syncAdapter.SetCommandParametersAsync(DbCommandType.UpdateUntrackedRows, updateUntrackedRowsCommand);
+
+                // Execute
+                await updateUntrackedRowsCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            }
+
+
+            return context;
+        }
     }
 }

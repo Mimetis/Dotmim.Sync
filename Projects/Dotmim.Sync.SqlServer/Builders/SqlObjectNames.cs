@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -38,6 +39,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
         internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
+        private readonly ParserName tableName;
+        private readonly ParserName trackingName;
+
         //internal const string disableConstraintsText = "sp_msforeachtable";
         //internal const string enableConstraintsText = "sp_msforeachtable";
 
@@ -67,9 +71,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             return (commandName, isStoredProc);
         }
 
-        public SqlObjectNames(SyncTable tableDescription, SyncSetup setup)
+        public SqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.Setup = setup;
             SetDefaultNames();
         }
@@ -111,6 +117,48 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
             this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
+
+            this.AddName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand(), false);
+        }
+
+        private string CreateUpdateUntrackedRowsCommand()
+        {
+            var stringBuilder = new StringBuilder();
+            var str1 = new StringBuilder();
+            var str2 = new StringBuilder();
+            var str3 = new StringBuilder();
+            var str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[base]");
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+
+
+            var comma = "";
+            foreach(var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
+
+                str1.Append($"{comma}{pkeyColumnName}");
+                str2.Append($"{comma}[base].{pkeyColumnName}");
+                str3.Append($"{comma}[side].{pkeyColumnName}");
+
+                comma = ", ";
+            }
+            stringBuilder.Append(str1.ToString());
+            stringBuilder.AppendLine($", [update_scope_id], [sync_row_is_tombstone], [last_change_datetime]");
+            stringBuilder.AppendLine($")");
+            stringBuilder.Append($"SELECT ");
+            stringBuilder.Append(str2.ToString());
+            stringBuilder.AppendLine($", NULL, 0, GetUtcDate()");
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as [base] WHERE NOT EXISTS");
+            stringBuilder.Append($"(SELECT ");
+            stringBuilder.Append(str3.ToString());
+            stringBuilder.AppendLine($" FROM {trackingName.Schema().Quoted().ToString()} as [side] ");
+            stringBuilder.AppendLine($"WHERE {str4})");
+
+            var r = stringBuilder.ToString();
+
+            return r;
+
         }
 
     }

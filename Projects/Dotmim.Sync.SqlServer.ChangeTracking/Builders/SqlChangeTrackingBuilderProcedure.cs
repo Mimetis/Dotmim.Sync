@@ -36,7 +36,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, this.setup);
+            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 

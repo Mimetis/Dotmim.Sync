@@ -195,8 +195,8 @@ namespace Dotmim.Sync.Tests
                 GC.WaitForPendingFinalizers();
                 filePath = GetSqliteFilePath(dbName);
 
-                if (File.Exists(dbName))
-                    File.Delete(dbName);
+                if (File.Exists(filePath))
+                    File.Delete(filePath);
 
             }
             catch (Exception)

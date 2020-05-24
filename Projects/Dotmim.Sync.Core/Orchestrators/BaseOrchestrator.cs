@@ -580,5 +580,60 @@ namespace Dotmim.Sync
 
             return isOutdated;
         }
+
+
+        /// <summary>
+        /// Get the last timestamp from the orchestrator database
+        /// </summary>
+        public virtual async Task<long> GetLocalTimestampAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+            
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            long timestamp = 0;
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        timestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+
+                this.logger.LogInformation(SyncEventsId.GetLocalTimestamp, new { connection.Database, timestamp });
+
+                return timestamp;
+            }
+
+            
+        }
+
     }
 }

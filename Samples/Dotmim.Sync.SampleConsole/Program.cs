@@ -26,6 +26,8 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using Dotmim.Sync.Postgres;
 using Dotmim.Sync.Postgres.Builders;
+using Dotmim.Sync.MySql;
+using MySql.Data.MySqlClient;
 
 internal class Program
 {
@@ -41,18 +43,253 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await TestAsync();
+        // Create Sqlite database and table
+        CreateSqliteDatabaseAndTable("Scenario01", "Customer");
+
+        // Create MySql database and table
+        CreateMySqlDatabase("Scenario01");
+        CreateMySqlTable("Scenario01", "Customer");
+
+        // Add one record in sqlite
+        AddSqliteRecord("Scenario01", "Customer");
+
+        // sync with a client database with rows, before sync is enabled, and who needs to be sent to server anyway
+        await TestClientHasRowsToSyncAnywayAsync("Scenario01", "Scenario01", "Customer");
+
+        //await SynchronizeWithFiltersAsync();
+
     }
 
-    private static async Task TestAsync()
+    private static void CreateSqliteDatabaseAndTable(string fileName, string tableName)
     {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("clientX23.db");
 
-        var setup = new SyncSetup(new string[] { "NewsClient", "NewsClientLanguages" });
-   
-        var options = new SyncOptions();
+        // Delete sqlite database
+        string filePath = null;
+        try
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            filePath = Path.Combine(Directory.GetCurrentDirectory(), $"{fileName}.db");
+
+            if (File.Exists(filePath))
+                File.Delete(filePath);
+
+        }
+        catch (Exception)
+        {
+        }
+
+
+
+        var builder = new SqliteConnectionStringBuilder();
+        builder.DataSource = $"{fileName}.db";
+
+        if (!File.Exists(fileName))
+        {
+            string sql = $"CREATE TABLE [{tableName}] (" +
+                        " [ID] text NOT NULL UNIQUE" +
+                        ",[F1] integer NULL" +
+                        ",[F2] text NOT NULL COLLATE NOCASE" +
+                        ",[F3] text NULL COLLATE NOCASE" +
+                        ", PRIMARY KEY([ID]))";
+
+            using (SqliteConnection dBase = new SqliteConnection(builder.ConnectionString))
+            {
+                try
+                {
+                    dBase.Open();
+                    SqliteCommand cmd = new SqliteCommand(sql, dBase);
+                    cmd.ExecuteNonQuery();
+                    dBase.Close();
+                    Console.WriteLine("Database created: " + fileName);
+                }
+                catch (SqliteException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            }
+        }
+
+    }
+    private static void CreateMySqlDatabase(string databaseName)
+    {
+
+        var sysBuilder = new MySqlConnectionStringBuilder();
+
+        sysBuilder.Database = "sys";
+        sysBuilder.Port = 3307;
+        sysBuilder.UserID = "root";
+        sysBuilder.Password = "Password12!";
+
+        string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
+
+        using (var mySqlConnection = new MySqlConnection(sysBuilder.ConnectionString))
+        {
+            try
+            {
+                var cmd = new MySqlCommand(sqlDB, mySqlConnection);
+
+                mySqlConnection.Open();
+                cmd.ExecuteNonQuery();
+                mySqlConnection.Close();
+
+                Console.WriteLine("Database created: " + databaseName);
+            }
+            catch (SqliteException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+    }
+    private static void CreateMySqlTable(string databaseName, string tableName)
+    {
+
+        var builder = new MySqlConnectionStringBuilder();
+
+        builder.Database = databaseName;
+        builder.Port = 3307;
+        builder.UserID = "root";
+        builder.Password = "Password12!";
+
+
+        string sql = $"CREATE TABLE `{tableName}` (" +
+            " `ID` char(36) NOT NULL " +
+            ",`F1` int NULL" +
+            ",`F2` longtext NOT NULL" +
+            ",`F3` longtext NULL" +
+            ", PRIMARY KEY(`ID`))";
+
+        using (var mySqlConnection = new MySqlConnection(builder.ConnectionString))
+        {
+            try
+            {
+                var cmd = new MySqlCommand(sql, mySqlConnection);
+
+                mySqlConnection.Open();
+                cmd.ExecuteNonQuery();
+                mySqlConnection.Close();
+
+                Console.WriteLine("Table created.");
+            }
+            catch (SqliteException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+    }
+
+    private static void AddSqliteRecord(string fileName, string tableName)
+    {
+
+        var builder = new SqliteConnectionStringBuilder();
+        builder.DataSource = $"{fileName}.db";
+
+        string sql = $"INSERT INTO [{tableName}] (ID,F1,F2,F3) VALUES ( @ID, 1, '1stItem', '1111111')";
+
+        using (SqliteConnection dBase = new SqliteConnection(builder.ConnectionString))
+        {
+            try
+            {
+                SqliteCommand cmd = new SqliteCommand(sql, dBase);
+                var parameter = new SqliteParameter("@ID", Guid.NewGuid());
+                cmd.Parameters.Add(parameter);
+
+
+                dBase.Open();
+                cmd.ExecuteNonQuery();
+                dBase.Close();
+                Console.WriteLine("Record added into table " + tableName);
+            }
+            catch (SqliteException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+    }
+
+    private static async Task TestClientHasRowsToSyncAnywayAsync(string mySqlDatabaseName, string sqliteFileName, string tableName)
+    {
+        var builder = new MySqlConnectionStringBuilder();
+
+        builder.Database = mySqlDatabaseName;
+        builder.Port = 3307;
+        builder.UserID = "root";
+        builder.Password = "Password12!";
+
+        var serverProvider = new MySqlSyncProvider(builder.ConnectionString);
+
+        var sqlitebuilder = new SqliteConnectionStringBuilder();
+        sqlitebuilder.DataSource = $"{sqliteFileName}.db";
+
+        var clientProvider = new SqliteSyncProvider(sqlitebuilder.ConnectionString);
+
+        var setup = new SyncSetup(new string[] { tableName });
+
+        var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+
+                var s = await agent.SynchronizeAsync();
+                Console.WriteLine(s);
+
+                var schema = await agent.LocalOrchestrator.GetSchemaAsync();
+
+                await agent.LocalOrchestrator.UpdateUntrackedRowsAsync(schema);
+
+                s = await agent.SynchronizeAsync();
+                Console.WriteLine(s);
+            }
+            catch (Exception e)
+            {
+                //Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+
+    private static async Task TestAsync(string mySqlDatabaseName, string sqliteFileName, string tableName)
+    {
+        var builder = new MySqlConnectionStringBuilder();
+
+        builder.Database = mySqlDatabaseName;
+        builder.Port = 3307;
+        builder.UserID = "root";
+        builder.Password = "Password12!";
+
+        var serverProvider = new MySqlSyncProvider(builder.ConnectionString);
+
+        var sqlitebuilder = new SqliteConnectionStringBuilder();
+        sqlitebuilder.DataSource = $"{sqliteFileName}.db";
+
+        var clientProvider = new SqliteSyncProvider(sqlitebuilder.ConnectionString);
+
+        var setup = new SyncSetup(new string[] { tableName });
+
+        var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
+
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
@@ -730,20 +967,6 @@ internal class Program
 
                 // Write results
                 Console.WriteLine(s1);
-
-                // Get the server scope
-                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
-
-
-                await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-                                                                     | SyncProvision.Triggers | SyncProvision.TrackingTable);
-
-                // Affect good values
-                serverScope.Setup = null;
-                serverScope.Schema = null;
-
-                // save the server scope
-                await agent.RemoteOrchestrator.WriteServerScopeAsync(serverScope);
 
             }
             catch (Exception e)

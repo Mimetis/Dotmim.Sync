@@ -40,7 +40,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             this.transaction = transaction as SqlTransaction;
 
-            this.sqlObjectNames = new SqlObjectNames(tableDescription, setup);
+            this.sqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup) ;
             this.sqlMetadata = new SqlDbMetadata();
         }
 
@@ -311,23 +311,23 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        private static TypeConverter Int16Converter = TypeDescriptor.GetConverter(typeof(short));
-        private static TypeConverter Int32Converter = TypeDescriptor.GetConverter(typeof(int));
-        private static TypeConverter Int64Converter = TypeDescriptor.GetConverter(typeof(long));
-        private static TypeConverter UInt16Converter = TypeDescriptor.GetConverter(typeof(ushort));
-        private static TypeConverter UInt32Converter = TypeDescriptor.GetConverter(typeof(uint));
-        private static TypeConverter UInt64Converter = TypeDescriptor.GetConverter(typeof(ulong));
-        private static TypeConverter DateTimeConverter = TypeDescriptor.GetConverter(typeof(DateTime));
-        private static TypeConverter StringConverter = TypeDescriptor.GetConverter(typeof(string));
-        private static TypeConverter ByteConverter = TypeDescriptor.GetConverter(typeof(byte));
-        private static TypeConverter BoolConverter = TypeDescriptor.GetConverter(typeof(bool));
-        private static TypeConverter GuidConverter = TypeDescriptor.GetConverter(typeof(Guid));
-        private static TypeConverter CharConverter = TypeDescriptor.GetConverter(typeof(char));
-        private static TypeConverter DecimalConverter = TypeDescriptor.GetConverter(typeof(decimal));
-        private static TypeConverter DoubleConverter = TypeDescriptor.GetConverter(typeof(double));
-        private static TypeConverter FloatConverter = TypeDescriptor.GetConverter(typeof(float));
-        private static TypeConverter SByteConverter = TypeDescriptor.GetConverter(typeof(sbyte));
-        private static TypeConverter TimeSpanConverter = TypeDescriptor.GetConverter(typeof(TimeSpan));
+        //private static TypeConverter Int16Converter = TypeDescriptor.GetConverter(typeof(short));
+        //private static TypeConverter Int32Converter = TypeDescriptor.GetConverter(typeof(int));
+        //private static TypeConverter Int64Converter = TypeDescriptor.GetConverter(typeof(long));
+        //private static TypeConverter UInt16Converter = TypeDescriptor.GetConverter(typeof(ushort));
+        //private static TypeConverter UInt32Converter = TypeDescriptor.GetConverter(typeof(uint));
+        //private static TypeConverter UInt64Converter = TypeDescriptor.GetConverter(typeof(ulong));
+        //private static TypeConverter DateTimeConverter = TypeDescriptor.GetConverter(typeof(DateTime));
+        //private static TypeConverter StringConverter = TypeDescriptor.GetConverter(typeof(string));
+        //private static TypeConverter ByteConverter = TypeDescriptor.GetConverter(typeof(byte));
+        //private static TypeConverter BoolConverter = TypeDescriptor.GetConverter(typeof(bool));
+        //private static TypeConverter GuidConverter = TypeDescriptor.GetConverter(typeof(Guid));
+        //private static TypeConverter CharConverter = TypeDescriptor.GetConverter(typeof(char));
+        //private static TypeConverter DecimalConverter = TypeDescriptor.GetConverter(typeof(decimal));
+        //private static TypeConverter DoubleConverter = TypeDescriptor.GetConverter(typeof(double));
+        //private static TypeConverter FloatConverter = TypeDescriptor.GetConverter(typeof(float));
+        //private static TypeConverter SByteConverter = TypeDescriptor.GetConverter(typeof(sbyte));
+        //private static TypeConverter TimeSpanConverter = TypeDescriptor.GetConverter(typeof(TimeSpan));
 
 
         /// <summary>
@@ -382,6 +382,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             // special case for constraint
             if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
+                return;
+
+            // if we don't have stored procedure, return, because we don't want to derive parameters
+            if (command.CommandType != CommandType.StoredProcedure)
                 return;
 
             bool alreadyOpened = this.connection.State == ConnectionState.Open;
