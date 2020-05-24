@@ -50,6 +50,9 @@ internal class Program
         CreateMySqlDatabase("Scenario01");
         CreateMySqlTable("Scenario01", "Customer");
 
+        // Add one mysql record
+        AddMySqlRecord("Scenario01", "Customer");
+
         // Add one record in sqlite
         AddSqliteRecord("Scenario01", "Customer");
 
@@ -180,6 +183,37 @@ internal class Program
 
     }
 
+    private static void AddMySqlRecord(string databaseName, string tableName)
+    {
+
+        var builder = new MySqlConnectionStringBuilder();
+
+        builder.Database = databaseName;
+        builder.Port = 3307;
+        builder.UserID = "root";
+        builder.Password = "Password12!";
+
+        string sql = $"INSERT INTO `{tableName}` (ID,F1,F2,F3) VALUES (@ID, 2, '2st2tem', '1111111')";
+
+        using (MySqlConnection dBase = new MySqlConnection(builder.ConnectionString))
+        {
+            try
+            {
+                MySqlCommand cmd = new MySqlCommand(sql, dBase);
+                var parameter = new MySqlParameter("@ID", Guid.NewGuid());
+                cmd.Parameters.Add(parameter);
+
+                dBase.Open();
+                cmd.ExecuteNonQuery();
+                dBase.Close();
+                Console.WriteLine("Record added into table " + tableName);
+            }
+            catch (SqliteException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+    }
     private static void AddSqliteRecord(string fileName, string tableName)
     {
 
@@ -247,15 +281,15 @@ internal class Program
             try
             {
 
-                var s = await agent.SynchronizeAsync();
-                Console.WriteLine(s);
+                //var s = await agent.SynchronizeAsync();
+                //Console.WriteLine(s);
 
-                var schema = await agent.LocalOrchestrator.GetSchemaAsync();
+                var schema = await agent.RemoteOrchestrator.GetSchemaAsync();
 
                 await agent.LocalOrchestrator.UpdateUntrackedRowsAsync(schema);
 
-                s = await agent.SynchronizeAsync();
-                Console.WriteLine(s);
+                var s2 = await agent.SynchronizeAsync();
+                Console.WriteLine(s2);
             }
             catch (Exception e)
             {
