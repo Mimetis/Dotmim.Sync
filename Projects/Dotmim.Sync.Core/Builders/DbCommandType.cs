@@ -23,6 +23,7 @@ namespace Dotmim.Sync.Builders
         BulkTableType,
         BulkUpdateRows,
         BulkDeleteRows,
+        UpdateUntrackedRows,
         Reset
     }
 }

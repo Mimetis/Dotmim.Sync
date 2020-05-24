@@ -544,5 +544,61 @@ namespace Dotmim.Sync
             }
         }
 
+
+
+        /// <summary>
+        /// Update all untracked rows from the client database
+        /// </summary>
+        public virtual async Task UpdateUntrackedRowsAsync(SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    ctx.SyncStage = SyncStage.Provisioning;
+
+                    // If schema does not have any table, just return
+                    if (schema == null || schema.Tables == null || !schema.HasTables)
+                        throw new MissingTablesException();
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    // Create a transaction
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // Update untracked rows
+                        await this.Provider.UpdateUntrackedRowsAsync(ctx, schema, this.Setup, connection, transaction, cancellationToken, progress);
+
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+                    ctx.SyncStage = SyncStage.Provisioned;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State == ConnectionState.Open)
+                        connection.Close();
+                }
+
+            }
+        }
+
     }
 }

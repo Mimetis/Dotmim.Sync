@@ -24,14 +24,6 @@ namespace Dotmim.Sync
 
             var typeConverter = TypeDescriptor.GetConverter(typeOfT);
 
-            //if (nfi == null)
-            //{
-            //    nfi = new NumberFormatInfo
-            //    {
-            //        NumberDecimalSeparator = SyncGlobalization.DataSourceNumberDecimalSeparator
-            //    };
-            //}
-
             if (typeOfT == typeof(short))
                 return Convert.ToInt16(value);
             else if (typeOfT == typeof(int))

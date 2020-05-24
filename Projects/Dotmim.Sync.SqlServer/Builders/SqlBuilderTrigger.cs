@@ -32,7 +32,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, this.setup);
+            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
 
         }
 

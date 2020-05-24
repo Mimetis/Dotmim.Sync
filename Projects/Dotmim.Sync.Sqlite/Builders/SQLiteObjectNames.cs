@@ -73,10 +73,12 @@ namespace Dotmim.Sync.Sqlite
             // Select changes
             this.CreateSelectChangesCommandText();
             this.CreateSelectRowCommandText();
+            this.CreateSelectInitializedCommandText();
             this.CreateDeleteCommandText();
             this.CreateDeleteMetadataCommandText();
             this.CreateUpdateCommandText(hasMutableColumns);
             this.CreateResetCommandText();
+            this.CreateUpdateUntrackedRowsCommand();
 
             // Sqlite does not have any constraints, so just return a simple statement
             this.AddName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
@@ -228,7 +230,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             StringBuilder stringBuilder1 = new StringBuilder();
             string empty = string.Empty;
-            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var unquotedColumnName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
@@ -248,7 +250,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base] ON ");
 
             string str = string.Empty;
-            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
@@ -262,7 +264,7 @@ namespace Dotmim.Sync.Sqlite
         private void CreateSelectChangesCommandText()
         {
             var stringBuilder = new StringBuilder("SELECT ");
-            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[side].{columnName}, ");
@@ -279,7 +281,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append($"ON ");
 
             string empty = "";
-            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
@@ -303,7 +305,7 @@ namespace Dotmim.Sync.Sqlite
         private void CreateSelectInitializedCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder("SELECT ");
-            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
@@ -324,6 +326,46 @@ namespace Dotmim.Sync.Sqlite
 
             this.AddName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
             this.AddName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
+        }
+
+        private void CreateUpdateUntrackedRowsCommand()
+        {
+            var stringBuilder = new StringBuilder();
+            var str1 = new StringBuilder();
+            var str2 = new StringBuilder();
+            var str3 = new StringBuilder();
+            var str4 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[base]");
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+
+
+            var comma = "";
+            foreach (var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
+
+                str1.Append($"{comma}{pkeyColumnName}");
+                str2.Append($"{comma}[base].{pkeyColumnName}");
+                str3.Append($"{comma}[side].{pkeyColumnName}");
+
+                comma = ", ";
+            }
+            stringBuilder.Append(str1.ToString());
+            stringBuilder.AppendLine($", [update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime]");
+            stringBuilder.AppendLine($")");
+            stringBuilder.Append($"SELECT ");
+            stringBuilder.Append(str2.ToString());
+            stringBuilder.AppendLine($", NULL, 0, {SqliteObjectNames.TimestampValue}, datetime('now')");
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as [base] WHERE NOT EXISTS");
+            stringBuilder.Append($"(SELECT ");
+            stringBuilder.Append(str3.ToString());
+            stringBuilder.AppendLine($" FROM {trackingName.Schema().Quoted().ToString()} as [side] ");
+            stringBuilder.AppendLine($"WHERE {str4})");
+
+            var r = stringBuilder.ToString();
+
+            this.AddName(DbCommandType.UpdateUntrackedRows, r);
+
         }
 
     }

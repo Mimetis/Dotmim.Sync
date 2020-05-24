@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace Dotmim.Sync.MySql
 {
@@ -100,6 +101,47 @@ namespace Dotmim.Sync.MySql
 
             this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()), false);
             this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()), false);
+
+            this.AddName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand(), false);
+        }
+
+        private string CreateUpdateUntrackedRowsCommand()
+        {
+            var stringBuilder = new StringBuilder();
+            var str1 = new StringBuilder();
+            var str2 = new StringBuilder();
+            var str3 = new StringBuilder();
+            var str4 = MySqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.GetPrimaryKeysColumns(), "`side`", "`base`");
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+
+
+            var comma = "";
+            foreach (var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
+
+                str1.Append($"{comma}{pkeyColumnName}");
+                str2.Append($"{comma}`base`.{pkeyColumnName}");
+                str3.Append($"{comma}`side`.{pkeyColumnName}");
+
+                comma = ", ";
+            }
+            stringBuilder.Append(str1.ToString());
+            stringBuilder.AppendLine($", `update_scope_id`, `sync_row_is_tombstone`, `timestamp`, `last_change_datetime`");
+            stringBuilder.AppendLine($")");
+            stringBuilder.Append($"SELECT ");
+            stringBuilder.Append(str2.ToString());
+            stringBuilder.AppendLine($", NULL, 0, {MySqlObjectNames.TimestampValue}, now()");
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as `base` WHERE NOT EXISTS");
+            stringBuilder.Append($"(SELECT ");
+            stringBuilder.Append(str3.ToString());
+            stringBuilder.AppendLine($" FROM {trackingName.Schema().Quoted().ToString()} as `side` ");
+            stringBuilder.AppendLine($"WHERE {str4})");
+
+            var r = stringBuilder.ToString();
+
+            return r;
 
         }
 

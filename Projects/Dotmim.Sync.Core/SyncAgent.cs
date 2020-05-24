@@ -397,7 +397,6 @@ namespace Dotmim.Sync
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
 
-
             try
             {
                 if (cancellationToken.IsCancellationRequested)

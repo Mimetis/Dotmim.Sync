@@ -15,7 +15,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         public SqlObjectNames ObjectNames { get; private set; }
 
         public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
-            => this.ObjectNames = new SqlObjectNames(tableDescription, setup);
+        {
+            this.ObjectNames = new SqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
+        }
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
