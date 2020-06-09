@@ -57,10 +57,17 @@ internal class Program
         AddSqliteRecord("Scenario01", "Customer");
 
         // sync with a client database with rows, before sync is enabled, and who needs to be sent to server anyway
-        await TestClientHasRowsToSyncAnywayAsync("Scenario01", "Scenario01", "Customer");
+        await TestSyncAsync("Scenario01", "Scenario01", "Customer", false);
 
-        //await SynchronizeWithFiltersAsync();
+        // Add two records in sqlite
+        AddSqliteRecord("Scenario01", "Customer");
+        AddSqliteRecord("Scenario01", "Customer");
 
+        // Add two records in mysql
+        AddMySqlRecord("Scenario01", "Customer");
+        AddMySqlRecord("Scenario01", "Customer");
+
+        await TestSyncAsync("Scenario01", "Scenario01", "Customer", true);
     }
 
     private static void CreateSqliteDatabaseAndTable(string fileName, string tableName)
@@ -243,6 +250,61 @@ internal class Program
         }
     }
 
+
+    private static async Task TestSyncAsync(string mySqlDatabaseName, string sqliteFileName, string tableName, bool uploadOnly = false)
+    {
+        var builder = new MySqlConnectionStringBuilder();
+
+        builder.Database = mySqlDatabaseName;
+        builder.Port = 3307;
+        builder.UserID = "root";
+        builder.Password = "Password12!";
+
+        var serverProvider = new MySqlSyncProvider(builder.ConnectionString);
+
+        var sqlitebuilder = new SqliteConnectionStringBuilder();
+        sqlitebuilder.DataSource = $"{sqliteFileName}.db";
+
+        var clientProvider = new SqliteSyncProvider(sqlitebuilder.ConnectionString);
+
+        var setup = new SyncSetup(new string[] { tableName });
+        setup.Tables[tableName].SyncDirection = uploadOnly ? SyncDirection.UploadOnly : SyncDirection.Bidirectional;
+
+        var options = new SyncOptions();
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+
+                var s = await agent.SynchronizeAsync();
+                Console.WriteLine(s);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
     private static async Task TestClientHasRowsToSyncAnywayAsync(string mySqlDatabaseName, string sqliteFileName, string tableName)
     {
         var builder = new MySqlConnectionStringBuilder();
@@ -290,61 +352,6 @@ internal class Program
 
                 var s2 = await agent.SynchronizeAsync();
                 Console.WriteLine(s2);
-            }
-            catch (Exception e)
-            {
-                //Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-
-    private static async Task TestAsync(string mySqlDatabaseName, string sqliteFileName, string tableName)
-    {
-        var builder = new MySqlConnectionStringBuilder();
-
-        builder.Database = mySqlDatabaseName;
-        builder.Port = 3307;
-        builder.UserID = "root";
-        builder.Password = "Password12!";
-
-        var serverProvider = new MySqlSyncProvider(builder.ConnectionString);
-
-        var sqlitebuilder = new SqliteConnectionStringBuilder();
-        sqlitebuilder.DataSource = $"{sqliteFileName}.db";
-
-        var clientProvider = new SqliteSyncProvider(sqlitebuilder.ConnectionString);
-
-        var setup = new SyncSetup(new string[] { tableName });
-
-        var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var s = await agent.SynchronizeAsync();
-
-                // Write results
-                Console.WriteLine(s);
             }
             catch (Exception e)
             {

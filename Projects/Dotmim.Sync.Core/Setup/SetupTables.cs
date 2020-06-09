@@ -51,7 +51,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(SetupTable table)
         {
-            if (InnerCollection.Any(st => table == st))
+            if (this[table.TableName, table.SchemaName] != null)
                 throw new Exception($"Table {table.TableName} already exists in the collection");
 
             InnerCollection.Add(table);
@@ -147,7 +147,7 @@ namespace Dotmim.Sync
         public bool IsReadOnly => false;
         SetupTable IList<SetupTable>.this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
         public bool Remove(SetupTable item) => InnerCollection.Remove(item);
-        public bool Contains(SetupTable item) => InnerCollection.Any(st => st == item);
+        public bool Contains(SetupTable item) => this[item.TableName, item.SchemaName] != null;
         public void CopyTo(SetupTable[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
         public int IndexOf(SetupTable item) => InnerCollection.IndexOf(item);
         public void RemoveAt(int index) => InnerCollection.RemoveAt(index);

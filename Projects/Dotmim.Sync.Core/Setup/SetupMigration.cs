@@ -118,7 +118,7 @@ namespace Dotmim.Sync
             }
 
             // Search for deleted tables
-            var deletedTables = oldSetup.Tables.Where(oldt => !newSetup.Tables.Any(newt => newt == oldt));
+            var deletedTables = oldSetup.Tables.Where(oldt => newSetup.Tables[oldt.TableName, oldt.SchemaName] == null);
 
             // We found some tables present in the old setup, but not in the new setup
             // So, we are removing all the sync elements from the table, but we do not remote the table itself
@@ -139,7 +139,7 @@ namespace Dotmim.Sync
             foreach (var newTable in newSetup.Tables)
             {
                 // Getting corresponding table in old setup
-                var oldTable = oldSetup.Tables.FirstOrDefault(t => string.Equals(t.TableName, newTable.TableName, sc) && string.Equals(t.SchemaName, newTable.SchemaName, sc));
+                var oldTable = oldSetup.Tables[newTable.TableName, newTable.SchemaName];
 
                 // We do not found the old setup table, we can conclude this "newTable" is a new table included in the new setup
                 // And therefore will be setup during the last call the EnsureSchema()
