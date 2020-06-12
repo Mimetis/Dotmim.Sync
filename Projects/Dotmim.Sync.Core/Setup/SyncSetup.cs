@@ -120,35 +120,17 @@ namespace Dotmim.Sync
             if (otherSetup == null)
                 return false;
 
-            if (this.Tables.Count != otherSetup.Tables.Count)
+            // Checking inner lists
+            if (!this.Tables.CompareWith(otherSetup.Tables))
                 return false;
 
-            // Checking Filters
-            if ((this.Filters == null && otherSetup.Filters != null) || (this.Filters != null && otherSetup.Filters == null))
+            if (!this.Filters.CompareWith(otherSetup.Filters))
                 return false;
-
-            // Checking Joins
-            if (this.Filters != null && otherSetup.Filters != null)
-            {
-                if (this.Filters.Count != otherSetup.Filters.Count || !this.Filters.All(item1 => otherSetup.Filters.Any(item2 => item1 == item2)))
-                    return false;
-            }
-
-            // Checking Filters
-            if ((this.Tables == null && otherSetup.Tables != null) || (this.Tables != null && otherSetup.Tables == null))
-                return false;
-
-            // Checking Joins
-            if (this.Tables != null && otherSetup.Tables != null)
-            {
-                if (this.Tables.Count != otherSetup.Tables.Count || !this.Tables.All(item1 => otherSetup.Tables.Any(item2 => item1 == item2)))
-                    return false;
-            }
 
             return true;
         }
 
-        public bool Equals(SyncSetup otherSetup)
+        public bool EqualsByProperties(SyncSetup otherSetup)
         {
             if (otherSetup == null)
                 return false;
@@ -162,17 +144,18 @@ namespace Dotmim.Sync
             return true;
         }
 
-        public override bool Equals(object obj) => this.Equals(obj as SyncSetup);
-
-        public override int GetHashCode() => base.GetHashCode();
-
-        public static bool operator ==(SyncSetup left, SyncSetup right)
-            => EqualityComparer<SyncSetup>.Default.Equals(left, right);
-
-        public static bool operator !=(SyncSetup left, SyncSetup right)
-            => !(left == right);
-
         public override string ToString() => $"{this.Tables.Count} tables";
 
+        /// <summary>
+        /// Gets a true boolean if other instance is defined as same based on all properties
+        /// </summary>
+        public bool Equals(SyncSetup other) => this.EqualsByProperties(other);
+
+        /// <summary>
+        /// Gets a true boolean if other instance is defined as same based on all properties
+        /// </summary>
+        public override bool Equals(object obj) => this.EqualsByProperties(obj as SyncSetup);
+
+        public override int GetHashCode() => base.GetHashCode();
     }
 }

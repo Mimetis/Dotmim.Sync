@@ -19,7 +19,7 @@ namespace Dotmim.Sync
     /// Represents a table schema
     /// </summary>
     [DataContract(Name = "st"), Serializable]
-    public class SyncTable : IDisposable, IEquatable<SyncTable>
+    public class SyncTable : SyncNamedItem<SyncTable>, IDisposable
     {
         [NonSerialized]
         private SyncRows rows;
@@ -181,7 +181,7 @@ namespace Dotmim.Sync
             if (this.Schema == null)
                 return Enumerable.Empty<SyncRelation>();
 
-            return this.Schema.Relations.Where(r => r.GetTable() == this);
+            return this.Schema.Relations.Where(r => r.GetTable().EqualsByName(this));
         }
 
 
@@ -292,10 +292,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if a column name is a primary key
         /// </summary>
-        public bool IsPrimaryKey(string columnName)
-        {
-            return this.PrimaryKeys.Any(pkey => columnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
-        }
+        public bool IsPrimaryKey(string columnName) => this.PrimaryKeys.Any(pkey => columnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
         /// <summary>
         /// Gets a value returning if the SchemaTable contains an auto increment column
@@ -305,7 +302,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a value indicating if the synctable has rows
         /// </summary>
-        public bool HasRows => (this.Rows != null && this.Rows.Count > 0);
+        public bool HasRows => this.Rows != null && this.Rows.Count > 0;
 
         public override string ToString()
         {
@@ -315,46 +312,42 @@ namespace Dotmim.Sync
                 return this.TableName;
         }
 
-        public override bool Equals(object obj)
+        /// <summary>
+        /// Get all comparable fields to determine if two instances are identifed as same by name
+        /// </summary>
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            return this.Equals(obj as SyncTable);
+            yield return this.TableName;
+            yield return this.SchemaName;
         }
 
-        public bool Equals(SyncTable other)
+        public override bool EqualsByProperties(SyncTable other)
         {
             if (other == null)
                 return false;
 
             var sc = SyncGlobalization.DataSourceStringComparison;
 
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+            if (!this.EqualsByName(other))
+                return false;
 
-            return other != null &&
-                   this.TableName.Equals(other.TableName, sc) &&
-                   sn.Equals(otherSn, sc);
-        }
+            // checking properties
+            if (this.SyncDirection != other.SyncDirection)
+                return false;
 
-        public override int GetHashCode()
-        {
-            var hashCode = 1627045777;
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.TableName);
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.SchemaName);
-            return hashCode;
-        }
+            if (!string.Equals(this.OriginalProvider, other.OriginalProvider, sc))
+                return false;
 
-        public static bool operator ==(SyncTable left, SyncTable right)
-        {
-            return EqualityComparer<SyncTable>.Default.Equals(left, right);
-        }
+            // Check list
+            if (!this.Columns.CompareWith(other.Columns))
+                return false;
 
-        public static bool operator !=(SyncTable left, SyncTable right)
-        {
-            return !(left == right);
+            if (!this.PrimaryKeys.CompareWith(other.PrimaryKeys))
+                return false;
+
+
+            return true;
+
         }
     }
-
-
-
-
 }

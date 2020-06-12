@@ -18,6 +18,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(filterParam1, filterParam2);
             Assert.True(filterParam1.Equals(filterParam2));
+            Assert.False(filterParam1 == filterParam2);
 
             filterParam1 = new SetupFilterParameter();
             filterParam2 = new SetupFilterParameter();

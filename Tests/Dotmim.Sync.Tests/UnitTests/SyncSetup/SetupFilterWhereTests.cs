@@ -18,6 +18,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(where1, where2);
             Assert.True(where1.Equals(where2));
+            Assert.False(where1 == where2);
 
             where1 = new SetupFilterWhere();
             where2 = new SetupFilterWhere();

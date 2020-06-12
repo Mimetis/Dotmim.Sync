@@ -6,7 +6,7 @@ using System.Text;
 namespace Dotmim.Sync.Batch
 {
     [DataContract(Name = "t"), Serializable]
-    public class BatchPartTableInfo : IEquatable<BatchPartTableInfo>
+    public class BatchPartTableInfo : SyncNamedItem<BatchPartTableInfo>
     {
         public BatchPartTableInfo()
         {
@@ -32,36 +32,11 @@ namespace Dotmim.Sync.Batch
         public string SchemaName { get; set; }
 
 
-        public bool Equals(BatchPartTableInfo other)
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            if (other == null)
-                return false;
+            yield return this.TableName;
+            yield return this.SchemaName;
 
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
-
-            return other != null &&
-                   this.TableName.Equals(other.TableName, sc) &&
-                   sn.Equals(otherSn, sc);
         }
-
-        public override bool Equals(object obj)
-            => this.Equals(obj as SyncTable);
-
-        public override int GetHashCode()
-        {
-            var hashCode = 1627045777;
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.TableName);
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.SchemaName);
-            return hashCode;
-        }
-
-        public static bool operator ==(BatchPartTableInfo left, BatchPartTableInfo right) 
-            => EqualityComparer<BatchPartTableInfo>.Default.Equals(left, right);
-
-        public static bool operator !=(BatchPartTableInfo left, BatchPartTableInfo right) 
-            => !(left == right);
     }
 }

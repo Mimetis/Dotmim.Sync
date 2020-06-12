@@ -28,6 +28,7 @@ using Dotmim.Sync.Postgres;
 using Dotmim.Sync.Postgres.Builders;
 using Dotmim.Sync.MySql;
 using MySql.Data.MySqlClient;
+using System.Linq;
 
 internal class Program
 {
@@ -43,6 +44,72 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
+        await TestRemovingAColumnWithInterceptorAsync();
+    }
+
+    private static async Task TestRemovingAColumnWithInterceptorAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+
+        var options = new SyncOptions();
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+
+        agent.RemoteOrchestrator.OnDatabaseProvisioning(args =>
+        {
+            var schema = args.Schema;
+
+            foreach (var table in schema.Tables)
+            {
+                var columnsToRemove = new string[] { "ModifiedDate", "rowguid" };
+                foreach (var columnName in columnsToRemove)
+                {
+                    var column = table.Columns[columnName];
+
+                    if (column != null)
+                        table.Columns.Remove(column);
+                }
+            }
+
+        });
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var s1 = await agent.SynchronizeAsync();
+
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                //Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
+    private static async Task TestMySqlToSqliteSyncAsync()
+    {
         // Create Sqlite database and table
         CreateSqliteDatabaseAndTable("Scenario01", "Customer");
 

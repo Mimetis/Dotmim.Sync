@@ -31,7 +31,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(SetupFilter item)
         {
-            if (InnerCollection.Any(st => item == st))
+            if (InnerCollection.Any(st => item.EqualsByName(st)))
                 throw new FilterAlreadyExistsException(item.TableName);
 
             this.InnerCollection.Add(item);
@@ -63,7 +63,7 @@ namespace Dotmim.Sync
         SetupFilter IList<SetupFilter>.this[int index] { get => InnerCollection[index]; set => InnerCollection[index] = value; }
         public void Insert(int index, SetupFilter item) => InnerCollection.Insert(index, item);
         public bool Remove(SetupFilter item) => InnerCollection.Remove(item);
-        public bool Contains(SetupFilter item) => InnerCollection.Any(f => f == item);
+        public bool Contains(SetupFilter item) => InnerCollection.Any(f => f.EqualsByName(item));
         public void CopyTo(SetupFilter[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
         public int IndexOf(SetupFilter item) => InnerCollection.IndexOf(item);
         public void RemoveAt(int index) => InnerCollection.RemoveAt(index);

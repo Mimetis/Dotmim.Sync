@@ -12,7 +12,7 @@ namespace Dotmim.Sync
     /// Encapsulates information sent from the client to the server.
     /// </summary>
     [DataContract(Name = "par"), Serializable]
-    public class SyncParameter
+    public class SyncParameter : SyncNamedItem<SyncParameter>
     {
         /// <summary>
         /// Gets or sets the name of the column from the table involved in filter.
@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// Gets or sets the value of the parameter.
         /// </summary>
         [DataMember(Name = "v", IsRequired = true, Order = 2)]
-        public Object Value { get; set; }
+        public object Value { get; set; }
 
         /// <summary>
         /// Initializes a new instance of the SyncParameter class by using default values.
@@ -44,9 +44,12 @@ namespace Dotmim.Sync
         }
 
 
-        public override string ToString()
+        public override string ToString() => $"{this.Name}: {this.Value}";
+
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            return $"{this.Name}: {this.Value.ToString()}";
+            yield return this.Name;
         }
+
     }
 }

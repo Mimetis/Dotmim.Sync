@@ -24,6 +24,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(table3, table4);
             Assert.True(table3.Equals(table4));
+            Assert.False(table3 == table4);
         }
 
         [Fact]

@@ -7,7 +7,7 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "sr"), Serializable]
-    public class SyncRelation : IDisposable, IEquatable<SyncRelation>
+    public class SyncRelation : SyncNamedItem<SyncRelation>, IDisposable
     {
 
         /// <summary>
@@ -122,30 +122,31 @@ namespace Dotmim.Sync
             return this.Schema.Tables[id.TableName, id.SchemaName];
         }
 
-        public override bool Equals(object obj)
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            return this.Equals(obj as SyncRelation);
+            yield return this.RelationName;
         }
 
-        public bool Equals(SyncRelation other)
-        {
-            return other != null &&
-                   this.RelationName.Equals(other.RelationName, SyncGlobalization.DataSourceStringComparison);
-        }
 
-        public override int GetHashCode()
+        public override bool EqualsByProperties(SyncRelation other)
         {
-            return 459874666 + EqualityComparer<string>.Default.GetHashCode(this.RelationName);
-        }
+            if (other == null)
+                return false;
 
-        public static bool operator ==(SyncRelation left, SyncRelation right)
-        {
-            return EqualityComparer<SyncRelation>.Default.Equals(left, right);
-        }
+            if (!this.EqualsByName(other))
+                return false;
 
-        public static bool operator !=(SyncRelation left, SyncRelation right)
-        {
-            return !(left == right);
+            // Check list
+            if (!this.Keys.CompareWith(other.Keys))
+                return false;
+
+            if (!this.ParentKeys.CompareWith(other.ParentKeys))
+                return false;
+
+
+            return true;
+
         }
     }
 }
+

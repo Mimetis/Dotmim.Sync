@@ -484,6 +484,8 @@ namespace Dotmim.Sync
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
+                    SyncProvision provision = SyncProvision.None;
+
                     // Create a transaction
                     using (var transaction = connection.BeginTransaction())
                     {
@@ -499,7 +501,9 @@ namespace Dotmim.Sync
                         await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, true, connection, transaction, cancellationToken, progress);
 
                         // Now call the ProvisionAsync() to provision new tables
-                        var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                        provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                        await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         // Provision new tables if needed
                         await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -525,10 +529,14 @@ namespace Dotmim.Sync
 
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                    // InterceptAsync Migrated
-                    var args = new DatabaseMigratedArgs(ctx, schema, this.Setup);
+                    var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
                     await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
                     this.ReportProgress(ctx, progress, args);
+
+                    // InterceptAsync Migrated
+                    var args2 = new DatabaseMigratedArgs(ctx, schema, this.Setup);
+                    await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                    this.ReportProgress(ctx, progress, args2);
 
                 }
                 catch (Exception ex)

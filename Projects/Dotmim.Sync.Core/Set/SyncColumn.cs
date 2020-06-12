@@ -12,7 +12,7 @@ namespace Dotmim.Sync
 
 
     [DataContract(Name = "sc"), Serializable]
-    public class SyncColumn : IEquatable<SyncColumn>
+    public class SyncColumn : SyncNamedItem<SyncColumn>
     {
         /// <summary>Gets or sets the name of the column</summary>
         [DataMember(Name = "n", IsRequired = true, Order = 1)]
@@ -130,7 +130,7 @@ namespace Dotmim.Sync
             return clone;
         }
 
- 
+
         /// <summary>
         /// Get the DbType in a normal DbType type
         /// </summary>
@@ -354,40 +354,46 @@ namespace Dotmim.Sync
         }
 
 
-        public override string ToString()
+        public override string ToString() => string.Format($"{this.ColumnName} - {this.GetDataType().Name}");
+
+
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            return string.Format($"{this.ColumnName} - {this.GetDataType().Name}");
+            yield return this.ColumnName;
         }
 
-        public override bool Equals(object obj)
+        public override bool EqualsByProperties(SyncColumn column)
         {
-            return this.Equals(obj as SyncColumn);
-        }
+            if (column == null)
+                return false;
 
-        public bool Equals(SyncColumn other)
-        {
-            if (other == null)
+            if (!this.EqualsByName(column))
                 return false;
 
             var sc = SyncGlobalization.DataSourceStringComparison;
 
-            return this.ColumnName.Equals(other.ColumnName, sc);
-        }
+            return
+               string.Equals(this.DataType, column.DataType, sc) &&
+               this.AllowDBNull == column.AllowDBNull &&
+               this.IsUnique == column.IsUnique &&
+               this.IsReadOnly == column.IsReadOnly &&
+               this.IsAutoIncrement == column.IsAutoIncrement &&
+               this.AutoIncrementSeed == column.AutoIncrementSeed &&
+               this.AutoIncrementStep == column.AutoIncrementStep &&
+               this.IsUnsigned == column.IsUnsigned &&
+               this.IsUnicode == column.IsUnicode &&
+               this.IsCompute == column.IsCompute &&
+               this.MaxLength == column.MaxLength &&
+               this.Ordinal == column.Ordinal &&
+               this.PrecisionSpecified == column.PrecisionSpecified &&
+               this.Precision == column.Precision &&
+               this.ScaleSpecified == column.ScaleSpecified &&
+               this.Scale == column.Scale &&
+               string.Equals(this.OriginalDbType, column.OriginalDbType, sc) &&
+               string.Equals(this.OriginalTypeName, column.OriginalTypeName, sc) &&
+               this.DbType == column.DbType &&
+               string.Equals(this.DefaultValue, column.DefaultValue, sc);
 
-        public override int GetHashCode()
-        {
-            return -1862699260 + EqualityComparer<string>.Default.GetHashCode(this.ColumnName);
-        }
-
-
-        public static bool operator ==(SyncColumn left, SyncColumn right)
-        {
-            return EqualityComparer<SyncColumn>.Default.Equals(left, right);
-        }
-
-        public static bool operator !=(SyncColumn left, SyncColumn right)
-        {
-            return !(left == right);
         }
 
         /// <summary>

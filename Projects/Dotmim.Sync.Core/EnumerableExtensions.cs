@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Dotmim.Sync
 {
-    static class EnumerableExtensions
+    internal static class EnumerableExtensions
     {
         /// <summary>
         /// Sorts an enumeration based on dependency
@@ -17,9 +18,9 @@ namespace Dotmim.Sync
         public static IEnumerable<T> SortByDependencies<T>(this IEnumerable<T> source
             , Func<T, IEnumerable<T>> dependencies
             , bool throwOnCycle = false
-            , int defaultCapacity  = 10)
+            , int defaultCapacity = 10)
         {
-            
+
             if (source is ICollection<T>)
             {
                 defaultCapacity = ((ICollection<T>)source).Count + 1;
@@ -53,6 +54,53 @@ namespace Dotmim.Sync
                     throw new Exception("Cyclic dependency found");
             }
         }
+
+        public static bool CompareWith<T>(this IEnumerable<T> source, IEnumerable<T> other, Func<T, T, bool> compare)
+        {
+            // checking null ref
+            if ((source == null && other != null) || (source != null && other == null))
+                return false;
+
+            // If both are null, return true
+            if (source == null && other == null)
+                return true;
+
+            if (source.Count() != other.Count())
+                return false;
+
+            // Check all items are identical
+            return source.All(sourceItem => other.Any(otherItem => compare(sourceItem, otherItem)));
+
+        }
+        public static bool CompareWith<T>(this IEnumerable<T> source, IEnumerable<T> other) where T : class
+        {
+            // checking null ref
+            if ((source == null && other != null) || (source != null && other == null))
+                return false;
+
+            // If both are null, return true
+            if (source == null && other == null)
+                return true;
+
+            if (source.Count() != other.Count())
+                return false;
+
+            // Check all items are identical
+            return source.All(sourceItem => other.Any(otherItem =>
+            {
+                var cSourceItem = sourceItem as SyncNamedItem<T>;
+                var cOtherItem = otherItem as SyncNamedItem<T>;
+
+                if (cSourceItem != null && cOtherItem != null)
+                    return cSourceItem.EqualsByProperties(otherItem);
+                else
+                    return sourceItem.Equals(otherItem);
+
+            }));
+
+        }
+
+
 
     }
 }

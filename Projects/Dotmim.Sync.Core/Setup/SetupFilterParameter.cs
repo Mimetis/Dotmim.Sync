@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Setup
     /// For example : @CustomerID int NULL = 12
     /// </summary>
     [DataContract(Name = "sfp"), Serializable]
-    public class SetupFilterParameter : IEquatable<SetupFilterParameter>
+    public class SetupFilterParameter : SyncNamedItem<SetupFilterParameter>
     {
         /// <summary>
         /// Gets or sets the name of the parameter.
@@ -61,33 +61,32 @@ namespace Dotmim.Sync.Setup
         public int MaxLength { get; set; }
 
 
-        public bool Equals(SetupFilterParameter other)
+        public override IEnumerable<string> GetAllNamesProperties()
+        {
+            yield return this.TableName;
+            yield return this.SchemaName;
+            yield return this.Name;
+        }
+
+        public override bool EqualsByProperties(SetupFilterParameter other)
         {
             if (other == null)
                 return false;
 
+            // Check names properties
+            if (!this.EqualsByName(other))
+                return false;
+
             var sc = SyncGlobalization.DataSourceStringComparison;
 
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+            // Can be null since it'as a nullable value
+            var sameDbType = (this.DbType.HasValue && other.DbType.HasValue && this.DbType.Equals(other.DbType))
+                            || (!this.DbType.HasValue && !other.DbType.HasValue);
 
-            return string.Equals(this.Name, other.Name, sc)
-                && string.Equals(this.TableName, other.TableName, sc)
-                && string.Equals(sn, otherSn, sc)
-                && string.Equals(this.DefaultValue, other.DefaultValue, sc)
-                && this.DbType.Equals(other.DbType)
+            return sameDbType 
                 && this.AllowNull.Equals(other.AllowNull)
-                && this.MaxLength.Equals(other.MaxLength);
+                && this.MaxLength.Equals(other.MaxLength)
+                && string.Equals(this.DefaultValue, other.DefaultValue, sc);
         }
-
-        public override bool Equals(object obj) => this.Equals(obj as SetupFilterParameter);
-
-        public override int GetHashCode() => base.GetHashCode();
-
-        public static bool operator ==(SetupFilterParameter left, SetupFilterParameter right)
-            => EqualityComparer<SetupFilterParameter>.Default.Equals(left, right);
-
-        public static bool operator !=(SetupFilterParameter left, SetupFilterParameter right)
-            => !(left == right);
     }
 }

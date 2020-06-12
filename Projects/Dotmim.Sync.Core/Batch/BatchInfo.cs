@@ -153,7 +153,10 @@ namespace Dotmim.Sync.Batch
             {
                 foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
-                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t == tableInfo))
+
+                    
+
+                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t.EqualsByName(tableInfo)))
                     {
                         // TODO : Need to implement IAsyncEnumerable
                         // Need to use GetAwaiter().GetResult() until we have await in foreach yield
@@ -166,7 +169,7 @@ namespace Dotmim.Sync.Batch
 
                         // Get the table from the batchPartInfo
                         // generate a tmp SyncTable for 
-                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt == new SyncTable(tableName, schemaName));
+                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt.EqualsByName(new SyncTable(tableName, schemaName)));
 
                         if (batchTable != null)
                         {
