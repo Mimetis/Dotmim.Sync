@@ -11,8 +11,9 @@ namespace Dotmim.Sync
     /// For example : @CustomerID int NULL = 12
     /// </summary>
     [DataContract(Name = "sfp"), Serializable]
-    public class SyncFilterParameter : IEquatable<SyncFilterParameter>
+    public class SyncFilterParameter : SyncNamedItem<SyncFilterParameter>
     {
+
 
         /// <summary>
         /// Gets the ShemaTable's SyncSchema
@@ -94,44 +95,35 @@ namespace Dotmim.Sync
 
         public override string ToString() => this.Name;
 
-        public override bool Equals(object obj) => this.Equals(obj as SyncFilterParameter);
 
-        public bool Equals(SyncFilterParameter other)
+        /// <summary>
+        /// Get all comparable fields to determine if two instances are identifed as same by name
+        /// </summary>
+        public override IEnumerable<string> GetAllNamesProperties()
+        {
+            yield return this.TableName;
+            yield return this.SchemaName;
+            yield return this.Name;
+        }
+
+        public override bool EqualsByProperties(SyncFilterParameter other)
         {
             if (other == null)
                 return false;
 
+            if (!this.EqualsByName(other))
+                return false;
+
             var sc = SyncGlobalization.DataSourceStringComparison;
 
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var tn = this.TableName == null ? string.Empty : this.TableName;
-            var n = this.Name == null ? string.Empty : this.Name;
+            // Can be null since it'as a nullable value
+            var sameDbType = (this.DbType.HasValue && other.DbType.HasValue && this.DbType.Equals(other.DbType))
+                            || (!this.DbType.HasValue && !other.DbType.HasValue);
 
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
-            var otherTn = other.TableName == null ? string.Empty : other.TableName;
-            var otherN = other.Name == null ? string.Empty : other.Name;
-
-            return n.Equals(otherN, sc) &&
-                   tn.Equals(otherTn, sc) &&
-                   sn.Equals(otherSn, sc);
-        }
-
-        public override int GetHashCode()
-        {
-            var hashCode = 1627045777;
-            hashCode = hashCode * -1621134295 + EqualityComparer<string>.Default.GetHashCode(this.TableName);
-            hashCode = hashCode * -1621134295 + EqualityComparer<string>.Default.GetHashCode(this.SchemaName);
-            return hashCode;
-        }
-
-        public static bool operator ==(SyncFilterParameter left, SyncFilterParameter right)
-        {
-            return EqualityComparer<SyncFilterParameter>.Default.Equals(left, right);
-        }
-
-        public static bool operator !=(SyncFilterParameter left, SyncFilterParameter right)
-        {
-            return !(left == right);
+            return sameDbType
+                && this.AllowNull.Equals(other.AllowNull)
+                && this.MaxLength.Equals(other.MaxLength)
+                && string.Equals(this.DefaultValue, other.DefaultValue, sc);
         }
     }
 }

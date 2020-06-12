@@ -10,7 +10,7 @@ namespace Dotmim.Sync
     /// Summary of table changes applied on a source
     /// </summary>
     [DataContract(Name = "tca"), Serializable]
-    public class TableChangesApplied
+    public class TableChangesApplied 
     {
         /// <summary>
         /// ctor for serialization purpose

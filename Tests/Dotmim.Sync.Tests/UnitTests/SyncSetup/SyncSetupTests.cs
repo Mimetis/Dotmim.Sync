@@ -335,15 +335,26 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup2.Filters.Add(orderDetailsFilter2);
 
 
-            Assert.Equal(setup1, setup2);
-            Assert.True(setup1.Equals(setup2));
+            Assert.True(setup1.EqualsByProperties(setup2));
         }
 
         [Fact]
         public void SyncSetup_Compare_TwoSetup_With_Filters_ShouldBe_Different()
         {
-            SyncSetup setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            // Check Setup shoul be differents when tables names count is not same
+            SyncSetup setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory" });
             SyncSetup setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            Assert.False(setup1.EqualsByProperties(setup2));
+
+            // Check Setup should be differents when tables names are differents
+            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee1" });
+            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee2" });
+            Assert.False(setup1.EqualsByProperties(setup2));
+
+
+            // Check when Setup Filter names are differente (Customer1 and Customer2)
+            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
 
             setup1.Filters.Add("Customer1", "CompanyName");
 
@@ -363,9 +374,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             addressFilter2.AddWhere("CompanyName", "Customer", "CompanyName");
             setup2.Filters.Add(addressFilter2);
 
-            Assert.NotEqual(setup1, setup2);
-            Assert.False(setup1.Equals(setup2));
+            Assert.False(setup1.EqualsByProperties(setup2));
 
+            // 2) Check when Setup Filter names are differente (Address1 and Address2)
             setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
             setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
 
@@ -387,9 +398,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             addressFilter2.AddWhere("CompanyName", "Customer", "CompanyName");
             setup2.Filters.Add(addressFilter2);
 
-            Assert.NotEqual(setup1, setup2);
-            Assert.False(setup1.Equals(setup2));
+            Assert.False(setup1.EqualsByProperties(setup2));
 
+            // 3) Check when Setup Parameter names are differente (CompanyName1 and CompanyName2)
             setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
             setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
 
@@ -411,9 +422,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             addressFilter2.AddWhere("CompanyName", "Customer", "CompanyName2");
             setup2.Filters.Add(addressFilter2);
 
-            Assert.NotEqual(setup1, setup2);
-            Assert.False(setup1.Equals(setup2));
+            Assert.False(setup1.EqualsByProperties(setup2));
 
+            // 4) Check when Setup Joins names are differente (CustomerAddress1 and CustomerAddress2)
             setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
             setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
 
@@ -435,9 +446,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             addressFilter2.AddWhere("CompanyName", "Customer", "CompanyName");
             setup2.Filters.Add(addressFilter2);
 
-            Assert.NotEqual(setup1, setup2);
-            Assert.False(setup1.Equals(setup2));
+            Assert.False(setup1.EqualsByProperties(setup2));
 
+            // 5) Check when Setup Where names are differente (CompanyName1 and CompanyName2)
             setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
             setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
 
@@ -459,8 +470,33 @@ namespace Dotmim.Sync.Tests.UnitTests
             addressFilter2.AddWhere("CompanyName2", "Customer", "CompanyName");
             setup2.Filters.Add(addressFilter2);
 
-            Assert.NotEqual(setup1, setup2);
-            Assert.False(setup1.Equals(setup2));
+            Assert.False(setup1.EqualsByProperties(setup2));
+
+            // 6) Check CustomWhere differences
+            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+
+            setup1.Filters.Add("Customer", "CompanyName");
+
+            addressFilter = new SetupFilter("Address");
+            addressFilter.AddParameter("CompanyName", "Customer");
+            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+            addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            addressFilter.AddCustomWhere("ID = @ID2");
+            setup1.Filters.Add(addressFilter);
+
+            setup2.Filters.Add("Customer", "CompanyName");
+
+            addressFilter2 = new SetupFilter("Address");
+            addressFilter2.AddParameter("CompanyName", "Customer");
+            addressFilter2.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+            addressFilter2.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            addressFilter2.AddWhere("CompanyName", "Customer", "CompanyName");
+            addressFilter2.AddCustomWhere("ID = @ID1");
+            setup2.Filters.Add(addressFilter2);
+
+            Assert.False(setup1.EqualsByProperties(setup2));
 
         }
     }

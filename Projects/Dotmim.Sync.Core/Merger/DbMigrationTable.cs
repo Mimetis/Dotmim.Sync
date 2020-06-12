@@ -74,7 +74,7 @@ namespace Dotmim.Sync
             foreach (var column in this.newTable.Columns)
             {
                 // if current table does not contains this new column, so we've added a new column
-                if (!this.currentTable.Columns.Any(c => c == column))
+                if (!this.currentTable.Columns.Any(c => c.EqualsByName(column)))
                     this.AddedColumns.Add(column.Clone());
             }
 
@@ -82,7 +82,7 @@ namespace Dotmim.Sync
             foreach (var column in this.currentTable.Columns)
             {
                 // if current table does not contains this new column, so we've added a new column
-                if (!this.newTable.Columns.Any(c => c == column))
+                if (!this.newTable.Columns.Any(c => c.EqualsByName(column)))
                     this.RemovedColumns.Add(column.Clone());
             }
 

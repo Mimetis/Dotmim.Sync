@@ -12,7 +12,7 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "ct"), Serializable]
-    public class ContainerTable : IEquatable<ContainerTable>
+    public class ContainerTable : SyncNamedItem<ContainerTable>
     {
         /// <summary>
         /// Gets or sets the name of the table that the DmTableSurrogate object represents.
@@ -135,43 +135,13 @@ namespace Dotmim.Sync
 
         }
 
-        public override bool Equals(object obj)
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            return this.Equals(obj as ContainerTable);
+            yield return this.TableName;
+            yield return this.SchemaName;
+
         }
 
-        public bool Equals(ContainerTable other)
-        {
-            if (other == null)
-                return false;
-
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
-
-            return other != null &&
-                   this.TableName.Equals(other.TableName, sc) &&
-                   sn.Equals(otherSn, sc);
-        }
-
-        public override int GetHashCode()
-        {
-            var hashCode = 1627045777;
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.TableName);
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.SchemaName);
-            return hashCode;
-        }
-
-        public static bool operator ==(ContainerTable left, ContainerTable right)
-        {
-            return EqualityComparer<ContainerTable>.Default.Equals(left, right);
-        }
-
-        public static bool operator !=(ContainerTable left, ContainerTable right)
-        {
-            return !(left == right);
-        }
     }
 
 }

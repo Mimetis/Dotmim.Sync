@@ -326,7 +326,7 @@ namespace Dotmim.Sync
                 this.RemoteOrchestrator.Options = this.LocalOrchestrator.Options;
 
             // if we have a remote orchestrator with different options, raise an error
-            if (this.RemoteOrchestrator.Setup != null && this.RemoteOrchestrator.Setup != this.LocalOrchestrator.Setup)
+            if (this.RemoteOrchestrator.Setup != null && !this.RemoteOrchestrator.Setup.EqualsByProperties(this.LocalOrchestrator.Setup))
                 throw new SetupReferencesAreNotSameExecption();
             else if (this.RemoteOrchestrator.Setup == null)
                 this.RemoteOrchestrator.Setup = this.LocalOrchestrator.Setup;
@@ -438,7 +438,7 @@ namespace Dotmim.Sync
 
                     // Affect local setup since the setup could potentially comes from Web server
                     // Affect local setup (equivalent to this.Setup)
-                    if (this.Setup != serverScopeInfo.Setup)
+                    if (!this.Setup.EqualsByProperties(serverScopeInfo.Setup))
                     {
                         this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
                         this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;

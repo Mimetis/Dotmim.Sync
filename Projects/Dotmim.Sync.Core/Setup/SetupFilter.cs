@@ -12,7 +12,7 @@ namespace Dotmim.Sync
     /// Design a filter clause on Dmtable
     /// </summary>
     [DataContract(Name = "sf"), Serializable]
-    public class SetupFilter : IEquatable<SetupFilter>
+    public class SetupFilter : SyncNamedItem<SetupFilter>
     {
 
         /// <summary>
@@ -136,7 +136,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a custom Where clause. 
         /// </summary>
-        public SetupFilter AddCustomerWhere(string where)
+        public SetupFilter AddCustomWhere(string where)
         {
             // check we don't add a null value
             where = where ?? string.Empty;
@@ -152,82 +152,49 @@ namespace Dotmim.Sync
         {
         }
 
-        public override bool Equals(object obj) => this.Equals(obj as SetupFilter);
+        /// <summary>
+        /// Get all comparable fields to determine if two instances are identifed as same by name
+        /// </summary>
+        public override IEnumerable<string> GetAllNamesProperties()
+        {
+            yield return this.TableName;
+            yield return this.SchemaName;
+        }
 
 
-        public bool Equals(SetupFilter other)
+        /// <summary>
+        /// Compare all properties to see if object are Equals by all properties
+        /// </summary>
+        public override bool EqualsByProperties(SetupFilter other)
         {
             if (other == null)
                 return false;
 
+            // Check name properties
+            if (!this.EqualsByName(other))
+                return false;
+
+            // Compare all list properties
+            // For each, check if they are both null or not null
+            // If not null, compare each item
+
+            if (!this.Joins.CompareWith(other.Joins))
+                return false;
+
+            if (!this.Parameters.CompareWith(other.Parameters))
+                return false;
+
+            if (!this.Wheres.CompareWith(other.Wheres))
+                return false;
+
+            // since it's string comparison, don't rely on internal comparison and provide our own comparison func, using StringComparison
             var sc = SyncGlobalization.DataSourceStringComparison;
-
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
-
-            // checking properties
-            if (!string.Equals(this.TableName, other.TableName, sc) || !sn.Equals(otherSn, sc))
+            if (!this.CustomWheres.CompareWith(other.CustomWheres, (c, oc) => string.Equals(c, oc, sc)))
                 return false;
-
-            // checking CustomWheres
-            if ((this.CustomWheres == null && other.CustomWheres != null) || (this.CustomWheres != null && other.CustomWheres == null))
-                return false;
-
-            // Checking custom wheres
-            if (this.CustomWheres != null && other.CustomWheres != null)
-            {
-                if (this.CustomWheres.Count != other.CustomWheres.Count || !this.CustomWheres.All(cw => other.CustomWheres.Any(ocw => string.Equals(ocw, cw, sc))))
-                    return false;
-            }
-
-            // Checking Joins
-            if ((this.Joins == null && other.Joins != null) || (this.Joins != null && other.Joins == null))
-                return false;
-
-            // Checking Joins
-            if (this.Joins != null && other.Joins != null)
-            {
-                if (this.Joins.Count != other.Joins.Count || !this.Joins.All(item1 => other.Joins.Any(item2 => item1 == item2)))
-                    return false;
-            }
-
-            // Checking Joins
-            if ((this.Parameters == null && other.Parameters != null) || (this.Parameters != null && other.Parameters == null))
-                return false;
-
-            // Checking Joins
-            if (this.Parameters != null && other.Parameters != null)
-            {
-                if (this.Parameters.Count != other.Parameters.Count || !this.Parameters.All(item1 => other.Parameters.Any(item2 => item1 == item2)))
-                    return false;
-            }
-
-            // Checking Where
-            if ((this.Wheres == null && other.Wheres != null) || (this.Wheres != null && other.Wheres == null))
-                return false;
-
-            // Checking Where
-            if (this.Wheres != null && other.Wheres != null)
-            {
-                if (this.Wheres.Count != other.Wheres.Count || !this.Wheres.All(item1 => other.Wheres.Any(item2 => item1 == item2)))
-                    return false;
-            }
 
             return true;
         }
 
-        public override int GetHashCode()
-        {
-            var hashCode = -1896683325;
-            hashCode = hashCode * -1521134295 + this.TableName.GetHashCode();
-            hashCode = hashCode * -1521134295 + this.SchemaName.GetHashCode();
-            return hashCode;
-        }
-
-        public static bool operator ==(SetupFilter left, SetupFilter right)
-            => EqualityComparer<SetupFilter>.Default.Equals(left, right);
-
-        public static bool operator !=(SetupFilter left, SetupFilter right)
-            => !(left == right);
+     
     }
 }

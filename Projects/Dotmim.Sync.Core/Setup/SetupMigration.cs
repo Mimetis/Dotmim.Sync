@@ -93,7 +93,7 @@ namespace Dotmim.Sync
         {
             MigrationResults migrationSetup = new MigrationResults();
 
-            if (newSetup == oldSetup)
+            if (newSetup.EqualsByProperties(oldSetup))
                 return migrationSetup;
 
             var sc = SyncGlobalization.DataSourceStringComparison;

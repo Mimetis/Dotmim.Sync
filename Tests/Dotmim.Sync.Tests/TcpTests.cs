@@ -337,7 +337,7 @@ namespace Dotmim.Sync.Tests
                 client.Provider.ConnectionString = $@"Data Source=D;";
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, this.Tables);
-              
+
                 var onReconnect = new Action<ReConnectArgs>(args =>
                     Console.WriteLine($"[Retry Connection] Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
 
@@ -4113,6 +4113,283 @@ namespace Dotmim.Sync.Tests
 
             }
         }
+
+
+
+        /// <summary>
+        /// Configuring tables to be upload only
+        /// Server should receive lines but will not send back its own lines
+        /// </summary>
+        [Theory, TestPriority(42)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Change_Bidirectional_To_UploadOnly_ShouldWork(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var setup = new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            int addressesCount = 0;
+            int employeesAddressesCount = 0;
+            int employeesCount = 0;
+            int productCategoriesCount = 0;
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                addressesCount = ctx.Address.AsNoTracking().Count();
+                employeesAddressesCount = ctx.EmployeeAddress.AsNoTracking().Count();
+                employeesCount = ctx.Employee.AsNoTracking().Count();
+                productCategoriesCount = ctx.ProductCategory.AsNoTracking().Count();
+            }
+
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+            }
+
+
+            // Change Employee, Address, EmployeeAddress to Upload only
+            // All others stay Bidirectional
+            setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
+            setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
+            setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
+
+
+            // Insert one line on each client
+            int index = 10;
+            foreach (var client in Clients)
+            {
+                // Insert one employee, address, employeeaddress
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+
+                    ctx.Database.OpenConnection();
+
+                    // Insert an employee
+                    var employee = new Employee
+                    {
+                        EmployeeId = index,
+                        FirstName = "John",
+                        LastName = "Doe"
+                    };
+
+                    ctx.Add(employee);
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+
+                    await ctx.SaveChangesAsync();
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+
+                    // Insert a new address for employee 
+                    var city = "Paris " + HelperDatabase.GetRandomName();
+                    var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
+                    var stateProvince = "Ile de France";
+                    var countryRegion = "France";
+                    var postalCode = "75001";
+
+                    var address = new Address
+                    {
+                        AddressId = index,
+                        AddressLine1 = addressline1,
+                        City = city,
+                        StateProvince = stateProvince,
+                        CountryRegion = countryRegion,
+                        PostalCode = postalCode
+
+                    };
+
+                    ctx.Add(address);
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
+
+                    await ctx.SaveChangesAsync();
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+
+
+                    var employeeAddress = new EmployeeAddress
+                    {
+                        EmployeeId = employee.EmployeeId,
+                        AddressId = address.AddressId,
+                        AddressType = "CLIENT"
+                    };
+
+                    ctx.EmployeeAddress.Add(employeeAddress);
+                    await ctx.SaveChangesAsync();
+
+
+                    ctx.Database.CloseConnection();
+
+                    index++;
+                }
+
+
+            }
+
+            // Insert one ProductCategory, Employee, Address, EmployeeAddress on server
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                ctx.Database.OpenConnection();
+
+                var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
+
+
+                // ProductCategory
+                ctx.Add(new ProductCategory
+                {
+                    ProductCategoryId = productId,
+                    Name = productCategoryNameServer
+                });
+                await ctx.SaveChangesAsync();
+
+                // Insert an employee
+                var employee = new Employee
+                {
+                    EmployeeId = 1000,
+                    FirstName = "John",
+                    LastName = "Doe"
+                };
+
+                ctx.Add(employee);
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+
+                await ctx.SaveChangesAsync();
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+
+                // Insert a new address for employee 
+                var city = "Lyon " + HelperDatabase.GetRandomName();
+                var addressline1 = HelperDatabase.GetRandomName();
+                var stateProvince = "Rhones";
+                var countryRegion = "France";
+                var postalCode = "69001";
+
+                var address = new Address
+                {
+                    AddressId = 1000,
+                    AddressLine1 = addressline1,
+                    City = city,
+                    StateProvince = stateProvince,
+                    CountryRegion = countryRegion,
+                    PostalCode = postalCode
+
+                };
+
+                ctx.Add(address);
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
+
+                await ctx.SaveChangesAsync();
+
+                if (this.ServerType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+
+                var employeeAddress = new EmployeeAddress
+                {
+                    EmployeeId = employee.EmployeeId,
+                    AddressId = address.AddressId,
+                    AddressType = "SERVER"
+                };
+
+                ctx.EmployeeAddress.Add(employeeAddress);
+                await ctx.SaveChangesAsync();
+
+                ctx.Database.CloseConnection();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+
+                var s = await agent.SynchronizeAsync();
+
+                // Server shoud not sent back lines, so download equals 1 (just product category)
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(3, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // Check setup on both side
+                var clientSetup = await agent.LocalOrchestrator.GetSchemaAsync();
+
+            }
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
+            var remoteScope = await remoteOrchestrator.GetServerScopeAsync();
+
+            foreach (var client in Clients)
+            {
+                var localOrchestrator = new LocalOrchestrator(client.Provider, options, setup);
+                var localScope = await localOrchestrator.GetClientScopeAsync();
+
+                Assert.True(localScope.Setup.Equals(remoteScope.Setup));
+            }
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // get all product categories
+                var serverPC = ctx.ProductCategory.AsNoTracking().Count();
+                Assert.Equal(productCategoriesCount + 1, serverPC);
+
+                // get all employees
+                var employees = ctx.Employee.AsNoTracking().Count();
+                Assert.Equal(employeesCount + Clients.Count + 1, employees);
+                // get all employees address
+                var employeesAddresses = ctx.EmployeeAddress.AsNoTracking().Count();
+                Assert.Equal(employeesAddressesCount + Clients.Count + 1, employeesAddresses);
+                // get all addresses
+                var addresses = ctx.Address.AsNoTracking().Count();
+                Assert.Equal(addressesCount + Clients.Count + 1, addresses);
+
+            }
+            foreach (var client in Clients)
+            {
+                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    // get all product categories
+                    var clientPC = cliCtx.ProductCategory.AsNoTracking().Count();
+                    Assert.Equal(productCategoriesCount + 1, clientPC);
+
+                    // get all employees
+                    var employees = cliCtx.Employee.AsNoTracking().Count();
+                    Assert.Equal(employeesCount + 1, employees);
+
+                    // get all employees address
+                    var employeesAddresses = cliCtx.EmployeeAddress.AsNoTracking().Count();
+                    Assert.Equal(employeesAddressesCount + 1, employeesAddresses);
+
+                    // get all addresses
+                    var addresses = cliCtx.Address.AsNoTracking().Count();
+                    Assert.Equal(addressesCount + 1, addresses);
+
+                }
+            }
+        }
+
 
     }
 }

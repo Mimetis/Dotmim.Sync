@@ -12,7 +12,7 @@ namespace Dotmim.Sync
     /// Design a filter clause on Dmtable
     /// </summary>
     [DataContract(Name = "sf"), Serializable]
-    public class SyncFilter : IDisposable, IEquatable<SyncFilter>
+    public class SyncFilter : SyncNamedItem<SyncFilter>, IDisposable
     {
 
         [DataMember(Name = "t", IsRequired = true, Order = 1)]
@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the parameters list, used as input in the stored procedure
         /// </summary>
         [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public SyncFilterParameters Parameters { get; set;  } = new SyncFilterParameters();
+        public SyncFilterParameters Parameters { get; set; } = new SyncFilterParameters();
 
         /// <summary>
         /// Gets or Sets side where filters list
@@ -79,6 +79,13 @@ namespace Dotmim.Sync
         }
 
 
+        public override IEnumerable<string> GetAllNamesProperties()
+        {
+            yield return this.TableName;
+            yield return this.SchemaName;
+
+        }
+
         /// <summary>
         /// Ensure filter has the correct schema (since the property is not serialized
         /// </summary>
@@ -116,6 +123,41 @@ namespace Dotmim.Sync
             return name;
         }
 
+
+
+        /// <summary>
+        /// Compare all properties to see if object are Equals by all properties
+        /// </summary>
+        public override bool EqualsByProperties(SyncFilter other)
+        {
+            if (other == null)
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            // Check name properties
+            if (!this.EqualsByName(other))
+                return false;
+
+            // Compare all list properties
+            // For each, check if they are both null or not null
+            // If not null, compare each item
+           
+            if (!this.CustomWheres.CompareWith(other.CustomWheres, (cw, ocw) => string.Equals(ocw, cw, sc)))
+                return false;
+
+            if (!this.Joins.CompareWith(other.Joins))
+                return false;
+
+            if (!this.Parameters.CompareWith(other.Parameters))
+                return false;
+
+            if (!this.Wheres.CompareWith(other.Wheres))
+                return false;
+
+
+            return true;
+        }
         /// <summary>
         /// Clear
         /// </summary>
@@ -139,32 +181,5 @@ namespace Dotmim.Sync
 
             // Dispose unmanaged ressources
         }
-
-        public override bool Equals(object obj) 
-            => this.Equals(obj as SyncFilter);
-
-        public bool Equals(SyncFilter other)
-        {
-            if (other == null)
-                return false;
-
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
-
-            return other != null &&
-                   this.TableName.Equals(other.TableName, sc) &&
-                   sn.Equals(otherSn, sc);
-        }
-
-        public override int GetHashCode() 
-            => 1951375558 + EqualityComparer<SyncSet>.Default.GetHashCode(this.Schema);
-
-        public static bool operator ==(SyncFilter left, SyncFilter right) 
-            => EqualityComparer<SyncFilter>.Default.Equals(left, right);
-
-        public static bool operator !=(SyncFilter left, SyncFilter right) 
-            => !(left == right);
     }
 }

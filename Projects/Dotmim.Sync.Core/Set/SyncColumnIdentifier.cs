@@ -6,16 +6,16 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "sci"), Serializable]
-    public class SyncColumnIdentifier: IEquatable<SyncColumnIdentifier>
+    public class SyncColumnIdentifier: SyncNamedItem<SyncColumnIdentifier>
     {
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public String ColumnName { get; set; }
+        public string ColumnName { get; set; }
 
         [DataMember(Name = "t", IsRequired = true, Order = 2)]
-        public String TableName { get; set; }
+        public string TableName { get; set; }
 
         [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public String SchemaName { get; set; }
+        public string SchemaName { get; set; }
 
         public SyncColumnIdentifier()
         {
@@ -29,48 +29,29 @@ namespace Dotmim.Sync
             this.ColumnName = columnName;
         }
 
-        public SyncColumnIdentifier Clone()
+ 
+        public SyncColumnIdentifier Clone() => new SyncColumnIdentifier
         {
-            return new SyncColumnIdentifier
-            {
-                ColumnName = this.ColumnName,
-                SchemaName = this.SchemaName,
-                TableName = this.TableName
-            };
-        }
+            ColumnName = this.ColumnName,
+            SchemaName = this.SchemaName,
+            TableName = this.TableName
+        };
 
         public override string ToString()
         {
-            if (String.IsNullOrEmpty(SchemaName))
+            if (string.IsNullOrEmpty(SchemaName))
                 return $"{TableName}-{ColumnName}";
             else
                 return $"{SchemaName}.{TableName}-{ColumnName}";
 
         }
 
-        public bool Equals(SyncColumnIdentifier other)
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            if (other == null)
-                return false;
-
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
-
-            return this.ColumnName.Equals(other.ColumnName, sc) &&
-                   this.TableName.Equals(other.TableName, sc) &&
-                   sn.Equals(otherSn, sc);
+            yield return this.TableName;
+            yield return this.SchemaName;
+            yield return this.ColumnName;
         }
-
-        public override bool Equals(object obj) => this.Equals(obj as SyncColumnIdentifier);
-
-        public override int GetHashCode() => base.GetHashCode();
-
-        public static bool operator ==(SyncColumnIdentifier left, SyncColumnIdentifier right) 
-            => EqualityComparer<SyncColumnIdentifier>.Default.Equals(left, right);
-
-        public static bool operator !=(SyncColumnIdentifier left, SyncColumnIdentifier right) 
-            => !(left == right);
+       
     }
 }

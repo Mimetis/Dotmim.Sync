@@ -220,7 +220,8 @@ namespace Dotmim.Sync
             // Set the primary Key
             foreach (var rowColumn in schemaPrimaryKeys.OrderBy(r => r.Ordinal))
             {
-                var columnKey = schemaTable.Columns.FirstOrDefault(sc => sc == rowColumn);
+                // Find the column in the schema columns
+                var columnKey = schemaTable.Columns.FirstOrDefault(sc => sc.EqualsByName(rowColumn));
 
                 if (columnKey == null)
                     throw new MissingPrimaryKeyColumnException(rowColumn.ColumnName, schemaTable.TableName);

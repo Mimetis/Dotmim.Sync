@@ -200,7 +200,7 @@ namespace Dotmim.Sync
                             return serverScopeInfo;
 
                         // Compare serverscope setup with current
-                        if (serverScopeInfo.Setup != this.Setup)
+                        if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
                         {
                             this.logger.LogDebug(SyncEventsId.GetServerScope, $"[{ctx.SyncStage}] database {connection.Database}. serverScopeInfo.Setup != this.Setup. Need migrations ");
 
@@ -218,6 +218,8 @@ namespace Dotmim.Sync
                             // Now call the ProvisionAsync() to provision new tables
                             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
+                            await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+
                             // Provision new tables if needed
                             await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -227,10 +229,14 @@ namespace Dotmim.Sync
                             // Write scopes locally
                             ctx = await this.Provider.WriteServerScopeAsync(ctx, this.Options.ScopeInfoTableName, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                            // InterceptAsync Migrated
-                            var args = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
+                            var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection, transaction);
                             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
                             this.ReportProgress(ctx, progress, args);
+
+                            // InterceptAsync Migrated
+                            var args2 = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
+                            await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                            this.ReportProgress(ctx, progress, args2);
                         }
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -339,6 +345,7 @@ namespace Dotmim.Sync
 
                             // 2) Ensure databases are ready
                             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                            
                             await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                             ctx = await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -363,7 +370,7 @@ namespace Dotmim.Sync
                         {
                             // Setup stored on local or remote is different from the one provided.
                             // So, we can migrate
-                            if (serverScopeInfo.Setup != this.Setup)
+                            if (serverScopeInfo.Setup.EqualsByProperties(this.Setup))
                             {
                                 // 1) Get Schema from remote provider
                                 (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -378,6 +385,8 @@ namespace Dotmim.Sync
                                 // Now call the ProvisionAsync() to provision new tables
                                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
+                                await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+
                                 // Provision new tables if needed
                                 await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -387,10 +396,14 @@ namespace Dotmim.Sync
                                 // Write scopes locally
                                 ctx = await this.Provider.WriteServerScopeAsync(ctx, this.Options.ScopeInfoTableName, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                                // InterceptAsync Migrated
-                                var args = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
+                                var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection, transaction);
                                 await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
                                 this.ReportProgress(ctx, progress, args);
+
+                                // InterceptAsync Migrated
+                                var args2 = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
+                                await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                                this.ReportProgress(ctx, progress, args2);
                             }
 
                             // Get the schema saved on server
@@ -438,6 +451,8 @@ namespace Dotmim.Sync
                 try
                 {
                     ctx.SyncStage = SyncStage.Migrating;
+                    
+                    SyncProvision provision = SyncProvision.None;
 
                     // Open connection
                     await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
@@ -458,7 +473,9 @@ namespace Dotmim.Sync
                         await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress);
 
                         // Now call the ProvisionAsync() to provision new tables
-                        var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                        provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                        await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                         // Provision new tables if needed
                         await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -482,10 +499,14 @@ namespace Dotmim.Sync
 
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                    // InterceptAsync Migrated
-                    var args = new DatabaseMigratedArgs(ctx, schema, this.Setup);
+                    var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
                     await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
                     this.ReportProgress(ctx, progress, args);
+
+                    // InterceptAsync Migrated
+                    var args2 = new DatabaseMigratedArgs(ctx, schema, this.Setup);
+                    await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                    this.ReportProgress(ctx, progress, args2);
 
                 }
                 catch (Exception ex)

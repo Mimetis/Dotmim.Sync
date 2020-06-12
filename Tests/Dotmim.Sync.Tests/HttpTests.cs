@@ -1410,9 +1410,10 @@ namespace Dotmim.Sync.Tests
             // Get response just before response with changes is send back from server
             this.WebServerOrchestrator.OnSendingChanges(async sra =>
             {
+                var byteArray = sra.Content;
+
                 var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
-
 
                 using (var ms = new MemoryStream(sra.Content))
                 {
@@ -1428,7 +1429,7 @@ namespace Dotmim.Sync.Tests
             {
                 var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>();
-              
+
                 if (sra.Content == null)
                     return;
 
@@ -1583,7 +1584,7 @@ namespace Dotmim.Sync.Tests
             {
                 var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
-                
+
                 using (var ms = new MemoryStream(sra.Content))
                 {
                     var o = await serializer.DeserializeAsync(ms);
@@ -1597,14 +1598,14 @@ namespace Dotmim.Sync.Tests
                     Assert.NotNull(table);
                     Assert.NotEmpty(table.Rows);
 
-                    foreach(var row in table.Rows)
+                    foreach (var row in table.Rows)
                     {
                         var dateCell = row[5];
 
                         // check we have an integer here
                         Assert.IsType<long>(dateCell);
                     }
-                   
+
                 }
             });
 
@@ -1709,7 +1710,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-               var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1760,11 +1761,11 @@ namespace Dotmim.Sync.Tests
 
                 var r = await agent.SynchronizeAsync();
                 var c = GetServerDatabaseRowsCount(this.Server);
-                Assert.Equal(c , r.TotalChangesDownloaded);
+                Assert.Equal(c, r.TotalChangesDownloaded);
                 Assert.Equal(2, r.TotalChangesUploaded);
 
             }
-            
+
 
         }
 

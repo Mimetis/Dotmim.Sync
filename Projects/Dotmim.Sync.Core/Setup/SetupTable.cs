@@ -9,7 +9,7 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "st"), Serializable]
-    public class SetupTable : IEquatable<SetupTable>
+    public class SetupTable : SyncNamedItem<SetupTable>
     {
         /// <summary>
         /// public ctor for serialization purpose
@@ -100,55 +100,35 @@ namespace Dotmim.Sync
         public string GetFullName()
             => string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
 
-        public override bool Equals(object obj) => this.Equals(obj as SetupTable);
-
         /// <summary>
         /// Compare 2 SetupTable instances. Assuming table name and schema name are equals, we have two conflicting setup tables
         /// </summary>
-        public bool Equals(SetupTable other)
+        public override bool EqualsByProperties(SetupTable other)
         {
             if (other == null)
                 return false;
 
             var sc = SyncGlobalization.DataSourceStringComparison;
 
-            var sn = this.SchemaName == null ? string.Empty : this.SchemaName;
-            var otherSn = other.SchemaName == null ? string.Empty : other.SchemaName;
+            if (!this.EqualsByName(other))
+                return false;
 
             // checking properties
-            if (!string.Equals(this.TableName, other.TableName, sc) || !sn.Equals(otherSn, sc) || !(this.SyncDirection == other.SyncDirection))
+            if (this.SyncDirection != other.SyncDirection)
                 return false;
 
-            // checking columns
-            if ((this.Columns == null && other.Columns != null) || (this.Columns != null && other.Columns == null))
+            if (!this.Columns.CompareWith(other.Columns, (c, oc) => string.Equals(c, oc, sc)))
                 return false;
-
-            if (this.Columns != null && other.Columns != null)
-            {
-                if (this.Columns.Count != other.Columns.Count || !this.Columns.All(item1 => other.Columns.Any(item2 => string.Equals(item1, item2, sc))))
-                    return false;
-            }
 
             return true;
         }
-
-        public override int GetHashCode()
+        /// <summary>
+        /// Get all comparable fields to determine if two instances are identifed as same by name
+        /// </summary>
+        public override IEnumerable<string> GetAllNamesProperties()
         {
-            var hashCode = -1006746859;
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.TableName);
-            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(this.SchemaName);
-            hashCode = hashCode * -1521134295 + EqualityComparer<SetupColumns>.Default.GetHashCode(this.Columns);
-            return hashCode;
-        }
-
-        public static bool operator ==(SetupTable left, SetupTable right)
-        {
-            return EqualityComparer<SetupTable>.Default.Equals(left, right);
-        }
-
-        public static bool operator !=(SetupTable left, SetupTable right)
-        {
-            return !(left == right);
+            yield return this.TableName;
+            yield return this.SchemaName;
         }
     }
 }
