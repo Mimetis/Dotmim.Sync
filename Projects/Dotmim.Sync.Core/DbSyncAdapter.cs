@@ -50,10 +50,10 @@ namespace Dotmim.Sync
         public abstract DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null);
 
         /// <summary>
-        /// Set parameters on a command
+        /// Add parameters to a command
         /// </summary>
-        public abstract Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null);
-         
+        public abstract Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null);
+
         /// <summary>
         /// Execute a batch command
         /// </summary>
@@ -124,7 +124,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.SelectRow.ToString());
 
                 // Deriving Parameters
-                await this.SetCommandParametersAsync(DbCommandType.SelectRow, selectCommand).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.SelectRow, selectCommand).ConfigureAwait(false);
 
                 // set the primary keys columns as parameters
                 this.SetColumnParametersValues(selectCommand, primaryKeyRow);
@@ -157,7 +157,7 @@ namespace Dotmim.Sync
                             if (columnName == "sync_row_is_tombstone")
                             {
                                 var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                                syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Unchanged;
+                                syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
                                 continue;
                             }
 
@@ -189,8 +189,9 @@ namespace Dotmim.Sync
                     Connection.Close();
 
 
-                if (syncRow != null)
-                    syncRow.RowState = primaryKeyRow.RowState;
+                // if syncRow is not a deleted row, we can check for which kind of row it is.
+                if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
+                    syncRow.RowState = DataRowState.Modified;
 
                 return syncRow;
             }
@@ -207,20 +208,20 @@ namespace Dotmim.Sync
             if (this.ApplyType == DataRowState.Modified)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkUpdateRows);
-                
+
                 if (bulkCommand == null)
                     throw new MissingCommandException(DbCommandType.BulkUpdateRows.ToString());
 
-                await this.SetCommandParametersAsync(DbCommandType.BulkUpdateRows, bulkCommand).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.BulkUpdateRows, bulkCommand).ConfigureAwait(false);
             }
             else if (this.ApplyType == DataRowState.Deleted)
             {
                 bulkCommand = this.GetCommand(DbCommandType.BulkDeleteRows);
-                
+
                 if (bulkCommand == null)
                     throw new MissingCommandException(DbCommandType.BulkDeleteRows.ToString());
 
-                await this.SetCommandParametersAsync(DbCommandType.BulkDeleteRows, bulkCommand).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.BulkDeleteRows, bulkCommand).ConfigureAwait(false);
             }
             else
             {
@@ -259,7 +260,7 @@ namespace Dotmim.Sync
             // Get local and remote row and create the conflict object
             foreach (var failedRow in failedPrimaryKeysTable.Rows)
             {
-                failedRow.RowState = this.ApplyType;
+                //failedRow.RowState = this.ApplyType;
 
                 // Get the row that caused the problem, from the remote side (client)
                 var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
@@ -287,29 +288,31 @@ namespace Dotmim.Sync
 
             var dbConflictType = ConflictType.ErrorsOccurred;
 
-            // Can't find the row on the server datastore
-            if (localConflictRow == null)
-            {
-                if (ApplyType == DataRowState.Modified)
-                    dbConflictType = ConflictType.RemoteExistsLocalNotExists;
-                else if (ApplyType == DataRowState.Deleted)
-                    dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
-            }
-            else
-            {
-                // the row on local is deleted
-                if (localConflictRow.RowState == DataRowState.Deleted)
-                {
-                    if (ApplyType == DataRowState.Modified)
-                        dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
-                    else if (ApplyType == DataRowState.Deleted)
-                        dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
-                }
-                else
-                {
-                    dbConflictType = ConflictType.RemoteExistsLocalExists;
-                }
-            }
+            if (remoteConflictRow == null)
+                throw new UnknownException("THAT can't happen...");
+
+
+            // local row is null
+            if (localConflictRow == null && remoteConflictRow.RowState == DataRowState.Modified)
+                dbConflictType = ConflictType.RemoteExistsLocalNotExists;
+            else if (localConflictRow == null && remoteConflictRow.RowState == DataRowState.Deleted)
+                dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
+
+            //// remote row is null. Can not happen
+            //else if (remoteConflictRow == null && localConflictRow.RowState == DataRowState.Modified)
+            //    dbConflictType = ConflictType.RemoteNotExistsLocalExists;
+            //else if (remoteConflictRow == null && localConflictRow.RowState == DataRowState.Deleted)
+            //    dbConflictType = ConflictType.RemoteNotExistsLocalIsDeleted;
+
+            else if (remoteConflictRow.RowState == DataRowState.Deleted && localConflictRow.RowState == DataRowState.Deleted)
+                dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
+            else if (remoteConflictRow.RowState == DataRowState.Modified && localConflictRow.RowState == DataRowState.Deleted)
+                dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
+            else if (remoteConflictRow.RowState == DataRowState.Deleted && localConflictRow.RowState == DataRowState.Modified)
+                dbConflictType = ConflictType.RemoteIsDeletedLocalExists;
+            else if (remoteConflictRow.RowState == DataRowState.Modified && localConflictRow.RowState == DataRowState.Modified)
+                dbConflictType = ConflictType.RemoteExistsLocalExists;
+
             // Generate the conflict
             var conflict = new SyncConflict(dbConflictType);
             conflict.AddRemoteRow(remoteConflictRow);
@@ -388,7 +391,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.DeleteRow.ToString());
 
                 // Deriving Parameters
-                await this.SetCommandParametersAsync(DbCommandType.DeleteRow, command).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.DeleteRow, command).ConfigureAwait(false);
 
                 // Set the parameters value from row
                 this.SetColumnParametersValues(command, row);
@@ -434,7 +437,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.UpdateRow.ToString());
 
                 // Deriving Parameters
-                await this.SetCommandParametersAsync(DbCommandType.UpdateRow, command).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.UpdateRow, command).ConfigureAwait(false);
 
                 // Set the parameters value from row
                 this.SetColumnParametersValues(command, row);
@@ -477,7 +480,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.DeleteMetadata.ToString());
 
                 // Deriving Parameters
-                await this.SetCommandParametersAsync(DbCommandType.DeleteMetadata, command).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.DeleteMetadata, command).ConfigureAwait(false);
 
                 // Set the special parameters for delete metadata
                 DbTableManagerFactory.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
@@ -505,6 +508,47 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Update a metadata row
+        /// </summary>
+        internal async Task<bool> UpdateMetadatasAsync(SyncRow row, Guid? senderScopeId, bool forceWrite)
+        {
+            using (var command = this.GetCommand(DbCommandType.UpdateMetadata))
+            {
+                if (command == null)
+                    throw new MissingCommandException(DbCommandType.UpdateMetadata.ToString());
+
+                // Deriving Parameters
+                await this.AddCommandParametersAsync(DbCommandType.UpdateMetadata, command).ConfigureAwait(false);
+
+                // Set the parameters value from row
+                this.SetColumnParametersValues(command, row);
+
+                // Set the special parameters for update
+                AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
+
+                var alreadyOpened = Connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await this.Connection.OpenAsync().ConfigureAwait(false);
+
+                if (Transaction != null)
+                    command.Transaction = Transaction;
+
+                var metadataDeletedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                // Check if we have a return value instead
+                var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+
+                if (syncRowCountParam != null)
+                    metadataDeletedRowsCount = (int)syncRowCountParam.Value;
+
+                if (!alreadyOpened)
+                    Connection.Close();
+
+                return metadataDeletedRowsCount > 0;
+            }
+        }
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
@@ -517,7 +561,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.Reset.ToString());
 
                 // Deriving Parameters
-                await this.SetCommandParametersAsync(DbCommandType.Reset, command).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.Reset, command).ConfigureAwait(false);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -547,7 +591,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.DisableConstraints.ToString());
 
                 // set parameters if needed
-                 await this.SetCommandParametersAsync(DbCommandType.DisableConstraints, command).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.DisableConstraints, command).ConfigureAwait(false);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 
@@ -577,7 +621,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.EnableConstraints.ToString());
 
                 // set parameters if needed
-                await this.SetCommandParametersAsync(DbCommandType.EnableConstraints, command).ConfigureAwait(false);
+                await this.AddCommandParametersAsync(DbCommandType.EnableConstraints, command).ConfigureAwait(false);
 
                 var alreadyOpened = Connection.State == ConnectionState.Open;
 

@@ -1770,5 +1770,157 @@ namespace Dotmim.Sync.Tests
         }
 
 
+
+        [Theory, TestPriority(23)]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task Handling_DifferentScopeNames(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerOrchestrator.ScopeName = "customScope1";
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options, "customScope1");
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+            }
+        }
+
+
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Client should wins coz handler
+        /// </summary>
+        [Theory, TestPriority(24)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_Delete_Client_Update_Server_Resolved(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Conflict product category
+            var conflictProductCategoryId = "BIKES";
+            var productCategoryNameServer = "SRV BIKES " + HelperDatabase.GetRandomName();
+
+            // Insert line on server
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                ctx.Add(new ProductCategory { ProductCategoryId = conflictProductCategoryId, Name = "BIKES" });
+                await ctx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // Delete on Client
+            foreach (var client in Clients)
+            {
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
+                    ctx.ProductCategory.Remove(pc);
+                    await ctx.SaveChangesAsync();
+                }
+            }
+
+            // Update server
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
+                pc.Name = productCategoryNameServer;
+                await ctx.SaveChangesAsync();
+            }
+
+            var conflictIndex = 0;
+            this.WebServerOrchestrator.OnApplyChangesFailed(acf =>
+            {
+                // Check conflict is correctly set
+                var localRow = acf.Conflict.LocalRow;
+                var remoteRow = acf.Conflict.RemoteRow;
+
+                // Merge row
+                acf.Resolution = ConflictResolution.ClientWins;
+
+                Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, acf.Conflict.Type);
+
+                conflictIndex++;
+
+            });
+
+
+
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+            }
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // get all product categories
+                var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+
+                foreach (var client in Clients)
+                {
+                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                    {
+                        // get all product categories
+                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+
+                        // check row count
+                        Assert.Equal(serverPC.Count, clientPC.Count);
+
+                        foreach (var cpc in clientPC)
+                        {
+                            var spc = serverPC.First(pc => pc.ProductCategoryId == cpc.ProductCategoryId);
+
+                            // check column value
+                            Assert.Equal(spc.ProductCategoryId, cpc.ProductCategoryId);
+                            Assert.Equal(spc.Name, cpc.Name);
+                            Assert.StartsWith("BOTH", spc.Name);
+                        }
+                    }
+                }
+            }
+        }
+
+
     }
 }

@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        public override Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             switch (commandType)
             {
@@ -88,6 +88,9 @@ namespace Dotmim.Sync.Sqlite
                     break;
                 case DbCommandType.Reset:
                     this.SetResetParameters(command);
+                    break;
+                case DbCommandType.UpdateMetadata:
+                    this.SetUpdateMetadataParameters(command);
                     break;
                 default:
                     break;
@@ -197,6 +200,31 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
+        private void SetUpdateMetadataParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+                p = command.CreateParameter();
+                p.ParameterName = $"@{unquotedColumn}";
+                p.DbType = GetValidDbType(column.GetDbType());
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_row_is_tombstone";
+            p.DbType = DbType.Boolean;
+            command.Parameters.Add(p);
+
+        }
         private void SetDeleteMetadataParameters(DbCommand command)
         {
             var p = command.CreateParameter();

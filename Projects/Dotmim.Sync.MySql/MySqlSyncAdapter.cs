@@ -77,7 +77,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             switch (commandType)
             {

@@ -43,7 +43,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the scope name used by this local orchestrator
         /// </summary>
-        public virtual string ScopeName { get; set; }
+        public virtual string ScopeName { get; internal protected set; }
 
         /// <summary>
         /// Gets or Sets the start time for this orchestrator

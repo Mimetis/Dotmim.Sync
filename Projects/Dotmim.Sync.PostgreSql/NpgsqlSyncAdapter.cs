@@ -135,7 +135,7 @@ namespace Dotmim.Sync.Postgres.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override async Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             if (command == null)
                 return;

@@ -21,38 +21,68 @@ namespace Dotmim.Sync.Enumerations
         /// </summary>
         UniqueKeyConstraint,
 
+
+        // -------------------------------
+        // Classic conflicts on update / update or deleted / deleted.
+        // -------------------------------
+
+
         /// <summary>
-        /// The Remote and Local datasources both updated the same row.
+        /// The Remote and Local datasources have both updated the same row.
         /// </summary>
         RemoteExistsLocalExists,
 
         /// <summary>
-        /// The Remote datasource updated a row that the Local datasource deleted.
-        /// </summary>
-        RemoteExistsLocalIsDeleted,
-
-        /// <summary>
-        /// The Remote datasource deleted a row that the Local datasource updated.
-        /// </summary>
-        RemoteIsDeletedLocalExists,
-
-        /// <summary>
-        /// The Remote and Local datasource both deleted the same row.
+        /// The Remote and Local datasource have both deleted the same row.
         /// </summary>
         RemoteIsDeletedLocalIsDeleted,
- 
-        /// <summary>
-        /// The Remote peer deleted a row that the Local peer updated, and the metadata for that row was cleaned up.
-        /// </summary>
-        RemoteCleanedupDeleteLocalUpdate,
+
+
+        // -------------------------------
+        // Updated or Inserted on one side and Not Exists on the other
+        // -------------------------------
 
         /// <summary>
-        /// The Remote peer update a row that the Local never had.
+        /// The Remote datasource has updated or inserted a row that does not exists in the local datasource.
         /// </summary>
         RemoteExistsLocalNotExists,
 
         /// <summary>
-        /// The Remote peer delete a row that the Local never had.
+        /// The Local datasource has inserted or updated a row that does not exists in the Remote datasource 
+        /// </summary>
+        RemoteNotExistsLocalExists,
+
+
+        // -------------------------------
+        // Deleted on one side and Updated or Inserted on the other
+        // -------------------------------
+
+        /// <summary>
+        /// The Remote datasource has inserted or updated a row that the Local datasource has deleted.
+        /// </summary>
+        RemoteExistsLocalIsDeleted,
+
+        /// <summary>
+        /// The Remote datasource has deleted a row that the Local datasource has inserted or updated.
+        /// </summary>
+        RemoteIsDeletedLocalExists,
+
+
+        // -------------------------------
+        // Deleted on one side and Not Exists on the other
+        // -------------------------------
+
+        /// <summary>
+        /// The Local datasource has deleted a row that does not exists in the Remote datasource 
+        /// Note : this Case can't happen
+        /// From the server point of view : Remote Not Exists means client has not the row. SO it will just not send anything to the server
+        /// From the client point of view : Remote Not Exists means server has not the row. SO it will just not send back anything to client
+        /// </summary>
+        // RemoteNotExistsLocalIsDeleted,
+
+
+        /// <summary>
+        /// The Remote datasource has deleted a row that does not exists in the Local datasource 
         /// </summary>
         RemoteIsDeletedLocalNotExists
     }

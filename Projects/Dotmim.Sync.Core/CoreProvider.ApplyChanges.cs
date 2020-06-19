@@ -106,7 +106,7 @@ namespace Dotmim.Sync
             for (var i = 0; i < schema.Tables.Count; i++)
             {
                 var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
-                
+
                 this.Orchestrator.logger.LogDebug(SyncEventsId.ResetTable, tableDescription);
 
                 var builder = this.GetTableBuilder(tableDescription, setup);
@@ -177,7 +177,7 @@ namespace Dotmim.Sync
                     schemaChangesTable.Rows.AddRange(filteredRows.ToList());
 
                     if (this.Orchestrator.logger.IsEnabled(LogLevel.Trace))
-                        foreach(var row in schemaChangesTable.Rows)
+                        foreach (var row in schemaChangesTable.Rows)
                             this.Orchestrator.logger.LogTrace(SyncEventsId.ApplyChanges, row);
 
                     // Launch any interceptor if available
@@ -271,7 +271,7 @@ namespace Dotmim.Sync
                 {
                     LocalScopeId = localScopeId,
                     SenderScopeId = senderScopeId,
-                    FromScopeLocalTimeStamp= fromScopeLocalTimeStamp,
+                    FromScopeLocalTimeStamp = fromScopeLocalTimeStamp,
                     message.Policy
                 }); ;
 
@@ -281,11 +281,8 @@ namespace Dotmim.Sync
                                                    message.Policy,
                                                    fromScopeLocalTimeStamp, connection, transaction).ConfigureAwait(false);
 
-                if (resolvedRow != null)
-                {
-                    conflictsResolvedCount += conflictResolvedCount;
-                    rowsAppliedCount += rowAppliedCount;
-                }
+                conflictsResolvedCount += conflictResolvedCount;
+                rowsAppliedCount += rowAppliedCount;
 
             }
 
@@ -323,8 +320,8 @@ namespace Dotmim.Sync
 
                 // Conflict on a line that is not present on the datasource
                 if (row == null)
-                    return (0, finalRow, 0);
-
+                    return (conflictResolvedCount: 1, finalRow, rowAppliedCount: 0);
+            
                 // if we have a merge action, we apply the row on the server
                 if (isMergeAction)
                 {
@@ -359,6 +356,10 @@ namespace Dotmim.Sync
                 {
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteExistsLocalExists:
+                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
+                        rowAppliedCount = 1;
+                        break;
+
                     case ConflictType.RemoteExistsLocalNotExists:
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
@@ -366,8 +367,13 @@ namespace Dotmim.Sync
                         rowAppliedCount = 1;
                         break;
 
-                    // Conflict, but both have delete the row, so nothing to do
+                    // Conflict, but both have delete the row, so just update the metadata to the right winner
                     case ConflictType.RemoteIsDeletedLocalIsDeleted:
+                        operationComplete = await syncAdapter.UpdateMetadatasAsync(conflict.RemoteRow, senderScopeId, true);
+                        rowAppliedCount = 0;
+                        break;
+
+                    // The row does not exists locally, and since it's coming from a deleted state, we can forget it
                     case ConflictType.RemoteIsDeletedLocalNotExists:
                         operationComplete = true;
                         rowAppliedCount = 0;
@@ -380,8 +386,6 @@ namespace Dotmim.Sync
                         rowAppliedCount = 1;
                         break;
 
-
-                    case ConflictType.RemoteCleanedupDeleteLocalUpdate:
                     case ConflictType.ErrorsOccurred:
                         return (0, finalRow, 0);
                 }
@@ -391,8 +395,9 @@ namespace Dotmim.Sync
                 //After a force update, there is a problem, so raise exception
                 if (!operationComplete)
                 {
-                    finalRow = null;
-                    return (0, finalRow, rowAppliedCount);
+                    throw new UnknownException("Force update should always work.. contact the author :)");
+                    //finalRow = null;
+                    //return (0, finalRow, rowAppliedCount);
                 }
 
                 return (1, finalRow, rowAppliedCount);

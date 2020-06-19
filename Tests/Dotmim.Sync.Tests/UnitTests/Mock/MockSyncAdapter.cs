@@ -24,6 +24,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public override DbTransaction Transaction => this.transaction;
 
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+       => Task.CompletedTask;
+
         public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
             => Task.CompletedTask;
 
@@ -34,7 +37,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public override bool IsUniqueKeyViolation(Exception exception) => false;
 
-        public override Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
-            => Task.CompletedTask;
+      
     }
 }

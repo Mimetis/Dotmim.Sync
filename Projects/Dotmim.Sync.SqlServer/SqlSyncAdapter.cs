@@ -370,9 +370,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <summary>
-        /// Set a stored procedure parameters
+        /// Set a stored procedure parameters or text parameters
         /// </summary>
-        public override async Task SetCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
             if (command == null)
                 return;
@@ -383,6 +383,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             // special case for constraint
             if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
                 return;
+
+
+            // special case for UpdateMetadata
+            if (commandType == DbCommandType.UpdateMetadata)
+            {
+                this.SetUpdateRowParameters(command);
+                return;
+            }
 
             // if we don't have stored procedure, return, because we don't want to derive parameters
             if (command.CommandType != CommandType.StoredProcedure)
@@ -454,5 +462,30 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
+        private void SetUpdateRowParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+                p = command.CreateParameter();
+                p.ParameterName = $"@{unquotedColumn}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_row_is_tombstone";
+            p.DbType = DbType.Boolean;
+            command.Parameters.Add(p);
+
+        }
     }
 }
