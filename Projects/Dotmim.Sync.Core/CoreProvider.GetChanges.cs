@@ -256,7 +256,7 @@ namespace Dotmim.Sync
                 throw new MissingCommandException(dbCommandType.ToString());
 
             // Add common parameters
-            await syncAdapter.SetCommandParametersAsync(dbCommandType, selectIncrementalChangesCommand, tableFilter);
+            await syncAdapter.AddCommandParametersAsync(dbCommandType, selectIncrementalChangesCommand, tableFilter);
 
             return selectIncrementalChangesCommand;
 

@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the scope name, defining the tables involved in the sync
         /// </summary>
-        public string ScopeName { get; set; }
+        public string ScopeName { get; private set; }
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -96,12 +96,10 @@ namespace Dotmim.Sync
         /// </summary>
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action)
         {
-            var remoteOrchestrator = this.RemoteOrchestrator as RemoteOrchestrator;
-
-            if (remoteOrchestrator == null)
+            if (this.RemoteOrchestrator == null)
                 throw new InvalidRemoteOrchestratorException();
 
-            remoteOrchestrator.OnApplyChangesFailed(action);
+            this.RemoteOrchestrator.OnApplyChangesFailed(action);
 
         }
 

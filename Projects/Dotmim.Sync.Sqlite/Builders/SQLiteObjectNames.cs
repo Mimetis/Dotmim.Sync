@@ -78,7 +78,8 @@ namespace Dotmim.Sync.Sqlite
             this.CreateDeleteMetadataCommandText();
             this.CreateUpdateCommandText(hasMutableColumns);
             this.CreateResetCommandText();
-            this.CreateUpdateUntrackedRowsCommand();
+            this.CreateUpdateUntrackedRowsCommandText();
+            this.CreateUpdateMetadataCommandText();
 
             // Sqlite does not have any constraints, so just return a simple statement
             this.AddName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
@@ -94,6 +95,50 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
             this.AddName(DbCommandType.Reset, stringBuilder.ToString());
         }
+
+
+        private void CreateUpdateMetadataCommandText()
+        {
+            var stringBuilder = new StringBuilder();
+
+            var pkeySelectForInsert = new StringBuilder();
+            var pkeyISelectForInsert = new StringBuilder();
+            var pkeyAliasSelectForInsert = new StringBuilder();
+            var pkeysLeftJoinForInsert = new StringBuilder();
+            var pkeysIsNullForInsert = new StringBuilder();
+
+            string and = string.Empty;
+            string comma = string.Empty;
+            foreach (var pkColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                pkeySelectForInsert.Append($"{comma}{columnName}");
+                pkeyISelectForInsert.Append($"{comma}[i].{columnName}");
+                pkeyAliasSelectForInsert.Append($"{comma}@{parameterName} as {columnName}");
+                pkeysLeftJoinForInsert.Append($"{and}[side].{columnName} = [i].{columnName}");
+                pkeysIsNullForInsert.Append($"{and}[side].{columnName} IS NULL");
+                and = " AND ";
+                comma = ", ";
+            }
+
+            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine(pkeySelectForInsert.ToString());
+            stringBuilder.AppendLine(",[update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime] )");
+            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
+            stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.sync_timestamp, i.UtcDate");
+            stringBuilder.AppendLine("FROM (");
+            stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
+            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, {SqliteObjectNames.TimestampValue} as sync_timestamp, datetime('now') as UtcDate) as i;");
+
+
+            var cmdtext = stringBuilder.ToString();
+
+            this.AddName(DbCommandType.UpdateMetadata, cmdtext);
+        }
+
+
 
         private void CreateUpdateCommandText(bool hasMutableColumns)
         {
@@ -328,7 +373,7 @@ namespace Dotmim.Sync.Sqlite
             this.AddName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
         }
 
-        private void CreateUpdateUntrackedRowsCommand()
+        private void CreateUpdateUntrackedRowsCommandText()
         {
             var stringBuilder = new StringBuilder();
             var str1 = new StringBuilder();

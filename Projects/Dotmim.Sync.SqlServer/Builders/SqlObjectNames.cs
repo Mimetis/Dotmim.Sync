@@ -119,6 +119,63 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
 
             this.AddName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand(), false);
+            this.AddName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand(), false);
+        }
+
+
+        private string CreateUpdateMetadataCommand()
+        {
+            var stringBuilder = new StringBuilder();
+            var pkeysForUpdate = new StringBuilder();
+
+            var pkeySelectForInsert = new StringBuilder();
+            var pkeyISelectForInsert = new StringBuilder();
+            var pkeyAliasSelectForInsert = new StringBuilder();
+            var pkeysLeftJoinForInsert = new StringBuilder();
+            var pkeysIsNullForInsert = new StringBuilder();
+
+            string and = string.Empty;
+            string comma = string.Empty;
+            foreach (var pkColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                pkeysForUpdate.Append($"{and}[side].{columnName} = @{parameterName}");
+
+                pkeySelectForInsert.Append($"{comma}{columnName}");
+                pkeyISelectForInsert.Append($"{comma}[i].{columnName}");
+                pkeyAliasSelectForInsert.Append($"{comma}@{parameterName} as {columnName}");
+                pkeysLeftJoinForInsert.Append($"{and}[side].{columnName} = [i].{columnName}");
+                pkeysIsNullForInsert.Append($"{and}[side].{columnName} IS NULL");
+                and = " AND ";
+                comma = ", ";
+            }
+
+
+            stringBuilder.AppendLine($"UPDATE [side] SET ");
+            stringBuilder.AppendLine($" [update_scope_id] = @sync_scope_id, ");
+            stringBuilder.AppendLine($" [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($" [last_change_datetime] = GETUTCDATE() ");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.Append($"WHERE ");
+            stringBuilder.Append(pkeysForUpdate.ToString());
+            stringBuilder.AppendLine($";");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine(pkeySelectForInsert.ToString());
+            stringBuilder.AppendLine(",[update_scope_id], [sync_row_is_tombstone],[last_change_datetime] )");
+            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
+            stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.UtcDate");
+            stringBuilder.AppendLine("FROM (");
+            stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
+            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, GETUTCDATE() as UtcDate) as i");
+            stringBuilder.AppendLine($"LEFT JOIN  {trackingName.Schema().Quoted().ToString()} [side] ON {pkeysLeftJoinForInsert.ToString()} ");
+            stringBuilder.AppendLine($"WHERE {pkeysIsNullForInsert.ToString()};");
+
+
+            return stringBuilder.ToString();
         }
 
         private string CreateUpdateUntrackedRowsCommand()

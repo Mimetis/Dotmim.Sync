@@ -199,7 +199,7 @@ namespace Dotmim.Sync
                     throw new MissingCommandException(DbCommandType.UpdateUntrackedRows.ToString());
 
                 // Add common parameters
-                await syncAdapter.SetCommandParametersAsync(DbCommandType.UpdateUntrackedRows, updateUntrackedRowsCommand);
+                await syncAdapter.AddCommandParametersAsync(DbCommandType.UpdateUntrackedRows, updateUntrackedRowsCommand);
 
                 // Execute
                 await updateUntrackedRowsCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
