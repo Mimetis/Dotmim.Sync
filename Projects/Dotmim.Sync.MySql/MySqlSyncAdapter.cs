@@ -96,14 +96,44 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
                     break;
-               case DbCommandType.UpdateRow:
+                case DbCommandType.UpdateRow:
                     this.SetUpdateRowParameters(command);
+                    break;
+                case DbCommandType.UpdateMetadata:
+                    this.SetUpdateMetadataParameters(command);
                     break;
                 default:
                     break;
             }
 
             return Task.CompletedTask;
+        }
+
+        private void SetUpdateMetadataParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
+                p = command.CreateParameter();
+                p.ParameterName = $"@{columnName}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_row_is_tombstone";
+            p.DbType = DbType.Boolean;
+            command.Parameters.Add(p);
+
         }
 
         private void SetUpdateRowParameters(DbCommand command)

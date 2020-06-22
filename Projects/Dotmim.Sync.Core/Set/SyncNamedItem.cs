@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace Dotmim.Sync
@@ -8,6 +9,7 @@ namespace Dotmim.Sync
     /// Based object that can be compared by name or by properties
     /// </summary>
     /// <typeparam name="T"></typeparam>
+    [DataContract(Name = "sni"), Serializable]
     public abstract class SyncNamedItem<T> : IEquatable<T> where T : class
     {
         /// <summary>

@@ -535,18 +535,18 @@ namespace Dotmim.Sync
                 if (Transaction != null)
                     command.Transaction = Transaction;
 
-                var metadataDeletedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
                 var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
 
                 if (syncRowCountParam != null)
-                    metadataDeletedRowsCount = (int)syncRowCountParam.Value;
+                    metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
 
                 if (!alreadyOpened)
                     Connection.Close();
 
-                return metadataDeletedRowsCount > 0;
+                return metadataUpdatedRowsCount > 0;
             }
         }
 

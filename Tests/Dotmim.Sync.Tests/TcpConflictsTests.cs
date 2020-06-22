@@ -1403,7 +1403,7 @@ namespace Dotmim.Sync.Tests
         ///  - RemoteIsDeletedLocalNotExists from the Server POV 
         ///  - RemoteNotExistsLocalIsDeleted from the Client POV, but it can't happen
         /// </summary>
-        private async Task Generate_DC_KOS_Conflict((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) client, SyncOptions options)
+        private async Task Generate_DC_NULLS_Conflict((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) client, SyncOptions options)
         {
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
             var productCategoryName = HelperDatabase.GetRandomName("CLI");
@@ -1437,14 +1437,14 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory, TestPriority(16)]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_KOS_ServerShouldWins(SyncOptions options)
+        public async Task Conflict_DC_NULLS_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             foreach (var client in Clients)
             {
-                await Generate_DC_KOS_Conflict(client, options);
+                await Generate_DC_NULLS_Conflict(client, options);
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
@@ -1485,7 +1485,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory, TestPriority(17)]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_KOS_ClientShouldWins(SyncOptions options)
+        public async Task Conflict_DC_NULLS_ClientShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1493,7 +1493,7 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                await Generate_DC_KOS_Conflict(client, options);
+                await Generate_DC_NULLS_Conflict(client, options);
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
@@ -1528,6 +1528,143 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+
+
+
+        /// <summary>
+        /// Generate a deleted row on Server, that does not exists on Client, it's resolved as:
+        /// </summary>
+        private async Task Generate_NULLC_DS_Conflict((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) client, SyncOptions options)
+        {
+            var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+            var productCategoryName = HelperDatabase.GetRandomName("CLI");
+            var productCategoryNameUpdated = HelperDatabase.GetRandomName("SRV");
+
+            // create empty client database
+            await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+
+            // Insert a product category on server
+            using (var ctx = new AdventureWorksContext(this.Server, this.UseFallbackSchema))
+            {
+                ctx.Add(new ProductCategory { ProductCategoryId = productId, Name = productCategoryName });
+                await ctx.SaveChangesAsync();
+            }
+
+            // Then delete it
+            using (var ctx = new AdventureWorksContext(this.Server, this.UseFallbackSchema))
+            {
+                var pcdel = ctx.ProductCategory.Single(pc => pc.ProductCategoryId == productId);
+                ctx.ProductCategory.Remove(pcdel);
+                await ctx.SaveChangesAsync();
+            }
+
+            // So far we have a row marked as deleted in the tracking table.
+        }
+
+
+        [Theory, TestPriority(19)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_NULLC_DS_ServerShouldWins(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                await Generate_NULLC_DS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // From client : Remote is server, Local is client
+                localOrchestrator.OnApplyChangesFailed(acf =>
+                {
+                    // Check conflict is correctly set
+                    var localRow = acf.Conflict.LocalRow;
+                    var remoteRow = acf.Conflict.RemoteRow;
+
+                    Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, acf.Conflict.Type);
+                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
+                    Assert.Null(localRow);
+                });
+
+                // From Server : Remote is client, Local is server
+                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                {
+                    throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
+                });
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+        /// </summary>
+        [Theory, TestPriority(20)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_NULLC_DS_ClientShouldWins(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+
+            foreach (var client in Clients)
+            {
+                await Generate_NULLC_DS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                // Set conflict resolution to client
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // From client : Remote is server, Local is client
+                localOrchestrator.OnApplyChangesFailed(acf =>
+                {
+                    // Check conflict is correctly set
+                    var localRow = acf.Conflict.LocalRow;
+                    var remoteRow = acf.Conflict.RemoteRow;
+
+                    Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, acf.Conflict.Type);
+                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
+                    Assert.Null(localRow);
+                });
+
+                // From Server : Remote is client, Local is server
+                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                {
+                    throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
+                });
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
 
                 await CheckProductCategoryRows(client);
             }
