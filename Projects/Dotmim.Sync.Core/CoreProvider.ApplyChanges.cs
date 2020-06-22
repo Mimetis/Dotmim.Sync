@@ -305,8 +305,10 @@ namespace Dotmim.Sync
             SyncRow finalRow;
             ApplyAction conflictApplyAction;
             int rowAppliedCount = 0;
+            Guid? nullableSenderScopeId = senderScopeId;
 
-            (conflictApplyAction, finalRow) = await this.GetConflictActionAsync(context, conflict, policy, connection, transaction).ConfigureAwait(false);
+
+            (conflictApplyAction, finalRow, nullableSenderScopeId) = await this.GetConflictActionAsync(context, conflict, policy, senderScopeId, connection, transaction).ConfigureAwait(false);
 
             // Conflict rollbacked by user
             if (conflictApplyAction == ApplyAction.Rollback)
@@ -356,20 +358,20 @@ namespace Dotmim.Sync
                 {
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteExistsLocalExists:
-                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true);
                         rowAppliedCount = 1;
                         break;
 
                     case ConflictType.RemoteExistsLocalNotExists:
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
-                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true);
                         rowAppliedCount = 1;
                         break;
 
                     // Conflict, but both have delete the row, so just update the metadata to the right winner
                     case ConflictType.RemoteIsDeletedLocalIsDeleted:
-                        operationComplete = await syncAdapter.UpdateMetadatasAsync(conflict.RemoteRow, senderScopeId, true);
+                        operationComplete = await syncAdapter.UpdateMetadatasAsync(conflict.RemoteRow, nullableSenderScopeId, true);
                         rowAppliedCount = 0;
                         break;
 
@@ -382,7 +384,7 @@ namespace Dotmim.Sync
                     // The remote has delete the row, and local has insert or update it
                     // So delete the local row
                     case ConflictType.RemoteIsDeletedLocalExists:
-                        operationComplete = await syncAdapter.ApplyDeleteAsync(conflict.RemoteRow, lastTimestamp, senderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyDeleteAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true);
                         rowAppliedCount = 1;
                         break;
 
@@ -411,7 +413,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
-        internal async Task<(ApplyAction, SyncRow)> GetConflictActionAsync(SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, DbConnection connection, DbTransaction transaction = null, CancellationToken cancellationToken = default)
+        internal async Task<(ApplyAction, SyncRow, Guid?)> GetConflictActionAsync(SyncContext context, SyncConflict conflict, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction = null, CancellationToken cancellationToken = default)
         {
             var conflictAction = ConflictResolution.ServerWins;
 
@@ -419,7 +421,7 @@ namespace Dotmim.Sync
                 conflictAction = ConflictResolution.ClientWins;
 
             // Interceptor
-            var arg = new ApplyChangesFailedArgs(context, conflict, conflictAction, connection, transaction);
+            var arg = new ApplyChangesFailedArgs(context, conflict, conflictAction, senderScopeId, connection, transaction);
             this.Orchestrator.logger.LogDebug(SyncEventsId.ResolveConflicts, arg);
 
             await this.Orchestrator.InterceptAsync(arg, cancellationToken).ConfigureAwait(false);
@@ -437,7 +439,7 @@ namespace Dotmim.Sync
             var finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
 
             // returning the action to take, and actually the finalRow if action is set to Merge
-            return (action, finalRow);
+            return (action, finalRow, arg.SenderScopeId);
         }
 
         /// <summary>

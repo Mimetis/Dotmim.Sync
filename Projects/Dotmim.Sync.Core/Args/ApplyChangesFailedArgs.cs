@@ -56,17 +56,24 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncConflict Conflict { get; }
 
+        
+        /// <summary>
+        /// Gets or Sets the scope id who will be marked as winner
+        /// </summary>
+        public Guid? SenderScopeId { get; set; }
+
         /// <summary>
         /// If we have a merge action, the final row represents the merged row
         /// </summary>
         public SyncRow FinalRow { get; set; }
 
 
-        public ApplyChangesFailedArgs(SyncContext context, SyncConflict dbSyncConflict, ConflictResolution action, DbConnection connection, DbTransaction transaction)
+        public ApplyChangesFailedArgs(SyncContext context, SyncConflict dbSyncConflict, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.Conflict = dbSyncConflict;
             this.resolution = action;
+            this.SenderScopeId = senderScopeId;
         }
 
         public override string Message => $"{this.Conflict.Type}";
