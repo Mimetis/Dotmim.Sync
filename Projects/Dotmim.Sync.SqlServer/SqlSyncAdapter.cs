@@ -469,17 +469,20 @@ namespace Dotmim.Sync.SqlServer.Builders
                 p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
+            p.Size = 32;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_row_is_tombstone";
             p.DbType = DbType.Boolean;
+            p.Size = 2;
             command.Parameters.Add(p);
 
         }
