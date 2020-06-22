@@ -99,6 +99,8 @@ namespace Dotmim.Sync
                         if (this.isRetriable != null)
                             canRetry = isRetriable(ex);
 
+                        Console.WriteLine($"[SyncPolicy] Retry N°{tryCount}. Exception:{ex.Message}. CanRetry: {canRetry}");
+
                         if (!canRetry)
                             throw ex;
 
@@ -172,7 +174,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a policy retrying for a defined number of iterations, with a predicate defining a delay between each iteration, based on the iteration index, and a predicate used to define whether a policy handles a given exception
         /// </summary>
-        public static SyncPolicy WaitAndRetry(int retryCount, Func<int, TimeSpan> sleepDurationProvider, 
+        public static SyncPolicy WaitAndRetry(int retryCount, Func<int, TimeSpan> sleepDurationProvider,
                                                               Func<Exception, bool> isRetriable,
                                                               Func<Exception, int, TimeSpan, Task> onRetry = null)
         {
