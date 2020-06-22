@@ -110,6 +110,8 @@ namespace Dotmim.Sync.MySql
                     break;
             }
 
+            command.Prepare();
+
             return Task.CompletedTask;
         }
 
