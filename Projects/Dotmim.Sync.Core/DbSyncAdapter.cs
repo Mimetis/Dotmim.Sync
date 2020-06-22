@@ -12,6 +12,7 @@ using System.ComponentModel;
 using System.Threading.Tasks;
 
 using System.Reflection;
+using System.Collections.Concurrent;
 
 namespace Dotmim.Sync
 {
@@ -23,10 +24,18 @@ namespace Dotmim.Sync
     {
         private const int BATCH_SIZE = 1000;
 
+
+        // Internal commands cache
+        private ConcurrentDictionary<string, Lazy<DbCommand>> commands = new ConcurrentDictionary<string, Lazy<DbCommand>>();
+
         /// <summary>
         /// Gets the table description
         /// </summary>
         public SyncTable TableDescription { get; private set; }
+        
+        /// <summary>
+        /// Gets the setup used 
+        /// </summary>
         public SyncSetup Setup { get; }
 
         /// <summary>
@@ -79,6 +88,8 @@ namespace Dotmim.Sync
         }
 
 
+
+
         /// <summary>
         /// Get a command from internal cache, if available otherwise get command from underlying provider and add it to cache
         /// </summary>
@@ -87,10 +98,16 @@ namespace Dotmim.Sync
 
             var commandKey = $"{this.Connection.DataSource}-{this.Connection.Database}-{this.TableDescription.GetFullName()}-{commandType}";
 
-            // Get command from cache or create a new one
-            var command = DbCommandPool.GetPooledCommand(commandKey, () => GetCommand(commandType, filter));
+            // Try to get the instance
+            var parserStringRetrieved = commands.GetOrAdd(commandKey, k =>
+                new Lazy<DbCommand>(() => GetCommand(commandType, filter)));
 
-            return command;
+            return parserStringRetrieved.Value;
+
+            //// Get command from cache or create a new one
+            //var command = DbCommandPool.GetPooledCommand(commandKey, () => GetCommand(commandType, filter));
+
+            //return command;
         }
 
 
