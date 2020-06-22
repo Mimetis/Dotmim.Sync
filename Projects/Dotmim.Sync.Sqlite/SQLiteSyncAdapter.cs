@@ -99,8 +99,6 @@ namespace Dotmim.Sync.Sqlite
                     break;
             }
 
-            command.Prepare();
-
             return Task.CompletedTask;
         }
 

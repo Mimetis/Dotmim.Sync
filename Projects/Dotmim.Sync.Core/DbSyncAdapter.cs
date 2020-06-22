@@ -172,6 +172,9 @@ namespace Dotmim.Sync
             if (Transaction != null)
                 selectCommand.Transaction = Transaction;
 
+            // Testing The Prepare() performance increase
+            selectCommand.Prepare();
+
             // Create a select table based on the schema in parameter + scope columns
             var changesSet = schema.Schema.Clone(false);
             var selectTable = CreateChangesTable(schema, changesSet);
@@ -266,6 +269,9 @@ namespace Dotmim.Sync
 
             if (Transaction != null && Transaction.Connection != null)
                 bulkCommand.Transaction = Transaction;
+
+            // Testing The Prepare() performance increase
+            bulkCommand.Prepare();
 
             // Create
             var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
@@ -446,6 +452,9 @@ namespace Dotmim.Sync
             if (Transaction != null)
                 command.Transaction = Transaction;
 
+            // Testing The Prepare() performance increase
+            command.Prepare();
+
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
@@ -493,6 +502,9 @@ namespace Dotmim.Sync
             if (Transaction != null)
                 command.Transaction = Transaction;
 
+            // Testing The Prepare() performance increase
+            command.Prepare();
+
             var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
@@ -529,6 +541,9 @@ namespace Dotmim.Sync
 
             if (Transaction != null)
                 command.Transaction = Transaction;
+
+            // Testing The Prepare() performance increase
+            command.Prepare();
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -575,6 +590,9 @@ namespace Dotmim.Sync
             if (Transaction != null)
                 command.Transaction = Transaction;
 
+            // Testing The Prepare() performance increase
+            command.Prepare();
+
             var metadataDeletedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
@@ -619,6 +637,9 @@ namespace Dotmim.Sync
             if (Transaction != null)
                 command.Transaction = Transaction;
 
+            // Testing The Prepare() performance increase
+            command.Prepare();
+
             var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
@@ -657,6 +678,9 @@ namespace Dotmim.Sync
             if (Transaction != null)
                 command.Transaction = Transaction;
 
+            // Testing The Prepare() performance increase
+            command.Prepare();
+
             var rowCount = command.ExecuteNonQuery();
 
             if (!alreadyOpened)
@@ -689,6 +713,9 @@ namespace Dotmim.Sync
             if (Transaction != null)
                 command.Transaction = Transaction;
 
+            // Testing The Prepare() performance increase
+            command.Prepare();
+
             var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (!alreadyOpened)
@@ -720,6 +747,9 @@ namespace Dotmim.Sync
 
             if (Transaction != null)
                 command.Transaction = Transaction;
+
+            // Testing The Prepare() performance increase
+            command.Prepare();
 
             var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
