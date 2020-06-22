@@ -100,6 +100,9 @@ namespace Dotmim.Sync
                 if (transaction != null)
                     selectIncrementalChangesCommand.Transaction = transaction;
 
+                // Testing The Prepare() performance increase
+                selectIncrementalChangesCommand.Prepare();
+
                 // log
                 this.Orchestrator.logger.LogDebug(SyncEventsId.CreateSnapshot, new
                 {
