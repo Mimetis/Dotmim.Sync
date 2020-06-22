@@ -1689,9 +1689,9 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
 
-                var clientNameDecidedOnClientMachine = "UI_CLIENT" + HelperDatabase.GetRandomName();
-
                 await Generate_UC_US_Conflict(client, options);
+
+                var clientNameDecidedOnClientMachine = HelperDatabase.GetRandomName();
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
@@ -1771,7 +1771,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check that the product category name has been correctly sended back to the server
-                await CheckProductCategoryRows(client, clientNameDecidedOnClientMachine);
+                await CheckProductCategoryRows(client);
 
             }
 

@@ -21,9 +21,13 @@ namespace Dotmim.Sync.SqlServer
                 {
                     switch (err.Number)
                     {
-                        // SQL error code : 4060
-                        // Cannot open database "%.*ls" requested by the login. The login failed. 
+                        // SQL error code : 4060 & so on..
+                        // login failed
                         case 4060:
+                        case 4064:
+                        case 18456:
+                        case 40532:
+                        case 40697:
                         // SQL Error Code : 4221
                         // Login to read - secondary failed due to long wait on 'HADR_DATABASE_WAIT_FOR_TRANSITION_TO_VERSIONING'.
                         // The replica is not available for login because row versions are missing for transactions that were in-flight when the replica was recycled.
