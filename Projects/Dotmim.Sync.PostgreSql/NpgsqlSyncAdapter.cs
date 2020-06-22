@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Postgres.Builders
 
         public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
         {
-            var command = this.Connection.CreateCommand() as NpgsqlCommand;
+            var command = new NpgsqlCommand();
 
             string text;
             bool isStoredProc;
@@ -124,10 +124,6 @@ namespace Dotmim.Sync.Postgres.Builders
 
             command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
             command.CommandText = text;
-            command.Connection = Connection as NpgsqlConnection;
-
-            if (Transaction != null)
-                command.Transaction = Transaction as NpgsqlTransaction;
 
             return command;
         }

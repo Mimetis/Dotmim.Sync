@@ -51,23 +51,26 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
-            var command = this.Connection.CreateCommand();
+            var command = new SqliteCommand();
             string text;
             text = this.sqliteObjectNames.GetCommandName(commandType, filter);
 
             // on Sqlite, everything is text :)
             command.CommandType = CommandType.Text;
             command.CommandText = text;
-            command.Connection = Connection;
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
 
             return command;
         }
 
         public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
+
+            if (command == null)
+                return Task.CompletedTask;
+
+            if (command.Parameters != null && command.Parameters.Count > 0)
+                return Task.CompletedTask;
+
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:

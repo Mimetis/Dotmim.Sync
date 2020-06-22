@@ -58,7 +58,8 @@ namespace Dotmim.Sync.MySql
 
         public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
-            var command = this.Connection.CreateCommand();
+            var command = new MySqlCommand();
+
             string text;
             bool isStoredProc;
 
@@ -68,10 +69,6 @@ namespace Dotmim.Sync.MySql
 
             command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
             command.CommandText = isStoredProc ? textName.Quoted().ToString() : text;
-            command.Connection = Connection;
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
 
             return command;
         }
@@ -79,6 +76,13 @@ namespace Dotmim.Sync.MySql
 
         public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
         {
+
+            if (command == null)
+                return Task.CompletedTask;
+
+            if (command.Parameters != null && command.Parameters.Count > 0)
+                return Task.CompletedTask;
+
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:

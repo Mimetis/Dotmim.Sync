@@ -95,6 +95,11 @@ namespace Dotmim.Sync
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, null, true, 0, selectIncrementalChangesCommand);
 
+                selectIncrementalChangesCommand.Connection = connection;
+
+                if (transaction != null)
+                    selectIncrementalChangesCommand.Transaction = transaction;
+
                 // log
                 this.Orchestrator.logger.LogDebug(SyncEventsId.CreateSnapshot, new
                 {
@@ -158,7 +163,7 @@ namespace Dotmim.Sync
                     }
                 }
 
-                selectIncrementalChangesCommand.Dispose();
+                //selectIncrementalChangesCommand.Dispose();
             }
 
 
