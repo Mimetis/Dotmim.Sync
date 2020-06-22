@@ -1671,5 +1671,112 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
+
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Server should wins the conflict because default behavior
+        /// </summary>
+        [Theory, TestPriority(21)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_UC_US_ClientChoosedTheWinner(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // Execute a sync on all clients and check results
+            // Each client will upload its row (conflicting)
+            // then download the others client lines + conflict that should be ovewritten on client
+            foreach (var client in Clients)
+            {
+
+                var clientNameDecidedOnClientMachine = "UI_CLIENT" + HelperDatabase.GetRandomName();
+
+                await Generate_UC_US_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // From client : Remote is server, Local is client
+                // From here, we are going to let the client decides who is the winner of the conflict
+                localOrchestrator.OnApplyChangesFailed(acf =>
+                {
+                    // Check conflict is correctly set
+                    var localRow = acf.Conflict.LocalRow;
+                    var remoteRow = acf.Conflict.RemoteRow;
+
+                    // remote is server; local is client
+                    Assert.StartsWith("SRV", remoteRow["Name"].ToString());
+                    Assert.StartsWith("CLI", localRow["Name"].ToString());
+
+                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+
+                    // The conflict resolution is always the opposite from the one configured by options
+                    Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+
+                    // From that point, you can easily letting the client decides who is the winner
+                    // You can do a merge or whatever
+                    // Show a UI with the local / remote row and letting him decides what is the good row version
+                    // for testing purpose; will just going to set name to some fancy UI_CLIENT... instead of CLI or SRV
+
+                    // SHOW UI
+                    // OH.... CLIENT DECIDED TO SET NAME TO /// clientNameDecidedOnClientMachine 
+
+                    remoteRow["Name"] = clientNameDecidedOnClientMachine;
+                    // Mandatory to override the winner registered in the tracking table
+                    // Use with caution !
+                    // To be sure the row will be marked as updated locally, the scope id should be set to null
+                    acf.SenderScopeId = null;
+                });
+
+                // From Server : Remote is client, Local is server
+                // From that point we do not do anything, letting the server to resolve the conflict and send back
+                // the server row and client row conflicting to the client
+                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                {
+                    // Check conflict is correctly set
+                    var localRow = acf.Conflict.LocalRow;
+                    var remoteRow = acf.Conflict.RemoteRow;
+
+                    // remote is client; local is server
+                    Assert.StartsWith("CLI", remoteRow["Name"].ToString());
+                    Assert.StartsWith("SRV", localRow["Name"].ToString());
+
+                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+
+                    Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                });
+
+                // First sync, we allow server to resolve the conflict and send back the result to client
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                // From this point the Server row Name is "SRV...."
+                // And the Client row NAME is "UI_CLIENT..."
+                // Make a new sync to send "UI_CLIENT..." to Server
+
+                s = await agent.SynchronizeAsync();
+
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // Check that the product category name has been correctly sended back to the server
+                await CheckProductCategoryRows(client, clientNameDecidedOnClientMachine);
+
+            }
+
+
+        }
+
     }
 }
