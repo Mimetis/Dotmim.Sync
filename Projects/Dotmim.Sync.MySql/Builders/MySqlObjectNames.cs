@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Dotmim.Sync.MySql
@@ -103,6 +104,62 @@ namespace Dotmim.Sync.MySql
             this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()), false);
 
             this.AddName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand(), false);
+            this.AddName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand(), false);
+        }
+
+
+        private string CreateUpdateMetadataCommand()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()} (");
+
+            var pkeySelect = new StringBuilder();
+            var pkeyValues = new StringBuilder();
+
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+            foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var unquotedColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().ToString();
+
+                // Select
+                pkeySelect.AppendLine($"\t\t{argComma}{columnName}");
+
+                // Values
+                pkeyValues.AppendLine($"\t\t{argComma}@{unquotedColumnName}");
+                
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            stringBuilder.Append(pkeySelect.ToString());
+            stringBuilder.AppendLine("\t\t,`update_scope_id`");
+            stringBuilder.AppendLine("\t\t,`timestamp`");
+            stringBuilder.AppendLine("\t\t,`sync_row_is_tombstone`");
+            stringBuilder.AppendLine("\t\t,`last_change_datetime`");
+
+            var filterColumnsString = new StringBuilder();
+            var filterColumnsString2 = new StringBuilder();
+            var filterColumnsString3 = new StringBuilder();
+
+            stringBuilder.AppendLine("\t) ");
+            stringBuilder.AppendLine("\tVALUES (");
+            stringBuilder.Append(pkeyValues.ToString());
+            stringBuilder.AppendLine("\t\t,@sync_scope_id");
+            stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t\t,@sync_row_is_tombstone");
+            stringBuilder.AppendLine("\t\t,utc_timestamp()");
+
+
+            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
+            stringBuilder.AppendLine("\t`update_scope_id` = @sync_scope_id, ");
+            stringBuilder.AppendLine("\t`sync_row_is_tombstone` = @sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp();");
+            return stringBuilder.ToString();
         }
 
         private string CreateUpdateUntrackedRowsCommand()

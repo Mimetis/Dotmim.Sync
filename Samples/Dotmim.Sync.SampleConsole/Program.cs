@@ -45,6 +45,7 @@ internal class Program
     {
 
         await TestRemovingAColumnWithInterceptorAsync();
+
     }
 
     private static async Task TestRemovingAColumnWithInterceptorAsync()

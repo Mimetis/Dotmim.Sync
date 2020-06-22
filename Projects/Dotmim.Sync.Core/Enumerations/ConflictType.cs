@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Enumerations
         /// From the server point of view : Remote Not Exists means client has not the row. SO it will just not send anything to the server
         /// From the client point of view : Remote Not Exists means server has not the row. SO it will just not send back anything to client
         /// </summary>
-        // RemoteNotExistsLocalIsDeleted,
+        //RemoteNotExistsLocalIsDeleted,
 
 
         /// <summary>
