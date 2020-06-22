@@ -191,21 +191,8 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(syncTable, setup);
                 var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
 
-
-                // Get correct Select incremental changes command 
-                var updateUntrackedRowsCommand = syncAdapter.GetCommand(DbCommandType.UpdateUntrackedRows);
-
-                if (updateUntrackedRowsCommand == null)
-                    throw new MissingCommandException(DbCommandType.UpdateUntrackedRows.ToString());
-
-                // Add common parameters
-                await syncAdapter.AddCommandParametersAsync(DbCommandType.UpdateUntrackedRows, updateUntrackedRowsCommand);
-
-                // Execute
-                await updateUntrackedRowsCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-
+                await syncAdapter.UpdateUntrackedRowsAsync().ConfigureAwait(false);
             }
-
 
             return context;
         }

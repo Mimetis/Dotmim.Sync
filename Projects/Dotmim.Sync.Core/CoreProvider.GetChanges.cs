@@ -99,6 +99,11 @@ namespace Dotmim.Sync
                 // Create a chnages table with scope columns
                 var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
+                selectIncrementalChangesCommand.Connection = connection;
+
+                if (transaction != null)
+                    selectIncrementalChangesCommand.Transaction = transaction;
+
                 // Get the reader
                 using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
@@ -165,7 +170,7 @@ namespace Dotmim.Sync
                 }
 
                 // be sure it's disposed
-                selectIncrementalChangesCommand.Dispose();
+                // selectIncrementalChangesCommand.Dispose();
 
                 // We don't report progress if no table changes is empty, to limit verbosity
                 if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
@@ -250,7 +255,7 @@ namespace Dotmim.Sync
                 dbCommandType = DbCommandType.SelectChanges;
 
             // Get correct Select incremental changes command 
-            selectIncrementalChangesCommand = syncAdapter.GetCommand(dbCommandType, tableFilter);
+            selectIncrementalChangesCommand = syncAdapter.InternalGetCommand(dbCommandType, tableFilter);
 
             if (selectIncrementalChangesCommand == null)
                 throw new MissingCommandException(dbCommandType.ToString());

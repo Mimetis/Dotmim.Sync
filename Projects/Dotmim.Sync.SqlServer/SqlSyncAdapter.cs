@@ -352,7 +352,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
         {
-            var command = this.Connection.CreateCommand() as SqlCommand;
+            var command = new SqlCommand();
 
             string text;
             bool isStoredProc;
@@ -361,10 +361,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
             command.CommandText = text;
-            command.Connection = Connection as SqlConnection;
-
-            if (Transaction != null)
-                command.Transaction = Transaction as SqlTransaction;
 
             return command;
         }
