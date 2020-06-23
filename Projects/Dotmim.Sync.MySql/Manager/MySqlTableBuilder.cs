@@ -62,6 +62,6 @@ namespace Dotmim.Sync.MySql
 
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() => new MySqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override DbSyncAdapter CreateSyncAdapter() => new MySqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
+        public override SyncAdapter CreateSyncAdapter() => new MySqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
     }
 }

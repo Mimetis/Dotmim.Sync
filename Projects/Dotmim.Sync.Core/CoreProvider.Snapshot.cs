@@ -111,7 +111,7 @@ namespace Dotmim.Sync
                     double rowsMemorySize = 0L;
 
                     // Create a chnages table with scope columns
-                    var changesSetTable = DbSyncAdapter.CreateChangesTable(schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+                    var changesSetTable = SyncAdapter.CreateChangesTable(schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
                     while (dataReader.Read())
                     {
@@ -151,7 +151,7 @@ namespace Dotmim.Sync
                         // Recreate an empty ContainerSet and a ContainerTable
                         changesSet = new SyncSet();
 
-                        changesSetTable = DbSyncAdapter.CreateChangesTable(schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+                        changesSetTable = SyncAdapter.CreateChangesTable(schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
                         // Init the row memory size
                         rowsMemorySize = 0L;
@@ -247,7 +247,7 @@ namespace Dotmim.Sync
 
             // Create a Schema set without readonly columns, attached to memory changes
             foreach (var table in schema.Tables)
-                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+                SyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
             {

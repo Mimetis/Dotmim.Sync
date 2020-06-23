@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public class MockSyncAdapter : DbSyncAdapter
+    public class MockSyncAdapter : SyncAdapter
     {
         public MockSyncAdapter(SyncTable tableDescription, SyncSetup setup)
             : base(tableDescription, setup)

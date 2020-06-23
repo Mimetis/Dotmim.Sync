@@ -97,7 +97,7 @@ namespace Dotmim.Sync
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
                 // Create a chnages table with scope columns
-                var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+                var changesSetTable = SyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
                 // Get the reader
                 using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -156,7 +156,7 @@ namespace Dotmim.Sync
                             // Recreate an empty ContainerSet and a ContainerTable
                             changesSet = new SyncSet();
 
-                            changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+                            changesSetTable = SyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
                             // Init the row memory size
                             rowsMemorySize = 0L;
@@ -224,7 +224,7 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        private async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
+        private async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, SyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
         {
             DbCommand command;
             DbCommandType dbCommandType;

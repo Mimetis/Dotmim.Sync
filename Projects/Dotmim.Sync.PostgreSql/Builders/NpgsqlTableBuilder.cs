@@ -77,7 +77,7 @@ namespace Dotmim.Sync.Postgres.Builders
             return new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
 
-        public override DbSyncAdapter CreateSyncAdapter()
+        public override SyncAdapter CreateSyncAdapter()
         {
             return new NpgsqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }

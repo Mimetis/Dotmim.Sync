@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Postgres.Builders
 {
-    public class NpgsqlSyncAdapter : DbSyncAdapter
+    public class NpgsqlSyncAdapter : SyncAdapter
     {
         private NpgsqlObjectNames sqlObjectNames;
         private NpgsqlDbMetadata sqlMetadata;
