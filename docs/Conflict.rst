@@ -236,3 +236,102 @@ We saw that conflicts are resolved on the server side, if you are in an **HTTP**
         [HttpGet]
         public async Task Get() => await webServerManager.HandleRequestAsync(this.HttpContext);
     }
+
+Handling conflicts from the client side
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+| As we said, all the conflicts are resolved from the server side.  
+| But, using a **Two sync trick**, you are able to resolve the conflict from the client side.
+
+
+.. tip:: This feature is only available from version `0.5.6`
+
+
+Basically the process is occuring in this order:
+- The first sync will raise the conflict and will be resolved on the server.
+- The first sync will send back the resolved conflict to the client, containing the server row and the client row
+- From the client side, you will now be able to ask the client to choose the correct version
+- The second sync will then send back the *new* version of the row to the server.
+
+
+.. warning:: To be able to use this technic, the ConflictResolutionPolicy MUST be set to ConflictResolutionPolicy.ServerWins
+
+
+Here is a full example using this special trick:
+
+.. code-block:: csharp
+
+    var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+    var localOrchestrator = agent.LocalOrchestrator;
+    var remoteOrchestrator = agent.RemoteOrchestrator;
+
+    // Conflict resolution MUST BE set to ServerWins
+    options.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+
+    // From client : Remote is server, Local is client
+    // From here, we are going to let the client decides 
+    // who is the winner of the conflict :
+    localOrchestrator.OnApplyChangesFailed(acf =>
+    {
+        // Check conflict is correctly set
+        var localRow = acf.Conflict.LocalRow;
+        var remoteRow = acf.Conflict.RemoteRow;
+
+        // From that point, you can easily letting the client decides 
+        // who is the winner
+        // Show a UI with the local / remote row and 
+        // letting him decides what is the good row version
+        // for testing purpose; will just going to set name to some fancy BLA BLA value
+
+        // SHOW UI
+        // OH.... CLIENT DECIDED TO SET NAME TO "BLA BLA BLA" 
+
+        // BE AS FAST AS POSSIBLE IN YOUR DESICION, 
+        // SINCE WE HAVE AN OPENED CONNECTION / TRANSACTION RUNNING
+    
+        remoteRow["Name"] = clientNameDecidedOnClientMachine;
+
+        // Mandatory to override the winner registered in the tracking table
+        // Use with caution !
+        // To be sure the row will be marked as updated locally, 
+        // the scope id should be set to null
+        acf.SenderScopeId = null;
+    });
+
+    // From Server : Remote is client, Local is server
+    // From that point we do not do anything, 
+    // letting the server resolves the conflict and send back
+    // the server row and client row conflicting to the client
+    remoteOrchestrator.OnApplyChangesFailed(acf =>
+    {
+        // Check conflict is correctly set
+        var localRow = acf.Conflict.LocalRow;
+        var remoteRow = acf.Conflict.RemoteRow;
+
+        // remote is client; local is server
+        Assert.StartsWith("CLI", remoteRow["Name"].ToString());
+        Assert.StartsWith("SRV", localRow["Name"].ToString());
+
+        Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
+        Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+
+    });
+
+    // First sync, we allow server to resolve the conflict and send back the result to client
+    var s = await agent.SynchronizeAsync();
+
+    
+    Assert.Equal(1, s.TotalChangesDownloaded);
+    Assert.Equal(1, s.TotalChangesUploaded);
+    Assert.Equal(1, s.TotalResolvedConflicts);
+
+    // From this point the Server row Name is STILL "SRV...."
+    // And the Client row NAME is "BLA BLA BLA..."
+    // Make a new sync to send "BLA BLA BLA..." to Server
+
+    s = await agent.SynchronizeAsync();
+
+    Assert.Equal(0, s.TotalChangesDownloaded);
+    Assert.Equal(1, s.TotalChangesUploaded);
+    Assert.Equal(0, s.TotalResolvedConflicts);
