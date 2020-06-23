@@ -20,7 +20,7 @@ namespace Dotmim.Sync
     /// The SyncAdapter is the datasource manager for ONE table
     /// Should be implemented by every database provider and provide every SQL action
     /// </summary>
-    public abstract class DbSyncAdapter
+    public abstract class SyncAdapter
     {
         private const int BATCH_SIZE = 1000;
 
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a Sync Adapter
         /// </summary>
-        public DbSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public SyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;

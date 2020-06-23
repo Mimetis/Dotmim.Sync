@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Batch
     /// Represents a Batch, containing a full or serialized change set
     /// </summary>
     [DataContract(Name = "bi"), Serializable]
-    public class BatchInfo : ILoggable
+    public class BatchInfo
     {
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Batch
 
             // We need to create a change table set, containing table with columns not readonly
             foreach (var table in inSchema.Tables)
-                DbSyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
+                SyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
 
             // If not in memory, generate a directory name and initialize batch parts list
             if (!this.InMemory)
@@ -287,23 +287,6 @@ namespace Dotmim.Sync.Batch
 
             this.BatchPartsInfo.Clear();
 
-        }
-
-        public (string Message, object[] Args) GetLog()
-        {
-            var sb = new StringBuilder();
-            var args = new List<object>();
-
-            sb.Append("InMemory={InMemory}");
-            args.Add(this.InMemory);
-            sb.Append("GetDirectoryFullPath={GetDirectoryFullPath}");
-            args.Add(this.GetDirectoryFullPath());
-            sb.Append("Timestamp={Timestamp}");
-            args.Add(this.Timestamp);
-            sb.Append("BatchPartsInfo={BatchPartsInfo}");
-            args.Add(this.BatchPartsInfo != null ? this.BatchPartsInfo.Count : 0);
-
-            return (sb.ToString(), args.ToArray());
         }
     }
 }

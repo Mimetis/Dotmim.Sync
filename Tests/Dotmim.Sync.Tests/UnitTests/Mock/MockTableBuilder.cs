@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public override IDbBuilderProcedureHelper CreateProcBuilder()
             => new MockBuilderProcedureHelper();
 
-        public override DbSyncAdapter CreateSyncAdapter()
+        public override SyncAdapter CreateSyncAdapter()
             => new MockSyncAdapter(this.TableDescription, this.Setup);
 
         public override IDbBuilderTableHelper CreateTableBuilder()

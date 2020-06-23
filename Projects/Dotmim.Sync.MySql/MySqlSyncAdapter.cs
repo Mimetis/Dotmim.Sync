@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
-    public class MySqlSyncAdapter : DbSyncAdapter
+    public class MySqlSyncAdapter : SyncAdapter
     {
         private MySqlObjectNames mySqlObjectNames;
         private MySqlDbMetadata mySqlDbMetadata;

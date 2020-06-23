@@ -250,7 +250,7 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<(int rowsAppliedCount, int conflictsResolvedCount, int syncErrorsCount)> ResolveConflictsAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, List<SyncConflict> conflicts, MessageApplyChanges message, DbConnection connection, DbTransaction transaction)
+        private async Task<(int rowsAppliedCount, int conflictsResolvedCount, int syncErrorsCount)> ResolveConflictsAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncAdapter syncAdapter, List<SyncConflict> conflicts, MessageApplyChanges message, DbConnection connection, DbTransaction transaction)
         {
             int rowsAppliedCount = 0;
             int conflictsResolvedCount = 0;
@@ -297,7 +297,7 @@ namespace Dotmim.Sync
         /// changeApplicationAction, conflictCount, resolvedRow, conflictApplyInt
         internal async Task<(int conflictResolvedCount, SyncRow resolvedRow, int rowAppliedCount)> HandleConflictAsync(
                                 Guid localScopeId, Guid senderScopeId,
-                                DbSyncAdapter syncAdapter, SyncContext context, SyncConflict conflict,
+                                SyncAdapter syncAdapter, SyncContext context, SyncConflict conflict,
                                 ConflictResolutionPolicy policy, long lastTimestamp,
                                 DbConnection connection, DbTransaction transaction)
         {

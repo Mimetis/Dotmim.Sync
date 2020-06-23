@@ -71,7 +71,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
             => new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override DbSyncAdapter CreateSyncAdapter() 
+        public override SyncAdapter CreateSyncAdapter() 
             => new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
     }
 }
