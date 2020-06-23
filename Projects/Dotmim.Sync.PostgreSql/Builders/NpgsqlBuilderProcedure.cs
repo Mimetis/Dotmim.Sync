@@ -16,19 +16,14 @@ namespace Dotmim.Sync.Postgres.Builders
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private NpgsqlConnection connection;
-        private readonly NpgsqlTransaction transaction;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
         private readonly NpgsqlObjectNames sqlObjectNames;
         private readonly NpgsqlDbMetadata sqlDbMetadata;
         internal const string NPGSQL_PREFIX_PARAMETER = "in_";
 
-        public NpgsqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public NpgsqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as NpgsqlConnection;
-            this.transaction = transaction as NpgsqlTransaction;
-
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -133,69 +128,25 @@ namespace Dotmim.Sync.Postgres.Builders
         /// <summary>
         /// Create a stored procedure
         /// </summary>
-        protected async Task CreateProcedureCommandAsync(Func<NpgsqlCommand> BuildCommand, string procName)
+        protected async Task CreateProcedureCommandAsync(Func<NpgsqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
         {
+            var str = CreateProcedureCommandText(BuildCommand(), procName);
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new NpgsqlCommand(str, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                using (var command = new NpgsqlCommand(str, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
 
-        private async Task CreateProcedureCommandAsync<T>(Func<T, NpgsqlCommand> BuildCommand, string procName, T t)
+        private async Task CreateProcedureCommandAsync<T>(Func<T, NpgsqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var str = CreateProcedureCommandText(BuildCommand(t), procName);
 
-            try
+            using (var command = new NpgsqlCommand(str, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str = CreateProcedureCommandText(BuildCommand(t), procName);
-                using (var command = new NpgsqlCommand(str, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
@@ -204,28 +155,21 @@ namespace Dotmim.Sync.Postgres.Builders
         /// <summary>
         /// Check if we need to create the stored procedure
         /// </summary>
-        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType)
+        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            if (connection.State != ConnectionState.Open)
-                throw new ArgumentException("Here, we need an opened connection please");
-
             var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
 
-            return !await NpgsqlManagementUtils.ProcedureExistsAsync(connection, transaction, commandName).ConfigureAwait(false);
+            return !await NpgsqlManagementUtils.ProcedureExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, commandName).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Check if we need to create the TVP Type
         /// </summary>
-        public async Task<bool> NeedToCreateTypeAsync(DbCommandType commandType)
+        public async Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            if (connection.State != ConnectionState.Open)
-                throw new ArgumentException("Here, we need an opened connection please");
-
             var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
 
-            return !await NpgsqlManagementUtils.TypeExistsAsync(connection, transaction, commandName).ConfigureAwait(false);
-
+            return !await NpgsqlManagementUtils.TypeExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, commandName).ConfigureAwait(false);
         }
 
         protected string BulkSelectUnsuccessfulRows()
@@ -312,46 +256,20 @@ namespace Dotmim.Sync.Postgres.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateResetAsync()
+        public Task CreateResetAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            return CreateProcedureCommandAsync(BuildResetCommand, commandName);
+            return CreateProcedureCommandAsync(BuildResetCommand, commandName, connection, transaction);
         }
-        public async Task DropResetAsync()
+        public async Task DropResetAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
+            var commandText = $"DROP FUNCTION \"{commandName};\"";
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-
-                    command.CommandText = $"DROP FUNCTION \"{commandName};\"";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop Reset : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -404,49 +322,23 @@ namespace Dotmim.Sync.Postgres.Builders
             stringBuilder.AppendLine();
 
             sqlCommand.CommandText = stringBuilder.ToString();
-            
+
             return sqlCommand;
         }
-        public Task CreateDeleteAsync()
+        public Task CreateDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            return CreateProcedureCommandAsync(BuildDeleteCommand, commandName);
+            return CreateProcedureCommandAsync(BuildDeleteCommand, commandName, connection, transaction);
         }
-        public async Task DropDeleteAsync()
+        public async Task DropDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop DeleteRow : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -473,46 +365,20 @@ namespace Dotmim.Sync.Postgres.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateDeleteMetadataAsync()
+        public Task CreateDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            return CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName);
+            return CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName, connection, transaction);
         }
-        public async Task DropDeleteMetadataAsync()
+        public async Task DropDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop DeleteMetadata : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -561,45 +427,22 @@ namespace Dotmim.Sync.Postgres.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateSelectRowAsync()
+        public Task CreateSelectRowAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            return CreateProcedureCommandAsync(BuildSelectRowCommand, commandName);
+            return CreateProcedureCommandAsync(BuildSelectRowCommand, commandName, connection, transaction);
         }
-        public async Task DropSelectRowAsync()
+
+
+        public async Task DropSelectRowAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop SelectRow : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -776,46 +619,20 @@ namespace Dotmim.Sync.Postgres.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateUpdateAsync(bool hasMutableColumns)
+        public Task CreateUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            return this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns);
+            return this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns, connection, transaction);
         }
-        public async Task DropUpdateAsync()
+        public async Task DropUpdateAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop Update : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         /// <summary>
@@ -1105,71 +922,39 @@ namespace Dotmim.Sync.Postgres.Builders
 
             return sqlCommand;
         }
-        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter = null)
+        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
             NpgsqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             if (filter != null)
             {
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
                 NpgsqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
+            }
+        }
 
+        public async Task DropSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
+
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
-        }
-        public async Task DropSelectIncrementalChangesAsync(SyncFilter filter = null)
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            if (filter != null)
             {
-                using (var command = new NpgsqlCommand())
+                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+
+                using (var command = new NpgsqlCommand(commandTextWithFilter, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
                 {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
-
-                if (filter != null)
-                {
-                    using (var command = new NpgsqlCommand())
-                    {
-                        if (!alreadyOpened)
-                            await connection.OpenAsync().ConfigureAwait(false);
-
-                        if (this.transaction != null)
-                            command.Transaction = this.transaction;
-
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
-
-                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
-                        command.Connection = this.connection;
-                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
             }
 
         }
@@ -1235,90 +1020,57 @@ namespace Dotmim.Sync.Postgres.Builders
             return sqlCommand;
         }
 
-        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter = null)
+        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
             NpgsqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             if (filter != null)
             {
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
                 NpgsqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
             }
         }
-        public async Task DropSelectInitializedChangesAsync(SyncFilter filter = null)
+        public async Task DropSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+
+            if (filter != null)
+            {
+
+                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
+                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+
+                using (var command = new NpgsqlCommand(commandTextWithFilter, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
                 {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
-
-                if (filter != null)
-                {
-
-                    using (var command = new NpgsqlCommand())
-                    {
-                        if (!alreadyOpened)
-                            await connection.OpenAsync().ConfigureAwait(false);
-
-                        if (this.transaction != null)
-                            command.Transaction = this.transaction;
-
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
-
-                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
-                        command.Connection = this.connection;
-                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    }
-                }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
-        public Task CreateBulkUpdateAsync(bool hasMutableColumns)
+        public Task CreateBulkUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
         {
             throw new NotImplementedException();
         }
 
-        public Task CreateBulkDeleteAsync()
+        public Task CreateBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
             throw new NotImplementedException();
         }
 
-        public Task DropBulkUpdateAsync()
+        public Task DropBulkUpdateAsync(DbConnection connection, DbTransaction transaction)
         {
             throw new NotImplementedException();
         }
 
-        public Task DropBulkDeleteAsync()
+        public Task DropBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
             throw new NotImplementedException();
         }
@@ -1348,38 +1100,16 @@ namespace Dotmim.Sync.Postgres.Builders
             return stringBuilder.ToString();
         }
 
-        public async Task CreateTVPTypeAsync()
+        public async Task CreateTVPTypeAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (NpgsqlCommand sqlCommand = new NpgsqlCommand(this.CreateTVPTypeCommandText(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
 
-                using (NpgsqlCommand sqlCommand = new NpgsqlCommand(this.CreateTVPTypeCommandText(),
-                    connection))
-                {
-                    if (transaction != null)
-                        sqlCommand.Transaction = transaction;
-
-                    await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTVPType : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public Task DropTVPTypeAsync()
+        public Task DropTVPTypeAsync(DbConnection connection, DbTransaction transaction)
         {
             throw new NotImplementedException();
         }

@@ -19,20 +19,15 @@ namespace Dotmim.Sync.Postgres.Builders
         private ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
-        private readonly NpgsqlConnection connection;
-        private readonly NpgsqlTransaction transaction;
         private readonly NpgsqlObjectNames sqlObjectNames;
-        public SqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
-        {
-            this.connection = connection as NpgsqlConnection;
-            this.transaction = transaction as NpgsqlTransaction;
 
+        public SqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        {
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
             this.sqlObjectNames = new NpgsqlObjectNames(this.tableDescription, this.setup);
-
         }
 
         private string DeleteTriggerBodyText()
@@ -84,136 +79,59 @@ namespace Dotmim.Sync.Postgres.Builders
             return stringBuilder.ToString();
         }
 
-        public virtual async Task CreateDeleteTriggerAsync()
+        public virtual async Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+            var delTriggerParseName = ParserName.Parse(delTriggerName, "\"");
+            var trigger = new StringBuilder();
+            trigger.AppendLine($"CREATE OR REPLACE FUNCTION {delTriggerName}()");
+            trigger.AppendLine($"RETURNS TRIGGER AS");
+            trigger.AppendLine($"$BODY$");
+            trigger.AppendLine($"BEGIN");
+            trigger.AppendLine(this.DeleteTriggerBodyText());
+            trigger.AppendLine($"RETURN NULL;");
+            trigger.AppendLine($"END;");
+            trigger.AppendLine($"$BODY$");
+            trigger.AppendLine($"lANGUAGE 'plpgsql';");
+            trigger.AppendLine($"DROP TRIGGER IF EXISTS {delTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
+            trigger.AppendLine($"CREATE TRIGGER {delTriggerParseName.Quoted().ToString()} AFTER DELETE ON {tableName.Schema().Quoted().ToString()}");
+            trigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {delTriggerName}();");
+            trigger.AppendLine($"");
 
-            try
+            using (var command = new NpgsqlCommand(trigger.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-                    var delTriggerParseName = ParserName.Parse(delTriggerName, "\"");
-
-                    var createTrigger = new StringBuilder();
-                    createTrigger.AppendLine($"CREATE OR REPLACE FUNCTION {delTriggerName}()");
-                    createTrigger.AppendLine($"RETURNS TRIGGER AS");
-                    createTrigger.AppendLine($"$BODY$");
-                    createTrigger.AppendLine($"BEGIN");
-                    createTrigger.AppendLine(this.DeleteTriggerBodyText());
-                    createTrigger.AppendLine($"RETURN NULL;");
-                    createTrigger.AppendLine($"END;");
-                    createTrigger.AppendLine($"$BODY$");
-                    createTrigger.AppendLine($"lANGUAGE 'plpgsql';");
-                    createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {delTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
-                    createTrigger.AppendLine($"CREATE TRIGGER {delTriggerParseName.Quoted().ToString()} AFTER DELETE ON {tableName.Schema().Quoted().ToString()}");
-                    createTrigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {delTriggerName}();");
-                    createTrigger.AppendLine($"");
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
 
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
         }
-        public virtual async Task DropDeleteTriggerAsync()
+        public virtual async Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+            var commandText = $"DROP TRIGGER {delTriggerName};";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-
-                    command.CommandText = $"DROP TRIGGER {delTriggerName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task AlterDeleteTriggerAsync()
+        public virtual async Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+            var createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            try
+            using (var command = new NpgsqlCommand(createTrigger.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-                    var createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
 
         }
 
         private string InsertTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
-      
+
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -258,130 +176,53 @@ namespace Dotmim.Sync.Postgres.Builders
 
             return stringBuilder.ToString();
         }
-        public virtual async Task CreateInsertTriggerAsync()
+        public virtual async Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
+            var insTriggerParseName = ParserName.Parse(insTriggerName, "\"");
+            var trigger = new StringBuilder();
+            trigger.AppendLine($"CREATE OR REPLACE FUNCTION {insTriggerName}()");
+            trigger.AppendLine($"RETURNS TRIGGER AS");
+            trigger.AppendLine($"$BODY$");
+            trigger.AppendLine($"BEGIN");
+            trigger.AppendLine(this.InsertTriggerBodyText());
+            trigger.AppendLine($"RETURN NULL;");
+            trigger.AppendLine($"END;");
+            trigger.AppendLine($"$BODY$");
+            trigger.AppendLine($"lANGUAGE 'plpgsql';");
+            trigger.AppendLine($"DROP TRIGGER IF EXISTS {insTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
+            trigger.AppendLine($"CREATE TRIGGER {insTriggerParseName.Quoted().ToString()} AFTER INSERT ON {tableName.Schema().Quoted().ToString()}");
+            trigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {insTriggerName}();");
+            trigger.AppendLine($"");
+            using (var command = new NpgsqlCommand(trigger.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-                    var insTriggerParseName = ParserName.Parse(insTriggerName, "\"");
-
-                    var createTrigger = new StringBuilder();
-                    createTrigger.AppendLine($"CREATE OR REPLACE FUNCTION {insTriggerName}()");
-                    createTrigger.AppendLine($"RETURNS TRIGGER AS");
-                    createTrigger.AppendLine($"$BODY$");
-                    createTrigger.AppendLine($"BEGIN");
-                    createTrigger.AppendLine(this.InsertTriggerBodyText());
-                    createTrigger.AppendLine($"RETURN NULL;");
-                    createTrigger.AppendLine($"END;");
-                    createTrigger.AppendLine($"$BODY$");
-                    createTrigger.AppendLine($"lANGUAGE 'plpgsql';");
-                    createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {insTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
-                    createTrigger.AppendLine($"CREATE TRIGGER {insTriggerParseName.Quoted().ToString()} AFTER INSERT ON {tableName.Schema().Quoted().ToString()}");
-                    createTrigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {insTriggerName}();");
-                    createTrigger.AppendLine($"");
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             }
         }
 
-        public virtual async Task DropInsertTriggerAsync()
+        public virtual async Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
+            var commandText = $"DROP TRIGGER {triggerName};";
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-
-                    command.CommandText = $"DROP TRIGGER {triggerName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task AlterInsertTriggerAsync()
+        public virtual async Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
+            var createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.InsertTriggerBodyText());
+            var commandText = createTrigger.ToString();
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-                    var createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
@@ -431,134 +272,57 @@ namespace Dotmim.Sync.Postgres.Builders
 
             return stringBuilder.ToString();
         }
-        public virtual async Task CreateUpdateTriggerAsync()
+        public virtual async Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
+            var updTriggerParseName = ParserName.Parse(updTriggerName, "\"");
+            var trigger = new StringBuilder();
+            trigger.AppendLine($"CREATE OR REPLACE FUNCTION {updTriggerName}()");
+            trigger.AppendLine($"RETURNS TRIGGER AS");
+            trigger.AppendLine($"$BODY$");
+            trigger.AppendLine($"BEGIN");
+            trigger.AppendLine(this.UpdateTriggerBodyText());
+            trigger.AppendLine($"RETURN NULL;");
+            trigger.AppendLine($"END;");
+            trigger.AppendLine($"$BODY$");
+            trigger.AppendLine($"lANGUAGE 'plpgsql';");
+            trigger.AppendLine($"DROP TRIGGER IF EXISTS {updTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
+            trigger.AppendLine($"CREATE TRIGGER {updTriggerParseName.Quoted().ToString()} AFTER UPDATE ON {tableName.Schema().Quoted().ToString()}");
+            trigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {updTriggerName}();");
+            trigger.AppendLine($"");
 
-            try
+            using (var command = new NpgsqlCommand(trigger.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-                    var updTriggerParseName = ParserName.Parse(updTriggerName, "\"");
-
-                    var createTrigger = new StringBuilder();
-                    createTrigger.AppendLine($"CREATE OR REPLACE FUNCTION {updTriggerName}()");
-                    createTrigger.AppendLine($"RETURNS TRIGGER AS");
-                    createTrigger.AppendLine($"$BODY$");
-                    createTrigger.AppendLine($"BEGIN");
-                    createTrigger.AppendLine(this.UpdateTriggerBodyText());
-                    createTrigger.AppendLine($"RETURN NULL;");
-                    createTrigger.AppendLine($"END;");
-                    createTrigger.AppendLine($"$BODY$");
-                    createTrigger.AppendLine($"lANGUAGE 'plpgsql';");
-                    createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {updTriggerParseName.Quoted().ToString()} on {tableName.Schema().Quoted().ToString()};");
-                    createTrigger.AppendLine($"CREATE TRIGGER {updTriggerParseName.Quoted().ToString()} AFTER UPDATE ON {tableName.Schema().Quoted().ToString()}");
-                    createTrigger.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {updTriggerName}();");
-                    createTrigger.AppendLine($"");
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task DropUpdateTriggerAsync()
+        public virtual async Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
+            var commandText = $"DROP TRIGGER {triggerName};";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-
-                    command.CommandText = $"DROP TRIGGER {triggerName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
 
-        public virtual async Task AlterUpdateTriggerAsync()
+        public virtual async Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
+            var createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.UpdateTriggerBodyText());
+            var commandText = createTrigger.ToString();
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                using (var command = new NpgsqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-                    var createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type)
+        public virtual async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
         {
 
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
@@ -585,7 +349,7 @@ namespace Dotmim.Sync.Postgres.Builders
                     }
             }
 
-            return !await NpgsqlManagementUtils.TriggerExistsAsync(connection, transaction, triggerName).ConfigureAwait(false);
+            return !await NpgsqlManagementUtils.TriggerExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, triggerName).ConfigureAwait(false);
         }
 
 

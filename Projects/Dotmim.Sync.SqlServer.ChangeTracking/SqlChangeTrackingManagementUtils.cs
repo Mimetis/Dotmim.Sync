@@ -12,7 +12,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking
     public static class SqlChangeTrackingManagementUtils
     {
 
-
         /// <summary>
         /// Get Table
         /// </summary>

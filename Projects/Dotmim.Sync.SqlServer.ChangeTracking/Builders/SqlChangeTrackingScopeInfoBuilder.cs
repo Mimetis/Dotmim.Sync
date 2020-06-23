@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.SqlServer.Scope;
+using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -13,29 +14,21 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
     public class SqlChangeTrackingScopeInfoBuilder : SqlScopeInfoBuilder
     {
-        public SqlChangeTrackingScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null) 
-            : base(scopeTableName, connection, transaction)
+        public SqlChangeTrackingScopeInfoBuilder(string scopeTableName) : base(scopeTableName)
         {
         }
 
-        public override async Task<long> GetLocalTimestampAsync()
+        public override async Task<long> GetLocalTimestampAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+                var commandText = "SELECT @sync_new_timestamp = CHANGE_TRACKING_CURRENT_VERSION();";
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                command.CommandText = "SELECT @sync_new_timestamp = CHANGE_TRACKING_CURRENT_VERSION();";
                 DbParameter p = command.CreateParameter();
                 p.ParameterName = "@sync_new_timestamp";
                 p.DbType = DbType.Int64;
                 p.Direction = ParameterDirection.Output;
                 command.Parameters.Add(p);
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -44,46 +37,17 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 if (outputParameter == null)
                     return 0L;
 
-                long result = 0L;
-
-                long.TryParse(outputParameter.Value.ToString(), out result);
-
-                command.Dispose();
+                long.TryParse(outputParameter.Value.ToString(), out long result);
 
                 return Math.Max(result, 0);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during GetLocalTimestamp : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-
-        public override async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo)
+        public override async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
 
                 var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText = $@"
+                var commandText = $@"
                     Declare @minVersion int;
                     Select @minVersion = MIN(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) from sys.tables T where CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
 
@@ -110,6 +74,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                             INSERTED.[sync_scope_version], 
                             INSERTED.[sync_scope_last_clean_timestamp];
                 ";
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -159,20 +126,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
                 return serverScopeInfo;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
-
     }
 }

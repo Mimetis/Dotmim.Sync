@@ -15,30 +15,16 @@ namespace Dotmim.Sync.SqlServer.Scope
     public class SqlScopeInfoBuilder : IDbScopeInfoBuilder
     {
         protected readonly ParserName scopeTableName;
-        protected readonly SqlConnection connection;
-        protected readonly SqlTransaction transaction;
 
-        public SqlScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
+        public SqlScopeInfoBuilder(string scopeTableName)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
             this.scopeTableName = ParserName.Parse(scopeTableName);
         }
 
-        public virtual async Task CreateClientScopeInfoTableAsync()
+        public virtual async Task CreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"CREATE TABLE [dbo].{scopeTableName.Quoted().ToString()}(
+            var commandText =
+                $@"CREATE TABLE [dbo].{scopeTableName.Quoted().ToString()}(
                         [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [sync_scope_schema] [nvarchar](max) NULL,
@@ -50,70 +36,27 @@ namespace Dotmim.Sync.SqlServer.Scope
                         [scope_last_sync] [datetime] NULL
                         CONSTRAINT [PK_{scopeTableName.Unquoted().Normalized().ToString()}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task DropClientScopeInfoTableAsync()
+        public virtual async Task DropClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand($"DROP Table [dbo].{scopeTableName.Quoted().ToString()}", (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText = $"DROP Table [dbo].{scopeTableName.Quoted().ToString()}";
-
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public virtual async Task CreateServerHistoryScopeInfoTableAsync()
+        public virtual async Task CreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText =
-                    $@"CREATE TABLE [dbo].[{tableName}](
+            var commandText =
+                $@"CREATE TABLE [dbo].[{tableName}](
                         [sync_scope_id] [uniqueidentifier] NOT NULL,
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
                         [scope_last_sync_timestamp] [bigint] NULL,
@@ -121,72 +64,31 @@ namespace Dotmim.Sync.SqlServer.Scope
                         [scope_last_sync] [datetime] NULL
                         CONSTRAINT [PK_{tableName}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC)
                         )";
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateServerHistoryScopeInfoTableAsync : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task DropServerHistoryScopeInfoTableAsync()
+        public virtual async Task DropServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText = $"DROP Table [dbo].[{tableName}]";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText = $"DROP Table [dbo].[{tableName}]";
-
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public virtual async Task CreateServerScopeInfoTableAsync()
+        public virtual async Task CreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText =
-                    $@"CREATE TABLE [dbo].[{tableName}] (
+            var commandText =
+                $@"CREATE TABLE [dbo].[{tableName}] (
 	                    [sync_scope_name] [nvarchar](100) NOT NULL,
 	                    [sync_scope_schema] [nvarchar](max) NULL,
 	                    [sync_scope_setup] [nvarchar](max) NULL,
@@ -194,72 +96,31 @@ namespace Dotmim.Sync.SqlServer.Scope
                         [sync_scope_last_clean_timestamp] [bigint] NULL,
                         CONSTRAINT [PK_{scopeTableName.Unquoted().Normalized().ToString()}_server] PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
                         )";
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task DropServerScopeInfoTableAsync()
+        public virtual async Task DropServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText = $"DROP Table [dbo].[{tableName}]";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText = $"DROP Table [dbo].[{tableName}]";
-
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public virtual async Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName)
+        public virtual async Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
             var scopes = new List<ScopeInfo>();
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
 
-                command.CommandText =
-                    $@"SELECT [sync_scope_id]
+            var commandText =
+                $@"SELECT [sync_scope_id]
                            , [sync_scope_name]
                            , [sync_scope_schema]
                            , [sync_scope_setup]
@@ -271,6 +132,8 @@ namespace Dotmim.Sync.SqlServer.Scope
                     FROM  {scopeTableName.Quoted().ToString()}
                     WHERE [sync_scope_name] = @sync_scope_name";
 
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = scopeName;
@@ -287,7 +150,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as string;
                             scopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
-                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]); 
+                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = (Guid)reader["sync_scope_id"];
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
@@ -298,44 +161,24 @@ namespace Dotmim.Sync.SqlServer.Scope
                         }
                     }
                 }
+            }
 
-                return scopes;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during GetAllScopes : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
+            return scopes;
         }
 
-        public virtual async Task<long> GetLocalTimestampAsync()
+        public virtual async Task<long> GetLocalTimestampAsync(DbConnection connection, DbTransaction transaction)
         {
-            using (var command = connection.CreateCommand())
+            // UPDATE Nov 2019 : We don't use min_active_rowversion anymore, since we are in a transaction
+            // and we still need the last row version, so check back to @@DBTS
+            var commandText = "SELECT @sync_new_timestamp = @@DBTS";
+
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                // UPDATE Nov 2019 : We don't use min_active_rowversion anymore, since we are in a transaction
-                // and we still need the last row version, so check back to @@DBTS
-                command.CommandText = "SELECT @sync_new_timestamp = @@DBTS";
                 DbParameter p = command.CreateParameter();
                 p.ParameterName = "@sync_new_timestamp";
                 p.DbType = DbType.Int64;
                 p.Direction = ParameterDirection.Output;
                 command.Parameters.Add(p);
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -346,26 +189,13 @@ namespace Dotmim.Sync.SqlServer.Scope
 
                 long.TryParse(outputParameter.Value.ToString(), out long result);
 
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
                 return result;
             }
         }
 
-        public virtual async Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo)
+        public virtual async Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText = $@"
+            var commandText = $@"
                     MERGE {scopeTableName.Quoted().ToString()} AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
@@ -399,8 +229,11 @@ namespace Dotmim.Sync.SqlServer.Scope
                             INSERTED.[scope_last_sync],
                             INSERTED.[scope_last_sync_timestamp],
                             INSERTED.[scope_last_server_sync_timestamp],
-                            INSERTED.[scope_last_sync_duration];
-                ";
+                            INSERTED.[scope_last_sync_duration];";
+
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -416,7 +249,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_setup";
-                p.Value = scopeInfo.Setup ==null  ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
+                p.Value = scopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -478,36 +311,15 @@ namespace Dotmim.Sync.SqlServer.Scope
 
                 return scopeInfo;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public virtual async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo)
+        public virtual async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText = $@"
+            var commandText = $@"
                     MERGE {tableName} AS [base] 
                     USING (
                                SELECT  @sync_scope_name AS sync_scope_name,  
@@ -530,9 +342,10 @@ namespace Dotmim.Sync.SqlServer.Scope
                             INSERTED.[sync_scope_schema], 
                             INSERTED.[sync_scope_setup], 
                             INSERTED.[sync_scope_version], 
-                            INSERTED.[sync_scope_last_clean_timestamp];
-                ";
+                            INSERTED.[sync_scope_last_clean_timestamp];";
 
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = serverScopeInfo.Name;
@@ -580,38 +393,16 @@ namespace Dotmim.Sync.SqlServer.Scope
                 }
 
                 return serverScopeInfo;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public virtual async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo)
+        public virtual async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
 
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText = $@"
+            var commandText = $@"
                     MERGE [{tableName}] AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
@@ -633,8 +424,11 @@ namespace Dotmim.Sync.SqlServer.Scope
                             INSERTED.[sync_scope_id], 
                             INSERTED.[scope_last_sync_timestamp],
                             INSERTED.[scope_last_sync],
-                            INSERTED.[scope_last_sync_duration];
-                ";
+                            INSERTED.[scope_last_sync_duration];";
+
+
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -682,159 +476,81 @@ namespace Dotmim.Sync.SqlServer.Scope
                 }
 
                 return serverHistoryScopeInfo;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public virtual async Task<bool> NeedToCreateClientScopeInfoTableAsync()
+        public virtual async Task<bool> NeedToCreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"IF EXISTS (SELECT t.name FROM sys.tables t 
+            var commandText =
+                $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
                             WHERE t.name = N'{this.scopeTableName.Unquoted().ToString()}')
                      SELECT 1 
                      ELSE
                      SELECT 0";
-
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
 
                 return (int)result != 1;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during NeedToCreateScopeInfoTable command : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
+        }
 
-                if (command != null)
-                    command.Dispose();
+        public virtual async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+        {
+
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText =
+                $@"IF EXISTS (SELECT t.name FROM sys.tables t 
+                            JOIN sys.schemas s ON s.schema_id = t.schema_id 
+                            WHERE t.name = N'{tableName}')
+                     SELECT 1 
+                     ELSE
+                     SELECT 0";
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
+                return (int)result != 1;
             }
         }
 
-        public virtual async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync()
+        public virtual async Task<bool> NeedToCreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText =
-                    $@"IF EXISTS (SELECT t.name FROM sys.tables t 
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText =
+                $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
                             WHERE t.name = N'{tableName}')
                      SELECT 1 
                      ELSE
                      SELECT 0";
 
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
-
-                return (int)result != 1;
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during NeedToCreateServerHistoryScopeInfoTable command : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
-        }
-
-        public virtual async Task<bool> NeedToCreateServerScopeInfoTableAsync()
-        {
-            using (var command = connection.CreateCommand())
-            {
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText =
-                    $@"IF EXISTS (SELECT t.name FROM sys.tables t 
-                            JOIN sys.schemas s ON s.schema_id = t.schema_id 
-                            WHERE t.name = N'{tableName}')
-                     SELECT 1 
-                     ELSE
-                     SELECT 0";
-
-                var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
-
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
                 return (int)result != 1;
             }
 
         }
 
-        public async Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName)
+        public async Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction)
         {
-            using (var command = connection.CreateCommand())
-            {
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                var scopes = new List<ServerScopeInfo>();
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"SELECT [sync_scope_name]
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText =
+                $@"SELECT [sync_scope_name]
                            , [sync_scope_schema]
                            , [sync_scope_setup]
                            , [sync_scope_version]
                            , [sync_scope_last_clean_timestamp]
                     FROM  [{tableName}]
                     WHERE [sync_scope_name] = @sync_scope_name";
+
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+
+                var scopes = new List<ServerScopeInfo>();
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -860,38 +576,27 @@ namespace Dotmim.Sync.SqlServer.Scope
                     }
                 }
 
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
                 return scopes;
             }
 
         }
 
-        public async Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName)
+        public async Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction)
         {
-            using (var command = connection.CreateCommand())
-            {
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                var scopes = new List<ServerHistoryScopeInfo>();
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"SELECT [sync_scope_id]
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText =
+                $@"SELECT [sync_scope_id]
                            , [sync_scope_name]
                            , [scope_last_sync_timestamp]
                            , [scope_last_sync_duration]
                            , [scope_last_sync]
                     FROM  [{tableName}]
                     WHERE [sync_scope_name] = @sync_scope_name";
+
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                var scopes = new List<ServerHistoryScopeInfo>();
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -916,9 +621,6 @@ namespace Dotmim.Sync.SqlServer.Scope
                         }
                     }
                 }
-
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
                 return scopes;
             }

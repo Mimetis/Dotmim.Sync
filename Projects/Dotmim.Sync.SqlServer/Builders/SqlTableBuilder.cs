@@ -54,34 +54,24 @@ namespace Dotmim.Sync.SqlServer.Builders
             string str = stringBuilder1.ToString();
             stringBuilder.Append(string.Concat("-- BEGIN ", commentText, str));
             stringBuilder.Append(commandText);
-            stringBuilder.Append(string.Concat(str, (includeGo ? string.Concat("GO", str) : string.Empty)));
+            stringBuilder.Append(string.Concat(str, includeGo ? string.Concat("GO", str) : string.Empty));
             stringBuilder.Append(string.Concat("-- END ", commentText, str, "\n"));
             return stringBuilder.ToString();
         }
 
-        public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
-        }
+        public override IDbBuilderProcedureHelper CreateProcBuilder() 
+            => new SqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
-        }
+        public override IDbBuilderTriggerHelper CreateTriggerBuilder() 
+            => new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
-        }
+        public override IDbBuilderTableHelper CreateTableBuilder() 
+            => new SqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
-        }
+        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
+            => new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override DbSyncAdapter CreateSyncAdapter()
-        {
-            return new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
-        }
+        public override DbSyncAdapter CreateSyncAdapter() 
+            => new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
     }
 }

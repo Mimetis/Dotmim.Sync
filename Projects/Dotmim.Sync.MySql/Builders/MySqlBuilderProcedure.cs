@@ -16,19 +16,14 @@ namespace Dotmim.Sync.MySql
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private MySqlConnection connection;
-        private MySqlTransaction transaction;
         private SyncTable tableDescription;
         private SyncSetup setup;
         private MySqlObjectNames mySqlObjectNames;
         private MySqlDbMetadata mySqlDbMetadata;
         internal const string MYSQL_PREFIX_PARAMETER = "in_";
 
-        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as MySqlConnection;
-            this.transaction = transaction as MySqlTransaction;
-
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -144,144 +139,57 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// Create a stored procedure
         /// </summary>
-        private async Task CreateProcedureCommandAsync(Func<MySqlCommand> BuildCommand, string procName)
+        private async Task CreateProcedureCommandAsync(Func<MySqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
         {
+            var str = CreateProcedureCommandText(BuildCommand(), procName);
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new MySqlCommand(str, (MySqlConnection)connection, (MySqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                using (var command = new MySqlCommand(str, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
-        private async Task CreateProcedureCommandAsync<T>(Func<T, MySqlCommand> BuildCommand, string procName, T t)
+        private async Task CreateProcedureCommandAsync<T>(Func<T, MySqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
+            var str = CreateProcedureCommandText(BuildCommand(t), procName);
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new MySqlCommand(str, (MySqlConnection)connection, (MySqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str = CreateProcedureCommandText(BuildCommand(t), procName);
-                using (var command = new MySqlCommand(str, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
-        private async Task<string> CreateProcedureCommandScriptTextAsync(Func<MySqlCommand> BuildCommand, string procName)
+        private string CreateProcedureCommandScriptText(Func<MySqlCommand> BuildCommand, string procName)
         {
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str1 = $"Command {procName} for table {tableName.Quoted().ToString()}";
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                return MyTableSqlBuilder.WrapScriptTextWithComments(str, str1);
+            var str1 = $"Command {procName} for table {tableName.Quoted().ToString()}";
+            var str = CreateProcedureCommandText(BuildCommand(), procName);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(str, str1);
 
 
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
         }
-        private async Task<string> CreateProcedureCommandScriptTextAsync<T>(Func<T, MySqlCommand> BuildCommand, string procName, T t)
+        private string CreateProcedureCommandScriptText<T>(Func<T, MySqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str1 = $"Command {procName} for table {tableName.Quoted().ToString()}";
-                var str = CreateProcedureCommandText(BuildCommand(t), procName);
-                return MyTableSqlBuilder.WrapScriptTextWithComments(str, str1);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
+            var str1 = $"Command {procName} for table {tableName.Quoted().ToString()}";
+            var str = CreateProcedureCommandText(BuildCommand(t), procName);
+            return MyTableSqlBuilder.WrapScriptTextWithComments(str, str1);
         }
 
         /// <summary>
         /// Check if we need to create the stored procedure
         /// </summary>
-        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType)
+        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            if (connection.State != ConnectionState.Open)
-                throw new ArgumentException("Here, we need an opened connection please");
-
             var commandName = this.mySqlObjectNames.GetCommandName(commandType).name;
 
-            return !(await MySqlManagementUtils.ProcedureExistsAsync(connection, transaction, commandName).ConfigureAwait(false));
+            return !await MySqlManagementUtils.ProcedureExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, commandName).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Check if we need to create the TVP Type
         /// </summary>
-        public Task<bool> NeedToCreateTypeAsync(DbCommandType commandType) => Task.FromResult(false);
+        public Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
 
         //------------------------------------------------------------------
         // Reset command
@@ -299,10 +207,10 @@ namespace Dotmim.Sync.MySql
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public async Task CreateResetAsync()
+        public async Task CreateResetAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            await CreateProcedureCommandAsync(BuildResetCommand, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(BuildResetCommand, commandName, connection, transaction).ConfigureAwait(false);
         }
 
         //------------------------------------------------------------------
@@ -365,10 +273,10 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public async Task CreateDeleteAsync()
+        public async Task CreateDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            await CreateProcedureCommandAsync(BuildDeleteCommand, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(BuildDeleteCommand, commandName, connection, transaction).ConfigureAwait(false);
         }
 
         //------------------------------------------------------------------
@@ -392,10 +300,10 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public async Task CreateDeleteMetadataAsync()
+        public async Task CreateDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            await CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName, connection, transaction).ConfigureAwait(false);
         }
 
 
@@ -452,10 +360,10 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public async Task CreateSelectRowAsync()
+        public async Task CreateSelectRowAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            await CreateProcedureCommandAsync(BuildSelectRowCommand, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(BuildSelectRowCommand, commandName, connection, transaction).ConfigureAwait(false);
         }
 
         //------------------------------------------------------------------
@@ -493,7 +401,7 @@ namespace Dotmim.Sync.MySql
             var listColumnsTmp = new StringBuilder();
             var listColumnsTmp2 = new StringBuilder();
             var listColumnsTmp3 = new StringBuilder();
-            
+
 
             var and = "";
             foreach (var column in this.tableDescription.GetPrimaryKeysColumns())
@@ -586,10 +494,10 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public async Task CreateUpdateAsync(bool hasMutableColumns)
+        public async Task CreateUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            await this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns).ConfigureAwait(false);
+            await this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns, connection, transaction).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -888,100 +796,64 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter = null)
+        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             if (filter != null)
             {
                 commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
                 Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
             }
         }
 
 
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task CreateTVPTypeAsync() => throw new NotImplementedException();
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+        public Task CreateTVPTypeAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task CreateBulkUpdateAsync(bool hasMutableColumns) => throw new NotImplementedException();
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+        public Task CreateBulkUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task CreateBulkDeleteAsync() => throw new NotImplementedException();
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+        public Task CreateBulkDeleteAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
 
-        private async Task DropProcedureAsync(DbCommandType procType, SyncFilter filter = null)
+        private async Task DropProcedureAsync(DbCommandType procType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(procType).name;
             var commandText = $"drop procedure if exists {commandName}";
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
 
-                using (var command = new MySqlCommand(commandText, connection))
+            if (filter != null)
+            {
+                var commandNameWithFilter = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+
+                using (var command = new MySqlCommand(commandTextWithFilter, (MySqlConnection)connection, (MySqlTransaction)transaction))
                 {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
-
-                if (filter != null)
-                {
-                    using (var command = new MySqlCommand())
-                    {
-                        if (!alreadyOpened)
-                            await connection.OpenAsync().ConfigureAwait(false);
-
-                        if (this.transaction != null)
-                            command.Transaction = this.transaction;
-
-                        var commandNameWithFilter = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
-
-                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
-                        command.Connection = this.connection;
-                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                    }
-                }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
-        public Task DropSelectInitializedChangesAsync(SyncFilter filter) => this.DropProcedureAsync(DbCommandType.SelectInitializedChanges, filter);
-        public Task DropSelectRowAsync() => this.DropProcedureAsync(DbCommandType.SelectRow);
-        public Task DropSelectIncrementalChangesAsync(SyncFilter filter) => this.DropProcedureAsync(DbCommandType.SelectChanges, filter);
-        public Task DropUpdateAsync() => this.DropProcedureAsync(DbCommandType.UpdateRow);
-        public Task DropDeleteAsync() => this.DropProcedureAsync(DbCommandType.DeleteRow);
-        public Task DropDeleteMetadataAsync() => this.DropProcedureAsync(DbCommandType.DeleteMetadata);
-        public Task DropResetAsync() => this.DropProcedureAsync(DbCommandType.Reset);
-        public Task DropTVPTypeAsync() => Task.CompletedTask;
-        public Task DropBulkUpdateAsync() => Task.CompletedTask;
-        public Task DropBulkDeleteAsync() => Task.CompletedTask;
+
+        public Task DropSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.SelectInitializedChanges, filter, connection, transaction);
+        public Task DropSelectRowAsync(DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.SelectRow, null, connection, transaction);
+        public Task DropSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.SelectChanges, filter, connection, transaction);
+        public Task DropUpdateAsync(DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.UpdateRow, null, connection, transaction);
+        public Task DropDeleteAsync(DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.DeleteRow, null, connection, transaction);
+        public Task DropDeleteMetadataAsync(DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.DeleteMetadata, null, connection, transaction);
+        public Task DropResetAsync(DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.Reset, null, connection, transaction);
+        public Task DropTVPTypeAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+        public Task DropBulkUpdateAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+        public Task DropBulkDeleteAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
         //------------------------------------------------------------------
         // Select changes command
@@ -1044,17 +916,17 @@ namespace Dotmim.Sync.MySql
             return sqlCommand;
         }
 
-        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter)
+        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectInitializedChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             if (filter != null)
             {
                 commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
                 Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             }
 

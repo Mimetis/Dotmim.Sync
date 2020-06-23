@@ -125,9 +125,9 @@ namespace Dotmim.Sync
             
             // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
             // in client database is not the DefaultScopeInfoTableName
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
 
-            var localTime = await scopeInfoBuilder.GetLocalTimestampAsync().ConfigureAwait(false);
+            var localTime = await scopeInfoBuilder.GetLocalTimestampAsync(connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.GetLocalTimestamp, new { Timestamp = localTime });
 

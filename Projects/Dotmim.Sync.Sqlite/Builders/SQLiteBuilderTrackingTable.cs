@@ -20,14 +20,10 @@ namespace Dotmim.Sync.Sqlite
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
-        private SqliteConnection connection;
-        private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SqliteBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqliteConnection;
-            this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -36,44 +32,17 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
-        public Task CreateIndexAsync() => Task.CompletedTask;
+        public Task CreateIndexAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
-        public Task CreatePkAsync() => Task.CompletedTask;
+        public Task CreatePkAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
-        public async Task CreateTableAsync()
+        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqliteCommand(this.CreateTableCommandText(), (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateTableCommandText();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
         }
 
         public string CreateTableCommandText()
@@ -108,7 +77,7 @@ namespace Dotmim.Sync.Sqlite
 
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.tableDescription.PrimaryKeys.Count- 1)
+                if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append(")");
@@ -129,79 +98,29 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        public async Task<bool> NeedToCreateTrackingTableAsync() 
-            => !(await SqliteManagementUtils.TableExistsAsync(connection, transaction, trackingName).ConfigureAwait(false));
+        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction)
+            => !await SqliteManagementUtils.TableExistsAsync((SqliteConnection)connection, (SqliteTransaction)transaction, trackingName).ConfigureAwait(false);
 
-  
-        public async Task DropTableAsync()
+
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {trackingName.Quoted().ToString()}", (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {trackingName.Quoted().ToString()}", connection))
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropTable : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
-        public async Task RenameTableAsync(ParserName oldTableName)
+        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
-
             var tableNameString = this.trackingName.Quoted().ToString();
             var oldTableNameString = oldTableName.Quoted().ToString();
 
             var commandText = $"ALTER TABLE {oldTableNameString} RENAME TO {tableNameString};";
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                using (var command = new SqliteCommand(commandText, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during RenameTableAsync : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
     }
 }

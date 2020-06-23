@@ -20,14 +20,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         private ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
-        private readonly SqlConnection connection;
-        private readonly SqlTransaction transaction;
         private readonly SqlObjectNames sqlObjectNames;
-        public SqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
-
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -89,118 +84,40 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public virtual async Task CreateDeleteTriggerAsync()
+        public virtual async Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+            var createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            try
+            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-
-                    var createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
-        public virtual async Task DropDeleteTriggerAsync()
+        public virtual async Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+            var commandText = $"DROP TRIGGER {delTriggerName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-
-                    command.CommandText = $"DROP TRIGGER {delTriggerName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task AlterDeleteTriggerAsync()
+        public virtual async Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+            var createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            try
+            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-                    var createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
         }
 
         private string InsertTriggerBodyText()
@@ -256,117 +173,41 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(stringPkAreNull.ToString());
             return stringBuilder.ToString();
         }
-        public virtual async Task CreateInsertTriggerAsync()
+        public virtual async Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
+            var createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            try
+            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-                    var createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             }
         }
 
-        public virtual async Task DropInsertTriggerAsync()
+        public virtual async Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
+            var commandText = $"DROP TRIGGER {triggerName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-
-                    command.CommandText = $"DROP TRIGGER {triggerName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task AlterInsertTriggerAsync()
+        public virtual async Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
+            var createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            try
+            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-                    var createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
@@ -459,121 +300,46 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return stringBuilder.ToString();
         }
-        public virtual async Task CreateUpdateTriggerAsync()
+        public virtual async Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
+            var createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
-            try
+            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-                    var createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task DropUpdateTriggerAsync()
+        public virtual async Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
+            var commandText = $"DROP TRIGGER {triggerName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-
-                    command.CommandText = $"DROP TRIGGER {triggerName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
 
-        public virtual async Task AlterUpdateTriggerAsync()
+        public virtual async Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
-            try
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
+            var createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.UpdateTriggerBodyText());
+
+            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-                    var createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type)
+        public virtual async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
         {
 
             var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
@@ -600,7 +366,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     }
             }
 
-            return !await SqlManagementUtils.TriggerExistsAsync(connection, transaction, triggerName).ConfigureAwait(false);
+            return !await SqlManagementUtils.TriggerExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, triggerName).ConfigureAwait(false);
         }
 
 

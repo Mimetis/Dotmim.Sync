@@ -57,24 +57,24 @@ namespace Dotmim.Sync.Postgres.Builders
             return stringBuilder.ToString();
         }
 
-        public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderProcedureHelper CreateProcBuilder()
         {
-            return new NpgsqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+            return new NpgsqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
 
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderTriggerHelper CreateTriggerBuilder()
         {
-            return new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+            return new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
 
-        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderTableHelper CreateTableBuilder()
         {
-            return new NpgsqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+            return new NpgsqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
 
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder()
         {
-            return new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+            return new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
 
         public override DbSyncAdapter CreateSyncAdapter()

@@ -61,16 +61,16 @@ namespace Dotmim.Sync.Sqlite
         /// <param name="connection"></param>
         /// <param name="transaction"></param>
         /// <returns></returns>
-        public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null) => null;
+        public override IDbBuilderProcedureHelper CreateProcBuilder() => null;
 
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+        public override IDbBuilderTriggerHelper CreateTriggerBuilder() 
+            => new SqliteBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+        public override IDbBuilderTableHelper CreateTableBuilder() 
+            => new SqliteBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
+            => new SqliteBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
         public override DbSyncAdapter CreateSyncAdapter() 
             => new SqliteSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
