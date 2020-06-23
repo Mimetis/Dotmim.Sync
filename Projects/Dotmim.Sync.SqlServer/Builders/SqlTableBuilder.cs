@@ -79,9 +79,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             return new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
-        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
+        public override DbSyncAdapter CreateSyncAdapter()
         {
-            return new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+            return new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
     }
 }

@@ -17,8 +17,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlSyncAdapter : DbSyncAdapter
     {
-        private SqlConnection connection;
-        private SqlTransaction transaction;
         private SqlObjectNames sqlObjectNames;
         private SqlDbMetadata sqlMetadata;
 
@@ -30,16 +28,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<SqlParameter>>();
 
-        public override DbConnection Connection => this.connection;
-        public override DbTransaction Transaction => this.transaction;
-
-        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
+        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
         {
-            var sqlc = connection as SqlConnection;
-            this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqlConnection");
-
-            this.transaction = transaction as SqlTransaction;
-
             this.sqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup) ;
             this.sqlMetadata = new SqlDbMetadata();
         }
@@ -115,7 +105,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, 
+                                                            SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
 
             var applyRowsCount = applyRows.Count();
@@ -261,15 +252,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
             ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = senderScopeId;
 
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    await this.connection.OpenAsync().ConfigureAwait(false);
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                if (this.transaction != null)
-                    cmd.Transaction = this.transaction;
+                if (transaction != null)
+                    cmd.Transaction = transaction;
 
                 using (var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                 {
@@ -304,8 +295,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 records.Clear();
 
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
         }
@@ -368,7 +359,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Set a stored procedure parameters or text parameters
         /// </summary>
-        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
         {
             if (command == null)
                 return;
@@ -392,19 +383,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (command.CommandType != CommandType.StoredProcedure)
                 return;
 
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    await this.connection.OpenAsync().ConfigureAwait(false);
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                if (this.transaction != null)
-                    command.Transaction = this.transaction;
+                if (transaction != null)
+                    command.Transaction =transaction;
 
                 var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
 
-                var source = this.connection.Database;
+                var source = connection.Database;
 
                 textParser = $"{source}-{textParser}";
 
@@ -420,7 +411,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     // TODO: Fix that.
                     //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
 
-                    await connection.DeriveParametersAsync((SqlCommand)command, false, transaction).ConfigureAwait(false);
+                    await ((SqlConnection)connection).DeriveParametersAsync((SqlCommand)command, false, (SqlTransaction)transaction).ConfigureAwait(false);
 
                     var arrayParameters = new List<SqlParameter>();
                     foreach (var p in command.Parameters)
@@ -440,8 +431,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
             }
 
 

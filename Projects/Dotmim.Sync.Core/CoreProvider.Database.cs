@@ -189,9 +189,9 @@ namespace Dotmim.Sync
             foreach (var syncTable in schema.Tables)
             {
                 var tableBuilder = this.GetTableBuilder(syncTable, setup);
-                var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
+                var syncAdapter = tableBuilder.CreateSyncAdapter();
 
-                await syncAdapter.UpdateUntrackedRowsAsync().ConfigureAwait(false);
+                await syncAdapter.UpdateUntrackedRowsAsync(connection, transaction).ConfigureAwait(false);
             }
 
             return context;

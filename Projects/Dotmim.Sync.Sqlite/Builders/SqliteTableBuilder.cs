@@ -72,7 +72,7 @@ namespace Dotmim.Sync.Sqlite
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null) 
             => new SqliteBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
 
-        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null) 
-            => new SqliteSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+        public override DbSyncAdapter CreateSyncAdapter() 
+            => new SqliteSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
     }
 }

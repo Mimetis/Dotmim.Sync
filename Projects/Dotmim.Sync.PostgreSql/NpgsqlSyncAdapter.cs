@@ -15,8 +15,6 @@ namespace Dotmim.Sync.Postgres.Builders
 {
     public class NpgsqlSyncAdapter : DbSyncAdapter
     {
-        private NpgsqlConnection connection;
-        private NpgsqlTransaction transaction;
         private NpgsqlObjectNames sqlObjectNames;
         private NpgsqlDbMetadata sqlMetadata;
 
@@ -28,16 +26,8 @@ namespace Dotmim.Sync.Postgres.Builders
         private static ConcurrentDictionary<string, List<NpgsqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<NpgsqlParameter>>();
 
-        public override DbConnection Connection => this.connection;
-        public override DbTransaction Transaction => this.transaction;
-
-        public NpgsqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
+        public NpgsqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
         {
-            var sqlc = connection as NpgsqlConnection;
-            this.connection = sqlc ?? throw new InvalidCastException("Connection should be a NpgsqlConnection");
-
-            this.transaction = transaction as NpgsqlTransaction;
-
             this.sqlObjectNames = new NpgsqlObjectNames(tableDescription, setup);
             this.sqlMetadata = new NpgsqlDbMetadata();
         }
@@ -46,7 +36,7 @@ namespace Dotmim.Sync.Postgres.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
 
             var applyRowsCount = applyRows.Count();
@@ -56,7 +46,7 @@ namespace Dotmim.Sync.Postgres.Builders
 
             var dataRowState = DataRowState.Unchanged;
 
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
             try
             {
                 foreach (var row in applyRows)
@@ -72,8 +62,8 @@ namespace Dotmim.Sync.Postgres.Builders
             finally
             {
 
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
 
             }
         }
@@ -131,7 +121,7 @@ namespace Dotmim.Sync.Postgres.Builders
         /// <summary>
         /// Set a stored procedure parameters
         /// </summary>
-        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
         {
             if (command == null)
                 return;
@@ -143,19 +133,19 @@ namespace Dotmim.Sync.Postgres.Builders
             if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
                 return;
 
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
             {
                 if (!alreadyOpened)
-                    await this.connection.OpenAsync().ConfigureAwait(false);
+                    await connection.OpenAsync().ConfigureAwait(false);
 
-                if (this.transaction != null)
-                    command.Transaction = this.transaction;
+                if (transaction != null)
+                    command.Transaction = transaction;
 
                 var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
 
-                var source = this.connection.Database;
+                var source = connection.Database;
 
                 textParser = $"{source}-{textParser}";
 
@@ -186,8 +176,8 @@ namespace Dotmim.Sync.Postgres.Builders
             }
             finally
             {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
             }
 
 

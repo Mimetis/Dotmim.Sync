@@ -79,13 +79,13 @@ namespace Dotmim.Sync
                     continue;
 
                 var tableBuilder = this.GetTableBuilder(syncTable, message.Setup);
-                var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
+                var syncAdapter = tableBuilder.CreateSyncAdapter();
 
                 // launch interceptor if any
                 await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
@@ -98,14 +98,6 @@ namespace Dotmim.Sync
 
                 // Create a chnages table with scope columns
                 var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
-
-                selectIncrementalChangesCommand.Connection = connection;
-
-                if (transaction != null)
-                    selectIncrementalChangesCommand.Transaction = transaction;
-
-                // Testing The Prepare() performance increase
-                selectIncrementalChangesCommand.Prepare();
 
                 // Get the reader
                 using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -232,9 +224,9 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        private async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncTable syncTable, bool isNew)
+        private async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
         {
-            DbCommand selectIncrementalChangesCommand;
+            DbCommand command;
             DbCommandType dbCommandType;
 
             SyncFilter tableFilter = null;
@@ -258,16 +250,9 @@ namespace Dotmim.Sync
                 dbCommandType = DbCommandType.SelectChanges;
 
             // Get correct Select incremental changes command 
-            selectIncrementalChangesCommand = syncAdapter.InternalGetCommand(dbCommandType, tableFilter);
+            command = await syncAdapter.PrepareCommandAsync(dbCommandType, connection, transaction, tableFilter);
 
-            if (selectIncrementalChangesCommand == null)
-                throw new MissingCommandException(dbCommandType.ToString());
-
-            // Add common parameters
-            await syncAdapter.AddCommandParametersAsync(dbCommandType, selectIncrementalChangesCommand, tableFilter);
-
-            return selectIncrementalChangesCommand;
-
+            return command;
         }
 
         /// <summary>

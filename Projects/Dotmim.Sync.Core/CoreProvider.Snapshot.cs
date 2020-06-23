@@ -84,24 +84,16 @@ namespace Dotmim.Sync
             foreach (var syncTable in schema.Tables)
             {
                 var tableBuilder = this.GetTableBuilder(syncTable, setup);
-                var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
+                var syncAdapter = tableBuilder.CreateSyncAdapter();
 
                 // launch interceptor if any
                 await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Select initialize changes command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, true);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, true, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, null, true, 0, selectIncrementalChangesCommand);
-
-                selectIncrementalChangesCommand.Connection = connection;
-
-                if (transaction != null)
-                    selectIncrementalChangesCommand.Transaction = transaction;
-
-                // Testing The Prepare() performance increase
-                selectIncrementalChangesCommand.Prepare();
 
                 // log
                 this.Orchestrator.logger.LogDebug(SyncEventsId.CreateSnapshot, new
