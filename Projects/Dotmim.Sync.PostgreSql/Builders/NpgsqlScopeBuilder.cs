@@ -7,9 +7,9 @@ namespace Dotmim.Sync.Postgres.Scope
     {
         
 
-        public override IDbScopeInfoBuilder CreateScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
+        public override IDbScopeInfoBuilder CreateScopeInfoBuilder(string scopeTableName)
         {
-            return new NpgsqlScopeInfoBuilder(scopeTableName, connection, transaction);
+            return new NpgsqlScopeInfoBuilder(scopeTableName);
         }
     }
 }

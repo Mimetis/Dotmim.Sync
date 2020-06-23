@@ -8,9 +8,9 @@ namespace Dotmim.Sync.MySql
     {
         
 
-        public override IDbScopeInfoBuilder CreateScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
+        public override IDbScopeInfoBuilder CreateScopeInfoBuilder(string scopeTableName)
         {
-            return new MySqlScopeInfoBuilder(scopeTableName, connection, transaction);
+            return new MySqlScopeInfoBuilder(scopeTableName);
         }
     }
 }

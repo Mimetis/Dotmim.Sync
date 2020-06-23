@@ -22,16 +22,12 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         private ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
-        private readonly SqlConnection connection;
-        private readonly SqlTransaction transaction;
         private readonly SqlDbMetadata sqlDbMetadata;
 
         public SyncFilter Filter { get; set; }
 
-        public SqlChangeTrackingBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqlChangeTrackingBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -39,74 +35,22 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public async Task CreateTableAsync()
+        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandText = this.CreateTableCommandText();
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateTableCommandText();
-                    command.Connection = this.connection;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during create table for change tracking : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
 
         }
 
-        public async Task DropTableAsync()
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreateDropTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateDropTableCommandText();
-                    command.Connection = this.connection;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during drop table from change tracking : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
@@ -115,19 +59,19 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
         private string CreateTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
 
-        public async Task<bool> NeedToCreateTrackingTableAsync()
+        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction)
         {
             var schemaName = this.tableName.SchemaName;
             var tableName = this.tableName.ObjectName;
 
-            var table = await SqlChangeTrackingManagementUtils.ChangeTrackingTableAsync(connection, transaction, tableName, schemaName);
+            var table = await SqlChangeTrackingManagementUtils.ChangeTrackingTableAsync((SqlConnection)connection, (SqlTransaction)transaction, tableName, schemaName);
 
             return table.Rows.Count <= 0;
         }
 
 
-        public Task CreateIndexAsync() => Task.CompletedTask;
-        public Task CreatePkAsync() => Task.CompletedTask;
-        public Task RenameTableAsync(ParserName oldTableName) => Task.CompletedTask;
+        public Task CreateIndexAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+        public Task CreatePkAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+        public Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
     }
 }

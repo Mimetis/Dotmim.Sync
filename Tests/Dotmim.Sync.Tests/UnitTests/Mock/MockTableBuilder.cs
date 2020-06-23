@@ -12,19 +12,19 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
         }
 
-        public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderProcedureHelper CreateProcBuilder()
             => new MockBuilderProcedureHelper();
 
         public override DbSyncAdapter CreateSyncAdapter()
             => new MockSyncAdapter(this.TableDescription, this.Setup);
 
-        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderTableHelper CreateTableBuilder()
             => new MockBuilderTableHelper();
 
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder()
             => new MockBuilderTrackingTableHelper();
 
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override IDbBuilderTriggerHelper CreateTriggerBuilder()
             => new MockBuilderTriggerHelper();
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)

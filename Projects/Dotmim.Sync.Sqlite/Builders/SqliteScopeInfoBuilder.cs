@@ -14,29 +14,15 @@ namespace Dotmim.Sync.Sqlite
     public class SqliteScopeInfoBuilder : IDbScopeInfoBuilder
     {
         private readonly ParserName scopeTableName;
-        private readonly SqliteConnection connection;
-        private readonly SqliteTransaction transaction;
 
-        public SqliteScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
+        public SqliteScopeInfoBuilder(string scopeTableName)
         {
-            this.connection = connection as SqliteConnection;
-            this.transaction = transaction as SqliteTransaction;
             this.scopeTableName = ParserName.Parse(scopeTableName);
         }
 
-        public async Task CreateClientScopeInfoTableAsync()
+        public async Task CreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
+            var commandText =
                     $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
                         sync_scope_id blob NOT NULL PRIMARY KEY,
 	                    sync_scope_name text NOT NULL,
@@ -49,79 +35,34 @@ namespace Dotmim.Sync.Sqlite
                         scope_last_sync datetime NULL
                         )";
 
+            using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
+            {
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public Task CreateServerHistoryScopeInfoTableAsync() => throw new NotImplementedException();
+        public Task CreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public Task CreateServerScopeInfoTableAsync() => throw new NotImplementedException();
+        public Task CreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public async Task DropClientScopeInfoTableAsync()
+        public async Task DropClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
+            var commandText = $"DROP Table {scopeTableName.Unquoted().ToString()}";
 
-            if (transaction != null)
-                command.Transaction = transaction;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText = $"DROP Table {scopeTableName.Unquoted().ToString()}";
-
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public Task DropServerHistoryScopeInfoTableAsync() => throw new NotImplementedException();
+        public Task DropServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public Task DropServerScopeInfoTableAsync() => throw new NotImplementedException();
+        public Task DropServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public async Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName)
+        public async Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
             List<ScopeInfo> scopes = new List<ScopeInfo>();
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
+            var commandText =
                     $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
@@ -134,6 +75,8 @@ namespace Dotmim.Sync.Sqlite
                     FROM  {scopeTableName.Unquoted().ToString()}
                     WHERE sync_scope_name = @sync_scope_name";
 
+            using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
+            {
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = scopeName;
@@ -166,89 +109,48 @@ namespace Dotmim.Sync.Sqlite
 
                 return scopes;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during GetAllScopes : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName) => throw new NotImplementedException();
+        public Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName) => throw new NotImplementedException();
+        public Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public async Task<long> GetLocalTimestampAsync()
+        public async Task<long> GetLocalTimestampAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-            try
+            var commandText = $"Select {SqliteObjectNames.TimestampValue}";
+
+            using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                command.CommandText = $"Select {SqliteObjectNames.TimestampValue}";
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
                 long result = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false));
-
                 return result;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during GetLocalTimestamp : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public async Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo)
+        public async Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var commandText = $@"Select count(*) from {scopeTableName.Unquoted().ToString()} where sync_scope_id = @sync_scope_id";
 
-            try
+            bool exist;
+
+            using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText = $@"Select count(*) from {scopeTableName.Unquoted().ToString()} where sync_scope_id = @sync_scope_id";
-
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_id";
                 p.Value = scopeInfo.Id.ToString();
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
-                var exist = ((long)await command.ExecuteScalarAsync().ConfigureAwait(false)) > 0;
+                exist = ((long)await command.ExecuteScalarAsync().ConfigureAwait(false)) > 0;
+            }
 
-                string stmtText = exist
+            string stmtText = exist
                     ? $"Update {scopeTableName.Unquoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema, sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp,  scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id"
                     : $"Insert into {scopeTableName.Unquoted().ToString()} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, scope_last_sync, scope_last_sync_duration, scope_last_server_sync_timestamp, scope_last_sync_timestamp, sync_scope_id) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @scope_last_sync, @scope_last_sync_duration, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @sync_scope_id)";
 
-                command = connection.CreateCommand();
-                command.CommandText = stmtText;
-
-                p = command.CreateParameter();
+            using (var command = new SqliteCommand(stmtText, (SqliteConnection)connection, (SqliteTransaction)transaction))
+            {
+                var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = scopeInfo.Name;
                 p.DbType = DbType.String;
@@ -326,60 +228,26 @@ namespace Dotmim.Sync.Sqlite
 
                 return scopeInfo;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during InsertOrUpdateClientScopeInfoAsync : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo) => throw new NotImplementedException();
+        public Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo) => throw new NotImplementedException();
+        public Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public async Task<bool> NeedToCreateClientScopeInfoTableAsync()
+        public async Task<bool> NeedToCreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
+            var commandText =
+                $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{scopeTableName.Unquoted().ToString()}'";
+
+            using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{scopeTableName.Unquoted().ToString()}'";
-
                 return ((long)await command.ExecuteScalarAsync()) != 1;
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during NeedToCreateClientScopeInfoTableAsync command : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync() => throw new NotImplementedException();
+        public Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-        public Task<bool> NeedToCreateServerScopeInfoTableAsync() => throw new NotImplementedException();
+        public Task<bool> NeedToCreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
     }
 }

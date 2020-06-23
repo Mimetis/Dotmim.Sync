@@ -21,14 +21,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         private ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
-        private readonly SqlConnection connection;
-        private readonly SqlTransaction transaction;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public SqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -36,36 +32,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public async Task CreateIndexAsync()
+        public async Task CreateIndexAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreateIndexCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateIndexCommandText();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
@@ -89,38 +60,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public async Task CreatePkAsync()
+        public async Task CreatePkAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreatePkCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.CommandText = this.CreatePkCommandText();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         public string CreatePkCommandText()
@@ -143,74 +88,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public async Task CreateTableAsync()
+        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreateTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateTableCommandText();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
         }
 
-        public async Task DropTableAsync()
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreateDropTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateDropTableCommandText();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropTable : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
         }
 
         private string CreateDropTableCommandText()
@@ -246,48 +137,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public async Task<bool> NeedToCreateTrackingTableAsync() =>
-            !await SqlManagementUtils.TableExistsAsync(connection, transaction, trackingName.Schema().Quoted().ToString()).ConfigureAwait(false);
+        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction) =>
+            !await SqlManagementUtils.TableExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, trackingName.Schema().Quoted().ToString()).ConfigureAwait(false);
 
 
-        public async Task RenameTableAsync(ParserName oldTableName)
+        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.RenameTableCommandText(oldTableName), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.CommandText = this.RenameTableCommandText(oldTableName);
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during RenameTableAsync : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         public string RenameTableCommandText(ParserName oldTableName)
         {
             StringBuilder stringBuilder = new StringBuilder();
-            
+
             var schemaName = this.trackingName.SchemaName;
             var tableName = this.trackingName.ObjectName;
 

@@ -18,61 +18,34 @@ namespace Dotmim.Sync.MySql
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private SyncTable tableDescription;
-        private MySqlConnection connection;
-        private MySqlTransaction transaction;
-        private MySqlDbMetadata mySqlDbMetadata;
+        private readonly SyncSetup setup;
+        private readonly SyncTable tableDescription;
+        private readonly MySqlDbMetadata mySqlDbMetadata;
 
 
-        public MySqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public MySqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as MySqlConnection;
-            this.transaction = transaction as MySqlTransaction;
             this.tableDescription = tableDescription;
             this.tableName = tableName;
             this.trackingName = trackingName;
+            this.setup = setup;
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-        public async Task<bool> NeedToCreateTrackingTableAsync()
-             => !(await MySqlManagementUtils.TableExistsAsync(connection, transaction, trackingName).ConfigureAwait(false));
+        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction)
+             => !await MySqlManagementUtils.TableExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, trackingName).ConfigureAwait(false);
 
-        public Task CreateIndexAsync() => Task.CompletedTask;
-        public Task CreatePkAsync() => Task.CompletedTask;
+        public Task CreateIndexAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+        public Task CreatePkAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
-        public async Task CreateTableAsync()
+        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandText = this.CreateTableCommandText();
 
-            try
+            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
             {
-                using (var command = new MySqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await this.connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateTableCommandText();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
         }
 
         public string CreateTableCommandText()
@@ -117,74 +90,27 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public async Task DropTableAsync()
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                using (var command = new MySqlCommand(commandText, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropTableCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
-        public async Task RenameTableAsync(ParserName oldTableName)
+        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
-
             var tableNameString = this.trackingName.Quoted().ToString();
             var oldTableNameString = oldTableName.Quoted().ToString();
 
             var commandText = $"RENAME TABLE {oldTableNameString} TO {tableNameString}; ";
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                using (var command = new MySqlCommand(commandText, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during RenameTableAsync : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
     }
 }

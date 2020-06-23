@@ -15,17 +15,13 @@ namespace Dotmim.Sync.SqlServer.Builders
     {
         private ParserName tableName;
         private ParserName trackingName;
-        private SqlConnection connection;
-        private readonly SqlTransaction transaction;
+
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
-        public SqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
-
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -128,69 +124,24 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Create a stored procedure
         /// </summary>
-        protected async Task CreateProcedureCommandAsync(Func<SqlCommand> BuildCommand, string procName)
+        protected async Task CreateProcedureCommandAsync(Func<SqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
         {
+            var str = CreateProcedureCommandText(BuildCommand(), procName);
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                using (var command = new SqlCommand(str, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
 
-        private async Task CreateProcedureCommandAsync<T>(Func<T, SqlCommand> BuildCommand, string procName, T t)
+        private async Task CreateProcedureCommandAsync<T>(Func<T, SqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            var str = CreateProcedureCommandText(BuildCommand(t), procName);
+            using (var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var str = CreateProcedureCommandText(BuildCommand(t), procName);
-                using (var command = new SqlCommand(str, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
@@ -199,27 +150,21 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Check if we need to create the stored procedure
         /// </summary>
-        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType)
+        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            if (connection.State != ConnectionState.Open)
-                throw new ArgumentException("Here, we need an opened connection please");
-
             var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
 
-            return !await SqlManagementUtils.ProcedureExistsAsync(connection, transaction, commandName).ConfigureAwait(false);
+            return !await SqlManagementUtils.ProcedureExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, commandName).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Check if we need to create the TVP Type
         /// </summary>
-        public async Task<bool> NeedToCreateTypeAsync(DbCommandType commandType)
+        public async Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            if (connection.State != ConnectionState.Open)
-                throw new ArgumentException("Here, we need an opened connection please");
-
             var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
 
-            return !await SqlManagementUtils.TypeExistsAsync(connection, transaction, commandName).ConfigureAwait(false);
+            return !await SqlManagementUtils.TypeExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, commandName).ConfigureAwait(false);
 
         }
 
@@ -358,47 +303,21 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public Task CreateBulkDeleteAsync()
+        public Task CreateBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
-            return CreateProcedureCommandAsync(this.BuildBulkDeleteCommand, commandName);
+            return CreateProcedureCommandAsync(this.BuildBulkDeleteCommand, commandName, connection, transaction);
         }
 
-        public async Task DropBulkDeleteAsync()
+        public async Task DropBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -559,44 +478,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public Task CreateBulkUpdateAsync(bool hasMutableColumns)
+        public Task CreateBulkUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-            return CreateProcedureCommandAsync(BuildBulkUpdateCommand, commandName, hasMutableColumns);
+            return CreateProcedureCommandAsync(BuildBulkUpdateCommand, commandName, hasMutableColumns, connection, transaction);
         }
-        public async Task DropBulkUpdateAsync()
+
+        public async Task DropBulkUpdateAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop BulkUpdate : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
@@ -639,44 +534,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateResetAsync()
+        public Task CreateResetAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            return CreateProcedureCommandAsync(BuildResetCommand, commandName);
+            return CreateProcedureCommandAsync(BuildResetCommand, commandName, connection, transaction);
         }
-        public async Task DropResetAsync()
+        public async Task DropResetAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop Reset : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
@@ -768,46 +638,21 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateDeleteAsync()
+        public Task CreateDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            return CreateProcedureCommandAsync(BuildDeleteCommand, commandName);
+            return CreateProcedureCommandAsync(BuildDeleteCommand, commandName, connection, transaction);
         }
-        public async Task DropDeleteAsync()
+        public async Task DropDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop DeleteRow : {ex}");
-                throw;
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -834,46 +679,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateDeleteMetadataAsync()
+
+
+        public Task CreateDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            return CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName);
+            return CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
         }
-        public async Task DropDeleteMetadataAsync()
+        public async Task DropDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop DeleteMetadata : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -922,45 +743,21 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateSelectRowAsync()
+
+        public Task CreateSelectRowAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            return CreateProcedureCommandAsync(BuildSelectRowCommand, commandName);
+            return CreateProcedureCommandAsync(BuildSelectRowCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
         }
-        public async Task DropSelectRowAsync()
+        public async Task DropSelectRowAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop SelectRow : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -1000,72 +797,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("))");
             return stringBuilder.ToString();
         }
-        public async Task CreateTVPTypeAsync()
+        public async Task CreateTVPTypeAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (SqlCommand sqlCommand = new SqlCommand(this.CreateTVPTypeCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                using (SqlCommand sqlCommand = new SqlCommand(this.CreateTVPTypeCommandText(),
-                    connection))
-                {
-                    if (transaction != null)
-                        sqlCommand.Transaction = transaction;
-
-                    await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTVPType : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
-        public async Task DropTVPTypeAsync()
+        public async Task DropTVPTypeAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
+            var commandText = $"DROP TYPE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
-
-                    command.CommandText = $"DROP TYPE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop TVPType : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         //------------------------------------------------------------------
@@ -1244,46 +991,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateUpdateAsync(bool hasMutableColumns)
+        public Task CreateUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            return this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns);
+            return this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns, (SqlConnection)connection, (SqlTransaction)transaction);
         }
-        public async Task DropUpdateAsync()
+        public async Task DropUpdateAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop Update : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
 
         /// <summary>
@@ -1573,85 +1294,53 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return sqlCommand;
         }
-        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter = null)
+        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
             SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName).ConfigureAwait(false);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             if (filter != null)
             {
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
                 SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             }
 
         }
-        public async Task DropSelectIncrementalChangesAsync(SyncFilter filter = null)
+        public async Task DropSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+
+            if (filter != null)
+            {
+                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+
+                using (var command = new SqlCommand(commandTextWithFilter, (SqlConnection)connection, (SqlTransaction)transaction))
                 {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
-
-                if (filter != null)
-                {
-                    using (var command = new SqlCommand())
-                    {
-                        if (!alreadyOpened)
-                            await connection.OpenAsync().ConfigureAwait(false);
-
-                        if (this.transaction != null)
-                            command.Transaction = this.transaction;
-
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
-
-                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
-                        command.Connection = this.connection;
-                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    }
-                }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
+
 
         //------------------------------------------------------------------
         // Select initialized changes command
         //------------------------------------------------------------------
-        protected virtual SqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter = null)
+        protected virtual SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            var sqlCommand = new SqlCommand();
 
+            var sqlCommand = new SqlCommand();
             // Add filter parameters
             if (filter != null)
-                CreateFilterParameters(sqlCommand, filter);
+                this.CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("SELECT DISTINCT");
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
@@ -1703,70 +1392,38 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter = null)
+        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName).ConfigureAwait(false);
+            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(connection, transaction, null);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             if (filter != null)
             {
                 commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
-                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName).ConfigureAwait(false);
+                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(connection, transaction, filter);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
             }
         }
-        public async Task DropSelectInitializedChangesAsync(SyncFilter filter = null)
+        public async Task DropSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+
+            if (filter != null)
+            {
+                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
+                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+
+                using (var command = new SqlCommand(commandTextWithFilter, (SqlConnection)connection, (SqlTransaction)transaction))
                 {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
-
-                if (filter != null)
-                {
-
-                    using (var command = new SqlCommand())
-                    {
-                        if (!alreadyOpened)
-                            await connection.OpenAsync().ConfigureAwait(false);
-
-                        if (this.transaction != null)
-                            command.Transaction = this.transaction;
-
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
-
-                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
-                        command.Connection = this.connection;
-                        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
             }
 
         }

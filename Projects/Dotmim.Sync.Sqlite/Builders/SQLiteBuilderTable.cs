@@ -17,23 +17,18 @@ namespace Dotmim.Sync.Sqlite
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
-        private SqliteConnection connection;
-        private SqliteTransaction transaction;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SqliteBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqliteConnection;
-            this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
-  
 
-        private SqliteCommand BuildTableCommand()
+        private string BuildTableCommandText()
         {
             var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Quoted().ToString()} (");
             string empty = string.Empty;
@@ -129,91 +124,39 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine(" )");
             }
             stringBuilder.Append(")");
-            return new SqliteCommand(stringBuilder.ToString());
+            return stringBuilder.ToString();
         }
 
-        public async Task CreateTableAsync()
+        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqliteCommand(BuildTableCommandText(), (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = BuildTableCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableAsync : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public async Task<bool> NeedToCreateTableAsync() =>
-            !(await SqliteManagementUtils.TableExistsAsync(connection, transaction, tableName).ConfigureAwait(false));
+        public async Task<bool> NeedToCreateTableAsync(DbConnection connection, DbTransaction transaction) =>
+            !await SqliteManagementUtils.TableExistsAsync((SqliteConnection)connection, (SqliteTransaction)transaction, tableName).ConfigureAwait(false);
 
-        public Task<bool> NeedToCreateSchemaAsync() => Task.FromResult(false);
+        public Task<bool> NeedToCreateSchemaAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
 
-        public Task CreateSchemaAsync() => Task.CompletedTask;
+        public Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
-        public Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint) => Task.FromResult(false);
+        public Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
 
-        public Task CreateForeignKeyConstraintsAsync(SyncRelation constraint) => Task.CompletedTask;
+        public Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
-        public async Task DropTableAsync()
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}", (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand($"DROP TABLE IF EXISTS {tableName.Quoted().ToString()}", connection))
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropTableAsync : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
-        public Task CreatePrimaryKeyAsync() => Task.CompletedTask;
+        public Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
     }
 }

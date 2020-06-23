@@ -20,13 +20,9 @@ namespace Dotmim.Sync.Sqlite
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
-        private SqliteConnection connection;
-        private SqliteTransaction transaction;
         private SqliteObjectNames sqliteObjectNames;
-        public SqliteBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqliteConnection;
-            this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -75,46 +71,20 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
         }
-        public async Task CreateDeleteTriggerAsync()
+        public async Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            try
+            using (var command = new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public Task AlterDeleteTriggerAsync() => Task.CompletedTask;
+        public Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
         private string InsertTriggerBodyText()
         {
@@ -158,48 +128,21 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
         }
-      
-        public async Task CreateInsertTriggerAsync()
+
+        public async Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.Unquoted().ToString());
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            try
+            using (var command = new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.Unquoted().ToString());
-
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public Task AlterInsertTriggerAsync() => Task.CompletedTask;
+        public Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
         private string UpdateTriggerBodyText()
         {
@@ -288,46 +231,23 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
         }
-        public async Task CreateUpdateTriggerAsync()
+
+        public async Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
-            try
+            using (var command = new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
 
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
         }
-        public Task AlterUpdateTriggerAsync() => Task.CompletedTask;
-        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type)
+        public Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+
+        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
         {
             var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
             var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.Unquoted().ToString());
@@ -353,55 +273,23 @@ namespace Dotmim.Sync.Sqlite
                     }
             }
 
-            return !(await SqliteManagementUtils.TriggerExistsAsync(connection, transaction, triggerName).ConfigureAwait(false));
-
-
+            return !await SqliteManagementUtils.TriggerExistsAsync((SqliteConnection)connection, (SqliteTransaction)transaction, triggerName).ConfigureAwait(false);
         }
 
 
-        public Task DropInsertTriggerAsync() => this.DropTriggerAsync(DbCommandType.InsertTrigger);
-        public Task DropUpdateTriggerAsync() => this.DropTriggerAsync(DbCommandType.UpdateTrigger);
-        public Task DropDeleteTriggerAsync() => this.DropTriggerAsync(DbCommandType.DeleteTrigger);
+        public Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.InsertTrigger, connection, transaction);
+        public Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.UpdateTrigger, connection, transaction);
+        public Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.DeleteTrigger, connection, transaction);
 
-        private async Task DropTriggerAsync(DbCommandType triggerType)
+        private async Task DropTriggerAsync(DbCommandType triggerType, DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.Unquoted().ToString());
+            var dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
 
-            try
+            using (var command = new SqliteCommand(dropTrigger, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.Unquoted().ToString());
-
-                    String dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
-
-                    command.CommandText = dropTrigger;
-                    command.Connection = this.connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
-
-
-
     }
 }

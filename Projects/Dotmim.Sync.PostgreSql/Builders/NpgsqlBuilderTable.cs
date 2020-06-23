@@ -18,16 +18,11 @@ namespace Dotmim.Sync.Postgres.Builders
         private ParserName trackingName;
         private SyncTable tableDescription;
         private readonly SyncSetup setup;
-        private NpgsqlConnection connection;
-        private NpgsqlTransaction transaction;
         private NpgsqlDbMetadata sqlDbMetadata;
 
 
-        public NpgsqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
+        public NpgsqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as NpgsqlConnection;
-            this.transaction = transaction as NpgsqlTransaction;
-
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
@@ -38,7 +33,7 @@ namespace Dotmim.Sync.Postgres.Builders
 
         private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
-        private static string GetRandomString() => 
+        private static string GetRandomString() =>
             Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
 
         /// <summary>
@@ -62,7 +57,7 @@ namespace Dotmim.Sync.Postgres.Builders
             return name;
         }
 
-        public async Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation relation)
+        public async Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation relation, DbConnection connection, DbTransaction transaction)
         {
             // Don't want foreign key on same table since it could be a problem on first 
             // sync. We are not sure that parent row will be inserted in first position
@@ -81,7 +76,7 @@ namespace Dotmim.Sync.Postgres.Builders
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                var syncTable = await NpgsqlManagementUtils.GetRelationsForTableAsync(connection, transaction, tableName, schemaName).ConfigureAwait(false);
+                var syncTable = await NpgsqlManagementUtils.GetRelationsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, tableName, schemaName).ConfigureAwait(false);
 
                 var foreignKeyExist = syncTable.Rows.Any(r =>
                    string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
@@ -99,9 +94,8 @@ namespace Dotmim.Sync.Postgres.Builders
                     connection.Close();
             }
         }
-        private NpgsqlCommand BuildForeignKeyConstraintsCommand(SyncRelation constraint)
+        private NpgsqlCommand BuildForeignKeyConstraintsCommand(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
         {
-            var sqlCommand = new NpgsqlCommand();
             var tableName = ParserName.Parse(constraint.GetTable(), "\"").Quoted().Schema().ToString();
             var parentTableName = ParserName.Parse(constraint.GetParentTable(), "\"").Quoted().Schema().ToString();
 
@@ -131,45 +125,19 @@ namespace Dotmim.Sync.Postgres.Builders
                 empty = ", ";
             }
             stringBuilder.Append(" ) ");
-            sqlCommand.CommandText = stringBuilder.ToString();
+
+            var sqlCommand = new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
             return sqlCommand;
         }
-        public async Task CreateForeignKeyConstraintsAsync(SyncRelation constraint)
+        public async Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
         {
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = BuildForeignKeyConstraintsCommand(constraint, connection, transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                using (var command = BuildForeignKeyConstraintsCommand(constraint))
-                {
-                    command.Connection = connection;
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateForeignKeyConstraints : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
-  
-        private NpgsqlCommand BuildPkCommand()
+
+        private NpgsqlCommand BuildPkCommand(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
             var tableNameString = tableName.Schema().Quoted().ToString();
@@ -187,41 +155,17 @@ namespace Dotmim.Sync.Postgres.Builders
             }
             stringBuilder.Append(")");
 
-            return new NpgsqlCommand(stringBuilder.ToString());
+            return new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
         }
-        public async Task CreatePrimaryKeyAsync()
+        public async Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = BuildPkCommand(connection, transaction))
             {
-                using (var command = BuildPkCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Create Pk Command : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
-
         }
- 
-        private NpgsqlCommand BuildTableCommand()
+
+        private NpgsqlCommand BuildTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Schema().Quoted().ToString()} (");
             string empty = string.Empty;
@@ -260,136 +204,59 @@ namespace Dotmim.Sync.Postgres.Builders
             }
             stringBuilder.Append(")");
             string createTableCommandString = stringBuilder.ToString();
-            return new NpgsqlCommand(createTableCommandString);
+            return new NpgsqlCommand(createTableCommandString, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
         }
 
-        private NpgsqlCommand BuildDeleteTableCommand() 
-            => new NpgsqlCommand($"DROP TABLE {tableName.Schema().Quoted().ToString()};");
+        private NpgsqlCommand BuildDeleteTableCommand(DbConnection connection, DbTransaction transaction)
+            => new NpgsqlCommand($"DROP TABLE {tableName.Schema().Quoted().ToString()};", (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
 
-        public async Task CreateSchemaAsync()
+        public async Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction)
         {
             if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "public")
                 return;
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var schemaCommand = $"Create Schema {tableName.SchemaName}";
 
-            try
+            using (var command = new NpgsqlCommand(schemaCommand, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                var schemaCommand = $"Create Schema {tableName.SchemaName}";
-
-                using (var command = new NpgsqlCommand(schemaCommand))
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTable : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public async Task CreateTableAsync()
+        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = BuildTableCommand(connection, transaction))
             {
-                using (var command = BuildTableCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTable : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
 
-        public async Task DropTableAsync()
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (var command = BuildDeleteTableCommand(connection, transaction))
             {
-                using (var command = BuildDeleteTableCommand())
-                {
-                    if (!alreadyOpened)
-                        await connection.OpenAsync().ConfigureAwait(false);
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.Connection = connection;
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DeleteTable : {ex}");
-                throw;
+        }
 
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
+        /// <summary>
+        /// Check if we need to create the table in the current database
+        /// </summary>
+        public async Task<bool> NeedToCreateTableAsync(DbConnection connection, DbTransaction transaction)
+        {
+            return !await NpgsqlManagementUtils.TableExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, tableName.Schema().Quoted().ToString()).ConfigureAwait(false);
 
         }
 
         /// <summary>
         /// Check if we need to create the table in the current database
         /// </summary>
-        public async Task<bool> NeedToCreateTableAsync()
-        {
-            return !await NpgsqlManagementUtils.TableExistsAsync(connection, transaction, tableName.Schema().Quoted().ToString()).ConfigureAwait(false);
-
-        }
-
-        /// <summary>
-        /// Check if we need to create the table in the current database
-        /// </summary>
-        public async Task<bool> NeedToCreateSchemaAsync()
+        public async Task<bool> NeedToCreateSchemaAsync(DbConnection connection, DbTransaction transaction)
         {
             if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "public")
                 return false;
 
-            return !await NpgsqlManagementUtils.SchemaExistsAsync(connection, transaction, tableName.SchemaName).ConfigureAwait(false);
+            return !await NpgsqlManagementUtils.SchemaExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, tableName.SchemaName).ConfigureAwait(false);
         }
 
         public Task SeedTableIdentityAsync()

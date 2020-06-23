@@ -23,15 +23,15 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
-            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync().ConfigureAwait(false);
+            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.CreateTable, new { TableName = scopeInfoTableName, TableExists = !needToCreateScopeInfoTable });
 
             // create the scope info table if needed
             if (needToCreateScopeInfoTable)
-                await scopeInfoBuilder.CreateClientScopeInfoTableAsync().ConfigureAwait(false);
+                await scopeInfoBuilder.CreateClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -45,9 +45,9 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
-            var exist = !await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync().ConfigureAwait(false);
+            var exist = !await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             return (context, exist);
         }
@@ -61,14 +61,14 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
-            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync().ConfigureAwait(false);
+            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.DropTable, new { TableName = scopeInfoTableName, TableExists = !needToCreateScopeInfoTable });
 
             if (!needToCreateScopeInfoTable)
-                await scopeInfoBuilder.DropClientScopeInfoTableAsync().ConfigureAwait(false);
+                await scopeInfoBuilder.DropClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -83,15 +83,15 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
-            var need = await scopeInfoBuilder.NeedToCreateServerHistoryScopeInfoTableAsync().ConfigureAwait(false);
+            var need = await scopeInfoBuilder.NeedToCreateServerHistoryScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.CreateTable, new { TableName = scopeInfoTableName, TableExists = !need });
 
             // create the scope info table if needed
             if (need)
-                await scopeInfoBuilder.CreateServerHistoryScopeInfoTableAsync().ConfigureAwait(false);
+                await scopeInfoBuilder.CreateServerHistoryScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -105,15 +105,15 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
-            var need = await scopeInfoBuilder.NeedToCreateServerHistoryScopeInfoTableAsync().ConfigureAwait(false);
+            var need = await scopeInfoBuilder.NeedToCreateServerHistoryScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.DropTable, new { TableName = scopeInfoTableName, TableExists = !need });
 
             // create the scope info table if needed
             if (!need)
-                await scopeInfoBuilder.DropServerHistoryScopeInfoTableAsync().ConfigureAwait(false);
+                await scopeInfoBuilder.DropServerHistoryScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -128,15 +128,15 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
-            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateServerScopeInfoTableAsync().ConfigureAwait(false);
+            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateServerScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.CreateTable, new { TableName = scopeInfoTableName, TableExists = !needToCreateScopeInfoTable });
 
             // create the scope info table if needed
             if (needToCreateScopeInfoTable)
-                await scopeInfoBuilder.CreateServerScopeInfoTableAsync().ConfigureAwait(false);
+                await scopeInfoBuilder.CreateServerScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -150,15 +150,15 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
-            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateServerScopeInfoTableAsync().ConfigureAwait(false);
+            var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateServerScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.DropTable, new { TableName = scopeInfoTableName, TableExists = !needToCreateScopeInfoTable });
 
             // create the scope info table if needed
             if (!needToCreateScopeInfoTable)
-                await scopeInfoBuilder.DropServerScopeInfoTableAsync().ConfigureAwait(false);
+                await scopeInfoBuilder.DropServerScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -175,10 +175,10 @@ namespace Dotmim.Sync
             var scopes = new List<ScopeInfo>();
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
             // get all scopes shared by all (identified by scopeName)
-            scopes = await scopeInfoBuilder.GetAllClientScopesAsync(scopeName).ConfigureAwait(false);
+            scopes = await scopeInfoBuilder.GetAllClientScopesAsync(scopeName, connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.GetClientScope, new { ScopeName = scopeName, ScopeInfoTableName = scopeInfoTableName });
 
@@ -196,7 +196,7 @@ namespace Dotmim.Sync
                     LastSync = null,
                 };
 
-                scope = await scopeInfoBuilder.InsertOrUpdateClientScopeInfoAsync(scope).ConfigureAwait(false);
+                scope = await scopeInfoBuilder.InsertOrUpdateClientScopeInfoAsync(scope, connection, transaction).ConfigureAwait(false);
                 scopes.Add(scope);
             }
             else
@@ -227,12 +227,12 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.GetClientScope, new { ScopeName = scopeName, ScopeInfoTableName = scopeInfoTableName });
 
             // get all scopes shared by all (identified by scopeName)
-            var serverScopes = await scopeInfoBuilder.GetAllServerScopesAsync(scopeName).ConfigureAwait(false);
+            var serverScopes = await scopeInfoBuilder.GetAllServerScopesAsync(scopeName, connection, transaction).ConfigureAwait(false);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.GetServerScope, new { ScopeCountFound = serverScopes.Count });
 
@@ -249,7 +249,7 @@ namespace Dotmim.Sync
                     Version = "1"
                 };
 
-                scope = await scopeInfoBuilder.InsertOrUpdateServerScopeInfoAsync(scope).ConfigureAwait(false);
+                scope = await scopeInfoBuilder.InsertOrUpdateServerScopeInfoAsync(scope, connection, transaction).ConfigureAwait(false);
                 serverScopes.Add(scope);
             }
 
@@ -274,12 +274,12 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.GetServerScopeHistory, new { ScopeName = scopeName, ScopeInfoTableName = scopeInfoTableName });
 
             // get all scopes shared by all (identified by scopeName)
-            var serverHistoryScopes = await scopeInfoBuilder.GetAllServerHistoryScopesAsync(scopeName).ConfigureAwait(false);
+            var serverHistoryScopes = await scopeInfoBuilder.GetAllServerHistoryScopesAsync(scopeName, connection, transaction).ConfigureAwait(false);
 
             foreach (var scope in serverHistoryScopes)
                 this.Orchestrator.logger.LogDebug(SyncEventsId.GetServerScopeHistory, scope);
@@ -296,11 +296,11 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.WriteClientScope, scope);
 
-            await scopeInfoBuilder.InsertOrUpdateClientScopeInfoAsync(scope).ConfigureAwait(false);
+            await scopeInfoBuilder.InsertOrUpdateClientScopeInfoAsync(scope, connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -314,11 +314,11 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.WriteServerScope, scope);
 
-            await scopeInfoBuilder.InsertOrUpdateServerScopeInfoAsync(scope).ConfigureAwait(false);
+            await scopeInfoBuilder.InsertOrUpdateServerScopeInfoAsync(scope, connection, transaction).ConfigureAwait(false);
 
             return context;
         }
@@ -332,11 +332,11 @@ namespace Dotmim.Sync
         {
 
             var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName, connection, transaction);
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.WriteServerScopeHistory, scope);
 
-            await scopeInfoBuilder.InsertOrUpdateServerHistoryScopeInfoAsync(scope).ConfigureAwait(false);
+            await scopeInfoBuilder.InsertOrUpdateServerHistoryScopeInfoAsync(scope, connection, transaction).ConfigureAwait(false);
 
             return context;
         }

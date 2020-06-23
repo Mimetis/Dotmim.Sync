@@ -9,27 +9,27 @@ namespace Dotmim.Sync.Builders
 {
     public interface IDbScopeInfoBuilder
     {
-        Task<bool> NeedToCreateClientScopeInfoTableAsync();
-        Task<bool> NeedToCreateServerScopeInfoTableAsync();
-        Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync();
+        Task<bool> NeedToCreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
+        Task<bool> NeedToCreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
+        Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
 
-        Task CreateClientScopeInfoTableAsync();
-        Task CreateServerScopeInfoTableAsync();
-        Task CreateServerHistoryScopeInfoTableAsync();
+        Task CreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
+        Task CreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
+        Task CreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
 
-        Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName);
-        Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName);
-        Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName);
+        Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction);
+        Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction);
+        Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction);
 
-        Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo);
-        Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo);
-        Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo);
+        Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction);
+        Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction);
+        Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction);
 
-        Task<long> GetLocalTimestampAsync();
+        Task<long> GetLocalTimestampAsync(DbConnection connection, DbTransaction transaction);
 
-        Task DropClientScopeInfoTableAsync();
-        Task DropServerScopeInfoTableAsync();
-        Task DropServerHistoryScopeInfoTableAsync();
+        Task DropClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
+        Task DropServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
+        Task DropServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction);
 
     }
 }

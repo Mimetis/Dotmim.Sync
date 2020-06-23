@@ -18,30 +18,17 @@ namespace Dotmim.Sync.Postgres.Scope
         public const string TimestampValue = "to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint";
 
         protected readonly ParserName scopeTableName;
-        protected readonly NpgsqlConnection connection;
-        protected readonly NpgsqlTransaction transaction;
 
-        public NpgsqlScopeInfoBuilder(string scopeTableName, DbConnection connection, DbTransaction transaction = null)
+        public NpgsqlScopeInfoBuilder(string scopeTableName)
         {
-            this.connection = connection as NpgsqlConnection;
-            this.transaction = transaction as NpgsqlTransaction;
             this.scopeTableName = ParserName.Parse(scopeTableName, "\"");
         }
 
-        public virtual async Task CreateClientScopeInfoTableAsync()
+        public virtual async Task CreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"
+            var commandText =
+                $@"
                       CREATE TABLE IF NOT EXISTS public.{scopeTableName.Quoted().ToString()}(
                         sync_scope_id uuid NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
@@ -54,70 +41,31 @@ namespace Dotmim.Sync.Postgres.Scope
                         scope_last_sync timestamp NULL,
                         CONSTRAINT PK_{scopeTableName.Unquoted().Normalized().ToString()} PRIMARY KEY (sync_scope_id)
                         )";
+
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+        }
+
+        public virtual async Task DropClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var commandText = $@"DROP Table public.{scopeTableName.Quoted().ToString()}";
+
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task DropClientScopeInfoTableAsync()
+        public virtual async Task CreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
-                command.CommandText = $@"DROP Table public.{scopeTableName.Quoted().ToString()}";
-
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
-        }
-
-        public virtual async Task CreateServerHistoryScopeInfoTableAsync()
-        {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText =
-                    $@"CREATE TABLE public.""{tableName}""(
+            var commandText =
+                $@"CREATE TABLE public.""{tableName}""(
                         sync_scope_id uniqueidentifier NOT NULL,
 	                    sync_scope_name nvarchar(100) NOT NULL,
                         scope_last_sync_timestamp bigint NULL,
@@ -125,72 +73,29 @@ namespace Dotmim.Sync.Postgres.Scope
                         scope_last_sync datetime NULL
                         CONSTRAINT PK_{tableName} PRIMARY KEY CLUSTERED (sync_scope_id ASC)
                         )";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateServerHistoryScopeInfoTableAsync : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
+        }
+
+        public virtual async Task DropServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText = $@"DROP Table public.""{tableName}""";
+
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public virtual async Task DropServerHistoryScopeInfoTableAsync()
+        public virtual async Task CreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText = $@"DROP Table public.""{tableName}""";
-
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
-        }
-
-        public virtual async Task CreateServerScopeInfoTableAsync()
-        {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText =
-                    $@"CREATE TABLE public.""{tableName}"" (
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText =
+                $@"CREATE TABLE public.""{tableName}"" (
 	                    sync_scope_name nvarchar(100) NOT NULL,
 	                    sync_scope_schema nvarchar(max) NULL,
 	                    sync_scope_setup nvarchar(max) NULL,
@@ -198,72 +103,28 @@ namespace Dotmim.Sync.Postgres.Scope
                         sync_scope_last_clean_timestamp bigint NULL,
                         CONSTRAINT PK_{scopeTableName.Unquoted().Normalized().ToString()}_server PRIMARY KEY CLUSTERED (sync_scope_name ASC)
                         )";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public virtual async Task DropServerScopeInfoTableAsync()
+        public virtual async Task DropServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText = $@"DROP Table public.""{tableName}""";
 
-            try
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText = $@"DROP Table public.""{tableName}""";
-
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropScopeInfoTable : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public virtual async Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName)
+        public virtual async Task<List<ScopeInfo>> GetAllClientScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
             var scopes = new List<ScopeInfo>();
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"SELECT sync_scope_id
+            var commandText =
+                $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
                            , sync_scope_setup
@@ -274,6 +135,9 @@ namespace Dotmim.Sync.Postgres.Scope
                            , scope_last_sync_duration
                     FROM  {scopeTableName.Quoted().ToString()}
                     WHERE sync_scope_name = @sync_scope_name";
+
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -291,7 +155,7 @@ namespace Dotmim.Sync.Postgres.Scope
                             var scopeInfo = new ScopeInfo();
                             scopeInfo.Name = reader["sync_scope_name"] as string;
                             scopeInfo.Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]);
-                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]); 
+                            scopeInfo.Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]);
                             scopeInfo.Version = reader["sync_scope_version"] as string;
                             scopeInfo.Id = (Guid)reader["sync_scope_id"];
                             scopeInfo.LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader["scope_last_sync"] : null;
@@ -305,63 +169,22 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 return scopes;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during GetAllScopes : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public virtual async Task<long> GetLocalTimestampAsync()
+        public virtual async Task<long> GetLocalTimestampAsync(DbConnection connection, DbTransaction transaction)
         {
-            using (var command = connection.CreateCommand())
+            var commandText = $"SELECT {NpgsqlScopeInfoBuilder.TimestampValue}";
+
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
             {
-                long result = 0;
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                command.CommandText = $"SELECT {NpgsqlScopeInfoBuilder.TimestampValue}";
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                result = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false));
-
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
+                var result = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false));
                 return result;
             }
         }
 
-        public virtual async Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo)
+        public virtual async Task<ScopeInfo> InsertOrUpdateClientScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText = $@"
-
+            var commandText = $@"
                     WITH base AS (SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_schema AS sync_scope_schema,  
@@ -383,11 +206,10 @@ namespace Dotmim.Sync.Postgres.Scope
                                    scope_last_sync_timestamp = EXCLUDED.scope_last_sync_timestamp,
                                    scope_last_server_sync_timestamp = EXCLUDED.scope_last_server_sync_timestamp,
                                    scope_last_sync_duration = EXCLUDED.scope_last_sync_duration
-                    RETURNING *;
+                    RETURNING *;";
 
-
-                ";
-
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = scopeInfo.Name;
@@ -402,7 +224,7 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_setup";
-                p.Value = scopeInfo.Setup ==null  ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
+                p.Value = scopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
                 p.DbType = DbType.String;
                 command.Parameters.Add(p);
 
@@ -464,36 +286,14 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 return scopeInfo;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public virtual async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo)
+        public virtual async Task<ServerScopeInfo> InsertOrUpdateServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText = $@"
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText = $@"
                     MERGE {tableName} AS ""base"" 
                     USING (
                                SELECT  @sync_scope_name AS sync_scope_name,  
@@ -518,6 +318,8 @@ namespace Dotmim.Sync.Postgres.Scope
                             INSERTED.""sync_scope_version"", 
                             INSERTED.""sync_scope_last_clean_timestamp"";
                 ";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -567,37 +369,12 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 return serverScopeInfo;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public virtual async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo)
+        public virtual async Task<ServerHistoryScopeInfo> InsertOrUpdateServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText = $@"
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText = $@"
                     MERGE ""{tableName}"" AS ""base"" 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
@@ -619,9 +396,10 @@ namespace Dotmim.Sync.Postgres.Scope
                             INSERTED.""sync_scope_id"", 
                             INSERTED.""scope_last_sync_timestamp"",
                             INSERTED.""scope_last_sync"",
-                            INSERTED.""scope_last_sync_duration"";
-                ";
+                            INSERTED.""scope_last_sync_duration"";";
 
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
                 p.Value = serverHistoryScopeInfo.Name;
@@ -669,150 +447,67 @@ namespace Dotmim.Sync.Postgres.Scope
 
                 return serverHistoryScopeInfo;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTableScope : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
         }
 
-        public virtual async Task<bool> NeedToCreateClientScopeInfoTableAsync()
+        public virtual async Task<bool> NeedToCreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var exist = await NpgsqlManagementUtils.TableExistsAsync(connection, transaction, this.scopeTableName.Quoted().ToString());
-
-                return !exist;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during NeedToCreateScopeInfoTable command : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
-            }
+            var exist = await NpgsqlManagementUtils.TableExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, this.scopeTableName.Quoted().ToString());
+            return !exist;
         }
 
-        public virtual async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync()
+        public virtual async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                command.CommandText =
-                    $@"IF EXISTS (SELECT t.name FROM sys.tables t 
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText =
+                $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
                             WHERE t.name = N'{tableName}')
                      SELECT 1 
                      ELSE
                      SELECT 0";
 
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
-
                 return (int)result != 1;
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during NeedToCreateServerHistoryScopeInfoTable command : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-                if (command != null)
-                    command.Dispose();
             }
         }
 
-        public virtual async Task<bool> NeedToCreateServerScopeInfoTableAsync()
+        public virtual async Task<bool> NeedToCreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            using (var command = connection.CreateCommand())
-            {
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                command.CommandText =
-                    $@"IF EXISTS (SELECT t.name FROM sys.tables t 
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText =
+                $@"IF EXISTS (SELECT t.name FROM sys.tables t 
                             JOIN sys.schemas s ON s.schema_id = t.schema_id 
                             WHERE t.name = N'{tableName}')
                      SELECT 1 
                      ELSE
                      SELECT 0";
 
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
                 var result = await command.ExecuteScalarAsync().ConfigureAwait(false);
-
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
 
                 return (int)result != 1;
             }
 
         }
 
-        public async Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName)
+        public async Task<List<ServerScopeInfo>> GetAllServerScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction)
         {
-            using (var command = connection.CreateCommand())
-            {
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                var scopes = new List<ServerScopeInfo>();
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"SELECT ""sync_scope_name""
+            var scopes = new List<ServerScopeInfo>();
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText =
+                $@"SELECT ""sync_scope_name""
                            , ""sync_scope_schema""
                            , ""sync_scope_setup""
                            , ""sync_scope_version""
                            , ""sync_scope_last_clean_timestamp""
                     FROM  ""{tableName}""
                     WHERE ""sync_scope_name"" = @sync_scope_name";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -837,39 +532,25 @@ namespace Dotmim.Sync.Postgres.Scope
                         }
                     }
                 }
-
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
                 return scopes;
             }
 
         }
 
-        public async Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName)
+        public async Task<List<ServerHistoryScopeInfo>> GetAllServerHistoryScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction)
         {
-            using (var command = connection.CreateCommand())
-            {
-                var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                var scopes = new List<ServerHistoryScopeInfo>();
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                command.CommandText =
-                    $@"SELECT ""sync_scope_id""
+            var scopes = new List<ServerHistoryScopeInfo>();
+            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText =
+                $@"SELECT ""sync_scope_id""
                            , ""sync_scope_name""
                            , ""scope_last_sync_timestamp""
                            , ""scope_last_sync_duration""
                            , ""scope_last_sync""
                     FROM  ""{tableName}""
                     WHERE ""sync_scope_name"" = @sync_scope_name";
+            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+            {
 
                 var p = command.CreateParameter();
                 p.ParameterName = "@sync_scope_name";
@@ -894,10 +575,6 @@ namespace Dotmim.Sync.Postgres.Scope
                         }
                     }
                 }
-
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
                 return scopes;
             }
 

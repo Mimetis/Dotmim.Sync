@@ -1277,10 +1277,10 @@ internal class Program
 
                     NpgsqlTableBuilder tableBuilder = new NpgsqlTableBuilder(schemaTable, setup);
 
-                    var procBuilder = tableBuilder.CreateProcBuilder(c);
+                    var procBuilder = tableBuilder.CreateProcBuilder();
 
-                    await procBuilder.CreateDeleteAsync();
-                    await procBuilder.CreateSelectRowAsync();
+                    await procBuilder.CreateDeleteAsync(c, null);
+                    await procBuilder.CreateSelectRowAsync(c, null);
 
                     Console.WriteLine($"Stored Proc for {schemaTable.GetFullName()} created.");
 
