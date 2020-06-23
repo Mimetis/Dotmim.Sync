@@ -13,36 +13,14 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlSyncAdapter : DbSyncAdapter
     {
-        private MySqlConnection connection;
-        private MySqlTransaction transaction;
         private MySqlObjectNames mySqlObjectNames;
         private MySqlDbMetadata mySqlDbMetadata;
 
 
-        public override DbConnection Connection
-        {
-            get
-            {
-                return this.connection;
-            }
-        }
-        public override DbTransaction Transaction
-        {
-            get
-            {
-                return this.transaction;
-            }
 
-        }
-
-        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
+        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
         {
-            var sqlc = connection as MySqlConnection;
-            this.connection = sqlc ?? throw new InvalidCastException("Connection should be a MySqlConnection");
-
-            this.transaction = transaction as MySqlTransaction;
             this.mySqlDbMetadata = new MySqlDbMetadata();
-
             this.mySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup);
         }
 
@@ -74,7 +52,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
         {
 
             if (command == null)
@@ -305,12 +283,7 @@ namespace Dotmim.Sync.MySql
 
         }
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-        {
-            throw new NotImplementedException();
-        }
-
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null) 
+            => throw new NotImplementedException();
     }
 }

@@ -10,24 +10,15 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public class MockSyncAdapter : DbSyncAdapter
     {
-        private DbConnection connection;
-        private DbTransaction transaction;
-
-        public MockSyncAdapter(SyncTable tableDescription, SyncSetup setup, DbConnection connection, DbTransaction transaction)
+        public MockSyncAdapter(SyncTable tableDescription, SyncSetup setup)
             : base(tableDescription, setup)
         {
-            this.connection = connection;
-            this.transaction = transaction;
         }
 
-        public override DbConnection Connection => this.connection;
-
-        public override DbTransaction Transaction => this.transaction;
-
-        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
        => Task.CompletedTask;
 
-        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp)
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => Task.CompletedTask;
 
         public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)

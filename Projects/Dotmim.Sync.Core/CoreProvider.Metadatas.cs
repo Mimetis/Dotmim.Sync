@@ -33,10 +33,10 @@ namespace Dotmim.Sync
                     continue;
 
                 // Create sync adapter
-                var syncAdapter = tableBuilder.CreateSyncAdapter(connection, transaction);
+                var syncAdapter = tableBuilder.CreateSyncAdapter();
 
                 // Delete metadatas
-                var rowsCleanedCount = await syncAdapter.DeleteMetadatasAsync(timestampLimit).ConfigureAwait(false);
+                var rowsCleanedCount = await syncAdapter.DeleteMetadatasAsync(timestampLimit, connection, transaction).ConfigureAwait(false);
 
                 // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
                 if (rowsCleanedCount > 0)

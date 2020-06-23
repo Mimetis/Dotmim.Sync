@@ -15,8 +15,8 @@ namespace Dotmim.Sync.Tests.UnitTests
         public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
             => new MockBuilderProcedureHelper();
 
-        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
-            => new MockSyncAdapter(this.TableDescription, this.Setup, connection, transaction);
+        public override DbSyncAdapter CreateSyncAdapter()
+            => new MockSyncAdapter(this.TableDescription, this.Setup);
 
         public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
             => new MockBuilderTableHelper();

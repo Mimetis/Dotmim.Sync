@@ -73,7 +73,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Gets the table Sync Adapter in charge of executing all command during sync
         /// </summary>
-        public abstract DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null);
+        public abstract DbSyncAdapter CreateSyncAdapter();
 
 
         /// <summary>

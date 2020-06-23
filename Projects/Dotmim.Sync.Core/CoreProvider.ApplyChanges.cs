@@ -110,10 +110,10 @@ namespace Dotmim.Sync
                 this.Orchestrator.logger.LogDebug(SyncEventsId.ResetTable, tableDescription);
 
                 var builder = this.GetTableBuilder(tableDescription, setup);
-                var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+                var syncAdapter = builder.CreateSyncAdapter();
 
                 // reset table
-                await syncAdapter.ResetTableAsync();
+                await syncAdapter.ResetTableAsync(connection, transaction);
             }
         }
 
@@ -144,7 +144,7 @@ namespace Dotmim.Sync
 
             var builder = this.GetTableBuilder(schemaTable, message.Setup);
 
-            var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+            var syncAdapter = builder.CreateSyncAdapter();
             syncAdapter.ApplyType = applyType;
 
             var hasChanges = await message.Changes.HasDataAsync(this.Orchestrator);
@@ -186,9 +186,9 @@ namespace Dotmim.Sync
                     int rowsApplied = 0;
 
                     if (message.UseBulkOperations && this.SupportBulkOperations)
-                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts);
+                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
                     else
-                        rowsApplied = await syncAdapter.ApplyChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts);
+                        rowsApplied = await syncAdapter.ApplyChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
 
                     // resolving conflicts
                     var (rowsAppliedCount, conflictsResolvedCount, syncErrorsCount) =
@@ -329,7 +329,7 @@ namespace Dotmim.Sync
                 {
 
                     // if merge, we update locally the row and let the update_scope_id set to null
-                    var isUpdated = await syncAdapter.ApplyUpdateAsync(row, lastTimestamp, null, true);
+                    var isUpdated = await syncAdapter.ApplyUpdateAsync(row, lastTimestamp, null, true, connection, transaction);
                     // We don't update metadatas so the row is updated (on server side) 
                     // and is mark as updated locally.
                     // and will be returned back to sender, since it's a merge, and we need it on the client
@@ -358,20 +358,20 @@ namespace Dotmim.Sync
                 {
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteExistsLocalExists:
-                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
                         rowAppliedCount = 1;
                         break;
 
                     case ConflictType.RemoteExistsLocalNotExists:
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
-                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyUpdateAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
                         rowAppliedCount = 1;
                         break;
 
                     // Conflict, but both have delete the row, so just update the metadata to the right winner
                     case ConflictType.RemoteIsDeletedLocalIsDeleted:
-                        operationComplete = await syncAdapter.UpdateMetadatasAsync(conflict.RemoteRow, nullableSenderScopeId, true);
+                        operationComplete = await syncAdapter.UpdateMetadatasAsync(conflict.RemoteRow, nullableSenderScopeId, true, connection, transaction);
                         rowAppliedCount = 0;
                         break;
 
@@ -384,7 +384,7 @@ namespace Dotmim.Sync
                     // The remote has delete the row, and local has insert or update it
                     // So delete the local row
                     case ConflictType.RemoteIsDeletedLocalExists:
-                        operationComplete = await syncAdapter.ApplyDeleteAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true);
+                        operationComplete = await syncAdapter.ApplyDeleteAsync(conflict.RemoteRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
                         rowAppliedCount = 1;
                         break;
 
@@ -451,10 +451,10 @@ namespace Dotmim.Sync
         {
 
             var builder = this.GetTableBuilder(table, setup);
-            var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+            var syncAdapter = builder.CreateSyncAdapter();
 
             // disable constraints
-            return syncAdapter.DisableConstraintsAsync();
+            return syncAdapter.DisableConstraintsAsync(connection, transaction);
         }
 
 
@@ -466,10 +466,10 @@ namespace Dotmim.Sync
         internal Task EnableConstraintsAsync(SyncContext context, SyncTable table, SyncSetup setup, DbConnection connection, DbTransaction transaction)
         {
             var builder = this.GetTableBuilder(table, setup);
-            var syncAdapter = builder.CreateSyncAdapter(connection, transaction);
+            var syncAdapter = builder.CreateSyncAdapter();
 
             // enable table
-            return syncAdapter.EnableConstraintsAsync();
+            return syncAdapter.EnableConstraintsAsync(connection, transaction);
         }
 
 

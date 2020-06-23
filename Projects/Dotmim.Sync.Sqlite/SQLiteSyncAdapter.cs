@@ -12,33 +12,11 @@ namespace Dotmim.Sync.Sqlite
 {
     public class SqliteSyncAdapter : DbSyncAdapter
     {
-        private SqliteConnection connection;
-        private SqliteTransaction transaction;
         private SqliteObjectNames sqliteObjectNames;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public override DbConnection Connection
+        public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
         {
-            get
-            {
-                return this.connection;
-            }
-        }
-        public override DbTransaction Transaction
-        {
-            get
-            {
-                return this.transaction;
-            }
-
-        }
-
-        public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, DbConnection connection, DbTransaction transaction) : base(tableDescription, setup)
-        {
-            var sqlc = connection as SqliteConnection;
-            this.connection = sqlc ?? throw new InvalidCastException("Connection should be a SqliteConnection");
-
-            this.transaction = transaction as SqliteTransaction;
 
             this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup);
             this.sqliteDbMetadata = new SqliteDbMetadata();
@@ -62,7 +40,7 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null)
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
         {
 
             if (command == null)
@@ -249,7 +227,7 @@ namespace Dotmim.Sync.Sqlite
             command.Parameters.Add(p);
         }
 
-        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp) 
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null) 
             => throw new NotImplementedException();
 
         public override bool IsUniqueKeyViolation(Exception exception)

@@ -93,6 +93,18 @@ namespace Dotmim.Sync
         public AlreadyInProgressException() : base(message) { }
     }
 
+
+
+    /// <summary>
+    /// Occurs when trying to use a closed connection
+    /// </summary>
+    public class ConnectionClosedException : Exception
+    {
+        const string message = "The connection to database {0} is closed.";
+
+        public ConnectionClosedException(DbConnection connection) : base(string.Format(message, connection.Database)) { }
+    }
+
     /// <summary>
     /// Occurs when trying to launch another sync during an in progress sync.
     /// </summary>
@@ -135,6 +147,15 @@ namespace Dotmim.Sync
         public InvalidProvisionForRemoteOrchestratorException() : base(message) { }
     }
 
+    /// <summary>
+    /// Occurs when a connection is missing
+    /// </summary>
+    public class MissingConnectionException : Exception
+    {
+        const string message = "Connection is null";
+
+        public MissingConnectionException() : base(message) { }
+    }
 
     /// <summary>
     /// Occurs when a file is missing

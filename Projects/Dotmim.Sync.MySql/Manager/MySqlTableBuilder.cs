@@ -74,9 +74,9 @@ namespace Dotmim.Sync.MySql
             return new MySqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
         }
 
-        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
+        public override DbSyncAdapter CreateSyncAdapter()
         {
-            return new MySqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup, connection, transaction);
+            return new MySqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
     }
 }

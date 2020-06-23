@@ -32,7 +32,7 @@ namespace Dotmim.Sync
         /// Gets the table description
         /// </summary>
         public SyncTable TableDescription { get; private set; }
-        
+
         /// <summary>
         /// Gets the setup used 
         /// </summary>
@@ -61,22 +61,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add parameters to a command
         /// </summary>
-        public abstract Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, SyncFilter filter = null);
+        public abstract Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction, SyncFilter filter = null);
 
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp);
-
-        /// <summary>
-        /// Gets the current connection. could be opened
-        /// </summary>
-        public abstract DbConnection Connection { get; }
-
-        /// <summary>
-        /// Gets the current transaction. could be null
-        /// </summary>
-        public abstract DbTransaction Transaction { get; }
+        public abstract Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
+                                                      SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction);
 
         /// <summary>
         /// Create a Sync Adapter
@@ -86,30 +77,6 @@ namespace Dotmim.Sync
             this.TableDescription = tableDescription;
             this.Setup = setup;
         }
-
-
-
-
-        /// <summary>
-        /// Get a command from internal cache, if available otherwise get command from underlying provider and add it to cache
-        /// </summary>
-        internal DbCommand InternalGetCommand(DbCommandType commandType, SyncFilter filter = null)
-        {
-
-            var commandKey = $"{this.Connection.DataSource}-{this.Connection.Database}-{this.TableDescription.GetFullName()}-{commandType}";
-
-            // Try to get the instance
-            var parserStringRetrieved = commands.GetOrAdd(commandKey, k =>
-                new Lazy<DbCommand>(() => GetCommand(commandType, filter)));
-
-            return parserStringRetrieved.Value;
-
-            //// Get command from cache or create a new one
-            //var command = DbCommandPool.GetPooledCommand(commandKey, () => GetCommand(commandType, filter));
-
-            //return command;
-        }
-
 
         /// <summary>
         /// Set command parameters value mapped to Row
@@ -143,43 +110,63 @@ namespace Dotmim.Sync
                 syncRowCountParam.Direction = ParameterDirection.Output;
         }
 
+
+        /// <summary>
+        /// Get the command from provider, check connection is opened, affect connection and transaction
+        /// Prepare the command parameters and add scope parameters
+        /// </summary>
+        internal async Task<DbCommand> PrepareCommandAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        {
+            // Create the key
+            var commandKey = $"{connection.DataSource}-{connection.Database}-{this.TableDescription.GetFullName()}-{commandType}";
+
+            // Get a lazy command instance
+            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<DbCommand>(() => GetCommand(commandType, filter)));
+
+            // Get the concrete instance
+            var command = lazyCommand.Value;
+
+            if (command == null)
+                throw new MissingCommandException(commandType.ToString());
+
+            if (connection == null)
+                throw new MissingConnectionException();
+
+            if (connection.State != ConnectionState.Open)
+                throw new ConnectionClosedException(connection);
+
+            command.Connection = connection;
+
+            if (transaction != null)
+                command.Transaction = transaction;
+
+            // Add Parameters
+            await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
+
+            // Testing The Prepare() performance increase
+            command.Prepare();
+
+            return command;
+        }
+
         /// <summary>
         /// Try to get a source row
         /// </summary>
         /// <returns></returns>
-        internal async Task<SyncRow> GetRowAsync(Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema)
+        internal async Task<SyncRow> GetRowAsync(Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository
-            var selectCommand = InternalGetCommand(DbCommandType.SelectRow);
-
-            if (selectCommand == null)
-                throw new MissingCommandException(DbCommandType.SelectRow.ToString());
-
-            // Deriving Parameters
-            await this.AddCommandParametersAsync(DbCommandType.SelectRow, selectCommand).ConfigureAwait(false);
+            var command = await this.PrepareCommandAsync(DbCommandType.SelectRow, connection, transaction);
 
             // set the primary keys columns as parameters
-            this.SetColumnParametersValues(selectCommand, primaryKeyRow);
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            selectCommand.Connection = Connection;
-
-            // Open Connection
-            if (!alreadyOpened)
-                Connection.Open();
-
-            if (Transaction != null)
-                selectCommand.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            selectCommand.Prepare();
+            this.SetColumnParametersValues(command, primaryKeyRow);
 
             // Create a select table based on the schema in parameter + scope columns
             var changesSet = schema.Schema.Clone(false);
             var selectTable = CreateChangesTable(schema, changesSet);
             SyncRow syncRow = null;
-            using (var dataReader = await selectCommand.ExecuteReaderAsync().ConfigureAwait(false))
+
+            using (var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false))
             {
                 while (dataReader.Read())
                 {
@@ -221,57 +208,37 @@ namespace Dotmim.Sync
                 }
             }
 
-            // Close Connection
-            if (!alreadyOpened)
-                Connection.Close();
-
-
             // if syncRow is not a deleted row, we can check for which kind of row it is.
             if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
                 syncRow.RowState = DataRowState.Modified;
 
             return syncRow;
-
-
         }
 
         /// <summary>
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
-        public async Task<int> ApplyBulkChangesAsync(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
+        public async Task<int> ApplyBulkChangesAsync(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts, DbConnection connection, DbTransaction transaction)
         {
-            DbCommand bulkCommand;
-            if (this.ApplyType == DataRowState.Modified)
+            DbCommandType dbCommandType;
+
+            switch (this.ApplyType)
             {
-                bulkCommand = this.InternalGetCommand(DbCommandType.BulkUpdateRows);
-
-                if (bulkCommand == null)
-                    throw new MissingCommandException(DbCommandType.BulkUpdateRows.ToString());
-
-                await this.AddCommandParametersAsync(DbCommandType.BulkUpdateRows, bulkCommand).ConfigureAwait(false);
-            }
-            else if (this.ApplyType == DataRowState.Deleted)
-            {
-                bulkCommand = this.InternalGetCommand(DbCommandType.BulkDeleteRows);
-
-                if (bulkCommand == null)
-                    throw new MissingCommandException(DbCommandType.BulkDeleteRows.ToString());
-
-                await this.AddCommandParametersAsync(DbCommandType.BulkDeleteRows, bulkCommand).ConfigureAwait(false);
-            }
-            else
-            {
-                throw new Exception("RowState not valid during ApplyBulkChanges operation");
+                case DataRowState.Deleted:
+                    dbCommandType = DbCommandType.BulkDeleteRows;
+                    break;
+                case DataRowState.Modified:
+                    dbCommandType = DbCommandType.BulkUpdateRows;
+                    break;
+                case DataRowState.Detached:
+                case DataRowState.Added:
+                case DataRowState.Unchanged:
+                default:
+                    throw new UnknownException("RowState not valid during ApplyBulkChanges operation");
             }
 
-            bulkCommand.Connection = Connection;
-
-            if (Transaction != null && Transaction.Connection != null)
-                bulkCommand.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            bulkCommand.Prepare();
+            DbCommand command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
 
             // Create
             var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
@@ -289,12 +256,8 @@ namespace Dotmim.Sync
                 var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
 
                 // execute the batch, through the provider
-                await ExecuteBatchCommandAsync(bulkCommand, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp).ConfigureAwait(false);
+                await ExecuteBatchCommandAsync(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
             }
-
-            //// Disposing command
-            //if (bulkCommand != null)
-            //    bulkCommand.Dispose();
 
             if (failedPrimaryKeysTable.Rows.Count == 0)
                 return itemsArrayCount;
@@ -312,7 +275,7 @@ namespace Dotmim.Sync
 
                 var remoteConflictRow = remoteConflictRows.ToList()[0];
 
-                var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable).ConfigureAwait(false);
+                var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
 
                 conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
             }
@@ -371,7 +334,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="changes">Changes</param>
         /// <returns>every lines not updated / deleted in the destination data source</returns>
-        internal async Task<int> ApplyChangesAsync(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts)
+        internal async Task<int> ApplyChangesAsync(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts, DbConnection connection, DbTransaction transaction)
         {
             int appliedRows = 0;
 
@@ -382,14 +345,14 @@ namespace Dotmim.Sync
                 try
                 {
                     if (ApplyType == DataRowState.Modified)
-                        operationComplete = await this.ApplyUpdateAsync(row, lastTimestamp, senderScopeId, false).ConfigureAwait(false);
+                        operationComplete = await this.ApplyUpdateAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
                     else if (ApplyType == DataRowState.Deleted)
-                        operationComplete = await this.ApplyDeleteAsync(row, lastTimestamp, senderScopeId, false).ConfigureAwait(false);
+                        operationComplete = await this.ApplyDeleteAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
 
                     if (operationComplete)
                         appliedRows++;
                     else
-                        conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable).ConfigureAwait(false)));
+                        conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false)));
 
                 }
                 catch (Exception ex)
@@ -403,7 +366,7 @@ namespace Dotmim.Sync
                         conflict.AddRemoteRow(row);
 
                         // Get the local row
-                        var localRow = await GetRowAsync(localScopeId, row, changesTable).ConfigureAwait(false);
+                        var localRow = await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false);
                         if (localRow != null)
                             conflict.AddLocalRow(localRow);
 
@@ -422,38 +385,18 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a delete on a row
         /// </summary>
-        internal async Task<bool> ApplyDeleteAsync(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite)
+        internal async Task<bool> ApplyDeleteAsync(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
-            var command = this.InternalGetCommand(DbCommandType.DeleteRow);
-
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.DeleteRow.ToString());
-
-            // Deriving Parameters
-            await this.AddCommandParametersAsync(DbCommandType.DeleteRow, command).ConfigureAwait(false);
+            var command = await this.PrepareCommandAsync(DbCommandType.DeleteRow, connection, transaction);
 
             // Set the parameters value from row
             this.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
             this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            // OPen Connection
-            if (!alreadyOpened)
-                await this.Connection.OpenAsync().ConfigureAwait(false);
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
 
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -463,47 +406,24 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 rowDeletedCount = (int)syncRowCountParam.Value;
 
-            if (!alreadyOpened)
-                Connection.Close();
-
             return rowDeletedCount > 0;
-
         }
 
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
         /// </summary>
-        internal async Task<bool> ApplyUpdateAsync(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite)
+        internal async Task<bool> ApplyUpdateAsync(SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
-            var command = this.InternalGetCommand(DbCommandType.UpdateRow);
-
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.UpdateRow.ToString());
-
-            // Deriving Parameters
-            await this.AddCommandParametersAsync(DbCommandType.UpdateRow, command).ConfigureAwait(false);
+            var command = await this.PrepareCommandAsync(DbCommandType.UpdateRow, connection, transaction);
 
             // Set the parameters value from row
             this.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
             AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                await this.Connection.OpenAsync().ConfigureAwait(false);
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
 
             var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -513,37 +433,14 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 rowUpdatedCount = (int)syncRowCountParam.Value;
 
-            if (!alreadyOpened)
-                Connection.Close();
-
             return rowUpdatedCount > 0;
-
         }
 
 
-        internal async Task<int> UpdateUntrackedRowsAsync()
+        internal async Task<int> UpdateUntrackedRowsAsync(DbConnection connection, DbTransaction transaction)
         {
             // Get correct Select incremental changes command 
-            var command = this.InternalGetCommand(DbCommandType.UpdateUntrackedRows);
-
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.UpdateUntrackedRows.ToString());
-
-            // Add common parameters
-            await this.AddCommandParametersAsync(DbCommandType.UpdateUntrackedRows, command).ConfigureAwait(false);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                await this.Connection.OpenAsync().ConfigureAwait(false);
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
+            var command = await this.PrepareCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -554,44 +451,19 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;
 
-            if (!alreadyOpened)
-                Connection.Close();
-
             return rowAffected;
-
-
-
         }
 
 
         /// <summary>
         /// Delete all metadatas from one table before a timestamp limit
         /// </summary>
-        internal async Task<int> DeleteMetadatasAsync(long timestampLimit)
+        internal async Task<int> DeleteMetadatasAsync(long timestampLimit, DbConnection connection, DbTransaction transaction)
         {
-            var command = this.InternalGetCommand(DbCommandType.DeleteMetadata);
-
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.DeleteMetadata.ToString());
-
-            // Deriving Parameters
-            await this.AddCommandParametersAsync(DbCommandType.DeleteMetadata, command).ConfigureAwait(false);
+            var command = await this.PrepareCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
             // Set the special parameters for delete metadata
             DbTableManagerFactory.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                await this.Connection.OpenAsync().ConfigureAwait(false);
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
 
             var metadataDeletedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -601,9 +473,6 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 metadataDeletedRowsCount = (int)syncRowCountParam.Value;
 
-            if (!alreadyOpened)
-                Connection.Close();
-
             return metadataDeletedRowsCount;
 
         }
@@ -611,34 +480,15 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update a metadata row
         /// </summary>
-        internal async Task<bool> UpdateMetadatasAsync(SyncRow row, Guid? senderScopeId, bool forceWrite)
+        internal async Task<bool> UpdateMetadatasAsync(SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            var command = this.InternalGetCommand(DbCommandType.UpdateMetadata);
-
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.UpdateMetadata.ToString());
-
-            // Deriving Parameters
-            await this.AddCommandParametersAsync(DbCommandType.UpdateMetadata, command).ConfigureAwait(false);
+            var command = await this.PrepareCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
             // Set the parameters value from row
             this.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
             AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                await this.Connection.OpenAsync().ConfigureAwait(false);
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
 
             var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -648,44 +498,18 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
 
-            if (!alreadyOpened)
-                Connection.Close();
-
             return metadataUpdatedRowsCount > 0;
-
         }
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        internal async Task<bool> ResetTableAsync()
+        internal async Task<bool> ResetTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = this.InternalGetCommand(DbCommandType.Reset);
-
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.Reset.ToString());
-
-            // Deriving Parameters
-            await this.AddCommandParametersAsync(DbCommandType.Reset, command).ConfigureAwait(false);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                Connection.Open();
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
+            var command = await this.PrepareCommandAsync(DbCommandType.Reset, connection, transaction);
 
             var rowCount = command.ExecuteNonQuery();
 
-            if (!alreadyOpened)
-                Connection.Close();
-
             return rowCount > 0;
 
         }
@@ -693,71 +517,21 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        public virtual async Task<bool> DisableConstraintsAsync()
+        public virtual async Task DisableConstraintsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = this.InternalGetCommand(DbCommandType.DisableConstraints);
+            var command = await this.PrepareCommandAsync(DbCommandType.DisableConstraints, connection, transaction);
 
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.DisableConstraints.ToString());
-
-            // set parameters if needed
-            await this.AddCommandParametersAsync(DbCommandType.DisableConstraints, command).ConfigureAwait(false);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                Connection.Open();
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
-
-            var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            if (!alreadyOpened)
-                Connection.Close();
-
-            return rowCount > 0;
-
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        public virtual async Task<bool> EnableConstraintsAsync()
+        public virtual async Task EnableConstraintsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = this.InternalGetCommand(DbCommandType.EnableConstraints);
+            var command = await this.PrepareCommandAsync(DbCommandType.EnableConstraints, connection, transaction);
 
-            if (command == null)
-                throw new MissingCommandException(DbCommandType.EnableConstraints.ToString());
-
-            // set parameters if needed
-            await this.AddCommandParametersAsync(DbCommandType.EnableConstraints, command).ConfigureAwait(false);
-
-            command.Connection = Connection;
-
-            var alreadyOpened = Connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                await this.Connection.OpenAsync().ConfigureAwait(false);
-
-            if (Transaction != null)
-                command.Transaction = Transaction;
-
-            // Testing The Prepare() performance increase
-            command.Prepare();
-
-            var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            if (!alreadyOpened)
-                Connection.Close();
-
-            return rowCount > 0;
-
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -767,7 +541,7 @@ namespace Dotmim.Sync
         private void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
-            DbTableManagerFactory.SetParameterValue(command, "sync_force_write", (forceWrite ? 1 : 0));
+            DbTableManagerFactory.SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
             DbTableManagerFactory.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
             DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
             DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
