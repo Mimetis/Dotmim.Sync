@@ -129,8 +129,6 @@ namespace Dotmim.Sync.MySql
 
         private MySqlCommand BuildTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var command = new MySqlCommand((MySqlConnection)connection, (MySqlTransaction)transaction);
-
             var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {this.tableName.Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
@@ -192,7 +190,7 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.Append(")");
             stringBuilder.Append(")");
-            return new MySqlCommand(stringBuilder.ToString());
+            return new MySqlCommand(stringBuilder.ToString(), (MySqlConnection)connection, (MySqlTransaction)transaction);
         }
 
         public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
