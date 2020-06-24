@@ -1053,15 +1053,17 @@ namespace Dotmim.Sync.Tests
                     // getting a table where we know we have date time
                     var table = o.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
 
-                    Assert.NotNull(table);
-                    Assert.NotEmpty(table.Rows);
-
-                    foreach (var row in table.Rows)
+                    if (table != null)
                     {
-                        var dateCell = row[5];
+                        Assert.NotEmpty(table.Rows);
 
-                        // check we have an integer here
-                        Assert.IsType<long>(dateCell);
+                        foreach (var row in table.Rows)
+                        {
+                            var dateCell = row[5];
+
+                            // check we have an integer here
+                            Assert.IsType<long>(dateCell);
+                        }
                     }
 
                 }
