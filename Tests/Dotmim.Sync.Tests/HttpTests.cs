@@ -1227,8 +1227,6 @@ namespace Dotmim.Sync.Tests
 
         }
 
-
-
         [Theory, TestPriority(23)]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task Handling_DifferentScopeNames(SyncOptions options)
@@ -1256,6 +1254,235 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
+            }
+        }
+
+
+
+        /// <summary>
+        /// Try to get changes from server without making a first sync
+        /// </summary>
+        [Theory, TestPriority(24)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task GetChanges_BeforeServerIsInitialized(SyncOptions options)
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // ----------------------------------
+            // Get changes
+            // ----------------------------------
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+
+                // Ensure scope is created locally
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+
+                // get changes from server, without any changes sent from client side
+                var changes = await webClientOrchestrator.GetChangesAsync(clientScope);
+
+                Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
+            }
+        }
+
+        /// <summary>
+        /// Try to get changes from server without making a first sync
+        /// </summary>
+        [Theory, TestPriority(25)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task GetChanges_AfterServerIsInitialized(SyncOptions options)
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+
+            // ----------------------------------
+            // Add rows on server AFTER first sync (so everything should be initialized)
+            // ----------------------------------
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            // ----------------------------------
+            // Get changes
+            // ----------------------------------
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+
+                // Ensure scope is created locally
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+
+                // get changes from server, without any changes sent from client side
+                var changes = await webClientOrchestrator.GetChangesAsync(clientScope);
+
+                Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
+
+            }
+        }
+
+
+        /// <summary>
+        /// Try to get changes from server without making a first sync
+        /// </summary>
+        [Theory, TestPriority(26)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task GetEstimatedChangesCount_BeforeServerIsInitialized(SyncOptions options)
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // ----------------------------------
+            // Get changes
+            // ----------------------------------
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+
+                // Ensure scope is created locally
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+
+                // get changes from server, without any changes sent from client side
+                var changes = await webClientOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+
+                Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
+            }
+        }
+
+        /// <summary>
+        /// Try to get changes from server without making a first sync
+        /// </summary>
+        [Theory, TestPriority(27)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task GetEstimatedChangesCount_AfterServerIsInitialized(SyncOptions options)
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+
+            // ----------------------------------
+            // Add rows on server AFTER first sync (so everything should be initialized)
+            // ----------------------------------
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            // ----------------------------------
+            // Get changes
+            // ----------------------------------
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+
+                // Ensure scope is created locally
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+
+                // get changes from server, without any changes sent from client side
+                var changes = await webClientOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+
+                Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
+
             }
         }
 

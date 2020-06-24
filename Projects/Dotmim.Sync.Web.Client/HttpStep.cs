@@ -15,6 +15,8 @@ namespace Dotmim.Sync.Web.Client
         SendChanges,
         SendChangesInProgress,
         GetChanges,
+        GetEstimatedChangesCount,
+        GetMoreChanges,
         GetChangesInProgress,
         GetSnapshot,
     }

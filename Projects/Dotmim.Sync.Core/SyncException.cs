@@ -199,6 +199,16 @@ namespace Dotmim.Sync
         public MissingClientScopeInfoException() : base(message) { }
     }
 
+    /// <summary>
+    /// Occurs when a scope info is not good, conflicting with the one from the orchestrator
+    /// </summary>
+    public class InvalidScopeInfoException : Exception
+    {
+        const string message = "The scope name is invalid. Be sure to declare a scope name correctly.";
+
+        public InvalidScopeInfoException() : base(message) { }
+    }
+
 
 
     /// <summary>
