@@ -198,6 +198,83 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Gets changes rows count estimation, 
+        /// </summary>
+        public virtual async Task<(SyncContext, DatabaseChangesSelected)> GetEstimatedChangesCountAsync(
+                             SyncContext context, MessageGetChangesBatch message,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, message);
+
+            // Create stats object to store changes count
+            var changes = new DatabaseChangesSelected();
+
+            if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
+                return (context, changes);
+
+            foreach (var syncTable in message.Schema.Tables)
+            {
+                this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, syncTable);
+
+                // if we are in upload stage, so check if table is not download only
+                if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
+                    continue;
+
+                // if we are in download stage, so check if table is not download only
+                if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
+                    continue;
+
+                var tableBuilder = this.GetTableBuilder(syncTable, message.Setup);
+                var syncAdapter = tableBuilder.CreateSyncAdapter();
+
+                // launch interceptor if any
+                await this.Orchestrator.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                // Get Command
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
+
+                // Set parameters
+                this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
+
+                // log
+                this.Orchestrator.logger.LogDebug(SyncEventsId.GetChanges, selectIncrementalChangesCommand);
+
+                // Statistics
+                var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
+
+                // Get the reader
+                using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (dataReader.Read())
+                    {
+                        bool isTombstone = false;
+                        for (var i = 0; i < dataReader.FieldCount; i++)
+                        {
+                            if (dataReader.GetName(i) == "sync_row_is_tombstone")
+                            {
+                                isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                                break;
+                            }
+                        }
+
+                        // Set the correct state to be applied
+                        if (isTombstone)
+                            tableChangesSelected.Deletes++;
+                        else
+                            tableChangesSelected.Upserts++;
+                    }
+                }
+
+                if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
+                    changes.TableChangesSelected.Add(tableChangesSelected);
+            }
+
+            return (context, changes);
+        }
+
+        /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
         internal Task<(BatchInfo, DatabaseChangesSelected)> GetEmptyChangesAsync(MessageGetChangesBatch message)

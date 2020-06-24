@@ -102,7 +102,7 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
-            
+
             using (var connection = this.Provider.CreateConnection())
             {
                 try
@@ -345,7 +345,7 @@ namespace Dotmim.Sync
 
                             // 2) Ensure databases are ready
                             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                            
+
                             await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                             ctx = await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -392,7 +392,7 @@ namespace Dotmim.Sync
 
                                 serverScopeInfo.Setup = this.Setup;
                                 serverScopeInfo.Schema = schema;
-                                
+
                                 // Write scopes locally
                                 ctx = await this.Provider.WriteServerScopeAsync(ctx, this.Options.ScopeInfoTableName, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -451,7 +451,7 @@ namespace Dotmim.Sync
                 try
                 {
                     ctx.SyncStage = SyncStage.Migrating;
-                    
+
                     SyncProvision provision = SyncProvision.None;
 
                     // Open connection
@@ -688,7 +688,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
-            GetChangesAsync(ScopeInfo clientScope, ServerScopeInfo serverScope = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetChangesAsync(ScopeInfo clientScope, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -700,6 +700,17 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
+
+            if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
+                throw new InvalidScopeInfoException();
+
+            // Before getting changes, be sure we have a remote schema available
+            var serverScope = await this.EnsureSchemaAsync(cancellationToken, progress);
+
+            // Should we ?
+            if (serverScope.Schema == null)
+                throw new MissingRemoteOrchestratorSchemaException();
+
             using (var connection = this.Provider.CreateConnection())
             {
                 try
@@ -715,16 +726,6 @@ namespace Dotmim.Sync
 
                         //Direction set to Download
                         ctx.SyncWay = SyncWay.Download;
-
-                        // Getting server scope assumes we have already created the schema on server
-                        if (serverScope == null)
-                            (ctx, serverScope) = await this.Provider.GetServerScopeAsync(ctx, this.Options.ScopeInfoTableName, clientScope.Name,
-                                                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Should we ?
-                        if (serverScope.Schema == null)
-                            throw new MissingRemoteOrchestratorSchemaException();
-
 
                         // JUST Before get changes, get the timestamp, to be sure to 
                         // get rows inserted / updated elsewhere since the sync is not over
@@ -775,6 +776,95 @@ namespace Dotmim.Sync
                 return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
             }
         }
+
+        /// <summary>
+        /// Get estimated changes from remote database to be applied on client
+        /// </summary>
+        /// <returns></returns>
+        public virtual async Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)>
+            GetEstimatedChangesCountAsync(ScopeInfo clientScope, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Output
+            long remoteClientTimestamp = 0L;
+            DatabaseChangesSelected serverChangesSelected = null;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
+                throw new InvalidScopeInfoException();
+
+            // Before getting changes, be sure we have a remote schema available
+            var serverScope = await this.EnsureSchemaAsync(cancellationToken, progress);
+
+            // Should we ?
+            if (serverScope.Schema == null)
+                throw new MissingRemoteOrchestratorSchemaException();
+
+            using (var connection = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    ctx.SyncStage = SyncStage.ChangesSelecting;
+
+                    // Open connection
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                    using (var transaction = connection.BeginTransaction())
+                    {
+                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        //Direction set to Download
+                        ctx.SyncWay = SyncWay.Download;
+
+                        // JUST Before get changes, get the timestamp, to be sure to 
+                        // get rows inserted / updated elsewhere since the sync is not over
+                        remoteClientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+
+                        // Get if we need to get all rows from the datasource
+                        var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
+
+                        // it's an estimation, so force In Memory (BatchSize == 0)
+                        var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, serverScope.Schema, this.Setup, 0, this.Options.BatchDirectory);
+
+                        // Call interceptor
+                        await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        // When we get the chnages from server, we create the batches if it's requested by the client
+                        // the batch decision comes from batchsize from client
+                        (ctx, serverChangesSelected) =
+                            await this.Provider.GetEstimatedChangesCountAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Commit second transaction for getting changes
+                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                        transaction.Commit();
+                    }
+
+
+                    // Event progress & interceptor
+                    ctx.SyncStage = SyncStage.ChangesSelected;
+
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+                finally
+                {
+                    if (connection != null && connection.State != ConnectionState.Closed)
+                        connection.Close();
+                }
+
+                return (remoteClientTimestamp, serverChangesSelected);
+            }
+        }
+
 
         /// <summary>
         /// Create a snapshot, based on the Setup object. 
