@@ -55,7 +55,9 @@ namespace Dotmim.Sync.MySql.Builders
                     case "tinytext":
                         return 0;
                     case "varbinary":
+                        return 65535;
                     case "binary":
+                        return 255;
                     case "text":
                     case "nchar":
                     case "nvarchar":
@@ -85,7 +87,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.AnsiStringFixedLength:
                     return MySqlDbType.VarChar;
                 case DbType.Binary:
-                    return MySqlDbType.Binary;
+                    return MySqlDbType.VarBinary;
                 case DbType.Boolean:
                     return MySqlDbType.Bit;
                 case DbType.Byte:
@@ -232,8 +234,8 @@ namespace Dotmim.Sync.MySql.Builders
                     case "json":
                     case "tinytext":
                         return string.Empty;
-                    case "varbinary":
-                    case "binary":
+                    case "varbinary" when maxLength <= 65535:
+                    case "binary" when maxLength <= 255:
                     case "text":
                     case "nchar":
                     case "nvarchar":
@@ -270,7 +272,7 @@ namespace Dotmim.Sync.MySql.Builders
             switch (dbType)
             {
                 case DbType.Binary:
-                    mySqlType = "BINARY";
+                    mySqlType = "VARBINARY";
                     break;
                 case DbType.Boolean:
                 case DbType.Byte:
