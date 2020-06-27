@@ -55,9 +55,9 @@ namespace Dotmim.Sync.MySql.Builders
                     case "tinytext":
                         return 0;
                     case "varbinary":
-                        return 65535;
+                        return maxLength > 0 ? Math.Min(maxLength, 65535) : 65535;
                     case "binary":
-                        return 255;
+                        return maxLength > 0 ? Math.Min(maxLength, 255) : 255;
                     case "text":
                     case "nchar":
                     case "nvarchar":
