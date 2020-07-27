@@ -590,7 +590,7 @@ internal class Program
 
     }
 
-   
+
 
     private static async Task LongInsertIntoSqliteAsync(DbConnection connection)
     {
@@ -1791,7 +1791,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-}
+} 
 
 internal class scope
 {
