@@ -250,17 +250,17 @@ namespace Dotmim.Sync
                         //Direction set to Upload
                         ctx.SyncWay = SyncWay.Upload;
 
+                        // JUST before the whole process, get the timestamp, to be sure to 
+                        // get rows inserted / updated elsewhere since the sync is not over
+                        clientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+
                         // Creating the message
                         var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
 
                         // Call interceptor
                         await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
-                        
-                        this.logger.LogDebug(SyncEventsId.GetChanges, message);
 
-                        // JUST before the whole process, get the timestamp, to be sure to 
-                        // get rows inserted / updated elsewhere since the sync is not over
-                        clientTimestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+                        this.logger.LogDebug(SyncEventsId.GetChanges, message);
 
                         // Locally, if we are new, no need to get changes
                         if (isNew)

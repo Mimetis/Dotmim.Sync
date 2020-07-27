@@ -514,6 +514,7 @@ namespace Dotmim.Sync
                         Debug.WriteLine($"Client id outdated, but we change mode to {context.SyncType}");
                 }
 
+
                 // On local orchestrator, get local changes
                 var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, cancellationToken, progress);
 
