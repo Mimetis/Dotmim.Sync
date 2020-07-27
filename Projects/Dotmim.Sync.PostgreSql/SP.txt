@@ -1,0 +1,490 @@
+﻿-- FUNCTION: public.Address_trigger_insert_function()
+
+-- DROP FUNCTION public."Address_trigger_insert_function"();
+
+CREATE FUNCTION public."Address_trigger_insert_function"()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+	UPDATE "side" 
+	SET  "sync_row_is_tombstone" = 0
+		,"update_scope_id" = NULL -- scope id is always NULL when update is made locally
+		,"last_change_datetime" = GetUtcDate()
+	FROM "tProduct" "side"
+	JOIN NEW AS "i" ON "side"."ProductID" = "i"."ProductID";
+
+	INSERT INTO "tProduct" (
+		 "ProductID"
+		,"update_scope_id"
+		,"sync_row_is_tombstone"
+		,"last_change_datetime"
+	) 
+	SELECT
+		 "i"."ProductID"
+		,NULL
+		,0
+		,GetUtcDate()
+	FROM NEW AS "i"
+	LEFT JOIN "tProduct" "side" ON "i"."ProductID" = "side"."ProductID"
+	WHERE "side"."ProductID" IS NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_trigger_insert_function"()
+    OWNER TO postgres;
+
+
+	-- FUNCTION: public.Address_trigger_update_function()
+
+-- DROP FUNCTION public."Address_trigger_update_function"();
+
+CREATE FUNCTION public."Address_trigger_update_function"()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+	UPDATE "side" 
+	SET  "sync_row_is_tombstone" = 0
+		,"update_scope_id" = NULL -- scope id is always NULL when update is made locally
+		,"last_change_datetime" = GetUtcDate()
+	FROM "tProduct" "side"
+	JOIN NEW AS "i" ON "side"."ProductID" = "i"."ProductID";
+
+	INSERT INTO "tProduct" (
+		 "ProductID"
+		,"update_scope_id"
+		,"sync_row_is_tombstone"
+		,"last_change_datetime"
+	) 
+	SELECT
+		 "i"."ProductID"
+		,NULL
+		,0
+		,GetUtcDate()
+	FROM NEW AS "i"
+	LEFT JOIN "tProduct" "side" ON "i"."ProductID" = "side"."ProductID"
+	WHERE "side"."ProductID" IS NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_trigger_update_function"()
+    OWNER TO postgres;
+
+
+-- FUNCTION: public.address_trigger_insert_function()
+
+-- DROP FUNCTION public.address_trigger_insert_function();
+
+CREATE FUNCTION public.address_trigger_insert_function()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+	UPDATE "side" 
+	SET  "sync_row_is_tombstone" = 0
+		,"update_scope_id" = NULL -- scope id is always NULL when update is made locally
+		,"last_change_datetime" = GetUtcDate()
+	FROM "tProduct" "side"
+	JOIN NEW AS "i" ON "side"."ProductID" = "i"."ProductID";
+
+	INSERT INTO "tProduct" (
+		 "ProductID"
+		,"update_scope_id"
+		,"sync_row_is_tombstone"
+		,"last_change_datetime"
+	) 
+	SELECT
+		 "i"."ProductID"
+		,NULL
+		,0
+		,GetUtcDate()
+	FROM NEW AS "i"
+	LEFT JOIN "tProduct" "side" ON "i"."ProductID" = "side"."ProductID"
+	WHERE "side"."ProductID" IS NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public.address_trigger_insert_function()
+    OWNER TO postgres;
+
+
+
+-- FUNCTION: public.Address_delete(integer, uuid, boolean, bigint, integer)
+
+-- DROP FUNCTION public."Address_delete"(integer, uuid, boolean, bigint, integer);
+
+CREATE OR REPLACE FUNCTION public."Address_delete"(
+	"in_AddressID" integer,
+	sync_scope_id uuid,
+	sync_force_write boolean,
+	sync_min_timestamp bigint,
+	sync_row_count integer)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    
+AS $BODY$
+BEGIN
+WITH "DEL" AS (
+ DELETE FROM "Address" as base
+ WHERE (base."AddressID" = "in_AddressID")
+ AND EXISTS (
+  SELECT * FROM "Address_tracking" as side
+  WHERE (base."AddressID" = side."AddressID")
+  AND (side.timestamp <= in_sync_min_timestamp
+       OR side.timestamp IS NULL
+       OR side.update_scope_id = in_sync_scope_id
+       OR in_sync_force_write = true)
+  )
+ RETURNING *
+)
+UPDATE "Address_tracking" SET
+	update_scope_id = in_sync_scope_id,
+	sync_row_is_tombstone = true,
+	timestamp = to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint,
+	last_change_datetime = now()
+FROM "DEL"
+WHERE ("Address_tracking"."AddressID" = "DEL"."AddressID");
+
+
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_delete"(integer, uuid, boolean, bigint, integer)
+    OWNER TO postgres;
+
+
+-- FUNCTION: public.Address_selectrow(integer, uuid)
+
+-- DROP FUNCTION public."Address_selectrow"(integer, uuid);
+
+CREATE OR REPLACE FUNCTION public."Address_selectrow"(
+	"in_AddressID" integer,
+	in_sync_scope_id uuid)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    
+AS $BODY$
+BEGIN
+SELECT 
+	side."AddressID", 
+	base."AddressLine1", 
+	base."AddressLine2", 
+	base."City", 
+	base."StateProvince", 
+	base."CountryRegion", 
+	base."PostalCode", 
+	base."rowguid", 
+	base."ModifiedDate", 
+	side.sync_row_is_tombstone, 
+	side.update_scope_id
+FROM "Address" base
+RIGHT JOIN "Address_tracking" side ON
+base."AddressID" = side."AddressID"
+WHERE side."AddressID" = "in_AddressID";
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_selectrow"(integer, uuid)
+    OWNER TO postgres;
+
+-- FUNCTION: public.Address_update2(integer, character varying, character varying, character varying, character varying, character varying, character varying, uuid, timestamp without time zone, bigint, uuid, boolean, integer)
+
+-- DROP FUNCTION public."Address_update2"(integer, character varying, character varying, character varying, character varying, character varying, character varying, uuid, timestamp without time zone, bigint, uuid, boolean, integer);
+
+CREATE OR REPLACE FUNCTION public."Address_update2"(
+	"in_AddressID" integer,
+	"in_AddressLine1" character varying,
+	"in_AddressLine2" character varying,
+	"in_City" character varying,
+	"in_StateProvince" character varying,
+	"in_CountryRegion" character varying,
+	"in_PostalCode" character varying,
+	in_rowguid uuid,
+	"in_ModifiedDate" timestamp without time zone,
+	in_sync_min_timestamp bigint,
+	in_sync_scope_id uuid,
+	in_sync_force_write boolean,
+	in_sync_row_count integer)
+    RETURNS SETOF "Address_tracking" 
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    ROWS 1000
+    
+AS $BODY$
+BEGIN	
+
+ALTER TABLE "public"."Address" DISABLE TRIGGER "Address_insert_trigger";
+ALTER TABLE "public"."Address" DISABLE TRIGGER "Address_update_trigger";
+
+RETURN QUERY 
+WITH "CHANGES" AS (
+		SELECT  p.*, side.update_scope_id, side.timestamp, side.sync_row_is_tombstone
+		FROM (SELECT "in_AddressID" as "AddressID", "in_AddressLine1" as "AddressLine1" , "in_AddressLine2" as "AddressLine2" , "in_City" as "City" ,
+				"in_StateProvince" as "StateProvince", "in_CountryRegion" as "CountryRegion", "in_PostalCode" as "PostalCode", 
+				"in_rowguid" as "rowguid", "in_ModifiedDate" as "ModifiedDate") AS p
+		LEFT JOIN "Address_tracking" as side ON p."AddressID" = side."AddressID"
+),
+"UPDATEDLINES" AS (
+
+	UPDATE public."Address" SET
+		"AddressLine1" = "CHANGES"."AddressLine1",
+		"AddressLine2" = "CHANGES"."AddressLine2",
+		"City" = "CHANGES"."City",
+		"StateProvince" = "CHANGES"."StateProvince",
+		"CountryRegion" = "CHANGES"."CountryRegion",
+		"PostalCode" = "CHANGES"."PostalCode",
+		"rowguid" = "CHANGES"."rowguid",
+		"ModifiedDate" = "CHANGES"."ModifiedDate"	
+	FROM "CHANGES"
+	WHERE ("CHANGES"."AddressID" = public."Address"."AddressID")
+	AND ("CHANGES".timestamp <= in_sync_min_timestamp OR "CHANGES".timestamp IS NULL OR "CHANGES".update_scope_id = in_sync_scope_id OR in_sync_force_write = true)
+	RETURNING public."Address"."AddressID"
+),
+"INSERTEDLINES" AS (
+
+	INSERT INTO public."Address"
+	OVERRIDING SYSTEM VALUE
+	SELECT "CHANGES"."AddressID", "CHANGES"."AddressLine1", "CHANGES"."AddressLine2", "CHANGES"."City", 
+		   "CHANGES"."StateProvince", "CHANGES"."CountryRegion", 
+		   "CHANGES"."PostalCode", "CHANGES"."rowguid", "CHANGES"."ModifiedDate"
+	FROM "CHANGES"
+	WHERE "CHANGES"."AddressID" NOT IN (SELECT "UPDATEDLINES"."AddressID" FROM "UPDATEDLINES")
+	AND "CHANGES".timestamp <= in_sync_min_timestamp OR "CHANGES".timestamp IS NULL OR in_sync_force_write = true
+	ON CONFLICT ("AddressID") 
+	DO NOTHING
+	RETURNING public."Address"."AddressID"
+
+),
+"TRACKINGUPDATED" AS (
+
+	INSERT INTO "Address_tracking" (
+		 "AddressID"
+		,update_scope_id
+		,sync_row_is_tombstone
+		,last_change_datetime
+		,timestamp
+	)
+	SELECT "UPSERTEDLINES"."AddressID"
+		,in_sync_scope_id
+		,false
+		,now()
+		,to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint
+	FROM (SELECT * FROM "UPDATEDLINES" UNION ALL SELECT * FROM "INSERTEDLINES") as "UPSERTEDLINES"
+	ON CONFLICT( "AddressID")
+	DO UPDATE SET
+		sync_row_is_tombstone = false
+		,update_scope_id = in_sync_scope_id
+		,last_change_datetime = now()
+		,timestamp = to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint
+	RETURNING "Address_tracking".*
+)
+SELECT * FROM "TRACKINGUPDATED";
+
+ALTER TABLE "public"."Address" ENABLE TRIGGER "Address_insert_trigger";
+ALTER TABLE "public"."Address" ENABLE TRIGGER "Address_update_trigger";
+
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_update2"(integer, character varying, character varying, character varying, character varying, character varying, character varying, uuid, timestamp without time zone, bigint, uuid, boolean, integer)
+    OWNER TO postgres;
+
+-- FUNCTION: public.Address_update(integer, character varying, character varying, character varying, character varying, character varying, character varying, uuid, timestamp without time zone, bigint, uuid, boolean, integer)
+
+-- DROP FUNCTION public."Address_update"(integer, character varying, character varying, character varying, character varying, character varying, character varying, uuid, timestamp without time zone, bigint, uuid, boolean, integer);
+
+CREATE OR REPLACE FUNCTION public."Address_update"(
+	"in_AddressID" integer,
+	"in_AddressLine1" character varying,
+	"in_AddressLine2" character varying,
+	"in_City" character varying,
+	"in_StateProvince" character varying,
+	"in_CountryRegion" character varying,
+	"in_PostalCode" character varying,
+	in_rowguid uuid,
+	"in_ModifiedDate" timestamp without time zone,
+	in_sync_min_timestamp bigint,
+	in_sync_scope_id uuid,
+	in_sync_force_write boolean,
+	in_sync_row_count integer)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    
+AS $BODY$
+BEGIN	 
+
+WITH UPDATEDLINES AS (
+	WITH "CHANGES" AS (
+			SELECT p.*, side.update_scope_id, side.timestamp, side.sync_row_is_tombstone
+			FROM (SELECT "in_AddressID", "in_AddressLine1" , "in_AddressLine2" , "in_City" , "in_StateProvince", 
+						 "in_CountryRegion", "in_PostalCode", "in_rowguid", "in_ModifiedDate") AS p
+			LEFT JOIN "Address_tracking" as side ON p."in_AddressID" = side."AddressID"
+	)
+	INSERT INTO public."Address"
+	SELECT "CHANGES"."in_AddressID", "CHANGES"."in_AddressLine1", "CHANGES"."in_AddressLine2", "CHANGES"."in_City", "CHANGES"."in_StateProvince", "CHANGES"."in_CountryRegion", 
+		"CHANGES"."in_PostalCode", "CHANGES"."in_rowguid", "CHANGES"."in_ModifiedDate"
+	FROM "CHANGES"
+	WHERE "CHANGES".timestamp <= in_sync_min_timestamp OR "CHANGES".timestamp IS NULL OR in_sync_force_write = true
+	ON CONFLICT ("AddressID") 
+	WHERE ("CHANGES".timestamp <= in_sync_min_timestamp OR "CHANGES".timestamp IS NULL OR "CHANGES".update_scope_id = in_sync_scope_id OR in_sync_force_write = true)
+	DO UPDATE SET
+			"AddressLine1" = excluded."AddressLine1",
+			"AddressLine2" = excluded."AddressLine2",
+			"City" = excluded."City",
+			"StateProvince" = excluded."StateProvince",
+			"CountryRegion" = excluded."CountryRegion",
+			"PostalCode" = excluded."PostalCode",
+			"rowguid" = excluded."rowguid",
+			"ModifiedDate" = excluded."ModifiedDate"
+	RETURNING *
+)
+UPDATE "Address_tracking" SET
+	update_scope_id = in_sync_scope_id,
+	sync_row_is_tombstone = false,
+	last_change_datetime = now()
+FROM "UPDATEDLINES"
+WHERE "UPDATEDLINES"."AddressID" = "Address_tracking"."AddressID";
+
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_update"(integer, character varying, character varying, character varying, character varying, character varying, character varying, uuid, timestamp without time zone, bigint, uuid, boolean, integer)
+    OWNER TO postgres;
+
+
+	-- FUNCTION: public.Address_delete_trigger()
+
+-- DROP FUNCTION public."Address_delete_trigger"();
+
+CREATE FUNCTION public."Address_delete_trigger"()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+INSERT INTO "Address_tracking" (
+	 "AddressID"
+	,update_scope_id
+	,sync_row_is_tombstone
+	,last_change_datetime
+	,timestamp
+) 
+VALUES (
+	 OLD."AddressID"
+	,NULL
+	,true
+	,now()
+	,to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint
+)
+ON CONFLICT( "AddressID")
+DO UPDATE SET
+	sync_row_is_tombstone = true
+	,update_scope_id = NULL
+	,last_change_datetime = now()
+	,timestamp = to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint;
+
+RETURN NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_delete_trigger"()
+    OWNER TO postgres;
+
+
+-- FUNCTION: public.Address_insert_trigger()
+
+-- DROP FUNCTION public."Address_insert_trigger"();
+
+CREATE FUNCTION public."Address_insert_trigger"()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+INSERT INTO "Address_tracking" (
+	 "AddressID"
+	,update_scope_id
+	,sync_row_is_tombstone
+	,last_change_datetime
+	,timestamp
+) 
+VALUES (
+	 NEW."AddressID"
+	,NULL
+	,false
+	,now()
+	,to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint
+)
+ON CONFLICT( "AddressID")
+DO UPDATE SET
+	sync_row_is_tombstone = false
+	,update_scope_id = NULL
+	,last_change_datetime = now()
+	,timestamp = to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint;
+
+RETURN NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_insert_trigger"()
+    OWNER TO postgres;
+
+
+-- FUNCTION: public.Address_update_trigger()
+
+-- DROP FUNCTION public."Address_update_trigger"();
+
+CREATE FUNCTION public."Address_update_trigger"()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE NOT LEAKPROOF
+AS $BODY$
+BEGIN
+INSERT INTO "Address_tracking" (
+	 "AddressID"
+	,update_scope_id
+	,last_change_datetime
+	,timestamp
+) 
+VALUES (
+	 NEW."AddressID"
+	,NULL
+	,now()
+	,to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint
+)
+ON CONFLICT( "AddressID")
+DO UPDATE SET
+	sync_row_is_tombstone = false
+	,update_scope_id = NULL
+	,last_change_datetime = now()
+	,timestamp = to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint;
+
+RETURN NULL;
+END;
+$BODY$;
+
+ALTER FUNCTION public."Address_update_trigger"()
+    OWNER TO postgres;
+
+

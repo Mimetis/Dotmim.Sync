@@ -1,0 +1,95 @@
+﻿<Page
+    x:Class="UWPSyncSample.Views.SettingsView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:UWPSyncSample.Views"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:UWPSyncSample.Controls"
+    mc:Ignorable="d">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Settings" Style="{StaticResource TitleStyle}" />
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel>
+                <StackPanel.Transitions>
+                    <TransitionCollection>
+                        <EntranceThemeTransition IsStaggeringEnabled="False" FromVerticalOffset="50"/>
+                    </TransitionCollection>
+                </StackPanel.Transitions>
+
+                <StackPanel Margin="10">
+                    <TextBlock Text="Server connections strings"
+                           FontSize="24"
+                           />
+
+                    <TextBlock Text="Server of type Sql Server"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Width="600" HorizontalAlignment="Left"
+                             Text="{x:Bind ViewModel.Server_SqlServer, Mode=TwoWay}"
+                             FontSize="18" />
+
+                    <TextBlock Text="Web Proxy"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Width="600" HorizontalAlignment="Left"
+                             Text="{x:Bind ViewModel.WebProxy, Mode=TwoWay}"
+                             FontSize="18" />
+                </StackPanel>
+
+                <StackPanel Margin="10">
+                    <TextBlock Name="LabelClient"
+                           Text="Client connections strings"
+                           FontSize="24"
+                           />
+
+                    <TextBlock Name="LabelClientSqlServer"
+                           Text="Client of type Sql Server"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Width="600" HorizontalAlignment="Left"
+                             Text="{x:Bind ViewModel.Client_SqlServer, Mode=TwoWay}"
+                             FontSize="18" />
+
+                    <TextBlock Text="Client of type Sqlite"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Width="600" HorizontalAlignment="Left"
+                             Text="{x:Bind ViewModel.Client_Sqlite, Mode=TwoWay}"
+                             FontSize="18" />
+
+                    <TextBlock Text="Client of type MySql"
+                           FontSize="18" Margin="0,10,0,0" />
+
+                    <TextBox Width="600" HorizontalAlignment="Left"
+                             Text="{x:Bind ViewModel.Client_MySql, Mode=TwoWay}"
+                             FontSize="18" />
+
+
+                </StackPanel>
+
+                <StackPanel Margin="10">
+
+                    <TextBlock Name="LabelSync" Text="Save changes" FontSize="24" />
+
+                    <controls:XButton Click="{x:Bind ViewModel.SaveClick}" HorizontalAlignment="Left"
+                                      Symbol="Save" Text="Save Changes"
+                                      Width="200" Margin="0,10,0,0">
+                    </controls:XButton>
+
+                </StackPanel>
+
+            </StackPanel>
+            
+            
+        </ScrollViewer>
+        
+    </Grid>
+</Page>
