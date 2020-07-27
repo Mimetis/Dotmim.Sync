@@ -202,7 +202,7 @@ internal class Program
         sysBuilder.UserID = "root";
         sysBuilder.Password = "Password12!";
 
-        string sqlDB = "DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
+        string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
 
         using (var mySqlConnection = new MySqlConnection(sysBuilder.ConnectionString))
         {
@@ -319,6 +319,7 @@ internal class Program
             }
         }
     }
+
 
     private static async Task TestSyncAsync(string mySqlDatabaseName, string sqliteFileName, string tableName, bool uploadOnly = false)
     {
@@ -619,7 +620,7 @@ internal class Program
             Console.ResetColor();
 
         }
-        connection.Close();
+            connection.Close();
     }
 
     private static async Task InsertIntoSqliteWithCurrentTransactionAsync(DbConnection connection, DbTransaction transaction)
@@ -658,7 +659,7 @@ internal class Program
         {
 
             throw;
-        }
+    }
 
     }
 
@@ -1382,9 +1383,7 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("clientX3.db");
-
+        var clientProvider = new SqliteSyncProvider("longrunning.db");
         var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
         //var setup = new SyncSetup(new string[] { "Customer" });
         //var setup = new SyncSetup(new[] { "Customer" });
@@ -1791,7 +1790,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-} 
+}
 
 internal class scope
 {
