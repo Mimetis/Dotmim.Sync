@@ -101,7 +101,7 @@ internal class Program
             }
             catch (Exception e)
             {
-                //Console.WriteLine(e.Message);
+                Console.WriteLine(e.Message);
             }
 
 
@@ -425,7 +425,7 @@ internal class Program
             }
             catch (Exception e)
             {
-                //Console.WriteLine(e.Message);
+                Console.WriteLine(e.Message);
             }
 
 
@@ -475,7 +475,7 @@ internal class Program
 
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
 
             throw;
@@ -547,7 +547,7 @@ internal class Program
         Console.WriteLine("SECOND PARALLEL SYNC");
         Console.WriteLine("--------------------");
 
-        agent.LocalOrchestrator.OnDatabaseChangesSelecting(async dcsa =>
+        agent.LocalOrchestrator.OnDatabaseChangesSelecting(dcsa =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"[{DateTime.Now:ss.ms}] - Last Sync TS start (T0) : " + dcsa.ChangesRequest.LastTimestamp.ToString().Substring(dcsa.ChangesRequest.LastTimestamp.ToString().Length - 4, 4));
@@ -1225,7 +1225,7 @@ internal class Program
             }
             catch (Exception e)
             {
-                //Console.WriteLine(e.Message);
+                Console.WriteLine(e.Message);
             }
 
 
@@ -1369,7 +1369,7 @@ internal class Program
             }
             catch (Exception e)
             {
-                //Console.WriteLine(e.Message);
+                Console.WriteLine(e.Message);
             }
 
 
@@ -1430,7 +1430,7 @@ internal class Program
             }
             catch (Exception e)
             {
-                //Console.WriteLine(e.Message);
+                Console.WriteLine(e.Message);
             }
 
 
