@@ -139,49 +139,25 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
-
         private void CreateUpdateCommandText(bool hasMutableColumns)
         {
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderParameters = new StringBuilder();
+            var stringBuilderParametersValues = new StringBuilder();
             string empty = string.Empty;
 
-            string str1 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+            string str1 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
+            string str2 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
             string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
 
             // Generate Update command
             var stringBuilder = new StringBuilder();
 
-
-            stringBuilder.AppendLine(";WITH [c] AS (");
-            stringBuilder.Append("\tSELECT ");
-            foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"[p].{columnName}, ");
-            }
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"\tFROM (SELECT ");
-            stringBuilder.Append($"\t\t ");
-            string comma = "";
-            foreach (var c in this.TableDescription.GetMutableColumns(false, true))
-            {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
-
-                stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
-                comma = ", ";
-            }
-            stringBuilder.AppendLine($") AS [p]");
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine($"\t{str7}");
-            stringBuilder.AppendLine($"\t)");
-
-
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+                stringBuilderParametersValues.Append($"{empty}@{columnParameterName} as {columnName}");
                 stringBuilderArguments.Append($"{empty}{columnName}");
                 stringBuilderParameters.Append($"{empty}[c].{columnName}");
                 empty = ", ";
@@ -190,12 +166,14 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
             stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
-            stringBuilder.AppendLine($"FROM [c] ");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str1}");
+            stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
+            stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
+
             stringBuilder.Append($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
-            stringBuilder.AppendLine($"AND ([c].[timestamp] < @sync_min_timestamp OR [c].[update_scope_id] = @sync_scope_id)) ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
             stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
-            stringBuilder.AppendLine($"AND ([c].[timestamp] < @sync_min_timestamp OR [c].[timestamp] IS NULL)) ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
             stringBuilder.AppendLine($"OR @sync_force_write = 1;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
@@ -210,7 +188,76 @@ namespace Dotmim.Sync.Sqlite
             this.AddName(DbCommandType.UpdateRow, cmdtext);
         }
 
-      
+        //private void CreateUpdateCommandTextBack(bool hasMutableColumns)
+        //{
+        //    var stringBuilderArguments = new StringBuilder();
+        //    var stringBuilderParameters = new StringBuilder();
+        //    string empty = string.Empty;
+
+        //    string str1 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+        //    string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
+
+        //    // Generate Update command
+        //    var stringBuilder = new StringBuilder();
+
+
+        //    stringBuilder.AppendLine(";WITH [c] AS (");
+        //    stringBuilder.Append("\tSELECT ");
+        //    foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
+        //    {
+        //        var columnName = ParserName.Parse(c).Quoted().ToString();
+        //        stringBuilder.Append($"[p].{columnName}, ");
+        //    }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+        //    stringBuilder.AppendLine($"\tFROM (SELECT ");
+        //    stringBuilder.Append($"\t\t ");
+        //    string comma = "";
+        //    foreach (var c in this.TableDescription.GetMutableColumns(false, true))
+        //    {
+        //        var columnName = ParserName.Parse(c).Quoted().ToString();
+        //        var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
+
+        //        stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+        //        comma = ", ";
+        //    }
+        //    stringBuilder.AppendLine($") AS [p]");
+        //    stringBuilder.Append($"\tLEFT JOIN {trackingName.Quoted().ToString()} [side] ON ");
+        //    stringBuilder.AppendLine($"\t{str7}");
+        //    stringBuilder.AppendLine($"\t)");
+
+
+        //    foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+        //    {
+        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //        stringBuilderArguments.Append($"{empty}{columnName}");
+        //        stringBuilderParameters.Append($"{empty}[c].{columnName}");
+        //        empty = ", ";
+        //    }
+
+        //    stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
+        //    stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+        //    stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+        //    stringBuilder.AppendLine($"FROM [c] ");
+        //    stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str1}");
+        //    stringBuilder.Append($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
+        //    stringBuilder.AppendLine($"AND ([c].[timestamp] < @sync_min_timestamp OR [c].[update_scope_id] = @sync_scope_id)) ");
+        //    stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
+        //    stringBuilder.AppendLine($"AND ([c].[timestamp] < @sync_min_timestamp OR [c].[timestamp] IS NULL)) ");
+        //    stringBuilder.AppendLine($"OR @sync_force_write = 1;");
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+        //    stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
+        //    stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
+        //    stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
+        //    stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+        //    stringBuilder.AppendLine($" AND (select changes()) > 0;");
+
+        //    var cmdtext = stringBuilder.ToString();
+
+        //    this.AddName(DbCommandType.UpdateRow, cmdtext);
+        //}
+              
 
         private void CreateDeleteMetadataCommandText()
         {
