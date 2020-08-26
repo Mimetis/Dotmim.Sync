@@ -46,10 +46,62 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await LongTransactionBeforeRuningSyncAsync();
+        await SynchronizeHeavyTableAsync();
 
     }
 
+    private static async Task SynchronizeHeavyTableAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("HeavyTables"));
+        var clientProvider = new SqliteSyncProvider("heavyTwo.db");
+
+        var setup = new SyncSetup(new string[] { "Customer" });
+
+        var options = new SyncOptions();
+        options.BatchSize = 4000;
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+        agent.AddRemoteProgress(remoteProgress);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var r = await agent.SynchronizeAsync(progress);
+                // Write results
+                Console.WriteLine(r);
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
     private static async Task TestRemovingAColumnWithInterceptorAsync()
     {
         // Create 2 Sql Sync providers
