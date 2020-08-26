@@ -551,6 +551,11 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
+             
+            // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
+            // so far we return directly false
+            if (clientScopeInfo.IsNewScope)
+                return false;
 
             // Check if the provider is not outdated
             // We can have negative value where we want to compare anyway

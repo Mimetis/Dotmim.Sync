@@ -213,6 +213,29 @@ namespace Dotmim.Sync.Sqlite
             return triggerExist;
         }
 
+        internal static string JoinOneTablesOnParametersValues(IEnumerable<string> columns, string leftName)
+        {
+            var stringBuilder = new StringBuilder();
+            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+
+            string str = "";
+            foreach (var column in columns)
+            {
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
+
+                stringBuilder.Append(str);
+                stringBuilder.Append(strLeftName);
+                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append($"@{unquotedColumn}");
+
+                str = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
         internal static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
