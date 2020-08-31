@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using MySql.Data.MySqlClient;
-using Dotmim.Sync.Data;
+
 
 namespace Dotmim.Sync.MySql.Builders
 {
@@ -18,6 +18,8 @@ namespace Dotmim.Sync.MySql.Builders
                 string lowerType = typeName.ToLowerInvariant();
                 switch (lowerType)
                 {
+                    case "varbinary":
+                    case "binary":
                     case "varchar":
                     case "char":
                     case "text":
@@ -43,22 +45,26 @@ namespace Dotmim.Sync.MySql.Builders
                 string lowerType = typeName.ToLowerInvariant();
                 switch (lowerType)
                 {
-                    case "MEDIUMTEXT":
-                    case "LONGTEXT":
-                    case "TINYBLOB":
-                    case "MEDIUMBLOB":
-                    case "LONGBLOB":
-                    case "BLOB":
-                    case "JSON":
-                    case "TINYTEXT":
+                    case "mediumtext":
+                    case "longtext":
+                    case "tinyblob":
+                    case "mediumblob":
+                    case "longblob":
+                    case "blob":
+                    case "json":
+                    case "tinytext":
                         return 0;
-                    case "TEXT":
-                    case "NCHAR":
-                    case "NVARCHAR":
-                    case "VARCHAR":
-                    case "CHAR":
-                    case "ENUM":
-                    case "SET":
+                    case "varbinary":
+                        return maxLength > 0 ? Math.Min(maxLength, 65535) : 65535;
+                    case "binary":
+                        return maxLength > 0 ? Math.Min(maxLength, 255) : 255;
+                    case "text":
+                    case "nchar":
+                    case "nvarchar":
+                    case "varchar":
+                    case "char":
+                    case "enum":
+                    case "set":
                         if (maxLength > 0)
                             return maxLength;
                         else
@@ -81,7 +87,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case DbType.AnsiStringFixedLength:
                     return MySqlDbType.VarChar;
                 case DbType.Binary:
-                    return MySqlDbType.LongBlob;
+                    return MySqlDbType.VarBinary;
                 case DbType.Boolean:
                     return MySqlDbType.Bit;
                 case DbType.Byte:
@@ -162,26 +168,27 @@ namespace Dotmim.Sync.MySql.Builders
             var typeName = GetStringFromDbType(dbType);
             if (IsTextType(typeName))
             {
-                string lowerType = typeName.ToUpperInvariant();
+                string lowerType = typeName.ToLowerInvariant();
                 switch (lowerType)
                 {
-
-                    case "MEDIUMTEXT":
-                    case "LONGTEXT":
-                    case "TINYBLOB":
-                    case "MEDIUMBLOB":
-                    case "LONGBLOB":
-                    case "BLOB":
-                    case "JSON":
-                    case "TINYTEXT":
-                        return string.Empty; ;
-                    case "TEXT":
-                    case "NCHAR":
-                    case "NVARCHAR":
-                    case "VARCHAR":
-                    case "CHAR":
-                    case "ENUM":
-                    case "SET":
+                    case "mediumtext":
+                    case "longtext":
+                    case "tinyblob":
+                    case "mediumblob":
+                    case "longblob":
+                    case "blob":
+                    case "json":
+                    case "tinytext":
+                        return string.Empty;
+                    case "varbinary":
+                    case "binary":
+                    case "text":
+                    case "nchar":
+                    case "nvarchar":
+                    case "varchar":
+                    case "char":
+                    case "enum":
+                    case "set":
                         if (maxLength > 0)
                             return $"({maxLength})";
                         else
@@ -215,26 +222,27 @@ namespace Dotmim.Sync.MySql.Builders
 
             if (IsTextType(typeName))
             {
-                string lowerType = typeName.ToUpperInvariant();
+                string lowerType = typeName.ToLowerInvariant();
                 switch (lowerType)
                 {
-
-                    case "MEDIUMTEXT":
-                    case "LONGTEXT":
-                    case "TINYBLOB":
-                    case "MEDIUMBLOB":
-                    case "LONGBLOB":
-                    case "BLOB":
-                    case "JSON":
-                    case "TINYTEXT":
-                        return string.Empty; ;
-                    case "TEXT":
-                    case "NCHAR":
-                    case "NVARCHAR":
-                    case "VARCHAR":
-                    case "CHAR":
-                    case "ENUM":
-                    case "SET":
+                    case "mediumtext":
+                    case "longtext":
+                    case "tinyblob":
+                    case "mediumblob":
+                    case "longblob":
+                    case "blob":
+                    case "json":
+                    case "tinytext":
+                        return string.Empty;
+                    case "varbinary" when maxLength <= 65535:
+                    case "binary" when maxLength <= 255:
+                    case "text":
+                    case "nchar":
+                    case "nvarchar":
+                    case "varchar":
+                    case "char":
+                    case "enum":
+                    case "set":
                         if (maxLength > 0)
                             return $"({maxLength})";
                         else
@@ -264,7 +272,7 @@ namespace Dotmim.Sync.MySql.Builders
             switch (dbType)
             {
                 case DbType.Binary:
-                    mySqlType = "LONGBLOB";
+                    mySqlType = "VARBINARY";
                     break;
                 case DbType.Boolean:
                 case DbType.Byte:
@@ -394,9 +402,9 @@ namespace Dotmim.Sync.MySql.Builders
                 case MySqlDbType.Blob:
                     return "BLOB";
                 case MySqlDbType.VarBinary:
-                    return "LONGBLOB";
+                    return "VARBINARY";
                 case MySqlDbType.Binary:
-                    return "LONGBLOB";
+                    return "BINARY";
                 case MySqlDbType.Geometry:
                     return "GEOMETRY";
             }
@@ -439,6 +447,8 @@ namespace Dotmim.Sync.MySql.Builders
             string lowerType = typeName.ToLowerInvariant();
             switch (lowerType)
             {
+                case "varbinary":
+                case "binary":
                 case "varchar":
                 case "char":
                 case "text":
@@ -454,7 +464,7 @@ namespace Dotmim.Sync.MySql.Builders
             return false;
         }
 
-        public override bool IsValid(DmColumn columnDefinition)
+        public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
@@ -470,6 +480,8 @@ namespace Dotmim.Sync.MySql.Builders
                 case "bit":
                 case "integer":
                 case "datetime":
+                case "date":
+                case "newdate":
                 case "numeric":
                 case "decimal":
                 case "dec":
@@ -606,7 +618,7 @@ namespace Dotmim.Sync.MySql.Builders
             throw new Exception($"this type name {typeName} is not supported");
         }
 
-        public override bool ValidateIsReadonly(DmColumn columnDefinition)
+        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
         {
             return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp";
         }
@@ -719,7 +731,7 @@ namespace Dotmim.Sync.MySql.Builders
             throw new Exception("Unhandled type encountered");
         }
 
-        public override byte ValidatePrecision(DmColumn columnDefinition)
+        public override byte ValidatePrecision(SyncColumn columnDefinition)
         {
             if (IsNumericType(columnDefinition.OriginalTypeName) && columnDefinition.Precision == 0)
                 return 10;
@@ -727,7 +739,7 @@ namespace Dotmim.Sync.MySql.Builders
             return columnDefinition.Precision;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
         {
             var precision = columnDefinition.Precision;
             var scale = columnDefinition.Scale;

@@ -1,67 +1,60 @@
 ﻿using Dotmim.Sync.Builders;
-using System;
-using System.Text;
-using Dotmim.Sync.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Data;
-using Dotmim.Sync.Log;
-using System.Linq;
-using Dotmim.Sync.Filter;
 using Dotmim.Sync.SqlServer.Manager;
+using Microsoft.Data.SqlClient;
+using System;
+using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
-using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderProcedure : IDbBuilderProcedureHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
-        private SqlConnection connection;
-        private readonly SqlTransaction transaction;
-        private readonly DmTable tableDescription;
+        private ParserName tableName;
+        private ParserName trackingName;
+
+        private readonly SyncTable tableDescription;
+        private readonly SyncSetup setup;
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
-
-        public ICollection<FilterClause> Filters { get; set; }
-
-        public SqlBuilderProcedure(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
-
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(tableDescription);
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription);
+            this.setup = setup;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, setup);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        private void AddPkColumnParametersToCommand(SqlCommand sqlCommand)
+        protected void AddPkColumnParametersToCommand(SqlCommand sqlCommand)
         {
-            foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
                 sqlCommand.Parameters.Add(GetSqlParameter(pkColumn));
         }
-        private void AddColumnParametersToCommand(SqlCommand sqlCommand)
+        protected void AddColumnParametersToCommand(SqlCommand sqlCommand)
         {
-            foreach (DmColumn column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            foreach (var column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 sqlCommand.Parameters.Add(GetSqlParameter(column));
         }
 
-        private SqlParameter GetSqlParameter(DmColumn column)
+        protected SqlParameter GetSqlParameter(SyncColumn column)
         {
-            SqlParameter sqlParameter = new SqlParameter
+            var sqlParameter = new SqlParameter
             {
-                ParameterName = $"@{column.ColumnName}"
+                ParameterName = $"@{ParserName.Parse(column).Unquoted().Normalized().ToString()}"
             };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
-            SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             sqlParameter.SqlDbType = sqlDbType;
             sqlParameter.IsNullable = column.AllowDBNull;
 
-            var (p, s) = this.sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.DbType, false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var (p, s) = this.sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             if (p > 0)
             {
@@ -70,7 +63,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     sqlParameter.Scale = s;
             }
 
-            var m = this.sqlDbMetadata.TryGetOwnerMaxLength(column.OriginalDbType, column.DbType, false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var m = this.sqlDbMetadata.TryGetOwnerMaxLength(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
             if (m > 0)
                 sqlParameter.Size = m;
@@ -81,10 +74,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// From a SqlParameter, create the declaration
         /// </summary>
-        internal string CreateParameterDeclaration(SqlParameter param)
+        protected string CreateParameterDeclaration(SqlParameter param)
         {
-            StringBuilder stringBuilder3 = new StringBuilder();
-            SqlDbType sqlDbType = param.SqlDbType;
+            var stringBuilder3 = new StringBuilder();
+            var sqlDbType = param.SqlDbType;
 
             string empty = this.sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
 
@@ -97,6 +90,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var sqlDbTypeString = this.sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
 
                 stringBuilder3.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
+
+                if (param.Value != null)
+                    stringBuilder3.Append($" = {param.Value}");
+                else if (param.IsNullable)
+                    stringBuilder3.Append(" = NULL");
 
                 if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
                     stringBuilder3.Append(" OUTPUT");
@@ -126,129 +124,85 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Create a stored procedure
         /// </summary>
-        private void CreateProcedureCommand(Func<SqlCommand> BuildCommand, string procName)
+        protected async Task CreateProcedureCommandAsync(Func<SqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
+        {
+            var str = CreateProcedureCommandText(BuildCommand(), procName);
+
+            using (var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+        }
+
+
+        private async Task CreateProcedureCommandAsync<T>(Func<T, SqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            var str = CreateProcedureCommandText(BuildCommand(t), procName);
+            using (var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    connection.Open();
-
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                using (var command = new SqlCommand(str, connection))
-                {
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.ExecuteNonQuery();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
 
-        private string CreateProcedureCommandScriptText(Func<SqlCommand> BuildCommand, string procName)
-        {
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    connection.Open();
-
-                var str1 = $"Command {procName} for table {tableName.FullQuotedString}";
-                var str = CreateProcedureCommandText(BuildCommand(), procName);
-                return SqlBuilder.WrapScriptTextWithComments(str, str1);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateProcedureCommand : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
-        }
 
         /// <summary>
         /// Check if we need to create the stored procedure
         /// </summary>
-        public bool NeedToCreateProcedure(DbCommandType commandType)
+        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            if (connection.State != ConnectionState.Open)
-                throw new ArgumentException("Here, we need an opened connection please");
+            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType);
-
-            return !SqlManagementUtils.ProcedureExists(connection, transaction, commandName);
+            return !await SqlManagementUtils.ProcedureExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, commandName).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Check if we need to create the TVP Type
         /// </summary>
-        public bool NeedToCreateType(DbCommandType commandType)
+        public async Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            if (connection.State != ConnectionState.Open)
-                throw new ArgumentException("Here, we need an opened connection please");
+            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
 
-            var commandName = this.sqlObjectNames.GetCommandName(commandType);
-
-            return !SqlManagementUtils.TypeExists(connection, transaction, commandName);
+            return !await SqlManagementUtils.TypeExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, commandName).ConfigureAwait(false);
 
         }
 
-        private string BulkSelectUnsuccessfulRows()
+        protected string BulkSelectUnsuccessfulRows()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("--Select all ids not deleted for conflict");
+            stringBuilder.AppendLine("--Select all ids not inserted / deleted / updated as conflict");
             stringBuilder.Append("SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{cc}");
+                pkeyComma = " ,";
             }
 
-            stringBuilder.AppendLine($"FROM @changeTable t");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"FROM @changeTable [t]");
             stringBuilder.AppendLine("WHERE NOT EXISTS (");
             stringBuilder.Append("\t SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{cc}");
+                pkeyComma = " ,";
             }
-            stringBuilder.AppendLine("\t FROM @changed i");
+
+            stringBuilder.AppendLine("\t FROM @dms_changed [i]");
             stringBuilder.Append("\t WHERE ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"t.{cc.FullQuotedString} = i.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append("AND ");
-                else
-                    stringBuilder.AppendLine();
+                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}[t].{cc} = [i].{cc}");
+                pkeyComma = " AND ";
             }
             stringBuilder.AppendLine("\t)");
             return stringBuilder.ToString();
@@ -258,112 +212,90 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Bulk Delete command
         //------------------------------------------------------------------
-        private SqlCommand BuildBulkDeleteCommand()
+        protected virtual SqlCommand BuildBulkDeleteCommand()
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            var sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+
+            var sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
+
+            var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[t]");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[base]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
+            string str7 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[side]");
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "p", "t");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "base");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "changes", "side");
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got deleted");
+            stringBuilder.Append("declare @dms_changed TABLE (");
+            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = new ObjectNameParser(c.ColumnName);
-
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
 
-                stringBuilder.Append($"{cc.FullQuotedString} {quotedColumnType}, ");
+                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                stringBuilder.Append($"{ParserName.Parse(c).Quoted().ToString()} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
+                stringBuilder.Append($"{cc}");
+
+                if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"-- delete all items where timestamp <= @sync_min_timestamp or update_scope_id = @sync_scope_id");
 
-            stringBuilder.AppendLine($"DELETE {tableName.FullQuotedString}");
-            stringBuilder.Append($"OUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            stringBuilder.AppendLine(";WITH [changes] AS (");
+            stringBuilder.Append("\tSELECT ");
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"DELETED.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                stringBuilder.Append($"[p].{columnName}, ");
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tFROM @changeTable [p]");
+            stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine($"\t{str7}");
+            stringBuilder.AppendLine($"\t)");
+
+
+            stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
+            stringBuilder.Append($"OUTPUT ");
+            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            {
+                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
+                stringBuilder.Append($"DELETED.{cc}");
+                if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
                 else
                     stringBuilder.AppendLine();
             }
-            stringBuilder.AppendLine($"INTO @changed ");
-            stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
-            stringBuilder.AppendLine("JOIN (");
-
-
-            stringBuilder.AppendLine($"\tSELECT ");
-            string str = "";
-            stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}[p].{columnName.FullQuotedString}");
-                str = ", ";
-            }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
-            stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
-
-            stringBuilder.AppendLine($"\tFROM @changeTable p ");
-
-
-            //stringBuilder.AppendLine($"\tSELECT p.*, t.update_scope_id, t.timestamp");
-            //stringBuilder.AppendLine($"\tFROM @changeTable p ");
-            stringBuilder.AppendLine($"\tJOIN {trackingName.FullQuotedString} t ON ");
-            stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine("\tAS changes ON ");
-            stringBuilder.AppendLine(str5);
-            stringBuilder.AppendLine("WHERE");
-            stringBuilder.AppendLine("-- Last changes was from the current scope, so we can delete it since we are sure no one else edit it ");
-            stringBuilder.AppendLine("changes.update_scope_id = @sync_scope_id");
-            stringBuilder.AppendLine("-- no change since the last time the current scope has sync (so no one has update the row)");
-            stringBuilder.AppendLine("OR [changes].[timestamp] <= @sync_min_timestamp;");
+            stringBuilder.AppendLine($"INTO @dms_changed ");
+            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
+            stringBuilder.AppendLine($"JOIN [changes] ON {str5}");
+            stringBuilder.AppendLine("WHERE [changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- Since the delete trigger is passed, we update the tracking table to reflect the real scope deleter");
             stringBuilder.AppendLine("UPDATE [side] SET");
             stringBuilder.AppendLine("\tsync_row_is_tombstone = 1, ");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tupdate_timestamp = [changes].update_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} side");
-            stringBuilder.AppendLine("JOIN (");
-            stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"p.{cc.FullQuotedString}, ");
-            }
-            stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
-            stringBuilder.AppendLine("\tFROM @changed t JOIN @changeTable p ON ");
-            stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.Append("\t) AS changes ON ");
-            stringBuilder.Append(str6);
+            stringBuilder.AppendLine("\tlast_change_datetime = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
@@ -371,110 +303,74 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-
-
-        public void CreateBulkDelete()
+        public Task CreateBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
-            CreateProcedureCommand(this.BuildBulkDeleteCommand, commandName);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
+            return CreateProcedureCommandAsync(this.BuildBulkDeleteCommand, commandName, connection, transaction);
         }
 
-
-        public string CreateBulkDeleteScriptText()
+        public async Task DropBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
-            return CreateProcedureCommandScriptText(this.BuildBulkDeleteCommand, commandName);
-        }
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-        public void DropBulkDelete()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
-
-        public string DropBulkDeleteScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
 
         //------------------------------------------------------------------
-        // Bulk Insert command
+        // Bulk Update command
         //------------------------------------------------------------------
-        private SqlCommand BuildBulkInsertCommand()
+        protected virtual SqlCommand BuildBulkUpdateCommand(bool hasMutableColumns)
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            string empty = string.Empty;
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            var sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+
+            var sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
+
+            var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
+                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[t]");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[base]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
+            string str7 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[side]");
 
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[p]", "[t]");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
-
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            stringBuilder.Append("declare @dms_changed TABLE (");
+            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = new ObjectNameParser(c.ColumnName);
+                var columnName = ParserName.Parse(c).Quoted().ToString();
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
+                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
-                stringBuilder.Append($"{cc.FullQuotedString} {quotedColumnType}, ");
+                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+
+            string pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
@@ -482,350 +378,133 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.FullQuotedString} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine("-- update/insert into the base table");
-            stringBuilder.AppendLine($"MERGE {tableName.FullQuotedString} AS base USING");
-            stringBuilder.AppendLine("\t-- join done here against the side table to get the local timestamp for concurrency check\n");
 
-
-            //   stringBuilder.AppendLine("\t(SELECT p.*, t.timestamp FROM @changeTable p ");
-
-            stringBuilder.AppendLine($"\t(SELECT ");
-            string str = "";
-            stringBuilder.Append("\t");
+            stringBuilder.AppendLine(";WITH [changes] AS (");
+            stringBuilder.Append("\tSELECT ");
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}[p].{columnName.FullQuotedString}");
-                str = ", ";
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                stringBuilder.Append($"[p].{columnName}, ");
             }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
-            stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
-
-            stringBuilder.AppendLine($"\tFROM @changeTable p ");
-
-
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.FullQuotedString} t ON ");
-            stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.AppendLine($"\t) AS changes ON {str5}");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- Si la ligne n'existe pas en local et qu'elle a été créé avant le timestamp de référence");
-            stringBuilder.Append("WHEN NOT MATCHED BY TARGET AND (changes.[timestamp] <= @sync_min_timestamp OR changes.[timestamp] IS NULL) THEN");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tFROM @changeTable [p]");
+            stringBuilder.AppendLine($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"\t{str7}");
+            stringBuilder.AppendLine($"\t)");
 
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
+            stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS [base]");
+            stringBuilder.AppendLine($"USING [changes] on {str5}");
+            if (hasMutableColumns)
+            {
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id) THEN");
+                foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilderArguments.Append(string.Concat(empty, columnName));
+                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"\tUPDATE SET");
 
-            string empty = string.Empty;
+                string strSeparator = "";
+                foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
+                    strSeparator = ", ";
+                }
+            }
+
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL) THEN");
+
+
+            stringBuilderArguments = new StringBuilder();
+            stringBuilderParameters = new StringBuilder();
+            empty = string.Empty;
+
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.FullQuotedString}"));
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
                 empty = ", ";
             }
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\tINSERT");
             stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
+
+
             stringBuilder.Append($"\tOUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"INSERTED.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                pkeyComma = ", ";
             }
-            stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\tINTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
 
+            // Check if we have auto inc column
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.FullQuotedString} OFF;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
 
-            stringBuilder.AppendLine("-- Since the insert trigger is passed, we update the tracking table to reflect the real scope inserter");
-            stringBuilder.AppendLine("UPDATE side SET");
-            stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tcreate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp,");
-            stringBuilder.AppendLine("\tcreate_timestamp = changes.create_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} side");
-            stringBuilder.AppendLine("JOIN (");
-            stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"p.{cc.FullQuotedString}, ");
-            }
-
-            stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
-            stringBuilder.AppendLine("\tFROM @changed t");
-            stringBuilder.AppendLine("\tJOIN @changeTable p ON ");
-            stringBuilder.Append(str4);
-            stringBuilder.AppendLine(") AS [changes] ON ");
-            stringBuilder.AppendLine(str6);
-            stringBuilder.Append(BulkSelectUnsuccessfulRows());
-
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateBulkInsert()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
-            CreateProcedureCommand(BuildBulkInsertCommand, commandName);
-        }
-        public string CreateBulkInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
-            return CreateProcedureCommandScriptText(BuildBulkInsertCommand, commandName);
-        }
-        public void DropBulkInsert()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropBulkInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkInsertRows);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-        //------------------------------------------------------------------
-        // Bulk Update command
-        //------------------------------------------------------------------
-        private SqlCommand BuildBulkUpdateCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-
-            SqlParameter sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
-            {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType)
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
-
-
-            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[p]", "[t]");
-            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[base]");
-            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[changes]", "[side]");
-
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @changed TABLE (");
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
-            {
-                var cc = new ObjectNameParser(c.ColumnName);
-
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{cc.FullQuotedString} {quotedColumnType}, ");
-            }
-            stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.AppendLine("));");
-            stringBuilder.AppendLine();
-
-
-            stringBuilder.AppendLine("-- update the base table");
-            stringBuilder.AppendLine($"MERGE {tableName.FullQuotedString} AS base USING");
-            stringBuilder.AppendLine("\t-- join done here against the side table to get the local timestamp for concurrency check\n");
-
-            //stringBuilder.AppendLine("\t(SELECT p.*, t.update_scope_id, t.timestamp FROM @changeTable p ");
-
-            stringBuilder.AppendLine($"\t(SELECT ");
-            string str = "";
-            stringBuilder.Append("\t");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}[p].{columnName.FullQuotedString}");
-                str = ", ";
-            }
-            stringBuilder.AppendLine("\t, [p].[create_timestamp], [p].[update_timestamp]");
-            stringBuilder.AppendLine("\t, [t].[update_scope_id], [t].[timestamp]");
-
-            stringBuilder.AppendLine($"\tFROM @changeTable p ");
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.FullQuotedString} t ON ");
-            stringBuilder.AppendLine($" {str4}");
-            stringBuilder.AppendLine($"\t) AS changes ON {str5}");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[update_scope_id] = @sync_scope_id OR [changes].[timestamp] <= @sync_min_timestamp) THEN");
-
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-
-            string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName.FullQuotedString}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tUPDATE SET");
-
-            string strSeparator = "";
-            foreach (DmColumn mutableColumn in this.tableDescription.MutableColumnsAndNotAutoInc)
-            {
-                ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t{strSeparator}{quotedColumn.FullQuotedString} = [changes].{quotedColumn.FullQuotedString}");
-                strSeparator = ", ";
-            }
-            stringBuilder.Append($"\tOUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"INSERTED.{cc.FullQuotedString}");
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
-            }
-            stringBuilder.AppendLine($"\tINTO @changed; -- populates the temp table with successful PKs");
-            stringBuilder.AppendLine();
-
-
             stringBuilder.AppendLine("-- Since the update trigger is passed, we update the tracking table to reflect the real scope updater");
-            stringBuilder.AppendLine("UPDATE side SET");
-            stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
-            stringBuilder.AppendLine("\tupdate_timestamp = changes.update_timestamp");
-            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} side");
-            stringBuilder.AppendLine("JOIN (");
-            stringBuilder.Append("\tSELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
-            {
-                var cc = new ObjectNameParser(this.tableDescription.PrimaryKey.Columns[i].ColumnName);
-                stringBuilder.Append($"p.{cc.FullQuotedString}, ");
-            }
-
-            stringBuilder.AppendLine(" p.update_timestamp, p.create_timestamp ");
-            stringBuilder.AppendLine("\tFROM @changed t");
-            stringBuilder.AppendLine("\tJOIN @changeTable p ON ");
-            stringBuilder.AppendLine($"\t{str4}");
-            stringBuilder.AppendLine(") AS [changes] ON ");
-            stringBuilder.AppendLine($"\t{str6}");
+            stringBuilder.AppendLine("UPDATE [side] SET");
+            stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
+            stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
+            //stringBuilder.AppendLine($"JOIN @changeTable [p] on {str7}");
             stringBuilder.AppendLine();
             stringBuilder.Append(BulkSelectUnsuccessfulRows());
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateBulkUpdate()
+
+        public Task CreateBulkUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
-            CreateProcedureCommand(BuildBulkUpdateCommand, commandName);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
+            return CreateProcedureCommandAsync(BuildBulkUpdateCommand, commandName, hasMutableColumns, connection, transaction);
         }
-        public string CreateBulkUpdateScriptText()
+
+        public async Task DropBulkUpdateAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
-            return CreateProcedureCommandScriptText(BuildBulkUpdateCommand, commandName);
-        }
-        public void DropBulkUpdate()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop BulkUpdate : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
-        }
-        public string DropBulkUpdateScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows);
-
-            return $"DROP PROCEDURE {commandName};";
         }
 
 
         //------------------------------------------------------------------
         // Reset command
         //------------------------------------------------------------------
-        private SqlCommand BuildResetCommand()
+        protected virtual SqlCommand BuildResetCommand()
         {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
 
             SqlCommand sqlCommand = new SqlCommand();
             SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
@@ -838,16 +517,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.FullQuotedString};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.FullQuotedString};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.FullQuotedString};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()};");
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Schema().Quoted().ToString()};");
 
-            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.FullQuotedString};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.FullQuotedString};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.FullQuotedString};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()};");
 
 
             stringBuilder.AppendLine();
@@ -855,157 +534,134 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateReset()
+        public Task CreateResetAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
-            CreateProcedureCommand(BuildResetCommand, commandName);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
+            return CreateProcedureCommandAsync(BuildResetCommand, commandName, connection, transaction);
         }
-        public string CreateResetScriptText()
+        public async Task DropResetAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
-            return CreateProcedureCommandScriptText(BuildResetCommand, commandName);
-        }
-        public void DropReset()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop Reset : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
-        public string DropResetScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
 
         //------------------------------------------------------------------
         // Delete command
         //------------------------------------------------------------------
-        private SqlCommand BuildDeleteCommand()
+        protected virtual SqlCommand BuildDeleteCommand()
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
+
+            var sqlParameter0 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            sqlCommand.Parameters.Add(sqlParameter0);
+
+            var sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
             sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+
+            var sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+
+            var sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
                 Direction = ParameterDirection.Output
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
+
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
+            stringBuilder.Append("declare @dms_changed TABLE (");
+            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+
+                // Get the good SqlDbType (even if we are not from Sql Server def)
+                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
+                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
+            }
+            stringBuilder.Append(" PRIMARY KEY (");
+
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
+            }
+
+            stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE {tableName.FullQuotedString}");
-            stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
-            stringBuilder.AppendLine($"JOIN {trackingName.FullQuotedString} [side] ON ");
+            stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
+            stringBuilder.Append($"OUTPUT ");
+            string comma = "";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{comma}DELETED.{columnName}");
+                comma = ", ";
+            }
+            stringBuilder.AppendLine($" INTO @dms_changed -- populates the temp table with successful deleted row");
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+            stringBuilder.Append($"JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
 
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[base]", "[side]"));
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp  OR @sync_force_write = 1)");
+            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[timestamp] IS NULL OR [side].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1)");
             stringBuilder.Append("AND ");
-            stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"), ");"));
+            stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[base]"), ");"));
             stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+
+            stringBuilder.AppendLine("-- Since the update trigger is passed, we update the tracking table to reflect the real scope updater");
+            stringBuilder.AppendLine("UPDATE [side] SET");
+            stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 1,");
+            stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
+            stringBuilder.AppendLine();
+
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateDelete()
+        public Task CreateDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
-            CreateProcedureCommand(BuildDeleteCommand, commandName);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
+            return CreateProcedureCommandAsync(BuildDeleteCommand, commandName, connection, transaction);
         }
-        public string CreateDeleteScriptText()
+        public async Task DropDeleteAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
-            return CreateProcedureCommandScriptText(BuildDeleteCommand, commandName);
-        }
-        public void DropDelete()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop DeleteRow : {ex}");
-                throw;
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
-        public string DropDeleteScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
 
         //------------------------------------------------------------------
         // Delete Metadata command
         //------------------------------------------------------------------
-        private SqlCommand BuildDeleteMetadataCommand()
+        protected virtual SqlCommand BuildDeleteMetadataCommand()
         {
             SqlCommand sqlCommand = new SqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_check_concurrency", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter);
             SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
             SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
@@ -1016,335 +672,70 @@ namespace Dotmim.Sync.SqlServer.Builders
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE [side] FROM {trackingName.FullQuotedString} [side]");
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, ""));
+            stringBuilder.AppendLine($"DELETE [side] FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"WHERE [side].[timestamp] < @sync_row_timestamp");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateDeleteMetadata()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
-            CreateProcedureCommand(BuildDeleteMetadataCommand, commandName);
-        }
-        public string CreateDeleteMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
-            return CreateProcedureCommandScriptText(BuildDeleteMetadataCommand, commandName);
-        }
-        public void DropDeleteMetadata()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
-            try
+
+        public Task CreateDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
+            return CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
+        }
+        public async Task DropDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
+
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop DeleteMetadata : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
-        public string DropDeleteMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-
-        //------------------------------------------------------------------
-        // Insert command
-        //------------------------------------------------------------------
-        private SqlCommand BuildInsertCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-
-            this.AddColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            stringBuilder.AppendLine($"SET {sqlParameter.ParameterName} = 0;");
-
-            stringBuilder.Append(string.Concat("IF NOT EXISTS (SELECT * FROM ", trackingName.FullQuotedString, " WHERE "));
-            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, string.Empty));
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("BEGIN ");
-
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.FullQuotedString} ON;");
-                stringBuilder.AppendLine();
-            }
-
-            string empty = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.FullQuotedString}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine(string.Concat("\tSET ", sqlParameter.ParameterName, " = @@rowcount; "));
-
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"\tSET IDENTITY_INSERT {tableName.FullQuotedString} OFF;");
-            }
-
-            stringBuilder.AppendLine("END ");
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateInsert()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
-            CreateProcedureCommand(BuildInsertCommand, commandName);
-        }
-        public string CreateInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
-            return CreateProcedureCommandScriptText(BuildInsertCommand, commandName);
-        }
-        public void DropInsert()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop InsertRow : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropInsertScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertRow);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-        //------------------------------------------------------------------
-        // Insert Metadata command
-        //------------------------------------------------------------------
-        private SqlCommand BuildInsertMetadataCommand()
-        {
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-            SqlCommand sqlCommand = new SqlCommand();
-
-            StringBuilder stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter3 = new SqlParameter("@create_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter3);
-            SqlParameter sqlParameter4 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter4);
-            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter8);
-
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString} SET ");
-            stringBuilder.AppendLine("\t[create_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t[create_timestamp] = @create_timestamp, ");
-            stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t[update_timestamp] = @update_timestamp, ");
-            stringBuilder.AppendLine("\t[sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "")})");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = @@rowcount; ");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"IF ({sqlParameter8.ParameterName} = 0)");
-            stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.FullQuotedString}");
-
-            string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
-            {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t[create_scope_id], [create_timestamp], [update_scope_id], [update_timestamp],");
-            stringBuilder.AppendLine($"\t[sync_row_is_tombstone], [last_change_datetime])");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@sync_scope_id, @create_timestamp, @sync_scope_id, @update_timestamp, ");
-            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, GetDate());");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tSET {sqlParameter8.ParameterName} = @@rowcount; ");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("END");
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateInsertMetadata()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
-            CreateProcedureCommand(BuildInsertMetadataCommand, commandName);
-        }
-        public string CreateInsertMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
-            return CreateProcedureCommandScriptText(BuildInsertMetadataCommand, commandName);
-        }
-        public void DropInsertMetadata()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop InsertMetadata : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropInsertMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertMetadata);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
 
         //------------------------------------------------------------------
         // Select Row command
         //------------------------------------------------------------------
-        private SqlCommand BuildSelectRowCommand()
+        protected virtual SqlCommand BuildSelectRowCommand()
         {
-            SqlCommand sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand();
             this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+            var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter);
 
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            var stringBuilder = new StringBuilder("SELECT ");
             stringBuilder.AppendLine();
-            StringBuilder stringBuilder1 = new StringBuilder();
+            var stringBuilder1 = new StringBuilder();
             string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
-                stringBuilder1.Append($"{empty}[side].{pkColumnName.FullQuotedString} = @{pkColumnName.FullUnquotedString}");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
                 empty = " AND ";
             }
-            foreach (DmColumn mutableColumn in this.tableDescription.MutableColumns)
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns())
             {
-                ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[base].{nonPkColumnName.FullQuotedString}, ");
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
-            stringBuilder.AppendLine("\t[side].[create_scope_id],");
-            stringBuilder.AppendLine("\t[side].[create_timestamp],");
-            stringBuilder.AppendLine("\t[side].[update_scope_id],");
-            stringBuilder.AppendLine("\t[side].[update_timestamp]");
+            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone], ");
+            stringBuilder.AppendLine("\t[side].[update_scope_id]");
 
-            stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.FullQuotedString} [side] ON");
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
 
             string str = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{str}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -1352,57 +743,21 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateSelectRow()
+
+        public Task CreateSelectRowAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
-            CreateProcedureCommand(BuildSelectRowCommand, commandName);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
+            return CreateProcedureCommandAsync(BuildSelectRowCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
         }
-        public string CreateSelectRowScriptText()
+        public async Task DropSelectRowAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
-            return CreateProcedureCommandScriptText(BuildSelectRowCommand, commandName);
-        }
-        public void DropSelectRow()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop SelectRow : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropSelectRowScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow);
-
-            return $"DROP PROCEDURE {commandName};";
         }
 
         //------------------------------------------------------------------
@@ -1411,627 +766,666 @@ namespace Dotmim.Sync.SqlServer.Builders
         private string CreateTVPTypeCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
             stringBuilder.AppendLine($"CREATE TYPE {commandName} AS TABLE (");
             string str = "";
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var isPrimaryKey = this.tableDescription.PrimaryKey.Columns.Any(cc => this.tableDescription.IsEqual(cc.ColumnName, c.ColumnName));
-                var columnName = new ObjectNameParser(c.ColumnName);
+                var isPrimaryKey = this.tableDescription.IsPrimaryKey(c.ColumnName);
+
+                var columnName = ParserName.Parse(c).Quoted().ToString();
                 var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.DbType, false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(sqlDbTypeString, "[", "]").FullQuotedString;
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.DbType, false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
+                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
-                stringBuilder.AppendLine($"{str}{columnName.FullQuotedString} {quotedColumnType} {nullString}");
+                stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} {nullString}");
                 str = ", ";
             }
-            stringBuilder.AppendLine(", [create_scope_id] [uniqueidentifier] NULL");
-            stringBuilder.AppendLine(", [create_timestamp] [bigint] NULL");
-            stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
-            stringBuilder.AppendLine(", [update_timestamp] [bigint] NULL");
+            //stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
             stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
             str = "";
-            foreach (var c in this.tableDescription.PrimaryKey.Columns)
+            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = new ObjectNameParser(c.ColumnName);
-                stringBuilder.Append($"{str}{columnName.FullQuotedString} ASC");
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                stringBuilder.Append($"{str}{columnName} ASC");
                 str = ", ";
             }
 
             stringBuilder.Append("))");
             return stringBuilder.ToString();
         }
-        public void CreateTVPType()
+        public async Task CreateTVPTypeAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            using (SqlCommand sqlCommand = new SqlCommand(this.CreateTVPTypeCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                if (!alreadyOpened)
-                    connection.Open();
-
-                using (SqlCommand sqlCommand = new SqlCommand(this.CreateTVPTypeCommandText(),
-                    connection))
-                {
-                    if (transaction != null)
-                        sqlCommand.Transaction = transaction;
-
-                    sqlCommand.ExecuteNonQuery();
-                }
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateTVPType : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
         }
-        public string CreateTVPTypeScriptText()
+        public async Task DropTVPTypeAsync(DbConnection connection, DbTransaction transaction)
         {
-            string str = string.Concat("Create TVP Type on table ", tableName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTVPTypeCommandText(), str);
-        }
-        public void DropTVPType()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
+            var commandText = $"DROP TYPE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
-
-                    command.CommandText = $"DROP TYPE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop TVPType : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropTVPTypeScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType);
-
-            return $"DROP TYPE {commandName};";
         }
 
         //------------------------------------------------------------------
         // Update command
         //------------------------------------------------------------------
-        private SqlCommand BuildUpdateCommand()
+        protected virtual SqlCommand BuildUpdateCommand(bool hasMutableColumns)
         {
-            SqlCommand sqlCommand = new SqlCommand();
 
-            StringBuilder stringBuilder = new StringBuilder();
+            var sqlCommand = new SqlCommand();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            string empty = string.Empty;
+
             this.AddColumnParametersToCommand(sqlCommand);
 
-            SqlParameter sqlParameter = new SqlParameter("@sync_force_write", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
+            var sqlParameter1 = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
             sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
+
+            var sqlParameter2 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter2);
 
-            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-
-
-            stringBuilder.AppendLine($"UPDATE {tableName.FullQuotedString}");
-            stringBuilder.Append($"SET {SqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
-            stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
-            stringBuilder.AppendLine($"JOIN {trackingName.FullQuotedString} [side]");
-            stringBuilder.Append($"ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, "[base]", "[side]"));
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR @sync_force_write = 1)");
-            stringBuilder.Append("AND (");
-            stringBuilder.Append(SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "[base]"));
-            stringBuilder.AppendLine(");");
-            stringBuilder.AppendLine();
-
-
-            stringBuilder.Append(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public void CreateUpdate()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
-            this.CreateProcedureCommand(BuildUpdateCommand, commandName);
-        }
-        public string CreateUpdateScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
-            return CreateProcedureCommandScriptText(BuildUpdateCommand, commandName);
-        }
-        public void DropUpdate()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop Update : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-        public string DropUpdateScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow);
-
-            return $"DROP PROCEDURE {commandName};";
-        }
-
-        //------------------------------------------------------------------
-        // Update Metadata command
-        //------------------------------------------------------------------
-        private SqlCommand BuildUpdateMetadataCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-            StringBuilder stringBuilder = new StringBuilder();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_row_is_tombstone", SqlDbType.Int);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter3 = new SqlParameter("@create_timestamp", SqlDbType.BigInt);
+            var sqlParameter3 = new SqlParameter("@sync_force_write", SqlDbType.Int);
             sqlCommand.Parameters.Add(sqlParameter3);
-            SqlParameter sqlParameter5 = new SqlParameter("@update_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter5);
-            SqlParameter sqlParameter8 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+
+            var sqlParameter4 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
                 Direction = ParameterDirection.Output
             };
-            sqlCommand.Parameters.Add(sqlParameter8);
+            sqlCommand.Parameters.Add(sqlParameter4);
 
-            string str1 = SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKey.Columns, "");
+            var stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"SET {sqlParameter8.ParameterName} = 0;");
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[t]");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[base]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
+            string str7 = SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[side]");
+
+            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
+            stringBuilder.Append("declare @dms_changed TABLE (");
+            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+
+                // Get the good SqlDbType (even if we are not from Sql Server def)
+                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
+                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
+            }
+            stringBuilder.Append(" PRIMARY KEY (");
+
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
+            }
+
+            stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine("DECLARE @was_tombstone int; ");
+            // Check if we have auto inc column
+            if (this.tableDescription.HasAutoIncrementColumns)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine();
+            }
 
-            stringBuilder.AppendLine($"SELECT @was_tombstone = [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString}");
-            stringBuilder.AppendLine($"WHERE ({str1})");
+            stringBuilder.AppendLine(";WITH [changes] AS (");
+            stringBuilder.Append("\tSELECT ");
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                stringBuilder.Append($"[p].{columnName}, ");
+            }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("IF (@was_tombstone IS NOT NULL AND @was_tombstone = 1 AND @sync_row_is_tombstone = 0)");
-            stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString} SET ");
-            stringBuilder.AppendLine("\t [create_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t [create_timestamp] = @create_timestamp, ");
-            stringBuilder.AppendLine("\t [update_timestamp] = @update_timestamp, ");
-            stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({str1})");
-            stringBuilder.AppendLine("END");
-            stringBuilder.AppendLine("ELSE");
-            stringBuilder.AppendLine("BEGIN ");
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString} SET ");
-            stringBuilder.AppendLine("\t [update_scope_id] = @sync_scope_id, ");
-            stringBuilder.AppendLine("\t [update_timestamp] = @update_timestamp, ");
-            stringBuilder.AppendLine("\t [sync_row_is_tombstone] = @sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"WHERE ({str1})");
-            stringBuilder.AppendLine("END;");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tFROM (SELECT ");
+            stringBuilder.Append($"\t\t ");
+            string comma = "";
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
+
+                stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+                comma = ", ";
+            }
+            stringBuilder.AppendLine($") AS [p]");
+            stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine($"\t{str7}");
+            stringBuilder.AppendLine($"\t)");
+
+            stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS [base]");
+            stringBuilder.AppendLine($"USING [changes] on {str5}");
+            if (hasMutableColumns)
+            {
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
+                foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilderArguments.Append(string.Concat(empty, columnName));
+                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"\tUPDATE SET");
+
+                string strSeparator = "";
+                foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
+                    strSeparator = ", ";
+                }
+            }
+
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR @sync_force_write = 1) THEN");
+
+
+            stringBuilderArguments = new StringBuilder();
+            stringBuilderParameters = new StringBuilder();
+            empty = string.Empty;
+
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
+                empty = ", ";
+            }
             stringBuilder.AppendLine();
-            stringBuilder.Append($"SET {sqlParameter8.ParameterName} = @@ROWCOUNT;");
+            stringBuilder.AppendLine($"\tINSERT");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
+
+            stringBuilder.AppendLine();
+            stringBuilder.Append($"OUTPUT ");
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                pkeyComma = ", ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"INTO @dms_changed; -- populates the temp table with successful PKs");
+            stringBuilder.AppendLine();
+
+            // Check if we have auto inc column
+            if (this.tableDescription.HasAutoIncrementColumns)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine();
+            }
+
+            stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = 0;");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine("-- Since the update trigger is passed, we update the tracking table to reflect the real scope updater");
+            stringBuilder.AppendLine("UPDATE [side] SET");
+            stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
+            stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
+
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public void CreateUpdateMetadata()
+        public Task CreateUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
-            CreateProcedureCommand(BuildUpdateMetadataCommand, commandName);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
+            return this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns, (SqlConnection)connection, (SqlTransaction)transaction);
         }
-        public string CreateUpdateMetadataScriptText()
+        public async Task DropUpdateAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
-            return CreateProcedureCommandScriptText(BuildUpdateMetadataCommand, commandName);
-        }
-        public void DropUpdateMetadata()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-            try
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Add all sql parameters
+        /// </summary>
+        protected void CreateFilterParameters(SqlCommand sqlCommand, SyncFilter filter)
+        {
+            var parameters = filter.Parameters;
+
+            if (parameters.Count == 0)
+                return;
+
+            foreach (var param in parameters)
+            {
+                if (param.DbType.HasValue)
                 {
-                    if (!alreadyOpened)
-                        this.connection.Open();
+                    // Get column name and type
+                    var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
+                    var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, SqlSyncProvider.ProviderType, SqlSyncProvider.ProviderType);
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
-
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    customParameterFilter.Size = param.MaxLength;
+                    customParameterFilter.IsNullable = param.AllowNull;
+                    customParameterFilter.Value = param.DefaultValue;
+                    sqlCommand.Parameters.Add(customParameterFilter);
                 }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during Drop UpdateMetadata : {ex}");
-                throw;
+                else
+                {
+                    var tableFilter = this.tableDescription.Schema.Tables[param.TableName, param.SchemaName];
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(param.TableName);
+
+                    var columnFilter = tableFilter.Columns[param.Name];
+                    if (columnFilter == null)
+                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
+
+                    // Get column name and type
+                    var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+                    var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                    // Add it as parameter
+                    var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    sqlParamFilter.Size = columnFilter.MaxLength;
+                    sqlParamFilter.IsNullable = param.AllowNull;
+                    sqlParamFilter.Value = param.DefaultValue;
+                    sqlCommand.Parameters.Add(sqlParamFilter);
+                }
 
             }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
         }
-        public string DropUpdateMetadataScriptText()
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata);
 
-            return $"DROP PROCEDURE {commandName};";
+        /// <summary>
+        /// Create all custom joins from within a filter 
+        /// </summary>
+        protected string CreateFilterCustomJoins(SyncFilter filter)
+        {
+            var customJoins = filter.Joins;
+
+            if (customJoins.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine();
+            foreach (var customJoin in customJoins)
+            {
+                switch (customJoin.JoinEnum)
+                {
+                    case Join.Left:
+                        stringBuilder.Append("LEFT JOIN ");
+                        break;
+                    case Join.Right:
+                        stringBuilder.Append("RIGHT JOIN ");
+                        break;
+                    case Join.Outer:
+                        stringBuilder.Append("OUTER JOIN ");
+                        break;
+                    case Join.Inner:
+                    default:
+                        stringBuilder.Append("INNER JOIN ");
+                        break;
+                }
+
+                var fullTableName = string.IsNullOrEmpty(filter.SchemaName) ? filter.TableName : $"{filter.SchemaName}.{filter.TableName}";
+                var filterTableName = ParserName.Parse(fullTableName).Quoted().Schema().ToString();
+
+                var joinTableName = ParserName.Parse(customJoin.TableName).Quoted().Schema().ToString();
+
+                var leftTableName = ParserName.Parse(customJoin.LeftTableName).Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
+                    leftTableName = "[base]";
+
+                var rightTableName = ParserName.Parse(customJoin.RightTableName).Quoted().Schema().ToString();
+                if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
+                    rightTableName = "[base]";
+
+                var leftColumName = ParserName.Parse(customJoin.LeftColumnName).Quoted().ToString();
+                var rightColumName = ParserName.Parse(customJoin.RightColumnName).Quoted().ToString();
+
+                stringBuilder.AppendLine($"{joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
+            }
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Create all side where criteria from within a filter
+        /// </summary>
+        protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
+        {
+            var sideWhereFilters = filter.Wheres;
+
+            if (sideWhereFilters.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+            // Managing when state is tombstone
+            if (checkTombstoneRows)
+                stringBuilder.AppendLine($"(");
+
+            stringBuilder.AppendLine($" (");
+
+
+            var and2 = "   ";
+
+            foreach (var whereFilter in sideWhereFilters)
+            {
+                var tableFilter = this.tableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName];
+                if (tableFilter == null)
+                    throw new FilterParamTableNotExistsException(whereFilter.TableName);
+
+                var columnFilter = tableFilter.Columns[whereFilter.ColumnName];
+                if (columnFilter == null)
+                    throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
+
+                var tableName = ParserName.Parse(tableFilter).Unquoted().ToString();
+                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
+                    tableName = "[base]";
+                else
+                    tableName = ParserName.Parse(tableFilter).Quoted().Schema().ToString();
+
+                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
+                var parameterName = ParserName.Parse(whereFilter.ParameterName).Unquoted().Normalized().ToString();
+                var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                var param = filter.Parameters[parameterName];
+
+                if (param == null)
+                    throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
+
+                stringBuilder.Append($"{and2}({tableName}.{columnName} = @{parameterName}");
+
+                if (param.AllowNull)
+                    stringBuilder.Append($" OR @{parameterName} IS NULL");
+
+                stringBuilder.Append($")");
+
+                and2 = " AND ";
+
+            }
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"  )");
+
+            if (checkTombstoneRows)
+            {
+                stringBuilder.AppendLine($" OR [side].[sync_row_is_tombstone] = 1");
+                stringBuilder.AppendLine($")");
+            }
+            // Managing when state is tombstone
+
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Create all custom wheres from witing a filter
+        /// </summary>
+        protected string CreateFilterCustomWheres(SyncFilter filter)
+        {
+            var customWheres = filter.CustomWheres;
+
+            if (customWheres.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+            var and2 = "  ";
+            stringBuilder.AppendLine($"(");
+
+            foreach (var customWhere in customWheres)
+            {
+                stringBuilder.Append($"{and2}{customWhere}");
+                and2 = " AND ";
+            }
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($")");
+
+            return stringBuilder.ToString();
         }
 
 
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
-        private SqlCommand BuildSelectIncrementalChangesCommand(bool withFilter = false)
-        { 
-            SqlCommand sqlCommand = new SqlCommand();
-            SqlParameter pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
-            SqlParameter pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            SqlParameter pScopeNew = new SqlParameter("@sync_scope_is_new", SqlDbType.Bit);
-            SqlParameter pReinit = new SqlParameter("@sync_scope_is_reinit", SqlDbType.Bit);
+        protected virtual SqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter = null)
+        {
+            var sqlCommand = new SqlCommand();
+            var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = 0 };
+            var pScopeId = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier) { Value = "NULL", IsNullable = true }; // <--- Ok THAT's Bad, but it's working :D
+
             sqlCommand.Parameters.Add(pTimestamp);
             sqlCommand.Parameters.Add(pScopeId);
-            sqlCommand.Parameters.Add(pScopeNew);
-            sqlCommand.Parameters.Add(pReinit);
 
-            if (withFilter && this.Filters != null && this.Filters.Count > 0)
+            // Add filter parameters
+            if (filter != null)
+                CreateFilterParameters(sqlCommand, filter);
+
+            var stringBuilder = new StringBuilder("SELECT DISTINCT");
+
+            // ----------------------------------
+            // Add all columns
+            // ----------------------------------
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                foreach (var c in this.Filters)
-                {
-                    if (!c.IsVirtual)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                        var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
-
-                        // Get the good SqlDbType (even if we are not from Sql Server def)
-
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                    else
-                    {
-                        SqlDbType sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, c.ColumnType.Value, false, false, 0, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                        var columnFilterName = new ObjectNameParser(c.ColumnName, "[", "]");
-                        SqlParameter sqlParamFilter = new SqlParameter($"@{columnFilterName.FullUnquotedString}", sqlDbType);
-                        sqlCommand.Parameters.Add(sqlParamFilter);
-                    }
-                }
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[side].{columnName}, ");
             }
-
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns())
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
-            }
-            foreach (var mutableColumn in this.tableDescription.MutableColumns)
-            {
-                var columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[base].{columnName.FullQuotedString}, ");
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[create_scope_id], ");
-            stringBuilder.AppendLine($"\t[side].[create_timestamp], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id], ");
-            stringBuilder.AppendLine($"\t[side].[update_timestamp] ");
-            stringBuilder.AppendLine($"FROM {tableName.FullQuotedString} [base]");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.FullQuotedString} [side]");
-            stringBuilder.Append($"ON ");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] ");
+            // ----------------------------------
+
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+
+            // ----------------------------------
+            // Make Right Join
+            // ----------------------------------
+            stringBuilder.Append($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
 
             string empty = "";
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
                 empty = " AND ";
             }
+
+            // ----------------------------------
+            // Custom Joins
+            // ----------------------------------
+            if (filter != null)
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
-            string str = string.Empty;
 
-            var columnFilters = this.Filters.GetColumnFilters();
-            if (withFilter && columnFilters.Count != 0)
+            // ----------------------------------
+            // Where filters and Custom Where string
+            // ----------------------------------
+            if (filter != null)
             {
-                StringBuilder builderFilter = new StringBuilder();
-                builderFilter.Append("\t(");
-                bool isFirst = true;
-                foreach (var c in columnFilters)
-                {
-                    if (!isFirst)
-                        builderFilter.Append(" AND ");
-                    isFirst = false;
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                stringBuilder.Append(createFilterWhereSide);
 
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
+                    stringBuilder.AppendLine($"AND ");
 
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                stringBuilder.Append(createFilterCustomWheres);
 
-                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
-
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} = @{columnFilterName.FullUnquotedString}");
-                }
-                builderFilter.AppendLine(")");
-                builderFilter.Append("\tOR (");
-                builderFilter.AppendLine("([side].[update_scope_id] = @sync_scope_id or [side].[update_scope_id] IS NULL)");
-                builderFilter.Append("\t\tAND (");
-                
-                isFirst = true;
-
-                foreach (var c in columnFilters)
-                {
-                    if (!isFirst)
-                        builderFilter.Append(" OR ");
-                    isFirst = false;
-
-                    var columnFilter = this.tableDescription.Columns[c.ColumnName];
-                    var columnFilterName = new ObjectNameParser(columnFilter.ColumnName, "[", "]");
-
-                    builderFilter.Append($"[side].{columnFilterName.QuotedObjectName} IS NULL");
-                }
-
-                builderFilter.AppendLine("))");
-                builderFilter.AppendLine("\t)");
-                builderFilter.AppendLine("AND (");
-                stringBuilder.Append(builderFilter.ToString());
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
             }
+            // ----------------------------------
 
-            stringBuilder.AppendLine("\t-- Update made by the local instance");
-            stringBuilder.AppendLine("\t[side].[update_scope_id] IS NULL");
-            stringBuilder.AppendLine("\t-- Or Update different from remote");
-            stringBuilder.AppendLine("\tOR [side].[update_scope_id] <> @sync_scope_id");
-            stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
-            stringBuilder.AppendLine("\tOR @sync_scope_is_reinit = 1");
-            stringBuilder.AppendLine("    )");
-            stringBuilder.AppendLine("AND (");
-            stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
+
             stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tOR");
-            stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
-            stringBuilder.AppendLine("\t@sync_scope_is_new = 1");
-            stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine("AND (");
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone] = 1 ");
-            stringBuilder.AppendLine("\tOR");
-            stringBuilder.Append("\t([side].[sync_row_is_tombstone] = 0");
-
-            empty = " AND ";
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
-            {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]");
-                stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} is not null");
-            }
-            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
             stringBuilder.AppendLine(")");
 
             sqlCommand.CommandText = stringBuilder.ToString();
 
-            //if (this._filterParameters != null)
-            //{
-            //    foreach (SqlParameter _filterParameter in this._filterParameters)
-            //    {
-            //        sqlCommand.Parameters.Add(((ICloneable)_filterParameter).Clone());
-            //    }
-            //}
             return sqlCommand;
         }
-        public void CreateSelectIncrementalChanges()
+        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
-            CreateProcedureCommand(cmdWithoutFilter, commandName);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
+            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(null);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
-            if (this.Filters != null && this.Filters.Count > 0)
+            if (filter != null)
             {
-                this.Filters.ValidateColumnFilters(this.tableDescription);
-
-                var filtersName = this.Filters.Select(f => f.ColumnName);
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
-                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
-                CreateProcedureCommand(cmdWithFilter, commandName);
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
 
             }
 
         }
-        public string CreateSelectIncrementalChangesScriptText()
+        public async Task DropSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            StringBuilder sbSelecteChanges = new StringBuilder();
-
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
-            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(false);
-            sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithoutFilter, commandName));
-
-
-            if (this.Filters != null && this.Filters.Count > 0)
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters);
-                string name = "";
-                string sep = "";
-                
-                foreach (var c in this.Filters)
-                {
-                    string unquotedColumnName;
-                    if (!c.IsVirtual)
-                    {
-                        var columnFilter = this.tableDescription.Columns[c.ColumnName];
-
-                        if (columnFilter == null)
-                            throw new InvalidExpressionException(
-                                $"Column {c.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                        unquotedColumnName = new ObjectNameParser(columnFilter.ColumnName).FullUnquotedString;
-                    }
-                    else
-                    {
-                        unquotedColumnName = new ObjectNameParser(c.ColumnName).FullUnquotedString;
-                    }
-
-                    name += $"{unquotedColumnName}{sep}";
-                    sep = "_";
-                }
-
-                commandName = String.Format(commandName, name);
-                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(true);
-                sbSelecteChanges.AppendLine(CreateProcedureCommandScriptText(cmdWithFilter, commandName));
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            return sbSelecteChanges.ToString();
+
+            if (filter != null)
+            {
+                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
+                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+
+                using (var command = new SqlCommand(commandTextWithFilter, (SqlConnection)connection, (SqlTransaction)transaction))
+                {
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                }
+            }
         }
-        public void DropSelectIncrementalChanges()
+
+
+        //------------------------------------------------------------------
+        // Select initialized changes command
+        //------------------------------------------------------------------
+        protected virtual SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
 
-            try
+            var sqlCommand = new SqlCommand();
+            // Add filter parameters
+            if (filter != null)
+                this.CreateFilterParameters(sqlCommand, filter);
+
+            var stringBuilder = new StringBuilder("SELECT DISTINCT");
+            var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
+            for (var i = 0; i < columns.Count; i++)
             {
-                using (var command = new SqlCommand())
+                var mutableColumn = columns[i];
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.Append($"\t[base].{columnName}");
+
+                if (i < columns.Count - 1)
+                    stringBuilder.AppendLine(", ");
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+
+            if (filter != null)
+            {
+                // ----------------------------------
+                // Custom Joins
+                // ----------------------------------
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
+
+                // ----------------------------------
+                // Where filters on [side]
+                // ----------------------------------
+
+                var whereString = CreateFilterWhereSide(filter);
+                var customWhereString = CreateFilterCustomWheres(filter);
+
+                if (!string.IsNullOrEmpty(whereString) || !string.IsNullOrEmpty(customWhereString))
                 {
-                    if (!alreadyOpened)
-                        this.connection.Open();
+                    stringBuilder.AppendLine("WHERE");
 
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
+                    if (!string.IsNullOrEmpty(whereString))
+                        stringBuilder.AppendLine(whereString);
 
-                    var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+                    if (!string.IsNullOrEmpty(whereString) && !string.IsNullOrEmpty(customWhereString))
+                        stringBuilder.AppendLine("AND");
 
-                    command.CommandText = $"DROP PROCEDURE {commandName};";
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
+                    if (!string.IsNullOrEmpty(customWhereString))
+                        stringBuilder.AppendLine(customWhereString);
                 }
-
-                if (this.Filters != null && this.Filters.Count > 0)
-                {
-
-                    using (var command = new SqlCommand())
-                    {
-                        if (!alreadyOpened)
-                            this.connection.Open();
-
-                        if (this.transaction != null)
-                            command.Transaction = this.transaction;
-
-                        this.Filters.ValidateColumnFilters(this.tableDescription);
-
-                        var filtersName = this.Filters.Select(f => f.ColumnName);
-                        var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
-
-                        command.CommandText = $"DROP PROCEDURE {commandNameWithFilter};";
-                        command.Connection = this.connection;
-                        command.ExecuteNonQuery();
-
-                    }
-
-
-                }
-
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropBulkDelete : {ex}");
-                throw;
+            // ----------------------------------
 
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
 
-            }
+            sqlCommand.CommandText = stringBuilder.ToString();
 
+            return sqlCommand;
         }
-        public string DropSelectIncrementalChangesScriptText()
+
+        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges);
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(connection, transaction, null);
+            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
-            string dropProcedure = $"DROP PROCEDURE {commandName};";
-
-            if (this.Filters != null && this.Filters.Count > 0)
+            if (filter != null)
             {
+                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
+                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(connection, transaction, filter);
+                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
+            }
+        }
+        public async Task DropSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        {
+            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            var commandText = $"DROP PROCEDURE {commandName};";
 
-                using (var command = new SqlCommand())
+            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+
+            if (filter != null)
+            {
+                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
+                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+
+                using (var command = new SqlCommand(commandTextWithFilter, (SqlConnection)connection, (SqlTransaction)transaction))
                 {
-                    this.Filters.ValidateColumnFilters(this.tableDescription);
-
-                    var filtersName = this.Filters.Select(f => f.ColumnName);
-                    var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWitFilters, filtersName);
-
-                    dropProcedure += Environment.NewLine + $"DROP PROCEDURE {commandNameWithFilter};";
-
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 }
             }
-            return dropProcedure;
+
         }
     }
 }

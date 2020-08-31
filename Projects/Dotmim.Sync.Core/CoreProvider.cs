@@ -1,78 +1,71 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
-using Dotmim.Sync.Cache;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Log;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Data.Surrogate;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Runtime.Serialization;
 using System.Threading;
-using Dotmim.Sync.Serialization;
-using System.Diagnostics;
-using System.Text;
-using Dotmim.Sync.Messages;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
     /// <summary>
     /// Core provider : should be implemented by any server / client provider
     /// </summary>
-    public abstract partial class CoreProvider : IProvider
+    public abstract partial class CoreProvider
     {
-        private const string SYNC_CONF = "syncconf";
-
-        private bool syncInProgress;
-        private CancellationToken cancellationToken;
+        /// <summary>
+        /// Gets the reference to the orchestrator owner of this instance
+        /// </summary>
+        [JsonIgnore]
+        [IgnoreDataMember]
+        public BaseOrchestrator Orchestrator { get; internal set; }
 
         /// <summary>
-        /// Raise an event if the sync is outdated. 
-        /// Let the user choose if he wants to force or not
+        /// Connection is opened. this method is called before any interceptors
         /// </summary>
-        public event EventHandler<OutdatedEventArgs> SyncOutdated = null;
-
-        public event EventHandler<ProgressEventArgs> SyncProgress = null;
-        public event EventHandler<BeginSessionEventArgs> BeginSession = null;
-        public event EventHandler<EndSessionEventArgs> EndSession = null;
-        public event EventHandler<ScopeEventArgs> ScopeLoading = null;
-        public event EventHandler<ScopeEventArgs> ScopeSaved = null;
-        public event EventHandler<DatabaseApplyingEventArgs> DatabaseApplying = null;
-        public event EventHandler<DatabaseAppliedEventArgs> DatabaseApplied = null;
-        public event EventHandler<DatabaseTableApplyingEventArgs> DatabaseTableApplying = null;
-        public event EventHandler<DatabaseTableAppliedEventArgs> DatabaseTableApplied = null;
-        public event EventHandler<SchemaApplyingEventArgs> SchemaApplying = null;
-        public event EventHandler<SchemaAppliedEventArgs> SchemaApplied = null;
-        public event EventHandler<TableChangesSelectingEventArgs> TableChangesSelecting = null;
-        public event EventHandler<TableChangesSelectedEventArgs> TableChangesSelected = null;
-        public event EventHandler<TableChangesApplyingEventArgs> TableChangesApplying = null;
-        public event EventHandler<TableChangesAppliedEventArgs> TableChangesApplied = null;
+        public virtual void OnConnectionOpened(DbConnection connection) { }
 
         /// <summary>
-        /// Occurs when a conflict is raised.
+        /// Connection is closed. this method is called after all interceptors
         /// </summary>
-        public event EventHandler<ApplyChangeFailedEventArgs> ApplyChangedFailed = null;
+        public virtual void OnConnectionClosed(DbConnection connection) { }
 
+
+        /// <summary>
+        /// Gets or Sets options used during the sync
+        /// </summary>
+        [JsonIgnore]
+        [IgnoreDataMember]
+        public virtual SyncOptions Options { get; set; }
+
+   
         /// <summary>
         /// Create a new instance of the implemented Connection provider
         /// </summary>
         public abstract DbConnection CreateConnection();
 
+
         /// <summary>
-        /// Get a table builder helper. Need a complete table description (DmTable). Will then generate table, table tracking, stored proc and triggers
+        /// Get a database builder helper;
         /// </summary>
         /// <returns></returns>
-        public abstract DbBuilder GetDatabaseBuilder(DmTable tableDescription);
+        public abstract DbBuilder GetDatabaseBuilder();
+
+        /// <summary>
+        /// Get a table builder helper. Need a complete table description (SchemaTable). Will then generate table, table tracking, stored proc and triggers
+        /// </summary>
+        /// <returns></returns>
+        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup);
 
         /// <summary>
         /// Get a table manager, which can get informations directly from data source
         /// </summary>
-        public abstract DbManager GetDbManager(string tableName);
+        public abstract DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName);
 
         /// <summary>
         /// Create a Scope Builder, which can create scope table, and scope config
@@ -83,11 +76,6 @@ namespace Dotmim.Sync
         /// Gets or sets the metadata resolver (validating the columns definition from the data store)
         /// </summary>
         public abstract DbMetadata Metadata { get; set; }
-
-        /// <summary>
-        /// Get the cache manager. will store the configuration because we dont want to store it in database
-        /// </summary>
-        public abstract ICache CacheManager { get; set; }
 
         /// <summary>
         /// Get the provider type name
@@ -105,226 +93,59 @@ namespace Dotmim.Sync
         public abstract bool SupportBulkOperations { get; }
 
         /// <summary>
+        /// Gets a boolean indicating if the provider can use change tracking
+        /// </summary>
+        public virtual bool UseChangeTracking { get; } = false;
+
+        /// <summary>
         /// Gets a boolean indicating if the provider can be a server side provider
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
 
+ 
         /// <summary>
-        /// Try to raise a specific progress event
+        /// Let a chance to provider to enrich SyncExecption
         /// </summary>
-        private void TryRaiseProgressEvent<T>(T args, EventHandler<T> handler) where T : BaseProgressEventArgs
-        {
-            args.Action = ChangeApplicationAction.Continue;
+        public virtual void EnsureSyncException(SyncException syncException) { }
 
-            handler?.Invoke(this, args);
-
-            if (args.Action == ChangeApplicationAction.Rollback)
-                throw new RollbackException();
-
-            var props = new Dictionary<String, String>();
-
-            switch (args.Stage)
-            {
-                case SyncStage.None:
-                    break;
-                case SyncStage.BeginSession:
-                    this.TryRaiseProgressEvent(SyncStage.BeginSession, $"Begin session");
-                    break;
-                case SyncStage.ScopeLoading:
-                    props.Add("ScopeId", (args as ScopeEventArgs).ScopeInfo.Id.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.ScopeLoading, $"Loading scope", props);
-                    break;
-                case SyncStage.ScopeSaved:
-                    props.Add("ScopeId", (args as ScopeEventArgs).ScopeInfo.Id.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.ScopeLoading, $"Scope saved", props);
-                    break;
-                case SyncStage.SchemaApplying:
-                    this.TryRaiseProgressEvent(SyncStage.SchemaApplying, $"Applying configuration");
-                    break;
-                case SyncStage.SchemaApplied:
-                    this.TryRaiseProgressEvent(SyncStage.SchemaApplied, $"Configuration applied");
-                    break;
-                case SyncStage.DatabaseApplying:
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplying, $"Applying database schemas");
-                    break;
-                case SyncStage.DatabaseApplied:
-                    props.Add("Script", (args as DatabaseAppliedEventArgs).Script);
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplied, $"Database schemas applied", props);
-                    break;
-                case SyncStage.DatabaseTableApplying:
-                    props.Add("TableName", (args as DatabaseTableApplyingEventArgs).TableName);
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplying, $"Applying schema table", props);
-                    break;
-                case SyncStage.DatabaseTableApplied:
-                    props.Add("TableName", (args as DatabaseTableAppliedEventArgs).TableName);
-                    props.Add("Script", (args as DatabaseTableAppliedEventArgs).Script);
-                    this.TryRaiseProgressEvent(SyncStage.DatabaseApplied, $"Table schema applied", props);
-                    break;
-                case SyncStage.TableChangesSelecting:
-                    props.Add("TableName", (args as TableChangesSelectingEventArgs).TableName);
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesSelecting, $"Selecting changes", props);
-                    break;
-                case SyncStage.TableChangesSelected:
-                    props.Add("TableName", (args as TableChangesSelectedEventArgs).TableChangesSelected.TableName);
-                    props.Add("Deletes", (args as TableChangesSelectedEventArgs).TableChangesSelected.Deletes.ToString());
-                    props.Add("Inserts", (args as TableChangesSelectedEventArgs).TableChangesSelected.Inserts.ToString());
-                    props.Add("Updates", (args as TableChangesSelectedEventArgs).TableChangesSelected.Updates.ToString());
-                    props.Add("TotalChanges", (args as TableChangesSelectedEventArgs).TableChangesSelected.TotalChanges.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesSelected, $"Changes selected", props);
-                    break;
-                case SyncStage.TableChangesApplying:
-                    props.Add("TableName", (args as TableChangesApplyingEventArgs).TableName);
-                    props.Add("State", (args as TableChangesApplyingEventArgs).State.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesApplying, $"Applying changes", props);
-                    break;
-                case SyncStage.TableChangesApplied:
-                    props.Add("TableName", (args as TableChangesAppliedEventArgs).TableChangesApplied.TableName);
-                    props.Add("State", (args as TableChangesAppliedEventArgs).TableChangesApplied.State.ToString());
-                    props.Add("Applied", (args as TableChangesAppliedEventArgs).TableChangesApplied.Applied.ToString());
-                    props.Add("Failed", (args as TableChangesAppliedEventArgs).TableChangesApplied.Failed.ToString());
-                    this.TryRaiseProgressEvent(SyncStage.TableChangesApplied, $"Changes applied", props);
-                    break;
-                case SyncStage.EndSession:
-                    this.TryRaiseProgressEvent(SyncStage.EndSession, $"End session");
-                    break;
-                case SyncStage.CleanupMetadata:
-                    break;
-            }
-        }
 
         /// <summary>
-        /// Try to raise a generalist progress event
+        /// Let's a chance to retry on error if connection has been refused.
         /// </summary>
-        private void TryRaiseProgressEvent(SyncStage stage, String message, Dictionary<String, String> properties = null)
-        {
-            var progressEventArgs = new ProgressEventArgs(this.ProviderTypeName, stage, message);
-
-            if (properties != null)
-                progressEventArgs.Properties = properties;
-
-            SyncProgress?.Invoke(this, progressEventArgs);
-
-            if (progressEventArgs.Action == ChangeApplicationAction.Rollback)
-                throw new RollbackException();
-        }
-
-        /// <summary>
-        /// Called by the  to indicate that a 
-        /// synchronization session has started.
-        /// </summary>
-        public virtual Task<(SyncContext, SyncConfiguration)> BeginSessionAsync(SyncContext context, MessageBeginSession message)
-        {
-            try
-            {
-                lock (this)
-                {
-                    if (this.syncInProgress)
-                        throw new InProgressException("Synchronization already in progress");
-
-                    this.syncInProgress = true;
-                }
-
-                // Set stage
-                context.SyncStage = SyncStage.BeginSession;
-
-                // Event progress
-                // TODO : First step to edit the configuration
-                var progressEventArgs = new BeginSessionEventArgs(this.ProviderTypeName, context.SyncStage);
-                this.TryRaiseProgressEvent(progressEventArgs, this.BeginSession);
-
-                return Task.FromResult((context, message.SyncConfiguration));
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.BeginSession, this.ProviderTypeName);
-            }
-
-            
-        }
-
-        /// <summary>
-        /// Called when the sync is over
-        /// </summary>
-        public virtual Task<SyncContext> EndSessionAsync(SyncContext context)
-        {
-            // already ended
-            lock (this)
-            {
-                if (!syncInProgress)
-                    return Task.FromResult(context);
-            }
-
-            context.SyncStage = SyncStage.EndSession;
-
-            // Event progress
-            this.TryRaiseProgressEvent(
-                new EndSessionEventArgs(this.ProviderTypeName, context.SyncStage), this.EndSession);
-
-            lock (this)
-            {
-                this.syncInProgress = false;
-            }
-
-            return Task.FromResult(context);
-        }
+        public virtual bool ShouldRetryOn(Exception exception) => false;
 
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual async Task<(SyncContext, long)> GetLocalTimestampAsync(SyncContext context, MessageTimestamp message)
+        public virtual async Task<long> GetLocalTimestampAsync(SyncContext context,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            // Open the connection
-            using (var connection = this.CreateConnection())
-            {
-                try
-                {
-                    await connection.OpenAsync();
-                    var scopeBuilder = this.GetScopeBuilder();
-                    var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(message.ScopeInfoTableName, connection);
-                    var localTime = scopeInfoBuilder.GetLocalTimestamp();
-                    return (context, localTime);
-                }
-                finally
-                {
-                    if (connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-            }
+            var scopeBuilder = this.GetScopeBuilder();
+            
+            // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
+            // in client database is not the DefaultScopeInfoTableName
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
+
+            var localTime = await scopeInfoBuilder.GetLocalTimestampAsync(connection, transaction).ConfigureAwait(false);
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetLocalTimestamp, new { Timestamp = localTime });
+
+            return localTime;
         }
 
-        /// <summary>
-        /// TODO : Manager le fait qu'un scope peut être out dater, car il n'a pas synchronisé depuis assez longtemps
-        /// </summary>
-        internal virtual bool IsRemoteOutdated()
+        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
+                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            //var lastCleanupTimeStamp = 0; // A établir comment récupérer la dernière date de clean up des metadatas
-            //return (ScopeInfo.LastTimestamp < lastCleanupTimeStamp);
+            // get database builder
+            var databaseBuilder = this.GetDatabaseBuilder();
 
-            return false;
+            var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.GetHello, new { hello.DatabaseName, hello.Version });
+
+            return (context, hello.DatabaseName, hello.Version);
         }
 
-        /// <summary>
-        /// Add metadata columns
-        /// </summary>
-        private void AddTrackingColumns<T>(DmTable table, string name)
-        {
-            if (!table.Columns.Contains(name))
-            {
-                var dc = new DmColumn<T>(name) { DefaultValue = default(T) };
-                table.Columns.Add(dc);
-            }
-        }
-
-        private void RemoveTrackingColumns(DmTable changes, string name)
-        {
-            if (changes.Columns.Contains(name))
-                changes.Columns.Remove(name);
-        }
-
-
-        public void SetCancellationToken(CancellationToken token)
-        {
-            this.cancellationToken = token;
-        }
     }
 }

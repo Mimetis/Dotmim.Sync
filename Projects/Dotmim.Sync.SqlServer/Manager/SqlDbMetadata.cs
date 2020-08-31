@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using System.Linq;
-using Dotmim.Sync.Data;
+
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
@@ -77,7 +77,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case "xml":
                     return DbType.String;
             }
-            throw new Exception($"this type name {typeName} is not supported");
+            throw new Exception($"this type {typeName} is not supported");
         }
 
         /// <summary>
@@ -151,9 +151,9 @@ namespace Dotmim.Sync.SqlServer.Manager
         /// </summary>
         public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
-            SqlDbType sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode, maxLength);
+            var sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode, maxLength);
 
-            Int32 iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
+            var iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
 
             // special length for nchar and nvarchar
             if ((sqlDbType == SqlDbType.NChar || sqlDbType == SqlDbType.NVarChar) && iMaxLength > 0)
@@ -295,26 +295,20 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (dbType)
             {
                 case DbType.AnsiString:
-                    if (maxLength > 0 && maxLength < 8000)
+                    if (maxLength > 0 && maxLength <= 8000)
                         return $"({maxLength})";
                     else
                         return $"(MAX)";
                 case DbType.String:
-                    if (maxLength > 0 && maxLength < 4000)
+                    if (maxLength > 0 && maxLength <= 4000)
                         return $"({maxLength})";
                     else
                         return $"(MAX)";
                 case DbType.AnsiStringFixedLength:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
-                case DbType.StringFixedLength:
                 case DbType.Binary:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
+                    return $"({Math.Min(8000, maxLength)})";
+                case DbType.StringFixedLength:
+                    return $"({Math.Min(4000, maxLength)})";
                 case DbType.Decimal:
                 case DbType.Double:
                 case DbType.Single:
@@ -332,14 +326,14 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         }
 
-        private static (byte p, byte s) CoercePrecisionAndScale(byte precision, byte scale)
+        private static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
         {
-            byte p = precision;
-            byte s = scale;
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
             if (p > PRECISION_MAX)
             {
                 p = PRECISION_MAX;
-                s = SCALE_MAX;
+                //s = SCALE_MAX;
             }
 
             if (s > SCALE_MAX)
@@ -364,28 +358,21 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (sqlDbType)
             {
                 case SqlDbType.NVarChar:
-                    if (maxLength > 0 && maxLength < 4000)
+                    if (maxLength > 0 && maxLength <= 4000)
                         return $"({maxLength})";
                     else
                         return "(MAX)";
                 case SqlDbType.VarBinary:
                 case SqlDbType.VarChar:
-                    if (maxLength > 0 && maxLength < 8000)
+                    if (maxLength > 0 && maxLength <= 8000)
                         return $"({maxLength})";
                     else
                         return "(MAX)";
                 case SqlDbType.NChar:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
+                    return $"({Math.Min(4000, maxLength)})";
                 case SqlDbType.Char:
                 case SqlDbType.Binary:
-                    if (maxLength > 0 && maxLength < 4000)
-                        return $"({maxLength})";
-                    else
-                        return string.Empty;
-
+                    return $"({Math.Min(8000, maxLength)})";
                 case SqlDbType.Decimal:
                     var (p, s) = CoercePrecisionAndScale(precision, scale);
 
@@ -528,6 +515,20 @@ namespace Dotmim.Sync.SqlServer.Manager
             throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
         }
 
+        public override bool SupportScale(string typeName)
+        {
+            switch (typeName.ToLowerInvariant())
+            {
+                case "decimal":
+                case "real":
+                case "float":
+                case "numeric":
+                case "money":
+                case "smallmoney":
+                    return true;
+            }
+            return false;
+        }
         public override bool IsNumericType(string typeName)
         {
             switch (typeName.ToLowerInvariant())
@@ -540,6 +541,8 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case "real":
                 case "smallint":
                 case "tinyint":
+                case "money":
+                case "smallmoney":
                     return true;
             }
             return false;
@@ -559,7 +562,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return false;
         }
 
-        public override bool IsValid(DmColumn columnDefinition)
+        public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
@@ -596,24 +599,15 @@ namespace Dotmim.Sync.SqlServer.Manager
             return false;
         }
 
-        public override bool SupportScale(string typeName)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "decimal":
-                case "numeric":
-                    return true;
-            }
-            return false;
-        }
+       
 
-        public override bool ValidateIsReadonly(DmColumn columnDefinition)
+        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
         {
             return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" ||
                    columnDefinition.IsCompute;
         }
 
-        public override byte ValidatePrecision(DmColumn columnDefinition)
+        public override byte ValidatePrecision(SyncColumn columnDefinition)
         {
             var (p, s) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
             
@@ -674,7 +668,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             return 0;
         }
 
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(DmColumn columnDefinition)
+        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
         {
             return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
         }

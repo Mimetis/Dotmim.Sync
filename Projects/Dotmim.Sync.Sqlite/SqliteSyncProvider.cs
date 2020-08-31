@@ -1,18 +1,19 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Cache;
-using Dotmim.Sync.Data;
 using Dotmim.Sync.Manager;
 using System;
 using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using System.IO;
+using Dotmim.Sync.Sqlite.Builders;
+using SQLitePCL;
 
 namespace Dotmim.Sync.Sqlite
 {
 
     public class SqliteSyncProvider : CoreProvider
     {
-        private ICache cacheManager;
+
+       
         private string filePath;
         private DbMetadata dbMetadata;
         private static String providerType;
@@ -32,21 +33,7 @@ namespace Dotmim.Sync.Sqlite
 
             }
         }
-        public override ICache CacheManager
-        {
-            get
-            {
-                if (cacheManager == null)
-                    cacheManager = new InMemoryCache();
-
-                return cacheManager;
-            }
-            set
-            {
-                cacheManager = value;
-
-            }
-        }
+     
 
         /// <summary>
         /// Sqlite does not support Bulk operations
@@ -60,13 +47,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public override bool CanBeServerProvider => false;
 
-        public override string ProviderTypeName
-        {
-            get
-            {
-                return ProviderType;
-            }
-        }
+        public override string ProviderTypeName => ProviderType;
 
         public static string ProviderType
         {
@@ -85,7 +66,31 @@ namespace Dotmim.Sync.Sqlite
         public SqliteSyncProvider() : base()
         {
         }
-        public SqliteSyncProvider(string filePath) : base()
+
+        /// <summary>
+        /// Override Options for settings special PRAGMA stuff
+        /// </summary>
+        public override SyncOptions Options
+        {
+            get
+            {
+                return base.Options;
+            }
+            set
+            {
+                base.Options = value;
+
+                // Affect options
+                var builder = new SqliteConnectionStringBuilder(this.ConnectionString)
+                {
+                    // overriding connectionstring
+                    ForeignKeys = !this.Options.DisableConstraintsOnApplyChanges
+                };
+                this.ConnectionString = builder.ToString();
+            }
+        }
+
+        public SqliteSyncProvider(string filePath) : this()
         {
             this.filePath = filePath;
             var builder = new SqliteConnectionStringBuilder();
@@ -111,7 +116,7 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public SqliteSyncProvider(FileInfo fileInfo) : base()
+        public SqliteSyncProvider(FileInfo fileInfo) : this()
         {
             this.filePath = fileInfo.FullName;
             var builder = new SqliteConnectionStringBuilder { DataSource = filePath };
@@ -121,22 +126,51 @@ namespace Dotmim.Sync.Sqlite
 
 
 
-        public SqliteSyncProvider(SqliteConnectionStringBuilder sQLiteConnectionStringBuilder) : base()
+        public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder) : this()
         {
-            if (String.IsNullOrEmpty(sQLiteConnectionStringBuilder.DataSource))
+            if (String.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
                 throw new Exception("You have to provide at least a DataSource property to be able to connect to your SQlite database.");
 
-            this.filePath = sQLiteConnectionStringBuilder.DataSource;
+            this.filePath = sqliteConnectionStringBuilder.DataSource;
 
-            this.ConnectionString = sQLiteConnectionStringBuilder.ConnectionString;
+            this.ConnectionString = sqliteConnectionStringBuilder.ConnectionString;
         }
 
-        public override DbConnection CreateConnection() => new SqliteConnection(this.ConnectionString);
+        public override void EnsureSyncException(SyncException syncException)
+        {
+            if (!string.IsNullOrEmpty(this.ConnectionString))
+            {
+                var builder = new SqliteConnectionStringBuilder(this.ConnectionString);
 
-        public override DbBuilder GetDatabaseBuilder(DmTable tableDescription) => new SqliteBuilder(tableDescription);
+                syncException.DataSource = builder.DataSource;
+            }
 
-        public override DbManager GetDbManager(string tableName) => new SqliteManager(tableName);
+            var sqliteException = syncException.InnerException as SqliteException;
+
+            if (sqliteException == null)
+                return;
+
+            syncException.Number = sqliteException.SqliteErrorCode;
+            
+
+            return;
+        }
+
+
+        public override DbConnection CreateConnection()
+        {
+            var sqliteConnection = new SqliteConnection(this.ConnectionString);
+            return sqliteConnection;
+        }
+
+
+
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new SqliteTableBuilder(tableDescription, setup);
+
+        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqliteManager(tableName);
 
         public override DbScopeBuilder GetScopeBuilder() => new SqliteScopeBuilder();
+
+        public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
     }
 }

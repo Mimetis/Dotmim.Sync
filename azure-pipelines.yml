@@ -1,129 +1,148 @@
 jobs:
+  - job: testssqlserver
+    displayName: "Tests Sql Server"
 
-- job: Tests
+    pool:
+      # get an Ubuntu image to be able to get the light SQL container
+      vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
 
-  pool:
-    # get an Ubuntu image to be able to get the light SQL container
-    vmImage: 'Ubuntu 16.04' # 'VS2017-Win2016'
+    variables:
+      solution: "**/*.sln"
+      buildPlatform: "Any CPU"
+      buildConfiguration: "Release"
 
-  variables: 
-     solution: '**/*.sln' 
-     buildPlatform: 'Any CPU' 
-     buildConfiguration: 'Release'
+    steps:
+      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+        displayName: "Run SQL 2017 on Linux container"
 
-  steps:
- 
-  # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-  - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-    displayName: 'Run MySql on Linux container'
-    
-  - script: echo "##vso[task.setvariable variable=mySQLIP;isOutput=true]$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" mysql)"
-    name: setvarStep
-    displayName: '[obsolete] Get Ip from MySql container'
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx
+        name: standalonetests
+        displayName: "Standalone Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
 
-  - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-    displayName: 'Run SQL 2017 on Linux container'
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx
+        name: unittests
+        displayName: "Unit Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
 
-  #- script: |
-  #    sqlcmd -S localhost -U sa -P 'Password12!' -Q 'select @@VERSION'
-  #    exit
-  #  continueOnError: 'true'
-  #  displayName: 'Run SQLCMD, Continue if any error'
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServer --logger trx
+        name: sqlservertcptests
+        displayName: "SQL Server Integration Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
 
+      - task: PublishTestResults@2
+        inputs:
+          testRunner: VSTest
+          testResultsFiles: "**/*.trx"
 
-  # Dont need anymore to pass the MySQL Ip Address, just let it here for memory
-  # --logger trx;logfilename=TEST.xml : Unexplained arg to publish tests resuls
+  - job: testsmysql
+    displayName: "Tests MySql"
 
-  - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --logger trx
-    name: dotnettests
-    displayName: 'Tests'
-    env: 
-      'MYSQLIP' : $(setvarStep.mySQLIP)
-      'AZUREDEV' : 'true'
+    pool:
+      # get an Ubuntu image to be able to get the light SQL container
+      vmImage: "ubuntu-latest" # 'VS2017-Win2016'
 
-  - task: PublishTestResults@2
-    inputs:
-      testRunner: VSTest
-      testResultsFiles: '**/*.trx'
+    variables:
+      solution: "**/*.sln"
+      buildPlatform: "Any CPU"
+      buildConfiguration: "Release"
 
-- job: Beta
+    steps:
+      # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+        displayName: "Run MySql on Linux container"
 
-  # dependsOn: Tests
-  # condition: succeeded('Tests')
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySql --logger trx
+        name: mysqlintegrationtests
+        displayName: "MySql  Integration Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
 
-  # Pool on a VS 2017 image to be able to compile for .Net 4.6
-  pool:
-    vmImage: 'VS2017-Win2016'
+      - task: PublishTestResults@2
+        inputs:
+          testRunner: VSTest
+          testResultsFiles: "**/*.trx"
 
-  variables: 
-     buildConfiguration: 'Release' 
-     buildBetaId: 'beta-'
-     artifactName: 'drop'
+  - job: Beta
 
-  steps:
+    # dependsOn: Tests
+    # condition: succeeded('Tests')
 
-  - bash: |
-      build=$(Build.BuildId)
-      lenbuild=${#build}
-      if [ $lenbuild -eq 1 ]; then
-        build="000$build"
-      elif [ $lenbuild -eq 2 ]; then
-        build="00$build"
-      elif [ $lenbuild -eq 3 ]; then
-        build="0$build"
-      fi
-      echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$build"
+    # Pool on a VS 2017 image to be able to compile for .Net 4.6
+    pool:
+      vmImage: "VS2017-Win2016"
 
-  - script: |
-      echo $(buildIdString)
-      echo $(buildBetaId)
-      dotnet --version
-    displayName: Get dotnet version
+    variables:
+      buildConfiguration: "Release"
+      buildBetaId: "beta-"
+      artifactName: "drop"
 
+    steps:
+      - bash: |
+          build=$(Build.BuildId)
+          lenbuild=${#build}
+          if [ $lenbuild -eq 1 ]; then
+            build="000$build"
+          elif [ $lenbuild -eq 2 ]; then
+            build="00$build"
+          elif [ $lenbuild -eq 3 ]; then
+            build="0$build"
+          fi
+          echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$build"
 
-  - script: | 
-     dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId) 
-     dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --version-suffix $(buildBetaId) 
-     dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
-     dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
-     dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId) 
-     dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId) 
-     dotnet build Projects/dotnet-sync/dotnet-sync.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/dotnet-sync --version-suffix $(buildBetaId) 
-    displayName: 'Compile binaries and get beta nuget packages'      
+      - script: |
+          echo $(buildIdString)
+          echo $(buildBetaId)
+          dotnet --version
+        displayName: Get dotnet version
 
-  # Publish Build Artifacts
-  - task: PublishBuildArtifacts@1
-    inputs:
-      artifactName: $(artifactName)
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId) 
+        displayName: "Compile binaries and get beta nuget packages"
 
-- job: Release
+      # Publish Build Artifacts
+      - task: PublishBuildArtifacts@1
+        inputs:
+          artifactName: $(artifactName)
 
-  # dependsOn: Tests
-  # condition: succeeded('Tests')
+  - job: Release
 
-  # Pool on a VS 2017 image to be able to compile for .Net 4.6
-  pool:
-    vmImage: 'VS2017-Win2016'
+    # dependsOn: Tests
+    # condition: succeeded('Tests')
 
-  variables: 
-     buildConfiguration: 'Release' 
-     artifactName: 'release'
+    # Pool on a VS 2017 image to be able to compile for .Net 4.6
+    pool:
+      vmImage: "VS2017-Win2016"
 
-  steps:
+    variables:
+      buildConfiguration: "Release"
+      artifactName: "release"
 
-  - script: | 
-     dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core 
-     dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer 
-     dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite 
-     dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql 
-     dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client 
-     dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server 
-     dotnet build Projects/dotnet-sync/dotnet-sync.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/dotnet-sync 
-    displayName: 'Compile binaries and get release nuget packages'      
+    steps:
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core 
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer 
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql 
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite 
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client 
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server 
+        displayName: "Compile binaries and get release nuget packages"
 
-  # Publish Build Artifacts
-  - task: PublishBuildArtifacts@1
-    inputs:
-      artifactName: $(artifactName)
-
-
+      # Publish Build Artifacts
+      - task: PublishBuildArtifacts@1
+        inputs:
+          artifactName: $(artifactName)

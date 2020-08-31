@@ -1,8 +1,11 @@
-using System;
-using System.Linq;
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using System;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Linq;
 
 namespace Dotmim.Sync.Tests.Models
 {
@@ -12,24 +15,20 @@ namespace Dotmim.Sync.Tests.Models
     {
         internal bool useSchema = false;
         internal bool useSeeding = false;
-        public ProviderType ProviderType { get; }
-        public string ConnectionString { get; }
+        public ProviderType ProviderType { get; set; }
+        public string ConnectionString { get; set; }
 
-        public AdventureWorksContext(ProviderType providerType, string connectionString, bool fallbackUseSchema = true, bool useSeeding = true) : this()
+        private DbConnection Connection { get; }
+
+        public static Guid CustomerIdForFilter = Guid.NewGuid();
+
+        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, CoreProvider provider) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
         {
-            ProviderType = providerType;
-            ConnectionString = connectionString;
+            this.ProviderType = t.ProviderType;
+            this.ConnectionString = HelperDatabase.GetConnectionString(t.ProviderType, t.DatabaseName);
             this.useSeeding = useSeeding;
-            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
-        }
-        public AdventureWorksContext(ProviderRun providerRun, bool fallbackUseSchema = true, bool useSeeding = true) : this()
-        {
+            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
 
-            ProviderType = providerRun.ClientProviderType;
-            ConnectionString = providerRun.ConnectionString;
-
-            this.useSchema = ProviderType == ProviderType.Sql && fallbackUseSchema;
-            this.useSeeding = useSeeding;
         }
 
         public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options)
@@ -45,16 +44,25 @@ namespace Dotmim.Sync.Tests.Models
         {
             if (!optionsBuilder.IsConfigured)
             {
-                switch (ProviderType)
+                switch (this.ProviderType)
                 {
                     case ProviderType.Sql:
-                        optionsBuilder.UseSqlServer(ConnectionString);
+                        if (this.Connection != null)
+                            optionsBuilder.UseSqlServer(this.Connection, options => options.EnableRetryOnFailure(5));
+                        else
+                            optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.MySql:
-                        optionsBuilder.UseMySql(ConnectionString);
+                        if (this.Connection != null)
+                            optionsBuilder.UseMySql(this.Connection, options => options.EnableRetryOnFailure(5));
+                        else
+                            optionsBuilder.UseMySql(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.Sqlite:
-                        optionsBuilder.UseSqlite(ConnectionString);
+                        if (this.Connection != null)
+                            optionsBuilder.UseSqlite(this.Connection);
+                        else
+                            optionsBuilder.UseSqlite(this.ConnectionString);
                         break;
                 }
             }
@@ -81,9 +89,11 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<PostTag> PostTag { get; set; }
         public virtual DbSet<Tags> Tags { get; set; }
         public virtual DbSet<PriceList> PricesList { get; set; }
+        public virtual DbSet<PriceListDetail> PricesListDetail { get; set; }
+        public virtual DbSet<PriceListCategory> PricesListCategory { get; set; }
 
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Address>(entity =>
             {
@@ -97,17 +107,14 @@ namespace Dotmim.Sync.Tests.Models
                     .IsRequired();
 
                 entity.Property(e => e.City)
-                    .IsRequired()
                     .HasMaxLength(30);
 
                 entity.Property(e => e.CountryRegion)
-                    .IsRequired()
                     .HasMaxLength(50);
 
                 entity.Property(e => e.ModifiedDate)
                     .HasColumnType("datetime")
-                    .ValueGeneratedOnAdd()
-                    .HasDefaultValue(DateTime.Now);
+                    .ValueGeneratedOnAdd();
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
@@ -115,7 +122,6 @@ namespace Dotmim.Sync.Tests.Models
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.PostalCode)
-                    .IsRequired()
                     .IsUnicode()
                     .HasMaxLength(15);
 
@@ -127,7 +133,6 @@ namespace Dotmim.Sync.Tests.Models
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
 
                 entity.Property(e => e.StateProvince)
-                    .IsRequired()
                     .HasMaxLength(50);
             });
 
@@ -156,6 +161,10 @@ namespace Dotmim.Sync.Tests.Models
                     .IsRequired()
                     .HasMaxLength(50);
 
+                // Creating a column with space in it
+                entity.Property(e => e.AttributeWithSpace)
+                    .HasColumnName("Attribute With Space");
+
                 entity.Property(e => e.MiddleName).HasMaxLength(50);
 
                 entity.Property(e => e.ModifiedDate)
@@ -168,12 +177,10 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.Property(e => e.PasswordHash)
-                    .IsRequired()
                     .HasMaxLength(128)
                     .IsUnicode(false);
 
                 entity.Property(e => e.PasswordSalt)
-                    .IsRequired()
                     .HasMaxLength(10)
                     .IsUnicode(false);
 
@@ -320,7 +327,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<Product>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("Product", "SalesLT");
 
                 entity.HasKey(e => e.ProductId);
@@ -358,12 +365,11 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ProductCategoryId)
                     .HasColumnName("ProductCategoryID")
-                    .HasMaxLength(6);
+                    .HasMaxLength(12);
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
 
                 entity.Property(e => e.ProductNumber)
-                    .IsRequired()
                     .HasMaxLength(25);
 
                 entity.Property(e => e.Rowguid)
@@ -396,8 +402,11 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<ProductCategory>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("ProductCategory", "SalesLT");
+
+                entity.HasKey(e => e.ProductCategoryId);
+
 
                 entity.HasIndex(e => e.Name)
                     .HasName("AK_ProductCategory_Name")
@@ -405,7 +414,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ProductCategoryId)
                     .HasColumnName("ProductCategoryID")
-                    .HasMaxLength(6)
+                    .HasMaxLength(12)
                     .ValueGeneratedNever();
 
                 entity.Property(e => e.ModifiedDate)
@@ -423,10 +432,15 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ParentProductCategoryId)
                     .HasColumnName("ParentProductCategoryID")
-                    .HasMaxLength(6);
+                    .HasMaxLength(12);
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
+
+                // Creating a column with space in it, and a schema on the table
+                entity.Property(e => e.AttributeWithSpace)
+                    .HasColumnName("Attribute With Space");
+
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
@@ -439,7 +453,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<ProductModel>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
@@ -448,8 +462,8 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
 
-                if (this.ProviderType == ProviderType.Sql)
-                    entity.Property(e => e.CatalogDescription).HasColumnType("xml");
+                //if (this.ProviderType == ProviderType.Sql)
+                //    entity.Property(e => e.CatalogDescription).HasColumnType("xml");
 
                 entity.Property(e => e.ModifiedDate)
                     .HasColumnType("datetime");
@@ -472,7 +486,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<SalesOrderDetail>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("SalesOrderDetail", "SalesLT");
 
                 entity.HasKey(e => new { e.SalesOrderDetailId });
@@ -526,7 +540,7 @@ namespace Dotmim.Sync.Tests.Models
 
             modelBuilder.Entity<SalesOrderHeader>(entity =>
             {
-                if (useSchema)
+                if (this.useSchema)
                     entity.ToTable("SalesOrderHeader", "SalesLT");
 
                 entity.HasKey(e => e.SalesOrderId);
@@ -662,7 +676,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 // since mysql ef provider does not support Object as type in a property
                 // just ignore it for this provider
-                if (this.ProviderType == ProviderType.MySql)
+                if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.Sqlite)
                     entity.Ignore(e => e.Value);
                 else
                     entity.Property(e => e.Value).HasColumnType("sql_variant");
@@ -707,6 +721,13 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasOne(d => d.Category)
                     .WithMany(c => c.Details);
 
+                // Adding a compute column
+                if (this.ProviderType != ProviderType.Sqlite)
+                {
+                    entity.Property(d => d.Total)
+                        .HasComputedColumnSql("Amount - Discount");
+                }
+
                 entity.Property(d => d.ProductId)
                     .IsRequired();
 
@@ -745,27 +766,27 @@ namespace Dotmim.Sync.Tests.Models
         protected void OnSeeding(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Address>().HasData(
-                new Address { AddressId = 1, AddressLine1 = "8713 Yosemite Ct.", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
-                new Address { AddressId = 2, AddressLine1 = "1318 Lasalle Street", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
-                new Address { AddressId = 3, AddressLine1 = "9178 Jumping St.", City = "Dallas", StateProvince = "Texas", CountryRegion = "United States", PostalCode = "75201" },
-                new Address { AddressId = 4, AddressLine1 = "9228 Via Del Sol", City = "Phoenix", StateProvince = "Arizona", CountryRegion = "United States", PostalCode = "85004" },
-                new Address { AddressId = 5, AddressLine1 = "26910 Indela Road", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-                new Address { AddressId = 6, AddressLine1 = "2681 Eagle Peak", City = "Bellevue", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98004" },
-                new Address { AddressId = 7, AddressLine1 = "7943 Walnut Ave", City = "Renton", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98055" },
-                new Address { AddressId = 8, AddressLine1 = "6388 Lake City Way", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "V5A 3A6" },
-                new Address { AddressId = 9, AddressLine1 = "52560 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
-                new Address { AddressId = 10, AddressLine1 = "22580 Free Street", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
-                new Address { AddressId = 11, AddressLine1 = "2575 Bloor Street East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
-                new Address { AddressId = 12, AddressLine1 = "Station E", City = "Chalk Riber", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "K0J 1J0" },
-                new Address { AddressId = 13, AddressLine1 = "575 Rue St Amable", City = "Quebec", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "G1R" },
-                new Address { AddressId = 14, AddressLine1 = "2512-4th Ave Sw", City = "Calgary", StateProvince = "Alberta", CountryRegion = "Canada", PostalCode = "T2P 2G8" },
-                new Address { AddressId = 15, AddressLine1 = "55 Lakeshore Blvd East", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
-                new Address { AddressId = 16, AddressLine1 = "6333 Cote Vertu", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-                new Address { AddressId = 17, AddressLine1 = "3255 Front Street West", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
-                new Address { AddressId = 18, AddressLine1 = "2550 Signet Drive", City = "Weston", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H7" },
-                new Address { AddressId = 19, AddressLine1 = "6777 Kingsway", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H8" },
-                new Address { AddressId = 20, AddressLine1 = "5250-505 Burning St", City = "Vancouver", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H9" },
-                new Address { AddressId = 21, AddressLine1 = "600 Slater Street", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
+                new Address { AddressId = 1, AddressLine1 = "8713 Yosemite Ct.", AddressLine2 = "Appt 1", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
+                new Address { AddressId = 2, AddressLine1 = "1318 Lasalle Street", AddressLine2 = "Appt 2", City = "Bothell", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98011" },
+                new Address { AddressId = 3, AddressLine1 = "9178 Jumping St.", AddressLine2 = "Appt 3", City = "Dallas", StateProvince = "Texas", CountryRegion = "United States", PostalCode = "75201" },
+                new Address { AddressId = 4, AddressLine1 = "9228 Via Del Sol", AddressLine2 = "Appt 4", City = "Phoenix", StateProvince = "Arizona", CountryRegion = "United States", PostalCode = "85004" },
+                new Address { AddressId = 5, AddressLine1 = "26910 Indela Road", AddressLine2 = "Appt 5", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 6, AddressLine1 = "2681 Eagle Peak", AddressLine2 = "Appt 6", City = "Bellevue", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98004" },
+                new Address { AddressId = 7, AddressLine1 = "7943 Walnut Ave", AddressLine2 = "Appt 7", City = "Renton", StateProvince = "Washington", CountryRegion = "United States", PostalCode = "98055" },
+                new Address { AddressId = 8, AddressLine1 = "6388 Lake City Way", AddressLine2 = "Appt 8", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "V5A 3A6" },
+                new Address { AddressId = 9, AddressLine1 = "52560 Free Street", AddressLine2 = "Appt 9", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
+                new Address { AddressId = 10, AddressLine1 = "22580 Free Street", AddressLine2 = "Appt 10", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V7" },
+                new Address { AddressId = 11, AddressLine1 = "2575 Bloor Street East", AddressLine2 = "Appt 11", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
+                new Address { AddressId = 12, AddressLine1 = "Station E", AddressLine2 = "Appt 12", City = "Chalk Riber", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "K0J 1J0" },
+                new Address { AddressId = 13, AddressLine1 = "575 Rue St Amable", AddressLine2 = "Appt 13", City = "Quebec", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "G1R" },
+                new Address { AddressId = 14, AddressLine1 = "2512-4th Ave Sw", AddressLine2 = "Appt 14", City = "Calgary", StateProvince = "Alberta", CountryRegion = "Canada", PostalCode = "T2P 2G8" },
+                new Address { AddressId = 15, AddressLine1 = "55 Lakeshore Blvd East", AddressLine2 = "Appt 15", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M4B 1V6" },
+                new Address { AddressId = 16, AddressLine1 = "6333 Cote Vertu", AddressLine2 = "Appt 16", City = "Montreal", StateProvince = "Quebec", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 17, AddressLine1 = "3255 Front Street West", AddressLine2 = "Appt 17", City = "Toronto", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H5" },
+                new Address { AddressId = 18, AddressLine1 = "2550 Signet Drive", AddressLine2 = "Appt 18", City = "Weston", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "H1Y 2H7" },
+                new Address { AddressId = 19, AddressLine1 = "6777 Kingsway", AddressLine2 = "Appt 19", City = "Burnaby", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H8" },
+                new Address { AddressId = 20, AddressLine1 = "5250-505 Burning St", AddressLine2 = "Appt 20", City = "Vancouver", StateProvince = "British Columbia", CountryRegion = "Canada", PostalCode = "H1Y 2H9" },
+                new Address { AddressId = 21, AddressLine1 = "600 Slater Street", AddressLine2 = "Appt 21", City = "Ottawa", StateProvince = "Ontario", CountryRegion = "Canada", PostalCode = "M9V 4W3" }
             );
 
             modelBuilder.Entity<Employee>().HasData(
@@ -774,7 +795,7 @@ namespace Dotmim.Sync.Tests.Models
                 new Employee { EmployeeId = 3, FirstName = "Jillian", LastName = "Jon" }
             );
 
-            Guid customerId1 = Guid.NewGuid();
+            Guid customerId1 = CustomerIdForFilter;
             Guid customerId2 = Guid.NewGuid();
             Guid customerId3 = Guid.NewGuid();
             Guid customerId4 = Guid.NewGuid();
@@ -850,7 +871,27 @@ namespace Dotmim.Sync.Tests.Models
             var p2 = Guid.NewGuid();
             var p3 = Guid.NewGuid();
 
-            var products = new[] {
+            var products = new List<Product>();
+            //for (var i = 0; i < 2000; i++)
+            //{
+            //    products.Add(
+            //        new Product
+            //        {
+            //            ProductId = Guid.NewGuid(),
+            //            Name = $"Generated N° {i.ToString()}",
+            //            ProductNumber = $"FR-{i.ToString()}",
+            //            Color = "Black",
+            //            StandardCost = 1059.3100M,
+            //            ListPrice = 1431.5000M,
+            //            Size = "58",
+            //            Weight = 1016.04M,
+            //            ProductCategoryId = "ROADFR",
+            //            ProductModelId = 6
+            //        }
+            //    );
+            //}
+
+            products.AddRange(new[] {
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Road Frame - Black, 58", ProductNumber = "FR-R92B-58", Color = "Black", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
                 new Product { ProductId = p1, Name = "HL Road Frame - Red, 58", ProductNumber = "FR-R92R-58", Color = "Red", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
                 new Product { ProductId = p2, Name = "Road-150 Red, 62", ProductNumber = "BK-R93R-62", Color = "Red", StandardCost = 2171.2942M, ListPrice = 3578.2700M, Size = "62", Weight = 6803.85M, ProductCategoryId = "ROADB", ProductModelId = 25 },
@@ -865,7 +906,8 @@ namespace Dotmim.Sync.Tests.Models
                 new Product { ProductId = p3, Name = "LL Mountain Handlebars", ProductNumber = "HB-M243", StandardCost = 19.7758M, ListPrice = 44.5400M, ProductCategoryId = "HANDLB", ProductModelId = 52 },
                 new Product { ProductId = Guid.NewGuid(), Name = "ML Mountain Handlebars", ProductNumber = "HB-M763", StandardCost = 27.4925M, ListPrice = 61.9200M, ProductCategoryId = "HANDLB", ProductModelId = 54 },
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Mountain Handlebars", ProductNumber = "HB-M918", StandardCost = 53.3999M, ListPrice = 120.2700M, ProductCategoryId = "HANDLB", ProductModelId = 55 }
-            }.ToArray();
+            });
+
 
             modelBuilder.Entity<Product>()
                 .HasData(products);
@@ -934,14 +976,14 @@ namespace Dotmim.Sync.Tests.Models
             });
 
             modelBuilder.Entity<PriceListCategory>()
-                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES"}
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES" }
                     , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "CLOTHE", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "BIKES", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "CLOTHE", }
                     , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "COMPT", }
                     );
 
-            
+
             var dettails = new System.Collections.Generic.List<PriceListDetail>();
             var generator = new Random((int)DateTime.Now.Ticks);
             //Add hollyday price list
@@ -955,7 +997,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                     Discount = discountlist[generator.Next(0, discountlist.Length - 1)],
                 }));
 
@@ -969,7 +1011,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                     Discount = discountlist[generator.Next(0, discountlist.Length - 1)],
                 }));
 
@@ -984,7 +1026,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                 }));
 
             dettails.AddRange(products
@@ -997,7 +1039,7 @@ namespace Dotmim.Sync.Tests.Models
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
                     MinQuantity = generator.Next(0, 5),
-                    Amount = item.ListPrice,
+                    Amount = item.ListPrice.HasValue ? item.ListPrice.Value : 0,
                 }));
 
             modelBuilder.Entity<PriceListDetail>().HasData(dettails.ToArray());
@@ -1015,9 +1057,9 @@ namespace Dotmim.Sync.Tests.Models
 
     internal class MyModelCacheKey : ModelCacheKey
     {
-        ProviderType providerType;
-        bool useSchema;
-        bool useSeeding;
+        private readonly ProviderType providerType;
+        private readonly bool useSchema;
+        private readonly bool useSeeding;
 
         public MyModelCacheKey(DbContext context)
             : base(context)
@@ -1025,23 +1067,23 @@ namespace Dotmim.Sync.Tests.Models
 
             AdventureWorksContext adventureWorksContext = (AdventureWorksContext)context;
 
-            providerType = adventureWorksContext.ProviderType;
-            useSchema = adventureWorksContext.useSchema;
-            useSeeding = adventureWorksContext.useSeeding;
+            this.providerType = adventureWorksContext.ProviderType;
+            this.useSchema = adventureWorksContext.useSchema;
+            this.useSeeding = adventureWorksContext.useSeeding;
         }
 
         protected override bool Equals(ModelCacheKey other)
             => base.Equals(other)
-                && (other as MyModelCacheKey)?.providerType == providerType
-                && (other as MyModelCacheKey)?.useSchema == useSchema
-                && (other as MyModelCacheKey)?.useSeeding == useSeeding;
+                && (other as MyModelCacheKey)?.providerType == this.providerType
+                && (other as MyModelCacheKey)?.useSchema == this.useSchema
+                && (other as MyModelCacheKey)?.useSeeding == this.useSeeding;
 
         public override int GetHashCode()
         {
             var hashCode = base.GetHashCode() * 397;
-            hashCode ^= useSchema.GetHashCode();
-            hashCode ^= providerType.GetHashCode();
-            hashCode ^= useSeeding.GetHashCode();
+            hashCode ^= this.useSchema.GetHashCode();
+            hashCode ^= this.providerType.GetHashCode();
+            hashCode ^= this.useSeeding.GetHashCode();
 
             return hashCode;
         }

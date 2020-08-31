@@ -9,11 +9,8 @@ namespace Dotmim.Sync.Tests.Core
     {
         Sql = 0x1,
         MySql = 0x2,
-        Oracle = 0x4,
-        PostgreSql = 0x8,
-        MariaDB = 0x10,
-        DB2 = 0x20,
-        Sqlite = 0x40
+        Sqlite = 0x40,
+
     }
 
     public static class EnumExtensions

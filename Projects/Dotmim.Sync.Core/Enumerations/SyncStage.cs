@@ -12,20 +12,41 @@ namespace Dotmim.Sync.Enumerations
     public enum SyncStage
     {
         None,
+
         BeginSession,
-        ScopeLoading,
-        ScopeSaved,
-        SchemaApplying,
-        SchemaApplied,
-        DatabaseApplying,
-        DatabaseApplied,
-        DatabaseTableApplying,
-        DatabaseTableApplied,
-        TableChangesSelecting,
-        TableChangesSelected,
-        TableChangesApplying,
-        TableChangesApplied,
         EndSession,
-        CleanupMetadata
+
+        ScopeLoading,
+        ScopeLoaded,
+
+        ScopeWriting,
+        ScopeWrited,
+
+        SnapshotCreating,
+        SnapshotCreated,
+
+        SnapshotApplying,
+        SnapshotApplied,
+
+        SchemaReading,
+        SchemaRead,
+
+        Provisioning,
+        Provisioned,
+
+        Deprovisioning,
+        Deprovisioned,
+
+        ChangesSelecting,
+        ChangesSelected,
+
+        ChangesApplying,
+        ChangesApplied,
+
+        Migrating,
+        Migrated,
+
+        MetadataCleaning,
+        MetadataCleaned,
     }
 }

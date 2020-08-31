@@ -1,169 +1,86 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Filter;
-using Dotmim.Sync.Log;
+
+
+
 using Dotmim.Sync.SqlServer.Manager;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
-        private readonly DmTable tableDescription;
-        private readonly SqlConnection connection;
-        private readonly SqlTransaction transaction;
+        private ParserName tableName;
+        private ParserName trackingName;
+        private readonly SyncTable tableDescription;
+        private readonly SyncSetup setup;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        public ICollection<FilterClause> Filters { get; set; }
-
-        public SqlBuilderTrackingTable(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqlConnection;
-            this.transaction = transaction as SqlTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqlBuilder.GetParsers(this.tableDescription);
+            this.setup = setup;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-
-        public void CreateIndex()
+        public async Task CreateIndexAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreateIndexCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateIndexCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
 
         private string CreateIndexCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{trackingName.ObjectNameNormalized}_timestamp_index] ON {trackingName.FullQuotedString} (");
-            stringBuilder.AppendLine($"\t[update_timestamp] ASC");
-            stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
-            stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
-            // Filter columns
-            if (this.Filters != null && this.Filters.Count > 0)
+            var stringBuilder = new StringBuilder();
+            var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
+            var tableName = trackingName.Schema().Quoted().ToString();
+
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {tableName} (");
+            stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
+            stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
+            stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                foreach (var filterColumn in this.Filters)
-                {
-                    // check if the filter column is already a primary key.
-                    // in this case, we will add it as an index in the next foreach
-                    if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-
-                    if (!this.tableDescription.Columns.Any(c => c.ColumnName.ToLowerInvariant() == filterColumn.ColumnName.ToLowerInvariant()))
-                        continue;
-
-                    ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-                    stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} ASC");
-                }
-            }
-
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
-            {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t,{columnName.FullQuotedString} ASC");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t,{columnName} ASC");
             }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
         }
 
-        public string CreateIndexScriptText()
+        public async Task CreatePkAsync(DbConnection connection, DbTransaction transaction)
         {
-            string str = string.Concat("Create index on Tracking Table ", trackingName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateIndexCommandText(), str);
-        }
-
-        public void CreatePk()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreatePkCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (transaction != null)
-                        command.Transaction = transaction;
-
-                    command.CommandText = this.CreatePkCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        public string CreatePkScriptText()
-        {
-            string str = string.Concat("Create Primary Key on Tracking Table ", trackingName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreatePkCommandText(), str);
         }
 
         public string CreatePkCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {trackingName.FullQuotedString} ADD CONSTRAINT [PK_{trackingName.ObjectNameNormalized}] PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
 
-            for (int i = 0; i < this.tableDescription.PrimaryKey.Columns.Length; i++)
+            var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
+            for (int i = 0; i < primaryKeysColumns.Count; i++)
             {
-                DmColumn pkColumn = this.tableDescription.PrimaryKey.Columns[i];
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
-
+                var pkColumn = primaryKeysColumns[i];
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.tableDescription.PrimaryKey.Columns.Length - 1)
+                if (i < primaryKeysColumns.Count - 1)
                     stringBuilder.Append(", ");
             }
             stringBuilder.Append(")");
@@ -171,107 +88,38 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public void CreateTable()
+        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreateTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateTableCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
         }
 
-        public void DropTable()
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
+            using (var command = new SqlCommand(this.CreateDropTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreateDropTableCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropTable : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-
-        }
-
-        public string CreateTableScriptText()
-        {
-            string str = string.Concat("Create Tracking Table ", trackingName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
-        }
-        public string DropTableScriptText()
-        {
-            string str = string.Concat("Droping Tracking Table ", trackingName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreateTableCommandText(), str);
         }
 
         private string CreateDropTableCommandText()
-        {
-            return $"DROP TABLE {trackingName.FullQuotedString};";
-        }
+            => $"DROP TABLE {trackingName.Schema().Quoted().ToString()};";
 
         private string CreateTableCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.FullQuotedString} (");
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
 
             // Adding the primary key
-            foreach (DmColumn pkColumn in this.tableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
-                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").FullQuotedString;
-                var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.DbType, false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
+                var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
                 var columnType = $"{quotedColumnType} {columnPrecisionString}";
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
@@ -279,224 +127,51 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             // adding the tracking columns
-            stringBuilder.AppendLine($"[create_scope_id] [uniqueidentifier] NULL, ");
             stringBuilder.AppendLine($"[update_scope_id] [uniqueidentifier] NULL, ");
-            stringBuilder.AppendLine($"[create_timestamp] [bigint] NULL, ");
-            stringBuilder.AppendLine($"[update_timestamp] [bigint] NULL, ");
             stringBuilder.AppendLine($"[timestamp] [timestamp] NULL, ");
+            stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
 
-            // adding the filter columns
-            if (this.Filters != null && this.Filters.Count > 0)
-                foreach (var filter in this.Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, filter.ColumnName));
-                    if (isPk)
-                        continue;
-
-
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").FullQuotedString;
-
-                    var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                    var quotedColumnType = new ObjectNameParser(columnTypeString, "[", "]").FullQuotedString;
-                    var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(columnFilter.OriginalDbType, columnFilter.DbType, false, false, columnFilter.MaxLength, columnFilter.Precision, columnFilter.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                    var columnType = $"{quotedColumnType} {columnPrecisionString}";
-
-                    var nullableColumn = columnFilter.AllowDBNull ? "NULL" : "NOT NULL";
-
-                    stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
-                }
             stringBuilder.Append(")");
             return stringBuilder.ToString();
         }
 
-        public bool NeedToCreateTrackingTable()
+        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction) =>
+            !await SqlManagementUtils.TableExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, trackingName.Schema().Quoted().ToString()).ConfigureAwait(false);
+
+
+        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
-            return !SqlManagementUtils.TableExists(connection, transaction, trackingName.FullQuotedString);
+            using (var command = new SqlCommand(this.RenameTableCommandText(oldTableName), (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
         }
 
-        public void PopulateFromBaseTable()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.CreatePopulateFromBaseTableCommandText();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string CreatePopulateFromBaseTableCommandText()
+        public string RenameTableCommandText(ParserName oldTableName)
         {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(string.Concat("INSERT INTO ", trackingName.FullQuotedString, " ("));
-            StringBuilder stringBuilder1 = new StringBuilder();
-            StringBuilder stringBuilder2 = new StringBuilder();
-            string empty = string.Empty;
-            StringBuilder stringBuilderOnClause = new StringBuilder("ON ");
-            StringBuilder stringBuilderWhereClause = new StringBuilder("WHERE ");
-            string str = string.Empty;
-            string baseTable = "[base]";
-            string sideTable = "[side]";
-            foreach (var pkColumn in this.tableDescription.PrimaryKey.Columns)
+
+            var schemaName = this.trackingName.SchemaName;
+            var tableName = this.trackingName.ObjectName;
+
+            schemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
+            var oldSchemaNameString = string.IsNullOrEmpty(oldTableName.SchemaName) ? "dbo" : oldTableName.SchemaName;
+
+            var oldFullName = $"{oldSchemaNameString}.{oldTableName}";
+
+            // First of all, renaming the table   
+            stringBuilder.Append($"EXEC sp_rename '{oldFullName}', '{tableName}'; ");
+
+            // then if necessary, move to another schema
+            if (!string.Equals(oldSchemaNameString, schemaName, SyncGlobalization.DataSourceStringComparison))
             {
-                var quotedColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]").FullQuotedString;
-
-                stringBuilder1.Append(string.Concat(empty, quotedColumnName));
-
-                stringBuilder2.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-
-                string[] quotedName = new string[] { str, baseTable, ".", quotedColumnName, " = ", sideTable, ".", quotedColumnName };
-                stringBuilderOnClause.Append(string.Concat(quotedName));
-                string[] strArrays = new string[] { str, sideTable, ".", quotedColumnName, " IS NULL" };
-                stringBuilderWhereClause.Append(string.Concat(strArrays));
-                empty = ", ";
-                str = " AND ";
+                var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
+                stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
             }
-            StringBuilder stringBuilder5 = new StringBuilder();
-            StringBuilder stringBuilder6 = new StringBuilder();
 
-            if (Filters != null && Filters.Count > 0)
-                foreach (var filter in this.Filters)
-                {
-                    var columnFilter = this.tableDescription.Columns[filter.ColumnName];
-
-                    if (columnFilter == null)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {this.tableDescription.TableName}");
-
-                    var isPk = this.tableDescription.PrimaryKey.Columns.Any(dm => this.tableDescription.IsEqual(dm.ColumnName, columnFilter.ColumnName));
-                    if (isPk)
-                        continue;
-
-                    var quotedColumnName = new ObjectNameParser(columnFilter.ColumnName, "[", "]").FullQuotedString;
-
-                    stringBuilder6.Append(string.Concat(empty, quotedColumnName));
-                    stringBuilder5.Append(string.Concat(empty, baseTable, ".", quotedColumnName));
-                }
-
-            // (list of pkeys)
-            stringBuilder.Append(string.Concat(stringBuilder1.ToString(), ", "));
-
-            stringBuilder.Append("[create_scope_id], ");
-            stringBuilder.Append("[update_scope_id], ");
-            stringBuilder.Append("[create_timestamp], ");
-            stringBuilder.Append("[update_timestamp], ");
-            //stringBuilder.Append("[timestamp], "); // timestamp is not a column we update, it's auto
-            stringBuilder.Append("[sync_row_is_tombstone] ");
-            stringBuilder.AppendLine(string.Concat(stringBuilder6.ToString(), ") "));
-            stringBuilder.Append(string.Concat("SELECT ", stringBuilder2.ToString(), ", "));
-            stringBuilder.Append("NULL, ");
-            stringBuilder.Append("NULL, ");
-            stringBuilder.Append("@@DBTS+1, ");
-            stringBuilder.Append("0, ");
-            //stringBuilder.Append("@@DBTS+1, "); // timestamp is not a column we update, it's auto
-            stringBuilder.Append("0");
-            stringBuilder.AppendLine(string.Concat(stringBuilder5.ToString(), " "));
-            string[] localName = new string[] { "FROM ", tableName.FullQuotedString, " ", baseTable, " LEFT OUTER JOIN ", trackingName.FullQuotedString, " ", sideTable, " " };
-            stringBuilder.AppendLine(string.Concat(localName));
-            stringBuilder.AppendLine(string.Concat(stringBuilderOnClause.ToString(), " "));
-            stringBuilder.AppendLine(string.Concat(stringBuilderWhereClause.ToString(), "; \n"));
             return stringBuilder.ToString();
-        }
-
-        public string CreatePopulateFromBaseTableScriptText()
-        {
-            string str = string.Concat("Populate tracking table ", trackingName.FullQuotedString, " for existing data in table ", tableName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.CreatePopulateFromBaseTableCommandText(), str);
-        }
-
-        public void PopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
-        {
-            throw new NotImplementedException();
-        }
-
-        public string ScriptPopulateNewFilterColumnFromBaseTable(DmColumn filterColumn)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void AddFilterColumn(DmColumn filterColumn)
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqlCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    command.CommandText = this.AddFilterColumnCommandText(filterColumn);
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateIndex : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-
-        }
-
-        private string AddFilterColumnCommandText(DmColumn col)
-        {
-            var quotedColumnName = new ObjectNameParser(col.ColumnName, "[", "]").FullQuotedString;
-            var quotedColumnType = new ObjectNameParser(col.OriginalDbType, "[", "]").FullQuotedString;
-
-            var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(col.OriginalDbType, col.DbType, false, false, col.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-            var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(col.OriginalDbType, col.DbType, false, false, col.MaxLength, col.Precision, col.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-            var columnType = $"{columnTypeString} {columnPrecisionString}";
-
-            return string.Concat("ALTER TABLE ", quotedColumnName, " ADD ", columnType);
-        }
-        public string ScriptAddFilterColumn(DmColumn filterColumn)
-        {
-            var quotedColumnName = new ObjectNameParser(filterColumn.ColumnName, "[", "]");
-
-            string str = string.Concat("Add new filter column, ", quotedColumnName.FullUnquotedString, ", to Tracking Table ", trackingName.FullQuotedString);
-            return SqlBuilder.WrapScriptTextWithComments(this.AddFilterColumnCommandText(filterColumn), str);
         }
 
 

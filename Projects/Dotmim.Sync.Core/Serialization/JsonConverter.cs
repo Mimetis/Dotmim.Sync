@@ -1,40 +1,62 @@
-﻿using Newtonsoft.Json;
+﻿//using Newtonsoft.Json;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
-    public class JsonConverter<T> : BaseConverter<T>
-    {
-        public override T Deserialize(Stream ms)
-        {
-            using (StreamReader sr = new StreamReader(ms))
-            {
-                var stringObject = sr.ReadToEnd();
-                return JsonConvert.DeserializeObject<T>(stringObject);
-            }
-        }
 
-        public override void Serialize(T obj, Stream ms)
+    public class JsonConverterFactory : ISerializerFactory
+    {
+        public string Key => "json";
+        private static JsonConverterFactory instance = null;
+        public static JsonConverterFactory Current => instance ?? new JsonConverterFactory();
+
+        public ISerializer<T> GetSerializer<T>() => new JsonConverter<T>();
+
+    }
+
+    public class JsonConverter<T> : ISerializer<T>
+    {
+
+        public async Task<T> DeserializeAsync(Stream ms)
         {
-            var serializedObjectString = JsonConvert.SerializeObject(obj);
-            StreamWriter writer = new StreamWriter(ms);
-            writer.Write(serializedObjectString);
+            using (var sr = new StreamReader(ms))
+            {
+                using (var jtr = new JsonTextReader(sr))
+                {
+                    var jobject = await JObject.LoadAsync(jtr);
+
+                    return jobject.ToObject<T>();
+                }
+            }
             
         }
 
-        public override byte[] Serialize(T obj)
-        {
-            MemoryStream ms = new MemoryStream();
-            var serializedObjectString = JsonConvert.SerializeObject(obj);
-            using (StreamWriter writer = new StreamWriter(ms))
-            {
-                writer.Write(serializedObjectString);
-            }
-            return ms.ToArray();
-        }
 
+        public async Task<byte[]> SerializeAsync(T obj)
+        {
+            var jobject = JObject.FromObject(obj);
+
+            using (var ms = new MemoryStream())
+            {
+                using (var sw = new StreamWriter(ms))
+                {
+                    using (var jtw = new JsonTextWriter(sw))
+                    {
+                        await jobject.WriteToAsync(jtw);
+                        await jtw.FlushAsync();
+                        await sw.FlushAsync();
+
+                        return ms.ToArray();
+                    }
+                }
+            }
+        }
     }
 }

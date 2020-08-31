@@ -88,20 +88,21 @@ namespace Dotmim.Sync.Tools
             if (project.ServerProvider.ProviderType != ProviderType.Web && (project.Tables == null || project.Tables.Count <= 0))
                 throw new Exception($"No table configured for project {project.Name}. See help: dotnet sync table --help");
 
-            IProvider serverProvider, clientprovider;
+            IRemoteOrchestrator remoteOrchestrator;
+            ILocalOrchestrator localOrchestrator;
             switch (project.ServerProvider.ProviderType)
             {
                 case ProviderType.Sqlite:
                     throw new Exception("Can't use Sqlite as a server provider");
                 case ProviderType.Web:
-                    serverProvider = new WebProxyClientProvider(new Uri(project.ServerProvider.ConnectionString));
+                    remoteOrchestrator = new WebClientOrchestrator(new Uri(project.ServerProvider.ConnectionString));
                     break;
                 case ProviderType.MySql:
-                    serverProvider = new MySqlSyncProvider(project.ServerProvider.ConnectionString);
+                    remoteOrchestrator = new RemoteOrchestrator(new MySqlSyncProvider(project.ServerProvider.ConnectionString));
                     break;
                 case ProviderType.SqlServer:
                 default:
-                    serverProvider = new SqlSyncProvider(project.ServerProvider.ConnectionString);
+                    remoteOrchestrator = new RemoteOrchestrator(new SqlSyncProvider(project.ServerProvider.ConnectionString));
                     break;
             }
 
@@ -110,14 +111,14 @@ namespace Dotmim.Sync.Tools
                 case ProviderType.Web:
                     throw new Exception("Web proxy is used as a proxy server. You have to use an ASP.NET web backend. CLI uses a proxy as server provider");
                 case ProviderType.Sqlite:
-                    clientprovider = new SqliteSyncProvider(project.ClientProvider.ConnectionString);
+                    localOrchestrator = new LocalOrchestrator(new SqliteSyncProvider(project.ClientProvider.ConnectionString));
                     break;
                 case ProviderType.MySql:
-                    clientprovider = new MySqlSyncProvider(project.ClientProvider.ConnectionString);
+                    localOrchestrator = new LocalOrchestrator(new MySqlSyncProvider(project.ClientProvider.ConnectionString));
                     break;
                 case ProviderType.SqlServer:
                 default:
-                    clientprovider = new SqlSyncProvider(project.ClientProvider.ConnectionString);
+                    localOrchestrator = new LocalOrchestrator(new SqlSyncProvider(project.ClientProvider.ConnectionString));
                     break;
             }
 
@@ -125,15 +126,16 @@ namespace Dotmim.Sync.Tools
 
             if (project.ServerProvider.ProviderType != ProviderType.Web)
             {
-                agent = new SyncAgent(clientprovider, serverProvider);
+                agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
 
-                SyncConfiguration syncConfiguration = agent.Configuration;
+                var syncSchema = new SyncSchema();
+                //var syncConfiguration = agent.LocalOrchestrator.Configuration;
 
                 foreach (var t in project.Tables.OrderBy(tbl => tbl.Order))
                 {
                     // Potentially user can pass something like [SalesLT].[Product]
-                    // or SalesLT.Product or Product. ObjectNameParser will handle it
-                    ObjectNameParser parser = new ObjectNameParser(t.Name);
+                    // or SalesLT.Product or Product. ParserName will handle it
+                    var parser = ParserName.Parse(t.Name);
 
                     var tableName = parser.ObjectName;
                     var schema = string.IsNullOrEmpty(t.Schema) ? parser.SchemaName : t.Schema;
@@ -145,28 +147,28 @@ namespace Dotmim.Sync.Tools
 
                     dmTable.SyncDirection = t.Direction;
 
-                    syncConfiguration.Add(dmTable);
+                    agent.SetSchema(agentSchema => agentSchema.Add(dmTable));
                 }
 
-                syncConfiguration.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory;
-                syncConfiguration.SerializationFormat = project.Configuration.SerializationFormat;
-                syncConfiguration.UseBulkOperations = project.Configuration.UseBulkOperations;
-                syncConfiguration.DownloadBatchSizeInKB = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB);
-                syncConfiguration.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
+                agent.SetOptions(o => o.BatchDirectory = string.IsNullOrEmpty(project.Configuration.BatchDirectory) ? null : project.Configuration.BatchDirectory);
+                agent.SetOptions(o => o.BatchSize = (int)Math.Min(Int32.MaxValue, project.Configuration.DownloadBatchSizeInKB));
+                //agent.SetOptions(o => o.SerializationFormat = project.Configuration.SerializationFormat);
 
+                //agent.Options.UseBulkOperations = project.Configuration.UseBulkOperation;
+
+                agent.SetSchema(agentSchema =>
+                {
+                    agentSchema.ConflictResolutionPolicy = project.Configuration.ConflictResolutionPolicy;
+                });
 
             }
             else
             {
-                agent = new SyncAgent(clientprovider, serverProvider);
+                agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
             }
 
-
-            agent.TableChangesSelected += (sender, a) =>
-                    Console.WriteLine($"Changes selected for table {a.TableChangesSelected.TableName}: {a.TableChangesSelected.TotalChanges}");
-
-            agent.TableChangesApplied += (sender, a) =>
-                    Console.WriteLine($"Changes applied for table {a.TableChangesApplied.TableName}: [{a.TableChangesApplied.State}] {a.TableChangesApplied.Applied}");
+            agent.LocalOrchestrator.OnTableChangesSelected(tcs => Console.WriteLine($"Changes selected for table {tcs.TableChangesSelected.TableName}: {tcs.TableChangesSelected.TotalChanges}"));
+            agent.LocalOrchestrator.OnTableChangesApplied(tca => Console.WriteLine($"Changes applied for table {tca.TableChangesApplied.Table.TableName}: [{tca.TableChangesApplied.State}] {tca.TableChangesApplied.Applied}"));
 
             // synchronous call
             var syncContext = agent.SynchronizeAsync().GetAwaiter().GetResult();

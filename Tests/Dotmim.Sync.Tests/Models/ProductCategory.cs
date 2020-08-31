@@ -16,6 +16,7 @@ namespace Dotmim.Sync.Tests.Models
         public string Name { get; set; }
         public Guid? Rowguid { get; set; }
         public DateTime? ModifiedDate { get; set; }
+        public string AttributeWithSpace { get; set; }
 
         public ProductCategory ParentProductCategory { get; set; }
         public ICollection<ProductCategory> InverseParentProductCategory { get; set; }

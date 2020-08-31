@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
-using Dotmim.Sync.Filter;
+
+using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
@@ -8,31 +9,31 @@ namespace Dotmim.Sync
     /// Context of the current Sync session
     /// Encapsulates data changes and metadata for a synchronization session.
     /// </summary>
-    [Serializable]
+    [DataContract(Name = "ctx"), Serializable]
     public class SyncContext
     {
         /// <summary>
         /// Current Session, in progress
         /// </summary>
+        [DataMember(Name = "id", IsRequired = true, Order = 1)]
         public Guid SessionId { get; set; }
 
-        /// <summary>Gets or sets the time when a sync sessionn started.
+        /// <summary>
+        /// Current Session, in progress
         /// </summary>
-        public DateTime StartTime { get; set; }
+        [DataMember(Name = "csid", IsRequired = true, Order = 2)]
+        public Guid ClientScopeId { get; set; }
 
         /// <summary>
         /// Gets or Sets the ScopeName for this sync session
         /// </summary>
-        public String ScopeName { get; set; }
-
-        /// <summary>
-        /// <summary>Gets or sets the time when a sync session ended.
-        /// </summary>
-        public DateTime CompleteTime { get; set; }
+        [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        public string ScopeName { get; set; }
 
         /// <summary>
         /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload
         /// </summary>
+        [DataMember(Name = "typ", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncType SyncType { get; set; }
 
         /// <summary>
@@ -41,67 +42,56 @@ namespace Dotmim.Sync
         /// When remote GetChanges and locally ApplyChanges, we are in Download direction
         /// this Property is used to check SyncDirection on each table.
         /// </summary>
+        [DataMember(Name = "way", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public SyncWay SyncWay { get; set; }
-
-        /// <summary>
-        /// Total number of change sets downloaded
-        /// </summary>
-        public int TotalChangesDownloaded { get; set; }
-
-        /// <summary>
-        /// Total number of change sets uploaded
-        /// </summary>
-        public int TotalChangesUploaded { get; set; }
-
-        /// <summary>
-        /// Total number of Sync Conflicts
-        /// </summary>
-        public int TotalSyncConflicts { get; set; }
-
-        /// <summary>
-        /// Total number of Sync Conflicts
-        /// </summary>
-        public int TotalSyncErrors { get; set; }
 
         /// <summary>
         /// Actual sync stage
         /// </summary>
+        [DataMember(Name = "stage", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public SyncStage SyncStage { get; set; }
 
         /// <summary>
         /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
         /// </summary>
-        public SyncParameterCollection Parameters { get; set; }
+        [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        public SyncParameters Parameters { get; set; }
 
         /// <summary>
         /// Ctor. New sync context with a new Guid
         /// </summary>
-        public SyncContext(Guid sessionId)
+        public SyncContext(Guid sessionId, string scopeName)
         {
             this.SessionId = sessionId;
+            this.ScopeName = scopeName;
+        }
+
+        /// <summary>
+        /// Used for serialization purpose
+        /// </summary>
+        public SyncContext()
+        {
+
+        }
+
+        /// <summary>
+        /// Copy local properties to another syncContext instance
+        /// </summary>
+        /// <param name="otherSyncContext"></param>
+        public void CopyTo(SyncContext otherSyncContext)
+        {
+            otherSyncContext.Parameters = this.Parameters;
+            otherSyncContext.ScopeName = this.ScopeName;
+            otherSyncContext.SessionId = this.SessionId;
+            otherSyncContext.SyncStage = this.SyncStage;
+            otherSyncContext.SyncType = this.SyncType;
+            otherSyncContext.SyncWay = this.SyncWay;
+
         }
 
         /// <summary>
         /// Get the result if sync session is ended
         /// </summary>
-        public override string ToString()
-        {
-            if (this.CompleteTime != this.StartTime && this.CompleteTime > this.StartTime)
-            {
-                var tsEnded = TimeSpan.FromTicks(CompleteTime.Ticks);
-                var tsStarted = TimeSpan.FromTicks(StartTime.Ticks);
-
-                var durationTs = tsEnded.Subtract(tsStarted);
-                var durationstr = $"{durationTs.Hours}:{durationTs.Minutes}:{durationTs.Seconds}.{durationTs.Milliseconds}";
-
-                return ($"Synchronization done. " + Environment.NewLine +
-                        $"\tTotal changes downloaded: {TotalChangesDownloaded} " + Environment.NewLine +
-                        $"\tTotal changes uploaded: {TotalChangesUploaded}" + Environment.NewLine +
-                        $"\tTotal conflicts: {TotalSyncConflicts}" + Environment.NewLine +
-                        $"\tTotal duration :{durationstr} ");
-
-            }
-            return base.ToString();
-        }
+        public override string ToString() => this.ScopeName;
     }
 }

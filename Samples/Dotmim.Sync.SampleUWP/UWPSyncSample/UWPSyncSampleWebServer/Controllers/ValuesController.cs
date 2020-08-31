@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Mvc;
+using UWPSyncSampleWebServer.Context;
 
 namespace UWPSyncSampleWebServer.Controllers
 {
@@ -11,19 +12,16 @@ namespace UWPSyncSampleWebServer.Controllers
     public class ValuesController : Controller
     {
 
-        // proxy to handle requests and send them to SqlSyncProvider
-        private WebProxyServerProvider webProxyServer;
+        private WebProxyServerOrchestrator webProxyServer;
 
         // Injected thanks to Dependency Injection
-        public ValuesController(WebProxyServerProvider proxy)
-        {
-            webProxyServer = proxy;
-        }
+        public ValuesController(WebProxyServerOrchestrator proxy) => this.webProxyServer = proxy;
 
-        // POST api/values
+         // POST api/values
         [HttpPost]
         public async Task Post()
         {
+ 
             await webProxyServer.HandleRequestAsync(this.HttpContext);
         }
 

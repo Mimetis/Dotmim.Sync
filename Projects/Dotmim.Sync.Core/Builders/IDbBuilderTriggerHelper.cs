@@ -2,8 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
-using Dotmim.Sync.Data;
-using Dotmim.Sync.Filter;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
@@ -12,26 +11,15 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTriggerHelper
     {
-        ICollection<FilterClause> Filters { get; set; }
-    
-        bool NeedToCreateTrigger(DbTriggerType triggerType);
-        void CreateInsertTrigger();
-        void CreateUpdateTrigger();
-        void CreateDeleteTrigger();
-        string CreateInsertTriggerScriptText();
-        string CreateUpdateTriggerScriptText();
-        string CreateDeleteTriggerScriptText();
-        void DropInsertTrigger();
-        void DropUpdateTrigger();
-        void DropDeleteTrigger();
-        string DropInsertTriggerScriptText();
-        string DropUpdateTriggerScriptText();
-        string DropDeleteTriggerScriptText();
-        void AlterInsertTrigger();
-        void AlterUpdateTrigger();
-        void AlterDeleteTrigger();
-        string AlterInsertTriggerScriptText();
-        string AlterUpdateTriggerScriptText();
-        string AlterDeleteTriggerScriptText();
+        Task<bool> NeedToCreateTriggerAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction);
+        Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction);
+        Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction);
     }
 }

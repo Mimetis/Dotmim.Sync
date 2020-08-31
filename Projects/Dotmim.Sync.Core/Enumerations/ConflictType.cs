@@ -21,69 +21,69 @@ namespace Dotmim.Sync.Enumerations
         /// </summary>
         UniqueKeyConstraint,
 
-        /// <summary>
-        /// The Remote datasource update a row and the Local datasource insert a row with same key
-        /// </summary>
-        RemoteUpdateLocalInsert,
+
+        // -------------------------------
+        // Classic conflicts on update / update or deleted / deleted.
+        // -------------------------------
+
 
         /// <summary>
-        /// The Remote and Local datasources both updated the same row.
+        /// The Remote and Local datasources have both updated the same row.
         /// </summary>
-        RemoteUpdateLocalUpdate,
+        RemoteExistsLocalExists,
 
         /// <summary>
-        /// The Remote datasource updated a row that the Local datasource deleted.
+        /// The Remote and Local datasource have both deleted the same row.
         /// </summary>
-        RemoteUpdateLocalDelete,
+        RemoteIsDeletedLocalIsDeleted,
+
+
+        // -------------------------------
+        // Updated or Inserted on one side and Not Exists on the other
+        // -------------------------------
 
         /// <summary>
-        /// The Remote datasource deleted a row that the Local datasource insert with the same key.
+        /// The Remote datasource has updated or inserted a row that does not exists in the local datasource.
         /// </summary>
-        RemoteDeleteLocalInsert,
+        RemoteExistsLocalNotExists,
 
         /// <summary>
-        /// The Remote datasource deleted a row that the Local datasource updated.
+        /// The Local datasource has inserted or updated a row that does not exists in the Remote datasource 
         /// </summary>
-        RemoteDeleteLocalUpdate,
+        RemoteNotExistsLocalExists,
+
+
+        // -------------------------------
+        // Deleted on one side and Updated or Inserted on the other
+        // -------------------------------
 
         /// <summary>
-        /// The Remote and Local datasource both deleted the same row.
+        /// The Remote datasource has inserted or updated a row that the Local datasource has deleted.
         /// </summary>
-        RemoteDeleteLocalDelete,
+        RemoteExistsLocalIsDeleted,
 
         /// <summary>
-        /// The Remote and Local datasource both inserted a row that has the same primary key value. This caused a primary key violation.
+        /// The Remote datasource has deleted a row that the Local datasource has inserted or updated.
         /// </summary>
-        RemoteInsertLocalInsert,
+        RemoteIsDeletedLocalExists,
+
+
+        // -------------------------------
+        // Deleted on one side and Not Exists on the other
+        // -------------------------------
 
         /// <summary>
-        /// The Remote datasource insert a row that the Local datasource updated.
+        /// The Local datasource has deleted a row that does not exists in the Remote datasource 
+        /// Note : this Case can't happen
+        /// From the server point of view : Remote Not Exists means client has not the row. SO it will just not send anything to the server
+        /// From the client point of view : Remote Not Exists means server has not the row. SO it will just not send back anything to client
         /// </summary>
-        RemoteInsertLocalUpdate,
+        //RemoteNotExistsLocalIsDeleted,
+
 
         /// <summary>
-        /// The Remote datasource insert a row that the Local datasource delete.
+        /// The Remote datasource has deleted a row that does not exists in the Local datasource 
         /// </summary>
-        RemoteInsertLocalDelete,
-
-        /// <summary>
-        /// The Remote peer deleted a row that the Local peer updated, and the metadata for that row was cleaned up.
-        /// </summary>
-        RemoteCleanedupDeleteLocalUpdate,
-
-        /// <summary>
-        /// The Remote peer update a row that the Local never had.
-        /// </summary>
-        RemoteUpdateLocalNoRow,
-
-        /// <summary>
-        /// The Remote peer insert a row that the Local never had.
-        /// </summary>
-        RemoteInsertLocalNoRow,
-
-        /// <summary>
-        /// The Remote peer delete a row that the Local never had.
-        /// </summary>
-        RemoteDeleteLocalNoRow
+        RemoteIsDeletedLocalNotExists
     }
 }

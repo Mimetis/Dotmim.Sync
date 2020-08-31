@@ -1,76 +1,84 @@
-<!doctype html>
-<html lang="{{ site.lang | default: " en-US " }}">
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: "en-US" }}">
 
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="chrome=1"> {% seo %}
-  <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
-  <script src="{{ '/assets/js/respond.js' | relative_url }}"></script>
-  <!--[if lt IE 9]>
-      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-  <!--[if lt IE 8]>
-    <link rel="stylesheet" href="{{ '/assets/css/ie.css' | relative_url }}">
-    <![endif]-->
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="robots" content="index, follow" />
+    <title>Dotmim.Sync: A database synchronization framework for SQL Server, MySQL, SQLite, PostgreSQL, developed on top
+        of .Net Standard 2.0.</title>
+    <meta name="description"
+        content="Dotmim.Sync is the easiest way to handle a full synchronization between one server database and multiples clients databases. Dotmim.Sync is cross-platforms, multi-databases and based on .Net Standard 2.0. Choose either SQL Server, SQLite, MySQL, Oracle or even PostgreSQL">
+    <meta name="keywords"
+        content="Sync, Synchronization, Data, Databases, SQL Server, MySql, Sqlite, PostgreSQL, .Net core, .Net Standard, Sync framework" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+        integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
 
+    <link rel="shortcut icon" type="image/png" href="{{ '/assets/favicon.ico'  | absolute_url }}">
+    <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
+
+    <!-- <link rel="stylesheet" type="text/css" href="{{ '/assets/css/print.css' | relative_url }}" media="print"> -->
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    {% seo %}
 </head>
 
-<body>
-  <div id="header">
-    <nav>
-      <li class="fork">
-        <a href="{{ site.github.repository_url }}">View On GitHub</a>
-      </li>
-      {% if site.show_downloads %}
-      <li class="downloads">
-        <a href="{{ site.github.zip_url }}">ZIP</a>
-      </li>
-      <li class="downloads">
-        <a href="{{ site.github.tar_url }}">TAR</a>
-      </li>
-      <li class="title">DOWNLOADS</li>
-      {% endif %}
+<body class="bg-light">
+    <nav class="navbar navbar-expand-md navbar-dark fixed-left" style="background-color: #303030;">
+        <a class="navbar-brand" href="http://www.github.com/mimetis/dotmim.sync">Dotmim.Sync</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault"
+            aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon bg-dark"></span>
+        </button>
+        <a href="http://www.github.com/mimetis/dotmim.sync">
+            <svg class="octicon octicon-mark-github v-align-middle" height="64" fill="#e7e7e7" viewBox="0 0 16 16"
+                version="1.1" width="64" aria-hidden="true">
+                <path fill-rule="evenodd"
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+                </path>
+            </svg>
+        </a>
+        <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+            {% include summary.html %}
+        </div>
     </nav>
-  </div>
-  <!-- end header -->
 
-  <div class="wrapper">
-
-    <section>
-      <div id="title">
-        <h1>{{ site.title | default: site.github.repository_name }}</h1>
-        <p>{{ site.description | default: site.github.project_tagline }}</p>
-      </div>
-
-      <div id="navbar">
-        {% include summary.html %}
-      </div>
-
-      <div id="content">
+    <div class="container">
         {{ content }}
-      </div>
+    </div>
 
-    </section>
-  </div>
+    <footer>
+        {% if site.github.is_project_page %}
+        {{ site.title | default: site.github.repository_name }} is maintained by <a
+            href="{{ site.github.owner_url }}">{{ site.github.owner_name }}</a><br>
+        {% endif %}
+        This page was generated by <a href="https://pages.github.com">GitHub Pages</a>.
+    </footer>
+    {% if site.google_analytics %}
+    <script>
+        (function (i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+                (i[r].q = i[r].q || []).push(arguments)
+            }, i[r].l = 1 * new Date(); a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
+        })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+        ga('create', '{{ site.google_analytics }}', 'auto');
+        ga('send', 'pageview');
+    </script>
+    {% endif %}
 
-  {% if site.google_analytics %}
-  <script type="text/javascript">
-    (function (i, s, o, g, r, a, m) {
-      i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
-        (i[r].q = i[r].q || []).push(arguments)
-      }, i[r].l = 1 * new Date(); a = s.createElement(o),
-        m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
-    })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
-    ga('create', '{{ site.google_analytics }}', 'auto');
-    ga('send', 'pageview');
-  </script> {% endif %}
-  <!-- <div>
-    <hr>
-    <a href="https://twitter.com/sebpertus">@sebpertus</a>
-  </div> -->
-
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+        integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+        integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+        crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+        integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+        crossorigin="anonymous"></script>
 </body>
 
 </html>

@@ -1,9 +1,12 @@
 ﻿using System.IO;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
-    public class DmBinaryConverter<T> : BaseConverter<T>
+    public class DmBinaryConverter<T> : ISerializer<T>
     {
+        public string key => "dmbin";
+
         DmSerializer serializer;
 
         public DmBinaryConverter()
@@ -11,18 +14,14 @@ namespace Dotmim.Sync.Serialization
             serializer = new DmSerializer();
         }
 
-        public override T Deserialize(Stream ms)
+        public Task<T> DeserializeAsync(Stream ms)
         {
-            return serializer.Deserialize<T>(ms);
+            return Task.FromResult(serializer.Deserialize<T>(ms));
         }
 
-        public override void Serialize(T obj, Stream ms)
+        public Task<byte[]> SerializeAsync(T obj)
         {
-            serializer.Serialize(obj, ms);
-        }
-        public override byte[] Serialize(T obj)
-        {
-            return serializer.Serialize(obj);
+            return Task.FromResult(serializer.Serialize(obj));
         }
     }
 }

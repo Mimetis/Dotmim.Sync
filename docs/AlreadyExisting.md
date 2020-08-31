@@ -5,7 +5,7 @@ You may want to initiate a **new** synchronization beetween **existing** databas
 The quick answer to this is : It's working by default, with no additionnal steps to do.  
 Here is a basic solution showing you how you can deal with it.
 
-# Solution
+## Solution
 
 Basically, the starter solution is this one:
 You have both an **already existing SQLite** client database and an **already existing SQL Server** master database.  
@@ -100,14 +100,19 @@ SqliteSyncProvider clientProvider;
 serverProvider = new SqlSyncProvider(serverConnectionString);
 clientProvider = new SqliteSyncProvider(clientSqliteFilePath);
 
-var simpleConfiguration = new SyncConfiguration(new string[] { "ServiceTickets" });
+var simpleConfiguration = new SyncConfiguration();
 
-agent = new SyncAgent(clientProvider, serverProvider, simpleConfiguration);
+agent = new SyncAgent(clientProvider, serverProvider, (conf =>{
+    conf.Add(new string[] { "ServiceTickets" })
+}));
 
-serverProvider.SyncProgress += (s, e) => Debug.WriteLine($"[Server]:{e.Message} {e.PropertiesMessage}");
-clientProvider.SyncProgress += (s, e) => Debug.WriteLine($"[Client]:{e.Message} {e.PropertiesMessage}");
+var progressClient = new Progress<ProgressArgs>(s => Console.WriteLine($"[Client]: {s.Context.SyncStage}:\t{s.Message}"));
+var progressServer = new Progress<ProgressArgs>(s => Console.WriteLine($"[Server]: {s.Context.SyncStage}:\t{s.Message}"));
 
-var session = await agent.SynchronizeAsync();
+agent.RemoteProvider.SetProgress(progress);
+var session = await agent.SynchronizeAsync(progress);
+
+Console.WriteLine(session);
 ```
 
 Here is an extract output debug I have:

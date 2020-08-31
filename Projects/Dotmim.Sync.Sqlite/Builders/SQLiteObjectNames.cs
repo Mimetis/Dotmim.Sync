@@ -2,8 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Dotmim.Sync.Data;
+
 using System.Linq;
+
+using System.Data;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -15,11 +17,11 @@ namespace Dotmim.Sync.Sqlite
         internal const string updateTriggerName = "[{0}_update_trigger]";
         internal const string deleteTriggerName = "[{0}_delete_trigger]";
 
-        private Dictionary<DbCommandType, String> names = new Dictionary<DbCommandType, string>();
-        private ObjectNameParser tableName, trackingName;
+        private Dictionary<DbCommandType, string> names = new Dictionary<DbCommandType, string>();
+        private ParserName tableName, trackingName;
 
-        public DmTable TableDescription { get; }
-
+        public SyncTable TableDescription { get; }
+        public SyncSetup Setup { get; }
 
         public void AddName(DbCommandType objectType, string name)
         {
@@ -28,18 +30,26 @@ namespace Dotmim.Sync.Sqlite
 
             names.Add(objectType, name);
         }
-        public string GetCommandName(DbCommandType objectType, IEnumerable<string> adds = null)
+        public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
             if (!names.ContainsKey(objectType))
                 throw new NotSupportedException($"Sqlite provider does not support the command type {objectType.ToString()}");
 
-            return names[objectType];
+            var commandName = names[objectType];
+
+            // concat filter name
+            //if (filter != null)
+            //    commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
         }
 
-        public SqliteObjectNames(DmTable tableDescription)
+        public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
-            (tableName, trackingName) = SqliteBuilder.GetParsers(this.TableDescription);
+            this.Setup = setup;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
 
             SetDefaultNames();
         }
@@ -49,134 +59,262 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         private void SetDefaultNames()
         {
-            var tpref = this.TableDescription.TriggersPrefix;
-            var tsuf = this.TableDescription.TriggersSuffix;
+            var tpref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
+            var tsuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{tpref}{tableName.ObjectNameNormalized}{tsuf}"));
+            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+
+            // Check if we have mutables columns
+            var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
+
 
             // Select changes
             this.CreateSelectChangesCommandText();
             this.CreateSelectRowCommandText();
+            this.CreateSelectInitializedCommandText();
             this.CreateDeleteCommandText();
             this.CreateDeleteMetadataCommandText();
-            this.CreateInsertCommandText();
-            this.CreateInsertMetadataCommandText();
-            this.CreateUpdateCommandText();
-            this.CreateUpdatedMetadataCommandText();
+            this.CreateUpdateCommandText(hasMutableColumns);
             this.CreateResetCommandText();
+            this.CreateUpdateUntrackedRowsCommandText();
+            this.CreateUpdateMetadataCommandText();
+
+            // Sqlite does not have any constraints, so just return a simple statement
+            this.AddName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
+            this.AddName(DbCommandType.EnableConstraints, "Select 0");
 
         }
 
         private void CreateResetCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString};");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
             this.AddName(DbCommandType.Reset, stringBuilder.ToString());
         }
 
-        private void CreateUpdateCommandText()
+
+        private void CreateUpdateMetadataCommandText()
         {
+            var stringBuilder = new StringBuilder();
 
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"UPDATE {tableName.FullQuotedString}");
-            stringBuilder.Append($"SET {SqliteManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription)}");
-            stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
-            stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.QuotedObjectName} ");
-            stringBuilder.AppendLine($"  WHERE {SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
-            stringBuilder.AppendLine(" ) <= @sync_min_timestamp OR @sync_force_write = 1");
-            stringBuilder.AppendLine(");");
-            this.AddName(DbCommandType.UpdateRow, stringBuilder.ToString());
+            var pkeySelectForInsert = new StringBuilder();
+            var pkeyISelectForInsert = new StringBuilder();
+            var pkeyAliasSelectForInsert = new StringBuilder();
+            var pkeysLeftJoinForInsert = new StringBuilder();
+            var pkeysIsNullForInsert = new StringBuilder();
 
-        }
-
-        private void CreateUpdatedMetadataCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString}");
-            stringBuilder.AppendLine($"SET [update_scope_id] = @update_scope_id, ");
-            stringBuilder.AppendLine($"\t [update_timestamp] = @update_timestamp, ");
-            stringBuilder.AppendLine($"\t [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
-            stringBuilder.AppendLine($"\t [timestamp] = {SqliteObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine($"\t [last_change_datetime] = datetime('now') ");
-            stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
-
-            this.AddName(DbCommandType.UpdateMetadata, stringBuilder.ToString());
-
-        }
-        private void CreateInsertMetadataCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-
-            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.FullQuotedString}");
-
-            string empty = string.Empty;
-            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
+            string and = string.Empty;
+            string comma = string.Empty;
+            foreach (var pkColumn in TableDescription.GetPrimaryKeysColumns())
             {
-                ObjectNameParser columnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString}"));
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                pkeySelectForInsert.Append($"{comma}{columnName}");
+                pkeyISelectForInsert.Append($"{comma}[i].{columnName}");
+                pkeyAliasSelectForInsert.Append($"{comma}@{parameterName} as {columnName}");
+                pkeysLeftJoinForInsert.Append($"{and}[side].{columnName} = [i].{columnName}");
+                pkeysIsNullForInsert.Append($"{and}[side].{columnName} IS NULL");
+                and = " AND ";
+                comma = ", ";
+            }
+
+            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine(pkeySelectForInsert.ToString());
+            stringBuilder.AppendLine(",[update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime] )");
+            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
+            stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.sync_timestamp, i.UtcDate");
+            stringBuilder.AppendLine("FROM (");
+            stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
+            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, {SqliteObjectNames.TimestampValue} as sync_timestamp, datetime('now') as UtcDate) as i;");
+
+
+            var cmdtext = stringBuilder.ToString();
+
+            this.AddName(DbCommandType.UpdateMetadata, cmdtext);
+        }
+
+
+        private void CreateUpdateCommandText(bool hasMutableColumns)
+        {
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            var stringBuilderParametersValues = new StringBuilder();
+            string empty = string.Empty;
+
+            string str1 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
+            string str2 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+            string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
+
+            // Generate Update command
+            var stringBuilder = new StringBuilder();
+
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+                stringBuilderParametersValues.Append($"{empty}@{columnParameterName} as {columnName}");
+                stringBuilderArguments.Append($"{empty}{columnName}");
+                stringBuilderParameters.Append($"{empty}[c].{columnName}");
                 empty = ", ";
             }
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()}, ");
-            stringBuilder.AppendLine($"\t[create_scope_id], [create_timestamp], [update_scope_id], [update_timestamp],");
-            stringBuilder.AppendLine($"\t[sync_row_is_tombstone], [timestamp], [last_change_datetime])");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()}, ");
-            stringBuilder.AppendLine($"\t@create_scope_id, @create_timestamp, @update_scope_id, @update_timestamp, ");
-            stringBuilder.AppendLine($"\t@sync_row_is_tombstone, {SqliteObjectNames.TimestampValue}, datetime('now'));");
 
-            this.AddName(DbCommandType.InsertMetadata, stringBuilder.ToString());
+            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+            stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
+            stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
 
+            stringBuilder.Append($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
+            stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
+            stringBuilder.AppendLine($"OR @sync_force_write = 1;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+            stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
+            stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($" AND (select changes()) > 0;");
+
+            var cmdtext = stringBuilder.ToString();
+
+            this.AddName(DbCommandType.UpdateRow, cmdtext);
         }
-        private void CreateInsertCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderParameters = new StringBuilder();
-            string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.Append(string.Concat(empty, columnName.FullQuotedString));
-                stringBuilderParameters.Append(string.Concat(empty, $"@{columnName.FullUnquotedString}"));
-                empty = ", ";
-            }
-            stringBuilder.AppendLine($"\tINSERT OR IGNORE INTO {tableName.FullQuotedString}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
 
-            this.AddName(DbCommandType.InsertRow, stringBuilder.ToString());
+        //private void CreateUpdateCommandTextBack(bool hasMutableColumns)
+        //{
+        //    var stringBuilderArguments = new StringBuilder();
+        //    var stringBuilderParameters = new StringBuilder();
+        //    string empty = string.Empty;
 
-        }
+        //    string str1 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+        //    string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
+
+        //    // Generate Update command
+        //    var stringBuilder = new StringBuilder();
+
+
+        //    stringBuilder.AppendLine(";WITH [c] AS (");
+        //    stringBuilder.Append("\tSELECT ");
+        //    foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
+        //    {
+        //        var columnName = ParserName.Parse(c).Quoted().ToString();
+        //        stringBuilder.Append($"[p].{columnName}, ");
+        //    }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+        //    stringBuilder.AppendLine($"\tFROM (SELECT ");
+        //    stringBuilder.Append($"\t\t ");
+        //    string comma = "";
+        //    foreach (var c in this.TableDescription.GetMutableColumns(false, true))
+        //    {
+        //        var columnName = ParserName.Parse(c).Quoted().ToString();
+        //        var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
+
+        //        stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+        //        comma = ", ";
+        //    }
+        //    stringBuilder.AppendLine($") AS [p]");
+        //    stringBuilder.Append($"\tLEFT JOIN {trackingName.Quoted().ToString()} [side] ON ");
+        //    stringBuilder.AppendLine($"\t{str7}");
+        //    stringBuilder.AppendLine($"\t)");
+
+
+        //    foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+        //    {
+        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //        stringBuilderArguments.Append($"{empty}{columnName}");
+        //        stringBuilderParameters.Append($"{empty}[c].{columnName}");
+        //        empty = ", ";
+        //    }
+
+        //    stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
+        //    stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+        //    stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+        //    stringBuilder.AppendLine($"FROM [c] ");
+        //    stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str1}");
+        //    stringBuilder.Append($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
+        //    stringBuilder.AppendLine($"AND ([c].[timestamp] < @sync_min_timestamp OR [c].[update_scope_id] = @sync_scope_id)) ");
+        //    stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
+        //    stringBuilder.AppendLine($"AND ([c].[timestamp] < @sync_min_timestamp OR [c].[timestamp] IS NULL)) ");
+        //    stringBuilder.AppendLine($"OR @sync_force_write = 1;");
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+        //    stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
+        //    stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
+        //    stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
+        //    stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+        //    stringBuilder.AppendLine($" AND (select changes()) > 0;");
+
+        //    var cmdtext = stringBuilder.ToString();
+
+        //    this.AddName(DbCommandType.UpdateRow, cmdtext);
+        //}
+              
+
         private void CreateDeleteMetadataCommandText()
         {
 
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.FullQuotedString} ");
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, ""));
-            stringBuilder.Append(";");
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} WHERE [timestamp] < @sync_row_timestamp;");
 
             this.AddName(DbCommandType.DeleteMetadata, stringBuilder.ToString());
         }
         private void CreateDeleteCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
+            string str1 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+            string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.FullQuotedString} ");
-            stringBuilder.Append($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKey.Columns, "")}");
-            stringBuilder.AppendLine($" AND ((SELECT [timestamp] FROM {trackingName.QuotedObjectName} ");
-            stringBuilder.AppendLine($"  WHERE {SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKey.Columns, tableName.QuotedObjectName, trackingName.QuotedObjectName)}");
-            stringBuilder.AppendLine(" ) <= @sync_min_timestamp OR @sync_force_write = 1");
-            stringBuilder.AppendLine(");");
+            stringBuilder.AppendLine(";WITH [c] AS (");
+            stringBuilder.Append("\tSELECT ");
+            foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                stringBuilder.Append($"[p].{columnName}, ");
+            }
+            stringBuilder.AppendLine($"[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.Append($"\tFROM (SELECT ");
+            string comma = "";
+            foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
 
-            this.AddName(DbCommandType.DeleteRow, stringBuilder.ToString());
+                stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+                comma = ", ";
+            }
+            stringBuilder.AppendLine($") AS [p]");
+            stringBuilder.Append($"\tLEFT JOIN {trackingName.Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine($"\t{str7}");
+            stringBuilder.AppendLine($"\t)");
+
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} ");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($"AND (EXISTS (");
+            stringBuilder.AppendLine($"     SELECT * FROM [c] ");
+            stringBuilder.AppendLine($"     WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[c]")}");
+            stringBuilder.AppendLine($"     AND (timestamp < @sync_min_timestamp OR timestamp IS NULL OR update_scope_id = @sync_scope_id))");
+            stringBuilder.AppendLine($"  OR @sync_force_write = 1");
+            stringBuilder.AppendLine($" );");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+            stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("[sync_row_is_tombstone] = 1,");
+            stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($" AND (select changes()) > 0");
+
+            var cmdText = stringBuilder.ToString();
+
+            this.AddName(DbCommandType.DeleteRow, cmdText);
         }
         private void CreateSelectRowCommandText()
         {
@@ -184,32 +322,30 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             StringBuilder stringBuilder1 = new StringBuilder();
             string empty = string.Empty;
-            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
-                stringBuilder1.Append($"{empty}[side].{pkColumnName.FullQuotedString} = @{pkColumnName.FullUnquotedString}");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var unquotedColumnName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+                stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                stringBuilder1.Append($"{empty}[side].{columnName} = @{unquotedColumnName}");
                 empty = " AND ";
             }
-            foreach (DmColumn mutableColumn in this.TableDescription.MutableColumns)
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
             {
-                ObjectNameParser nonPkColumnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[base].{nonPkColumnName.FullQuotedString}, ");
+                var nonPkColumnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[base].{nonPkColumnName}, ");
             }
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
-            stringBuilder.AppendLine("\t[side].[create_scope_id],");
-            stringBuilder.AppendLine("\t[side].[create_timestamp],");
-            stringBuilder.AppendLine("\t[side].[update_scope_id],");
-            stringBuilder.AppendLine("\t[side].[update_timestamp]");
+            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone], ");
+            stringBuilder.AppendLine("\t[side].[update_scope_id]");
 
-            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} [side] ");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.FullQuotedString} [base] ON ");
+            stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side] ");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base] ON ");
 
             string str = string.Empty;
-            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                ObjectNameParser pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{str}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -219,89 +355,109 @@ namespace Dotmim.Sync.Sqlite
         }
         private void CreateSelectChangesCommandText()
         {
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
-            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
+            var stringBuilder = new StringBuilder("SELECT ");
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[side].{pkColumnName.FullQuotedString}, ");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[side].{columnName}, ");
             }
-            foreach (var mutableColumn in this.TableDescription.MutableColumns)
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
             {
-                var columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"\t[base].{columnName.FullQuotedString}, ");
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[create_scope_id], ");
-            stringBuilder.AppendLine($"\t[side].[create_timestamp], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id], ");
-            stringBuilder.AppendLine($"\t[side].[update_timestamp] ");
-            stringBuilder.AppendLine($"FROM {trackingName.FullQuotedString} [side]");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.FullQuotedString} [base]");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] ");
+            stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base]");
             stringBuilder.Append($"ON ");
 
             string empty = "";
-            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName);
-                stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} = [side].{pkColumnName.FullQuotedString}");
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+
+                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
-            string str = string.Empty;
-
-            //if (!SqlManagementUtils.IsStringNullOrWhitespace(this._filterClause))
-            //{
-            //    StringBuilder stringBuilder1 = new StringBuilder();
-            //    stringBuilder1.Append("((").Append(this._filterClause).Append(") OR (");
-            //    stringBuilder1.Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(this._trackingColNames.SyncRowIsTombstone).Append(" = 1 AND ");
-            //    stringBuilder1.Append("(");
-            //    stringBuilder1.Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(this._trackingColNames.UpdateScopeLocalId).Append(" = ").Append(sqlParameter.ParameterName);
-            //    stringBuilder1.Append(" OR ");
-            //    stringBuilder1.Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(this._trackingColNames.UpdateScopeLocalId).Append(" IS NULL");
-            //    stringBuilder1.Append(") AND ");
-            //    string empty1 = string.Empty;
-            //    foreach (DbSyncColumnDescription _filterColumn in this._filterColumns)
-            //    {
-            //        stringBuilder1.Append(empty1).Append(SqlSyncProcedureHelper.TrackingTableAlias).Append(".").Append(_filterColumn.QuotedName).Append(" IS NULL");
-            //        empty1 = " AND ";
-            //    }
-            //    stringBuilder1.Append("))");
-            //    stringBuilder.Append(stringBuilder1.ToString());
-            //    str = " AND ";
-            //}
-
-            stringBuilder.AppendLine("\t-- Update made by the local instance");
-            stringBuilder.AppendLine("\t[side].[update_scope_id] IS NULL");
-            stringBuilder.AppendLine("\t-- Or Update different from remote");
-            stringBuilder.AppendLine("\tOR [side].[update_scope_id] <> @sync_scope_id");
-            stringBuilder.AppendLine("\t-- Or we are in reinit mode so we take rows even thoses updated by the scope");
-            stringBuilder.AppendLine("\tOR @sync_scope_is_reinit = 1");
-            stringBuilder.AppendLine("    )");
-            stringBuilder.AppendLine("AND (");
-            stringBuilder.AppendLine("\t-- And Timestamp is > from remote timestamp");
             stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tOR");
-            stringBuilder.AppendLine("\t-- remote instance is new, so we don't take the last timestamp");
-            stringBuilder.AppendLine("\t@sync_scope_is_new = 1");
-            stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine("AND (");
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone] = 1 ");
-            stringBuilder.AppendLine("\tOR");
-            stringBuilder.Append("\t([side].[sync_row_is_tombstone] = 0");
+            stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
 
-            empty = " AND ";
-            foreach (var pkColumn in this.TableDescription.PrimaryKey.Columns)
-            {
-                var pkColumnName = new ObjectNameParser(pkColumn.ColumnName, "[", "]");
-                stringBuilder.Append($"{empty}[base].{pkColumnName.FullQuotedString} is not null");
-            }
-            stringBuilder.AppendLine("\t)");
+            //stringBuilder.AppendLine("\tAND (([side].[sync_row_is_frozen] = 0 AND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL))");
+            //stringBuilder.AppendLine("\tOR ([side].[sync_row_is_frozen] = 1 AND [side].[update_scope_id] <> @sync_scope_id AND [side].[update_scope_id] IS NOT NULL))");
             stringBuilder.AppendLine(")");
 
-
             this.AddName(DbCommandType.SelectChanges, stringBuilder.ToString());
-            this.AddName(DbCommandType.SelectChangesWitFilters, stringBuilder.ToString());
+            this.AddName(DbCommandType.SelectChangesWithFilters, stringBuilder.ToString());
+        }
+
+
+        private void CreateSelectInitializedCommandText()
+        {
+            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t[base].{columnName}, ");
+            }
+            var columns = this.TableDescription.GetMutableColumns().ToList();
+
+            for (var i = 0; i < columns.Count; i++)
+            {
+                var mutableColumn = columns[i];
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.Append($"\t[base].{columnName}");
+
+                if (i < columns.Count - 1)
+                    stringBuilder.AppendLine(", ");
+            }
+            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
+
+
+            this.AddName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
+            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
+        }
+
+        private void CreateUpdateUntrackedRowsCommandText()
+        {
+            var stringBuilder = new StringBuilder();
+            var str1 = new StringBuilder();
+            var str2 = new StringBuilder();
+            var str3 = new StringBuilder();
+            var str4 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[base]");
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+
+
+            var comma = "";
+            foreach (var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
+
+                str1.Append($"{comma}{pkeyColumnName}");
+                str2.Append($"{comma}[base].{pkeyColumnName}");
+                str3.Append($"{comma}[side].{pkeyColumnName}");
+
+                comma = ", ";
+            }
+            stringBuilder.Append(str1.ToString());
+            stringBuilder.AppendLine($", [update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime]");
+            stringBuilder.AppendLine($")");
+            stringBuilder.Append($"SELECT ");
+            stringBuilder.Append(str2.ToString());
+            stringBuilder.AppendLine($", NULL, 0, {SqliteObjectNames.TimestampValue}, datetime('now')");
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as [base] WHERE NOT EXISTS");
+            stringBuilder.Append($"(SELECT ");
+            stringBuilder.Append(str3.ToString());
+            stringBuilder.AppendLine($" FROM {trackingName.Schema().Quoted().ToString()} as [side] ");
+            stringBuilder.AppendLine($"WHERE {str4})");
+
+            var r = stringBuilder.ToString();
+
+            this.AddName(DbCommandType.UpdateUntrackedRows, r);
+
         }
 
     }

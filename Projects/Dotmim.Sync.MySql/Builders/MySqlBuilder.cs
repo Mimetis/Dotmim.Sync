@@ -1,80 +1,22 @@
 ﻿using Dotmim.Sync.Builders;
-using System.Text;
-using Dotmim.Sync.Data;
+using MySql.Data.MySqlClient;
+using System;
+using System.Collections.Generic;
 using System.Data.Common;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Dotmim.Sync.MySql
+namespace Dotmim.Sync.MySql.Builders
 {
-
-    /// <summary>
-    /// The MySqlBuilder class is the MySql implementation of DbBuilder class.
-    /// In charge of creating tracking table, stored proc, triggers and adapters.
-    /// </summary>
     public class MySqlBuilder : DbBuilder
     {
+        public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null) 
+            => Task.CompletedTask;
 
-        MySqlObjectNames sqlObjectNames;
-       
-        public MySqlBuilder(DmTable tableDescription) : base(tableDescription)
+        public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
         {
-            sqlObjectNames = new MySqlObjectNames(tableDescription);
-        }
+            return await MySqlManagementUtils.GetHelloAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
 
-        internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)
-        {
-            string tableAndPrefixName = tableDescription.TableName;
-            var originalTableName = new ObjectNameParser(tableAndPrefixName, "`", "`");
-
-            var pref = tableDescription.TrackingTablesPrefix != null ? tableDescription.TrackingTablesPrefix.ToLowerInvariant() : "";
-            var suf = tableDescription.TrackingTablesSuffix != null ? tableDescription.TrackingTablesSuffix.ToLowerInvariant() : "";
-
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trackingTableName = new ObjectNameParser($"{pref}{tableAndPrefixName.ToLowerInvariant()}{suf}", "`", "`");
-
-            return (originalTableName, trackingTableName);
-        }
-        public static string WrapScriptTextWithComments(string commandText, string commentText)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilder1 = new StringBuilder("\n");
-
-            string str = stringBuilder1.ToString();
-            stringBuilder.AppendLine("DELIMITER $$ ");
-            stringBuilder.Append(string.Concat("-- BEGIN ", commentText, str));
-            stringBuilder.Append(commandText);
-            stringBuilder.Append(string.Concat("-- END ", commentText, str, "\n"));
-            stringBuilder.AppendLine("$$ ");
-            stringBuilder.AppendLine("DELIMITER ;");
-            return stringBuilder.ToString();
-        }
-
-         public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new MySqlBuilderProcedure(TableDescription, connection, transaction);
-        }
-
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new MySqlBuilderTrigger(TableDescription, connection, transaction);
-        }
-
-        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new MySqlBuilderTable(TableDescription, connection, transaction);
-        }
-
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new MySqlBuilderTrackingTable(TableDescription, connection, transaction);
-        }
-
-        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new MySqlSyncAdapter(TableDescription, connection, transaction);
         }
     }
 }

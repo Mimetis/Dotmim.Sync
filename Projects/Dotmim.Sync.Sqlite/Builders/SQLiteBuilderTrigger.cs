@@ -1,369 +1,257 @@
 ﻿using Dotmim.Sync.Builders;
 using System;
 using System.Text;
-using Dotmim.Sync.Data;
+
 using System.Data.Common;
 using System.Linq;
-using Dotmim.Sync.Log;
+
 using System.Data;
 using Microsoft.Data.Sqlite;
-using Dotmim.Sync.Filter;
+
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
     public class SqliteBuilderTrigger : IDbBuilderTriggerHelper
     {
-        private ObjectNameParser tableName;
-        private ObjectNameParser trackingName;
-        private DmTable tableDescription;
-        private SqliteConnection connection;
-        private SqliteTransaction transaction;
+        private ParserName tableName;
+        private ParserName trackingName;
+        private SyncTable tableDescription;
+        private SyncSetup setup;
         private SqliteObjectNames sqliteObjectNames;
-
-        public ICollection<FilterClause> Filters { get; set; }
-
-
-
-        public SqliteBuilderTrigger(DmTable tableDescription, DbConnection connection, DbTransaction transaction = null)
+        public SqliteBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.connection = connection as SqliteConnection;
-            this.transaction = transaction as SqliteTransaction;
             this.tableDescription = tableDescription;
-            (this.tableName, this.trackingName) = SqliteBuilder.GetParsers(this.tableDescription);
-            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription);
+            this.setup = setup;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription, tableName, trackingName, this.setup);
         }
 
         private string DeleteTriggerBodyText()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"UPDATE {trackingName.FullQuotedString} ");
-            stringBuilder.AppendLine("SET [sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine($"\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = datetime('now')");
-
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            //// Filter columns
-            //if (this.Filters != null)
-            //{
-            //    for (int i = 0; i < this.Filters.Count; i++)
-            //    {
-            //        var filterColumn = this.Filters[i];
-
-            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-            //            continue;
-
-            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-
-            //        stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [d].{columnName.QuotedString}");
-
-            //    }
-            //    stringBuilder.AppendLine();
-            //}
-
-            stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.FullQuotedString, "old"));
-            stringBuilder.AppendLine(";");
-            stringBuilder.AppendLine("END;");
-            return stringBuilder.ToString();
-        }
-        public void CreateDeleteTrigger()
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.FullQuotedString} ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-        }
-        public string CreateDeleteTriggerScriptText()
-        {
-
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.ObjectNameNormalized);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.FullQuotedString} ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-            string str = $"Delete Trigger for table {tableName.FullQuotedString}";
-            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-        }
-        public void AlterDeleteTrigger()
-        {
-
-
-        }
-        public string AlterDeleteTriggerScriptText()
-        {
-            return "";
-        }
-
-        private string InsertTriggerBodyText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
-            stringBuilder.AppendLine("BEGIN");
-
-            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.FullQuotedString} (");
-
-            StringBuilder stringBuilderArguments = new StringBuilder();
-            StringBuilder stringBuilderArguments2 = new StringBuilder();
-            StringBuilder stringPkAreNull = new StringBuilder();
-
+            var stringBuilder = new StringBuilder();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
             string argComma = string.Empty;
             string argAnd = string.Empty;
-            foreach (var mutableColumn in this.tableDescription.PrimaryKey.Columns.Where(c => !c.IsReadOnly))
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("BEGIN");
+
+            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.Quoted().ToString()} (");
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
-                ObjectNameParser columnName = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName.FullQuotedString}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName.FullQuotedString}");
-                stringPkAreNull.Append($"{argAnd}{trackingName.FullQuotedString}.{columnName.FullQuotedString} IS NULL");
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}old.{columnName}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
 
             stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t\t,[create_scope_id]");
-            stringBuilder.AppendLine("\t\t,[create_timestamp]");
             stringBuilder.AppendLine("\t\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t\t,[update_timestamp]");
             stringBuilder.AppendLine("\t\t,[timestamp]");
             stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t\t,[last_change_datetime]");
-
-            StringBuilder filterColumnsString = new StringBuilder();
-
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            //// Filter columns
-            //if (this.Filters != null && this.Filters.Count > 0)
-            //{
-            //    for (int i = 0; i < this.Filters.Count; i++)
-            //    {
-            //        var filterColumn = this.Filters[i];
-            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-            //            continue;
-
-            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-            //        filterColumnsString.AppendLine($"\t,[i].{columnName.QuotedString}");
-            //    }
-            //    stringBuilder.AppendLine(filterColumnsString.ToString());
-            //}
 
             stringBuilder.AppendLine("\t) ");
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(stringBuilderArguments2.ToString());
             stringBuilder.AppendLine("\t\t,NULL");
             stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t\t,NULL");
-            stringBuilder.AppendLine("\t\t,0");
-            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
-            stringBuilder.AppendLine("\t\t,0");
+            stringBuilder.AppendLine("\t\t,1");
             stringBuilder.AppendLine("\t\t,datetime('now')");
-
-            if (Filters != null && Filters.Count > 0)
-                stringBuilder.AppendLine(filterColumnsString.ToString());
-
             stringBuilder.AppendLine("\t);");
             stringBuilder.AppendLine("END;");
             return stringBuilder.ToString();
         }
-        public void CreateInsertTrigger()
+        public async Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+            var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} ");
+            createTrigger.AppendLine();
+            createTrigger.AppendLine(this.DeleteTriggerBodyText());
 
-            try
+            using (var command = new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
-
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.FullQuotedString} ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
-        public string CreateInsertTriggerScriptText()
+
+        public Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+
+        private string InsertTriggerBodyText()
         {
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.FullQuotedString} ");
+            var stringBuilder = new StringBuilder();
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
+
+            stringBuilder.AppendLine($"\tINSERT OR REPLACE INTO {trackingName.Quoted().ToString()} (");
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t\t,[update_scope_id]");
+            stringBuilder.AppendLine("\t\t,[timestamp]");
+            stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
+            stringBuilder.AppendLine("\t\t,[last_change_datetime]");
+
+            stringBuilder.AppendLine("\t) ");
+            stringBuilder.AppendLine("\tVALUES (");
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t\t,NULL");
+            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t\t,0");
+            stringBuilder.AppendLine("\t\t,datetime('now')");
+            stringBuilder.AppendLine("\t);");
+            stringBuilder.AppendLine("END;");
+            return stringBuilder.ToString();
+        }
+
+        public async Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.Unquoted().ToString());
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            string str = $"Insert Trigger for table {tableName.FullQuotedString}";
-            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
-
-        }
-        public void AlterInsertTrigger()
-        {
-
-        }
-        public string AlterInsertTriggerScriptText()
-        {
-            return "";
+            using (var command = new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
         }
 
+        public Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
         private string UpdateTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"Begin ");
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.FullQuotedString} ");
-            stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine($"\t\t,[update_timestamp] = {SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
+            stringBuilder.AppendLine("\tSET [update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             stringBuilder.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
 
-            // --------------------------------------------------------------------------------
-            // SQLITE doesnot support (yet) filtering columns, since it's only a client provider
-            // --------------------------------------------------------------------------------
-            // Filter columns
-            //if (this.Filters != null && Filters.Count > 0)
-            //{
-            //    for (int i = 0; i < this.Filters.Count; i++)
-            //    {
-            //        var filterColumn = this.Filters[i];
-
-            //        if (this.tableDescription.PrimaryKey.Columns.Any(c => c.ColumnName == filterColumn.ColumnName))
-            //            continue;
-
-            //        ObjectNameParser columnName = new ObjectNameParser(filterColumn.ColumnName);
-
-            //        stringBuilder.AppendLine($"\t,{columnName.QuotedString} = [i].{columnName.QuotedString}");
-
-            //    }
-            //    stringBuilder.AppendLine();
-            //}
-
             stringBuilder.Append($"\tWhere ");
-            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKey.Columns, trackingName.FullQuotedString, "new"));
+            stringBuilder.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Quoted().ToString(), "new"));
+
+
+            if (this.tableDescription.GetMutableColumns().Count() > 0)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine("\t AND (");
+                string or = "    ";
+                foreach (var column in this.tableDescription.GetMutableColumns())
+                {
+                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                    stringBuilder.Append("\t");
+                    stringBuilder.Append(or);
+                    stringBuilder.Append("IFNULL(");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("[old].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("[new].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("[new].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("[old].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.AppendLine(") IS NOT NULL");
+
+                    or = " OR ";
+                }
+                stringBuilder.AppendLine("\t ) ");
+            }
+
             stringBuilder.AppendLine($"; ");
+
+
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderArguments2 = new StringBuilder();
+            var stringPkAreNull = new StringBuilder();
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+
+            stringBuilder.AppendLine($"\tINSERT OR IGNORE INTO {trackingName.Quoted().ToString()} (");
+            foreach (var mutableColumn in this.tableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
+                stringPkAreNull.Append($"{argAnd}{trackingName.Quoted().ToString()}.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.AppendLine("\t\t,[update_scope_id]");
+            stringBuilder.AppendLine("\t\t,[timestamp]");
+            stringBuilder.AppendLine("\t\t,[sync_row_is_tombstone]");
+            stringBuilder.AppendLine("\t\t,[last_change_datetime]");
+
+            stringBuilder.AppendLine("\t) ");
+            stringBuilder.AppendLine("\tVALUES (");
+            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.AppendLine("\t\t,NULL");
+            stringBuilder.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
+            stringBuilder.AppendLine("\t\t,0");
+            stringBuilder.AppendLine("\t\t,datetime('now')");
+            stringBuilder.AppendLine("\t);");
+
             stringBuilder.AppendLine($"End; ");
             return stringBuilder.ToString();
         }
-        public void CreateUpdateTrigger()
+
+        public async Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
-
-            try
-            {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
-                    StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.FullQuotedString} ");
-                    createTrigger.AppendLine();
-                    createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-                    command.CommandText = createTrigger.ToString();
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during CreateDeleteTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-        }
-        public string CreateUpdateTriggerScriptText()
-        {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.FullQuotedString} ");
+            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
-            string str = $"Update Trigger for table {tableName.FullQuotedString}";
-            return SqliteBuilder.WrapScriptTextWithComments(createTrigger.ToString(), str);
+            using (var command = new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+
         }
-        public void AlterUpdateTrigger()
+        public Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
+
+        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
         {
-            return;
-        }
-        public string AlterUpdateTriggerScriptText()
-        {
-            return string.Empty;
-        }
-        public bool NeedToCreateTrigger(DbTriggerType type)
-        {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.ObjectNameNormalized);
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.ObjectNameNormalized);
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.ObjectNameNormalized);
+            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
+            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.Unquoted().ToString());
+            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.Unquoted().ToString());
 
             string triggerName = string.Empty;
             switch (type)
@@ -385,88 +273,23 @@ namespace Dotmim.Sync.Sqlite
                     }
             }
 
-            return !SqliteManagementUtils.TriggerExists(connection, transaction, triggerName);
-
-
+            return !await SqliteManagementUtils.TriggerExistsAsync((SqliteConnection)connection, (SqliteTransaction)transaction, triggerName).ConfigureAwait(false);
         }
 
 
-        private void DropTrigger(DbCommandType triggerType)
-        {
-            bool alreadyOpened = this.connection.State == ConnectionState.Open;
+        public Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.InsertTrigger, connection, transaction);
+        public Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.UpdateTrigger, connection, transaction);
+        public Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.DeleteTrigger, connection, transaction);
 
-            try
+        private async Task DropTriggerAsync(DbCommandType triggerType, DbConnection connection, DbTransaction transaction)
+        {
+            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.Unquoted().ToString());
+            var dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
+
+            using (var command = new SqliteCommand(dropTrigger, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                using (var command = new SqliteCommand())
-                {
-                    if (!alreadyOpened)
-                        this.connection.Open();
-
-                    if (this.transaction != null)
-                        command.Transaction = this.transaction;
-
-                    var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.ObjectNameNormalized);
-
-                    String dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
-
-                    command.CommandText = dropTrigger;
-                    command.Connection = this.connection;
-                    command.ExecuteNonQuery();
-
-                }
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during DropTrigger : {ex}");
-                throw;
-
-            }
-            finally
-            {
-                if (!alreadyOpened && this.connection.State != ConnectionState.Closed)
-                    this.connection.Close();
-
-            }
-        }
-
-
-        public string CreateDropTriggerScriptText(DbCommandType triggerType)
-        {
-            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.ObjectNameNormalized);
-            string dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
-            string str = $"Drop Trigger {triggerName} for table {tableName.FullQuotedString}";
-            return SqliteBuilder.WrapScriptTextWithComments(dropTrigger, str);
-        }
-
-
-        public void DropInsertTrigger()
-        {
-            DropTrigger(DbCommandType.InsertTrigger);
-        }
-
-        public void DropUpdateTrigger()
-        {
-            DropTrigger(DbCommandType.UpdateTrigger);
-        }
-
-        public void DropDeleteTrigger()
-        {
-            DropTrigger(DbCommandType.DeleteTrigger);
-        }
-
-        public string DropInsertTriggerScriptText()
-        {
-            return CreateDropTriggerScriptText(DbCommandType.InsertTrigger);
-        }
-
-        public string DropUpdateTriggerScriptText()
-        {
-            return CreateDropTriggerScriptText(DbCommandType.UpdateTrigger);
-        }
-
-        public string DropDeleteTriggerScriptText()
-        {
-            return CreateDropTriggerScriptText(DbCommandType.DeleteTrigger);
         }
     }
 }

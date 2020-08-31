@@ -1,200 +1,220 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Scope;
-using Dotmim.Sync.Data.Surrogate;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Dotmim.Sync.Data;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Filter;
-using Dotmim.Sync.Messages;
+using System.Runtime.Serialization;
+using System.Data.Common;
 
 namespace Dotmim.Sync.Web.Client
 {
-    /// <summary>
-    /// Message send and receieved during http call
-    /// </summary>
-    [Serializable]
-    public class HttpMessage
+    [DataContract(Name = "changesres"), Serializable]
+    public class HttpMessageSendChangesResponse
     {
+
+        public HttpMessageSendChangesResponse()
+        {
+
+        }
+
+        public HttpMessageSendChangesResponse(SyncContext context)
+            => this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+
         /// <summary>
-        /// Context of the request / response
+        /// Gets or Sets the Server HttpStep
         /// </summary>
+        [DataMember(Name = "ss", IsRequired = true, Order = 1)]
+
+        public HttpStep ServerStep { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the SyncContext
+        /// </summary>
+        [DataMember(Name = "sc", IsRequired = true, Order = 2)]
         public SyncContext SyncContext { get; set; }
 
         /// <summary>
-        /// Gets or Sets the current step during proxy client communication
+        /// Gets the current batch index, send from the server 
         /// </summary>
-        public HttpStep Step { get; set; }
-
-        /// <summary>
-        /// Content of the message. Can represent each HttpMessage**
-        /// </summary>
-        public Object Content { get; set; }
-
-        ///// <summary>
-        ///// Gets or Sets the message used when the session begins.
-        ///// Basically, exchange the configuration and check on both side
-        ///// </summary>
-        //public HttpMessageBeginSession BeginSession { get; set; }
-
-        ///// <summary>
-        ///// Message sent during EnsureConfiguration stage
-        ///// </summary>
-        //public HttpEnsureSchemaMessage EnsureSchema { get; set; }
-
-        ///// <summary>
-        ///// Message sent during EnsureScope stage
-        ///// </summary>
-        //public HttpEnsureScopesMessage EnsureScopes { get; set; }
-
-        ///// <summary>
-        ///// Message sent during EnsureDatabase stage
-        ///// </summary>
-        //public HttpMessageEnsureDatabase EnsureDatabase { get; set; }
-
-        ///// <summary>
-        ///// Message sent during GetChangeBatch stage
-        ///// </summary>
-        //public HttpMessageGetChangesBatch GetChangeBatch { get; set; }
-
-        ///// <summary>
-        ///// Message sent during ApplyChanges stage
-        ///// </summary>
-        //public HttpMessageApplyChanges ApplyChanges { get; set; }
-
-        ///// <summary>
-        ///// Message sent during GetLocalTimestamp stage
-        ///// </summary>
-        //public HttpMessageTimestamp GetLocalTimestamp { get; set; }
-
-        ///// <summary>
-        ///// Message sent during WriteScopes stage
-        ///// </summary>
-        //public HttpMessageWriteScopes WriteScopes { get; set; }
-
-    }
-
-    [Serializable]
-    public class HttpMessageBeginSession : MessageBeginSession
-    {
-    }
-
-
-    [Serializable]
-    public class HttpMessageGetChangesBatch: MessageGetChangesBatch
-    {
-        /// <summary>
-        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
-        /// </summary>
-        public new DmSetSurrogate Schema { get; set; }
-
-        /// <summary>
-        /// Gets the output batch index, returned by the server
-        /// </summary>
-        public int BatchIndexRequested { get; set; }
-
-        /// <summary>
-        /// Gets the output in memory flag from the server
-        /// </summary>
-        public Boolean InMemory { get; set; }
-
-        /// <summary>
-        /// Gets the BatchParInfo returned by the server
-        /// </summary>
-        public BatchPartInfo BatchPartInfo { get; set; }
-
-        /// <summary>
-        /// Gets the DmSet containing the data for the corresponding batch, returned by the server
-        /// </summary>
-        public DmSetSurrogate Set { get; set; }
-
-        /// <summary>
-        /// Gets the changes statistics
-        /// </summary>
-        public ChangesSelected ChangesSelected { get; set; }
-    }
-
-
-    [Serializable]
-    public class HttpMessageTimestamp : MessageTimestamp
-    {
-        /// <summary>
-        /// Gets the output result from server : The server timestamp
-        /// </summary>
-        public Int64 LocalTimestamp { get; set; }
-    }
-
-    [Serializable]
-    public class HttpMessageApplyChanges : MessageApplyChanges
-    {
-        /// <summary>
-        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
-        /// </summary>
-        public new DmSetSurrogate Schema { get; set; }
-
-        /// <summary>
-        /// Gets the current batch index, exchanged between server and client
-        /// </summary>
+        [DataMember(Name = "bi", IsRequired = true, Order = 3)]
         public int BatchIndex { get; set; }
 
         /// <summary>
-        /// Gets the output in memory flag exchanged between server and client
+        /// Gets or Sets if this is the last Batch send from the server 
         /// </summary>
-        public Boolean InMemory { get; set; }
+        [DataMember(Name = "islb", IsRequired = true, Order = 4)]
+        public bool IsLastBatch { get; set; }
 
         /// <summary>
-        /// Gets the BatchParInfo exchanged between server and client
+        /// The remote client timestamp generated by the server database
         /// </summary>
-        public BatchPartInfo BatchPartInfo { get; set; }
+        [DataMember(Name = "rct", IsRequired = true, Order = 5)]
+        public long RemoteClientTimestamp { get; set; }
 
         /// <summary>
-        /// Gets the DmSet containing the data for the corresponding batch, returned by the server
+        /// Gets the BatchParInfo send from the server 
         /// </summary>
-        public DmSetSurrogate Set { get; set; }
+        [DataMember(Name = "changes", IsRequired = true, Order = 6)]
+        public ContainerSet Changes { get; set; }
 
         /// <summary>
-        /// Gets the changes applied stats from the server
+        /// Gets the changes stats from the server
         /// </summary>
-        public ChangesApplied ChangesApplied { get; set; }
+        [DataMember(Name = "scs", IsRequired = true, Order = 7)]
+        public DatabaseChangesSelected ServerChangesSelected { get; set; }
+
+        /// <summary>
+        /// Gets the changes stats from the server
+        /// </summary>
+        [DataMember(Name = "cca", IsRequired = true, Order = 8)]
+        public DatabaseChangesApplied ClientChangesApplied { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the conflict resolution policy from the server
+        /// </summary>
+
+        [DataMember(Name = "policy", IsRequired = true, Order = 9)]
+        public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
 
     }
 
-    [Serializable]
-    public class HttpMessageEnsureScopes : MessageEnsureScopes
+    [DataContract(Name = "morechangesreq"), Serializable]
+    public class HttpMessageGetMoreChangesRequest
     {
-        /// <summary>
-        /// Gets the result from server : Scopes returned.
-        /// </summary>
-        public List<ScopeInfo> Scopes { get; set; }
+        public HttpMessageGetMoreChangesRequest() { }
+
+        public HttpMessageGetMoreChangesRequest(SyncContext context, int batchIndexRequested)
+        {
+            this.BatchIndexRequested = batchIndexRequested;
+            this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+
+        }
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+
+        [DataMember(Name = "bireq", IsRequired = true, Order = 2)]
+        public int BatchIndexRequested { get; set; }
     }
 
-    [Serializable]
-    public class HttpMessageEnsureSchema : MessageEnsureSchema
+    [DataContract(Name = "changesreq"), Serializable]
+    public class HttpMessageSendChangesRequest
     {
+        public HttpMessageSendChangesRequest()
+        {
+
+        }
+
+        public HttpMessageSendChangesRequest(SyncContext context, ScopeInfo scope)
+        {
+            this.SyncContext = context;
+            this.Scope = scope;
+        }
+
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+
         /// <summary>
-        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
+        /// Gets or Sets the reference scope for local repository, stored on server
         /// </summary>
-        public new DmSetSurrogate Schema { get; set; }
-    }
+        [DataMember(Name = "scope", IsRequired = true, Order = 2)]
+        public ScopeInfo Scope { get; set; }
 
-    [Serializable]
-    public class HttpMessageEnsureDatabase : MessageEnsureDatabase
-    {
         /// <summary>
-        /// Gets or Sets the tables schema. Overriding the default Schema DmSet property, which is not serializable
+        /// Get the current batch index (if InMemory == false)
         /// </summary>
-        public new DmSetSurrogate Schema { get; set; }
- 
+        [DataMember(Name = "bi", IsRequired = true, Order = 3)]
+        public int BatchIndex { get; set; }
+
+        /// <summary>
+        /// Gets or Sets if this is the last Batch to sent to server 
+        /// </summary>
+        [DataMember(Name = "islb", IsRequired = true, Order = 4)]
+        public bool IsLastBatch { get; set; }
+
+        /// <summary>
+        /// Changes to send
+        /// </summary>
+        [DataMember(Name = "changes", IsRequired = true, Order = 5)]
+        public ContainerSet Changes { get; set; }
     }
 
-    [Serializable]
-    public class HttpMessageWriteScopes : MessageWriteScopes
+    [DataContract(Name = "ensureschemares"), Serializable]
+    public class HttpMessageEnsureSchemaResponse
     {
+        public HttpMessageEnsureSchemaResponse()
+        {
+
+        }
+        public HttpMessageEnsureSchemaResponse(SyncContext context, ServerScopeInfo serverScopeInfo)
+        {
+            this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+            this.ServerScopeInfo = serverScopeInfo ?? throw new ArgumentNullException(nameof(serverScopeInfo));
+            this.Schema = serverScopeInfo.Schema;
+        }
+
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the schema because the ServerScopeInfo won't have it since it's marked (on purpose) as IgnoreDataMember (and then not serialized)
+        /// </summary>
+        [DataMember(Name = "schema", IsRequired = true, Order = 2)]
+        public SyncSet Schema { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the server scope info, from server
+        /// </summary>
+        [DataMember(Name = "ssi", IsRequired = true, Order = 3)]
+        public ServerScopeInfo ServerScopeInfo { get; set; }
 
     }
 
 
+    [DataContract(Name = "ensurescopesres"), Serializable]
+    public class HttpMessageEnsureScopesResponse
+    {
+        public HttpMessageEnsureScopesResponse()
+        {
+
+        }
+        public HttpMessageEnsureScopesResponse(SyncContext context, ServerScopeInfo serverScopeInfo)
+        {
+            this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+            this.ServerScopeInfo = serverScopeInfo ?? throw new ArgumentNullException(nameof(serverScopeInfo));
+        }
+
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the schema option (without schema itself, that is not serializable)
+        /// </summary>
+        [DataMember(Name = "serverscope", IsRequired = true, Order = 2)]
+        public ServerScopeInfo ServerScopeInfo { get; set; }
+    }
+
+
+
+
+    [DataContract(Name = "ensurereq"), Serializable]
+    public class HttpMessageEnsureScopesRequest
+    {
+        public HttpMessageEnsureScopesRequest() { }
+
+        /// <summary>
+        /// Create a new message to web remote server.
+        /// Scope info table name is not provided since we do not care about it on the server side
+        /// </summary>
+        public HttpMessageEnsureScopesRequest(SyncContext context)
+        {
+            this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+        }
+
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+
+       
+    }
 }

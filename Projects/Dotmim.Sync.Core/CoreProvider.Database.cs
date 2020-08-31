@@ -1,15 +1,14 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Data;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Text;
-using Dotmim.Sync.Filter;
-using System.Collections.Generic;
-using Dotmim.Sync.Messages;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -21,258 +20,181 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision a database. You have to passe a configuration object, containing at least the dmTables
         /// </summary>
-        public async Task DeprovisionAsync(SyncConfiguration configuration, SyncProvision provision)
+        public async Task<SyncContext> DeprovisionAsync(SyncContext context, SyncSet schema, SyncSetup setup, SyncProvision provision, string scopeInfoTableName,
+                             bool disableConstraintsOnApplyChanges, DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            DbConnection connection = null;
-            try
+
+            if (schema.Tables == null || !schema.HasTables)
+                throw new MissingTablesException();
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.Deprovision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName, DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges, });
+
+            // get Database builder
+            var builder = this.GetDatabaseBuilder();
+            builder.UseChangeTracking = this.UseChangeTracking;
+            builder.UseBulkProcedures = this.SupportBulkOperations;
+
+
+            // Sorting tables based on dependencies between them
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+
+            // Disable check constraints
+            if (disableConstraintsOnApplyChanges)
+                foreach (var table in schemaTables.Reverse())
+                    await this.DisableConstraintsAsync(context, table, setup, connection, transaction).ConfigureAwait(false);
+
+            // Creating a local function to mutualize call
+            var deprovisionFuncAsync = new Func<SyncProvision, IEnumerable<SyncTable>, Task>(async (p, tables) =>
             {
-                if (configuration.Schema == null || !configuration.Schema.HasTables)
-                    throw new ArgumentNullException("tables", "You must set the tables you want to provision");
-
-                // Load the configuration
-                await this.ReadSchemaAsync(configuration.Schema);
-
-                // Open the connection
-                using (connection = this.CreateConnection())
+                foreach (var schemaTable in tables)
                 {
-                    await connection.OpenAsync();
+                    var tableBuilder = this.GetTableBuilder(schemaTable, setup);
+                    // set if the builder supports creating the bulk operations proc stock
+                    tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
+                    tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        for (int i = configuration.Count - 1; i >= 0; i--)
-                        {
-                            // Get the table
-                            var dmTable = configuration.Schema.Tables[i];
+                    // adding filter
+                    this.AddFilters(schemaTable, tableBuilder);
 
-                            // get the builder
-                            var builder = GetDatabaseBuilder(dmTable);
-                            builder.UseBulkProcedures = this.SupportBulkOperations;
+                    this.Orchestrator.logger.LogDebug(SyncEventsId.Deprovision, schemaTable);
 
-                            // adding filters
-                            this.AddFilters(configuration.Filters, dmTable, builder);
+                    await tableBuilder.DropAsync(p, connection, transaction).ConfigureAwait(false);
 
-                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
-                                builder.DropTrackingTable(connection, transaction);
-
-                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
-                                builder.DropProcedures(connection, transaction);
-
-                            if (provision.HasFlag(SyncProvision.Triggers) || provision.HasFlag(SyncProvision.All))
-                                builder.DropTriggers(connection, transaction);
-
-                            // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
-                            if (provision.HasFlag(SyncProvision.Table))
-                                builder.DropTable(connection, transaction);
-                        }
-
-                        if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
-                        {
-                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
-                            if (!scopeBuilder.NeedToCreateScopeInfoTable())
-                                scopeBuilder.DropScopeInfoTable();
-                        }
-                        transaction.Commit();
-                    }
+                    // Interceptor
+                    await this.Orchestrator.InterceptAsync(new TableDeprovisionedArgs(context, p, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
                 }
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
-            }
-            finally
-            {
-                if (connection != null && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
+            });
 
+            // Checking if we have to deprovision tables
+            bool hasDeprovisionTableFlag = provision.HasFlag(SyncProvision.Table);
+
+            // Firstly, removing the flag from the provision, because we need to drop everything in correct order, then drop tables in reverse side
+            if (hasDeprovisionTableFlag)
+                provision ^= SyncProvision.Table;
+
+            // Deprovision everything in order, excepting table
+            await deprovisionFuncAsync(provision, schemaTables).ConfigureAwait(false);
+
+            // then in reverse side, deprovision tables, if Table was part of Provision enumeration.
+            if (hasDeprovisionTableFlag)
+                await deprovisionFuncAsync(SyncProvision.Table, schemaTables.Reverse()).ConfigureAwait(false);
+
+
+            if (provision.HasFlag(SyncProvision.ClientScope))
+                context = await this.DropClientScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (provision.HasFlag(SyncProvision.ServerScope))
+                context = await this.DropServerScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (provision.HasFlag(SyncProvision.ServerHistoryScope))
+                context = await this.DropServerHistoryScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return context;
         }
 
-        /// <summary>
-        /// Deprovision a database
-        /// </summary>
-        public async Task ProvisionAsync(SyncConfiguration configuration, SyncProvision provision)
-        {
-            DbConnection connection = null;
-
-            try
-            {
-                if (configuration.Schema == null || !configuration.Schema.HasTables)
-                    throw new ArgumentNullException("tables", "You must set the tables you want to provision");
-
-                // Load the configuration
-                await this.ReadSchemaAsync(configuration.Schema);
-
-                // Open the connection
-                using (connection = this.CreateConnection())
-                {
-                    await connection.OpenAsync();
-
-                    using (var transaction = connection.BeginTransaction())
-                    {
-
-                        if (provision.HasFlag(SyncProvision.Scope) || provision.HasFlag(SyncProvision.All))
-                        {
-                            var scopeBuilder = GetScopeBuilder().CreateScopeInfoBuilder(configuration.ScopeInfoTableName, connection, transaction);
-                            if (scopeBuilder.NeedToCreateScopeInfoTable())
-                                scopeBuilder.CreateScopeInfoTable();
-                        }
-
-                        for (int i = 0; i < configuration.Count; i++)
-                        {
-                            // Get the table
-                            var dmTable = configuration.Schema.Tables[i];
-
-                            // get the builder
-                            var builder = GetDatabaseBuilder(dmTable);
-                            builder.UseBulkProcedures = this.SupportBulkOperations;
-
-                            // adding filters
-                            this.AddFilters(configuration.Filters, dmTable, builder);
-
-                            // On purpose, the flag SyncProvision.All does not include the SyncProvision.Table, too dangerous...
-                            if (provision.HasFlag(SyncProvision.Table))
-                                builder.CreateTable(connection, transaction);
-
-                            if (provision.HasFlag(SyncProvision.TrackingTable) || provision.HasFlag(SyncProvision.All))
-                                builder.CreateTrackingTable(connection, transaction);
-
-                            if (provision.HasFlag(SyncProvision.Triggers) || provision.HasFlag(SyncProvision.All))
-                                builder.CreateTriggers(connection, transaction);
-
-                            if (provision.HasFlag(SyncProvision.StoredProcedures) || provision.HasFlag(SyncProvision.All))
-                                builder.CreateStoredProcedures(connection, transaction);
-
-                        }
-                        transaction.Commit();
-                    }
-
-                    connection.Close();
-                }
-
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
-            }
-            finally
-            {
-                if (connection != null && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
-        }
 
         /// <summary>
         /// Be sure all tables are ready and configured for sync
         /// the ScopeSet Configuration MUST be filled by the schema form Database
         /// </summary>
-        public virtual async Task<SyncContext> EnsureDatabaseAsync(SyncContext context, MessageEnsureDatabase message)
+        public virtual async Task<SyncContext> ProvisionAsync(SyncContext context, SyncSet schema, SyncSetup setup, SyncProvision provision, string scopeInfoTableName,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            DbConnection connection = null;
-            try
+
+            if (schema.Tables == null || !schema.HasTables)
+                throw new MissingTablesException();
+
+            this.Orchestrator.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName });
+
+            // get Database builder
+            var builder = this.GetDatabaseBuilder();
+            builder.UseChangeTracking = this.UseChangeTracking;
+            builder.UseBulkProcedures = this.SupportBulkOperations;
+
+            // Initialize database if needed
+            await builder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
+
+            // Shoudl we create scope
+            if (provision.HasFlag(SyncProvision.ClientScope))
+                context = await this.EnsureClientScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (provision.HasFlag(SyncProvision.ServerScope))
+                context = await this.EnsureServerScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (provision.HasFlag(SyncProvision.ServerHistoryScope))
+                context = await this.EnsureServerHistoryScopeAsync(context, scopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+            // Sorting tables based on dependencies between them
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            foreach (var schemaTable in schemaTables)
             {
-                // Event progress
-                context.SyncStage = SyncStage.DatabaseApplying;
+                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
+                // set if the builder supports creating the bulk operations proc stock
+                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
+                tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
-                DatabaseApplyingEventArgs beforeArgs =
-                    new DatabaseApplyingEventArgs(this.ProviderTypeName, context.SyncStage, message.Schema);
-                this.TryRaiseProgressEvent(beforeArgs, this.DatabaseApplying);
+                // adding filter
+                this.AddFilters(schemaTable, tableBuilder);
 
-                // If scope exists and lastdatetime sync is present, so database exists
-                // Check if we don't have an OverwriteConfiguration (if true, we force the check)
+                this.Orchestrator.logger.LogDebug(SyncEventsId.Provision, schemaTable);
 
-                if (message.ScopeInfo.LastSync.HasValue && !beforeArgs.OverwriteSchema)
-                    return context;
+                // Interceptor
+                await this.Orchestrator.InterceptAsync(new TableProvisioningArgs(context, provision, tableBuilder, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                StringBuilder script = new StringBuilder();
+                await tableBuilder.CreateAsync(provision, connection, transaction).ConfigureAwait(false);
+                await tableBuilder.CreateForeignKeysAsync(connection, transaction).ConfigureAwait(false);
 
-                // Open the connection
-                using (connection = this.CreateConnection())
-                {
-                    await connection.OpenAsync();
-
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        // Sorting tables based on dependencies between them
-                        var dmTables = message.Schema.Tables
-                            .SortByDependencies(tab => tab.ChildRelations
-                                .Select(r => r.ChildTable));
-
-                        foreach (var dmTable in dmTables)
-                        {
-                            var builder = GetDatabaseBuilder(dmTable);
-                            // set if the builder supports creating the bulk operations proc stock
-                            builder.UseBulkProcedures = this.SupportBulkOperations;
-                           
-                            // adding filter
-                            this.AddFilters(message.Filters, dmTable, builder);
-
-                            context.SyncStage = SyncStage.DatabaseTableApplying;
-                            DatabaseTableApplyingEventArgs beforeTableArgs =
-                                new DatabaseTableApplyingEventArgs(this.ProviderTypeName, context.SyncStage, dmTable.TableName);
-                            this.TryRaiseProgressEvent(beforeTableArgs, this.DatabaseTableApplying);
-
-                            string currentScript = null;
-                            if (beforeArgs.GenerateScript)
-                            {
-                                currentScript = builder.ScriptTable(connection, transaction);
-                                currentScript += builder.ScriptForeignKeys(connection, transaction);
-                                script.Append(currentScript);
-                            }
-
-                            builder.Create(connection, transaction);
-                            builder.CreateForeignKeys(connection, transaction);
-
-                            context.SyncStage = SyncStage.DatabaseTableApplied;
-                            DatabaseTableAppliedEventArgs afterTableArgs =
-                                new DatabaseTableAppliedEventArgs(this.ProviderTypeName, context.SyncStage, dmTable.TableName, currentScript);
-                            this.TryRaiseProgressEvent(afterTableArgs, this.DatabaseTableApplied);
-                        }
-
-                        context.SyncStage = SyncStage.DatabaseApplied;
-                        var afterArgs = new DatabaseAppliedEventArgs(this.ProviderTypeName, context.SyncStage, script.ToString());
-                        this.TryRaiseProgressEvent(afterArgs, this.DatabaseApplied);
-
-                        transaction.Commit();
-                    }
-
-                    connection.Close();
-
-                    return context;
-                }
-
+                // Interceptor
+                await this.Orchestrator.InterceptAsync(new TableProvisionedArgs(context, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex, SyncStage.DatabaseApplying, this.ProviderTypeName);
-            }
-            finally
-            {
-                if (connection != null && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
+
+            return context;
         }
 
         /// <summary>
         /// Adding filters to an existing configuration
         /// </summary>
-        private void AddFilters(ICollection<FilterClause> filters, DmTable dmTable, DbBuilder builder)
+        private void AddFilters(SyncTable schemaTable, DbTableBuilder builder)
         {
-            if (filters != null && filters.Count > 0)
+            var schema = schemaTable.Schema;
+
+            if (schema.Filters != null && schema.Filters.Count > 0)
             {
-                var tableFilters = filters.Where(f => dmTable.TableName.Equals(f.TableName, StringComparison.InvariantCultureIgnoreCase));
+                // get the all the filters for the table
+                builder.Filter = schemaTable.GetFilter();
 
-                foreach (var filter in tableFilters)
-                {
-                    var columnFilter = dmTable.Columns[filter.ColumnName];
-
-                    if (columnFilter == null && !filter.IsVirtual)
-                        throw new InvalidExpressionException($"Column {filter.ColumnName} does not exist in Table {dmTable.TableName}");
-
-                    builder.FilterColumns.Add(new FilterClause(filter.TableName, filter.ColumnName, filter.ColumnType));
-                }
+                this.Orchestrator.logger.LogDebug(SyncEventsId.AddFilter, builder.Filter);
             }
-
         }
 
+
+        public virtual async Task<SyncContext> UpdateUntrackedRowsAsync(SyncContext context, SyncSet schema, SyncSetup setup,
+                                                 DbConnection connection, DbTransaction transaction,
+                                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            if (schema.Tables == null || !schema.HasTables)
+                throw new MissingTablesException();
+
+            //this.Orchestrator.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = scopeInfoTableName });
+
+            foreach (var syncTable in schema.Tables)
+            {
+                var tableBuilder = this.GetTableBuilder(syncTable, setup);
+                var syncAdapter = tableBuilder.CreateSyncAdapter();
+
+                await syncAdapter.UpdateUntrackedRowsAsync(connection, transaction).ConfigureAwait(false);
+            }
+
+            return context;
+        }
     }
 }

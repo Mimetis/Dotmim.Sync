@@ -1,159 +1,313 @@
-﻿using Dotmim.Sync.Data;
+﻿
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
 using System.Linq;
 using Microsoft.Data.Sqlite;
 using Dotmim.Sync.Builders;
+using System;
+using System.Data;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
     internal static class SqliteManagementUtils
     {
-
-        public static void DropTableIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
+        public static async Task<SyncTable> GetTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
+            string command = "select * from sqlite_master where name = @tableName limit 1";
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameString = ParserName.Parse(tableName).ToString();
+
+            var syncTable = new SyncTable(tableNameNormalized);
+            using (var sqlCommand = new SqliteCommand(command, connection))
             {
-                dbCommand.CommandText = $"drop table if exist {objectNameParser.ObjectName}";
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
 
-                dbCommand.ExecuteNonQuery();
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    syncTable.Load(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static async Task<SyncTable> GetColumnsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}');";
+            var syncTable = new SyncTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    syncTable.Load(reader);
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}') where pk = 1;";
+            var syncTable = new SyncTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    syncTable.Load(reader);
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static async Task<SyncTable> GetRelationsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        {
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var tableNameString = tableNameParser.Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_foreign_key_list('{tableNameString}')";
+            var syncTable = new SyncTable(tableNameString);
+
+            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    sqlCommand.Transaction = transaction;
+
+
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    syncTable.Load(reader);
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncTable;
+        }
+
+        public static async Task DropTableIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
+        {
+            var tableName = ParserName.Parse(quotedTableName).ToString();
+
+            using (DbCommand command = connection.CreateCommand())
+            {
+                command.CommandText = $"drop table if exist {tableName}";
+                if (transaction != null)
+                    command.Transaction = transaction;
+
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public static string DropTableIfExistsScriptText(string quotedTableName)
+        public static async Task DropTriggerIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
-
-            return $"drop table if exist {objectNameParser.ObjectName}";
-        }
-
-        public static string DropTableScriptText(string quotedTableName)
-        {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
-
-            return $"drop table {objectNameParser.ObjectName}";
-        }
-
-        public static void DropTriggerIfExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
-        {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
+            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = $"drop trigger if exist {objectNameParser.ObjectName}";
+                dbCommand.CommandText = $"drop trigger if exist {triggerName}";
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
              
-                dbCommand.ExecuteNonQuery();
+                await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public static string DropTriggerScriptText(string quotedTriggerName)
-        {
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
-            return $"drop trigger {objectNameParser.ObjectName}";
-        }
-
-
-        public static bool TableExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
+        public static async Task<bool> TableExistsAsync(SqliteConnection connection, SqliteTransaction transaction, ParserName tableName)
         {
             bool tableExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTableName);
+            var quotedTableName = tableName.Unquoted().ToString();
+
             using (DbCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @tableName AND type='table'";
 
-                SqliteParameter SqliteParameter = new SqliteParameter()
+                var SqliteParameter = new SqliteParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = objectNameParser.ObjectName
+                    Value = quotedTableName
                 };
                 dbCommand.Parameters.Add(SqliteParameter);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = (long)dbCommand.ExecuteScalar() != 0L;
+                tableExist = ((long)await dbCommand.ExecuteScalarAsync()) != 0L;
             }
             return tableExist;
         }
 
-        public static bool TriggerExists(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
+        public static async Task<bool> TriggerExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
-            ObjectNameParser objectNameParser = new ObjectNameParser(quotedTriggerName);
+            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
-
-            using (SqliteCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @triggerName AND type='trigger'";
 
-                dbCommand.Parameters.AddWithValue("@triggerName", objectNameParser.ObjectName);
+                dbCommand.Parameters.AddWithValue("@triggerName", triggerName);
 
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                triggerExist = (long)dbCommand.ExecuteScalar() != 0L;
+                triggerExist = ((long)await dbCommand.ExecuteScalarAsync()) != 0L;
             }
             return triggerExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<DmColumn> columns, string leftName, string rightName)
+        internal static string JoinOneTablesOnParametersValues(IEnumerable<string> columns, string leftName)
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
+            var stringBuilder = new StringBuilder();
             string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
 
             string str = "";
-            foreach (DmColumn column in columns)
+            foreach (var column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append($"@{unquotedColumn}");
 
                 str = " AND ";
             }
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<DmColumn> columns, string fromPrefix)
+        internal static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string str1 = "";
-            foreach (DmColumn column in columns)
+            var stringBuilder = new StringBuilder();
+            string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
+            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+
+            string str = "";
+            foreach (var column in columns)
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(column.ColumnName);
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                stringBuilder.Append(str);
+                stringBuilder.Append(strLeftName);
+                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append(strRightName);
+                stringBuilder.Append(quotedColumn);
+
+                str = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static string WhereColumnAndParameters(IEnumerable<string> columns, string fromPrefix)
+        {
+            var stringBuilder = new StringBuilder();
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string str1 = "";
+            foreach (var column in columns)
+            {
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.FullQuotedString);
+                stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{column.ColumnName}");
+                stringBuilder.Append($"@{unquotedColumn}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
         }
 
-        internal static string CommaSeparatedUpdateFromParameters(DmTable table, string fromPrefix = "")
+        internal static string WhereColumnIsNull(IEnumerable<string> columns, string fromPrefix)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            var stringBuilder = new StringBuilder();
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string str1 = "";
+            foreach (var column in columns)
+            {
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(" IS NULL ");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
+        }
+
+        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
+        {
+            var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string strSeparator = "";
-            foreach (DmColumn mutableColumn in table.MutableColumns)
+            foreach (var mutableColumn in table.GetMutableColumns())
             {
-                ObjectNameParser quotedColumn = new ObjectNameParser(mutableColumn.ColumnName);
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.FullQuotedString} = @{quotedColumn.FullUnquotedString}");
+                var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

@@ -1,88 +1,37 @@
 ﻿using Dotmim.Sync.Builders;
 using System;
-using System.Text;
-using Dotmim.Sync.Data;
+using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
+using Microsoft.Data.SqlClient;
+using System.Diagnostics;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-
-    /// <summary>
-    /// The SqlBuilder class is the Sql implementation of DbBuilder class.
-    /// In charge of creating tracking table, stored proc, triggers and adapters.
-    /// </summary>
     public class SqlBuilder : DbBuilder
     {
-
-        public SqlObjectNames ObjectNames { get; private set; }
-
-        public SqlBuilder(DmTable tableDescription) : base(tableDescription)
+        public override async Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {
-            ObjectNames = new SqlObjectNames(tableDescription);
-        }
-
-        internal static (ObjectNameParser tableName, ObjectNameParser trackingName) GetParsers(DmTable tableDescription)
-        {
-            string tableAndPrefixName = String.IsNullOrWhiteSpace(tableDescription.Schema) ? tableDescription.TableName : $"{tableDescription.Schema}.{tableDescription.TableName}";
-            var pref = tableDescription.TrackingTablesPrefix;
-            var suf = tableDescription.TrackingTablesSuffix;
-
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var originalTableName = new ObjectNameParser(tableAndPrefixName, "[", "]");
-            //var trackingTableName = new ObjectNameParser($"{pref}{tableAndPrefixName}{suf}", "[", "]");
-            var trakingTableNameString = $"{pref}{originalTableName.ObjectName}{suf}";
-            if (!String.IsNullOrEmpty(originalTableName.SchemaName))
-                trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
-
-            var trackingTableName = new ObjectNameParser(trakingTableNameString);
+            // Chek if db exists
+            var exists = await SqlManagementUtils.DatabaseExistsAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
             
+            if (!exists)
+                throw new MissingDatabaseException(connection.Database);
 
-            return (originalTableName, trackingTableName);
-        }
-        public static string WrapScriptTextWithComments(string commandText, string commentText, bool includeGo = true, int indentLevel = 0)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            StringBuilder stringBuilder1 = new StringBuilder("\n");
-            for (int i = 0; i < indentLevel; i++)
-            {
-                stringBuilder.Append("\t");
-                stringBuilder1.Append("\t");
-            }
-            string str = stringBuilder1.ToString();
-            stringBuilder.Append(string.Concat("-- BEGIN ", commentText, str));
-            stringBuilder.Append(commandText);
-            stringBuilder.Append(string.Concat(str, (includeGo ? string.Concat("GO", str) : string.Empty)));
-            stringBuilder.Append(string.Concat("-- END ", commentText, str, "\n"));
-            return stringBuilder.ToString();
+            // Check if we are using change tracking and it's enabled on the source
+            var isChangeTrackingEnabled = await SqlManagementUtils.IsChangeTrackingEnabledAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
+
+            if (this.UseChangeTracking && !isChangeTrackingEnabled)
+                throw new MissingChangeTrackingException(connection.Database);
+
         }
 
-        public override IDbBuilderProcedureHelper CreateProcBuilder(DbConnection connection, DbTransaction transaction = null)
+        public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
         {
-            return new SqlBuilderProcedure(TableDescription, connection, transaction);
-        }
+            return await SqlManagementUtils.GetHelloAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
 
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlBuilderTrigger(TableDescription, connection, transaction);
-        }
-
-        public override IDbBuilderTableHelper CreateTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlBuilderTable(TableDescription, connection, transaction);
-        }
-
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlBuilderTrackingTable(TableDescription, connection, transaction);
-        }
-
-        public override DbSyncAdapter CreateSyncAdapter(DbConnection connection, DbTransaction transaction = null)
-        {
-            return new SqlSyncAdapter(TableDescription, connection, transaction);
         }
     }
 }

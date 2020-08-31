@@ -1,14 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.IO;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
-    public interface ISerializer
+
+    /// <summary>
+    /// Represents a factory of generic serializers.
+    /// This object should be able to get a serializer of each type of T
+    /// </summary>
+    public interface ISerializerFactory
     {
-        void Serialize<T>(T obj, Stream ms);
-        T Deserialize<T>(Stream ms);
-        byte[] Serialize<T>(T obj);
+        string Key { get; }
+        ISerializer<T> GetSerializer<T>();
+    }
+
+    /// <summary>
+    /// Represents a generic serializer for a defined type of T
+    /// </summary>
+    public interface ISerializer<T>
+    {
+        Task<T> DeserializeAsync(Stream ms);
+        Task<byte[]> SerializeAsync(T obj);
     }
 }

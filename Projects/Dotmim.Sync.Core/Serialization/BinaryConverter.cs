@@ -4,40 +4,43 @@ using System.IO;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
-    public class BinaryConverter<T> : BaseConverter<T>
+
+    public class BinarySerializerFactory : ISerializerFactory
+    {
+        public string Key => "binary";
+        private static BinarySerializerFactory instance = null;
+        public static BinarySerializerFactory Current => instance ?? new BinarySerializerFactory();
+
+        public ISerializer<T> GetSerializer<T>() => new BinarySerializer<T>();
+
+    }
+    public class BinarySerializer<T> : ISerializer<T>
     {
 
-        public BinaryConverter()
+        public BinarySerializer()
         {
         }
-        public override T Deserialize(Stream ms)
+        public Task<T> DeserializeAsync(Stream ms)
         {
 
-            BinaryFormatter binaryFormatter = new BinaryFormatter
+            var binaryFormatter = new BinaryFormatter
             {
                 TypeFormat = FormatterTypeStyle.TypesAlways
             };
             var obj = binaryFormatter.Deserialize(ms);
-            return (T)obj;
+            return Task.FromResult((T)obj);
         }
 
-        public override void Serialize(T obj, Stream ms)
-        {
-            BinaryFormatter binaryFormatter = new BinaryFormatter
-            {
-                TypeFormat = FormatterTypeStyle.TypesAlways
-            };
-            binaryFormatter.Serialize(ms, obj);
-        }
 
-        public override byte[] Serialize(T obj)
+        public Task<byte[]> SerializeAsync(T obj)
         {
             using (var ms = new MemoryStream())
             {
-                BinaryFormatter binaryFormatter = new BinaryFormatter
+                var binaryFormatter = new BinaryFormatter
                 {
                     TypeFormat = FormatterTypeStyle.TypesAlways
                 };
@@ -45,9 +48,9 @@ namespace Dotmim.Sync.Serialization
 
                 ms.Seek(0, SeekOrigin.Begin);
 
-                Byte[] array = ms.ToArray();
+                byte[] array = ms.ToArray();
 
-                return array;
+                return Task.FromResult(array);
             }
 
         }
