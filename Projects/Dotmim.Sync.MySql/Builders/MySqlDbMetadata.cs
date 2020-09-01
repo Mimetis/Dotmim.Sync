@@ -19,7 +19,9 @@ namespace Dotmim.Sync.MySql.Builders
                 switch (lowerType)
                 {
                     case "varbinary":
+                        return maxLength > 0 ? Math.Min(maxLength, 8000) : 8000;
                     case "binary":
+                        return maxLength > 0 ? Math.Min(maxLength, 255) : 255;
                     case "varchar":
                     case "char":
                     case "text":
@@ -55,7 +57,7 @@ namespace Dotmim.Sync.MySql.Builders
                     case "tinytext":
                         return 0;
                     case "varbinary":
-                        return maxLength > 0 ? Math.Min(maxLength, 65535) : 65535;
+                        return maxLength > 0 ? Math.Min(maxLength, 8000) : 8000;
                     case "binary":
                         return maxLength > 0 ? Math.Min(maxLength, 255) : 255;
                     case "text":
@@ -181,7 +183,9 @@ namespace Dotmim.Sync.MySql.Builders
                     case "tinytext":
                         return string.Empty;
                     case "varbinary":
+                        return maxLength > 0 ? $"({Math.Min(maxLength, 8000)})" : "(8000)";
                     case "binary":
+                        return maxLength > 0 ? $"({Math.Min(maxLength, 255)})" : "(255)";
                     case "text":
                     case "nchar":
                     case "nvarchar":
@@ -234,8 +238,10 @@ namespace Dotmim.Sync.MySql.Builders
                     case "json":
                     case "tinytext":
                         return string.Empty;
-                    case "varbinary" when maxLength <= 65535:
-                    case "binary" when maxLength <= 255:
+                    case "varbinary":
+                        return maxLength > 0 ? $"({Math.Min(maxLength, 8000)})" : "(8000)";
+                    case "binary":
+                        return maxLength > 0 ? $"({Math.Min(maxLength, 255)})" : "(255)";
                     case "text":
                     case "nchar":
                     case "nvarchar":
