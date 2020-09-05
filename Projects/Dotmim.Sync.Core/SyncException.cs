@@ -116,6 +116,14 @@ namespace Dotmim.Sync
     }
 
 
+    public class FormatDbTypeException : Exception
+    {
+        const string message = "The DbType {0} is not supported ";
+
+        public FormatDbTypeException(DbType type) : base(string.Format(message, type.ToString())) { }
+    }
+
+
     /// <summary>
     /// Occurs when a bad SyncProvision is provided to a local orchestrator
     /// </summary>

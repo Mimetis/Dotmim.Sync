@@ -38,8 +38,8 @@ namespace Dotmim.Sync.SampleWebServer
             var tables = new string[] { "Customer" };
 
             var syncSetup = new SyncSetup(tables);
-            //syncSetup.Tables["Customer"].SyncDirection = SyncDirection.UploadOnly;
-            syncSetup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerId", "FirstName", "LastName" });
+            // syncSetup.Tables["Customer"].SyncDirection = SyncDirection.UploadOnly;
+            // syncSetup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerId", "FirstName", "LastName" });
 
             services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, syncSetup);
 
