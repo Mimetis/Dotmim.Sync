@@ -46,7 +46,97 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeHeavyTableAsync();
+        await SyncBlobTypeToSqliteThroughKestrellAsync();
+
+    }
+
+    public static async Task SyncBlobTypeToSqliteThroughKestrellAsync()
+    {
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqliteSyncProvider("testblob2.db");
+
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, new string[] { "Product" });
+
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+
+            var progress = new SynchronousProgress<ProgressArgs>(pa =>
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+                Console.ResetColor();
+            });
+
+            await webServerManager.HandleRequestAsync(context, default, progress);
+        });
+
+        using (var server = new KestrellTestServer(configureServices))
+        {
+            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            {
+                do
+                {
+                    Console.Clear();
+                    Console.WriteLine("Web sync start");
+                    try
+                    {
+                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri));
+                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                        var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                        Console.WriteLine(s);
+                    }
+                    catch (SyncException e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                    }
+
+
+                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+            });
+            await server.Run(serverHandler, clientHandler);
+        }
+
+    }
+
+
+    private static async Task TestSqlSyncBlobAsync()
+    {
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("AdventureWorks"));
+        var clientProvider = new SqliteSyncProvider("testblob.db");
+
+        var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins };
+        // adding 2 new tables
+        var tables = new string[] { "Product" };
+
+        var agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+        var progress = new SynchronousProgress<ProgressArgs>(args =>
+                Console.WriteLine($"{args.Context.SyncStage}:{args.Message} "));
+
+        do
+        {
+            // Launch the sync process
+            var s1 = await agent.SynchronizeAsync(progress);
+            // Write results
+            Console.WriteLine(s1);
+
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
 
     }
 
@@ -672,7 +762,7 @@ internal class Program
             Console.ResetColor();
 
         }
-            connection.Close();
+        connection.Close();
     }
 
     private static async Task InsertIntoSqliteWithCurrentTransactionAsync(DbConnection connection, DbTransaction transaction)
@@ -711,7 +801,7 @@ internal class Program
         {
 
             throw;
-    }
+        }
 
     }
 
