@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Sqlite
             if (typeName.Contains("("))
                 typeName = typeName.Substring(0, typeName.IndexOf("("));
 
-            return typeName == "numeric" || typeName == "decimal";
+            return typeName == "numeric" || typeName == "decimal" || typeName == "real";
         }
 
         public override bool IsTextType(string typeName)
@@ -137,6 +137,7 @@ namespace Dotmim.Sync.Sqlite
                 case "image":
                 case "datetime":
                 case "text":
+                case "real":
                     return true;
             }
             return false;
@@ -144,7 +145,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool SupportScale(string typeName)
         {
-            return typeName.ToLowerInvariant() == "numeric" || typeName.ToLowerInvariant() == "decimal";
+            return typeName.ToLowerInvariant() == "numeric" || typeName.ToLowerInvariant() == "decimal" || typeName.ToLowerInvariant() == "real";
         }
 
         public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
@@ -160,6 +161,7 @@ namespace Dotmim.Sync.Sqlite
                 case "bigint":
                     return DbType.Int64;
                 case "numeric":
+                case "real":
                     return DbType.Double;
                 case "decimal":
                     return DbType.Decimal;
@@ -199,6 +201,7 @@ namespace Dotmim.Sync.Sqlite
                     return SqliteType.Integer;
                 case "numeric":
                 case "decimal":
+                case "real":
                     return SqliteType.Real;
                 case "blob":
                 case "image":
