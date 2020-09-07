@@ -46,7 +46,213 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeHeavyTableAsync();
+        await SynchronizeWithFiltersAndCustomerSerializerAsync();
+
+    }
+
+    private static async Task SynchronizeWithFiltersAndCustomerSerializerAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("clientX.db");
+
+
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+
+            setup.Filters.Add("Customer", "CompanyName");
+
+            var addressCustomerFilter = new SetupFilter("CustomerAddress");
+            addressCustomerFilter.AddParameter("CompanyName", "Customer");
+            addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(addressCustomerFilter);
+
+            var addressFilter = new SetupFilter("Address");
+            addressFilter.AddParameter("CompanyName", "Customer");
+            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+            addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(addressFilter);
+
+            var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+            orderHeaderFilter.AddParameter("CompanyName", "Customer");
+            orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+            orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(orderHeaderFilter);
+
+            var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+            orderDetailsFilter.AddParameter("CompanyName", "Customer");
+            orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+            orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+            orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+            orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+            setup.Filters.Add(orderDetailsFilter);
+
+            // Add pref suf
+            setup.StoredProceduresPrefix = "s";
+            setup.StoredProceduresSuffix = "";
+            setup.TrackingTablesPrefix = "t";
+            setup.TrackingTablesSuffix = "";
+
+            var options = new SyncOptions();
+
+            // To add a converter, create an instance and add it to the special WebServerOptions
+            var webServerOptions = new WebServerOptions();
+            webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
+
+
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, options, webServerOptions);
+
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+
+            var progress = new SynchronousProgress<ProgressArgs>(pa =>
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+                Console.ResetColor();
+            });
+
+            await webServerManager.HandleRequestAsync(context, default, progress);
+        });
+
+
+        using (var server = new KestrellTestServer(configureServices))
+        {
+            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            {
+                do
+                {
+                    Console.Clear();
+                    Console.WriteLine("Web sync start");
+                    try
+                    {
+                        var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new CustomMessagePackSerializerFactory());
+                        var agent = new SyncAgent(clientProvider, webClientOrchestrator);
+
+                        // Launch the sync process
+                        if (!agent.Parameters.Contains("CompanyName"))
+                            agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+
+                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+
+                        var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                        Console.WriteLine(s);
+                    }
+                    catch (SyncException e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                    }
+
+
+                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+            });
+            await server.Run(serverHandler, clientHandler);
+        }
+    }
+
+
+    public static async Task SyncBlobTypeToSqliteThroughKestrellAsync()
+    {
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqliteSyncProvider("testblob2.db");
+
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, new string[] { "Product" });
+
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+
+            var progress = new SynchronousProgress<ProgressArgs>(pa =>
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+                Console.ResetColor();
+            });
+
+            await webServerManager.HandleRequestAsync(context, default, progress);
+        });
+
+        using (var server = new KestrellTestServer(configureServices))
+        {
+            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            {
+                do
+                {
+                    Console.Clear();
+                    Console.WriteLine("Web sync start");
+                    try
+                    {
+                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri));
+                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                        var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                        Console.WriteLine(s);
+                    }
+                    catch (SyncException e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                    }
+
+
+                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+            });
+            await server.Run(serverHandler, clientHandler);
+        }
+
+    }
+
+
+    private static async Task TestSqlSyncBlobAsync()
+    {
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("AdventureWorks"));
+        var clientProvider = new SqliteSyncProvider("testblob.db");
+
+        var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins };
+        // adding 2 new tables
+        var tables = new string[] { "Product" };
+
+        var agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+        var progress = new SynchronousProgress<ProgressArgs>(args =>
+                Console.WriteLine($"{args.Context.SyncStage}:{args.Message} "));
+
+        do
+        {
+            // Launch the sync process
+            var s1 = await agent.SynchronizeAsync(progress);
+            // Write results
+            Console.WriteLine(s1);
+
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
 
     }
 
@@ -672,7 +878,7 @@ internal class Program
             Console.ResetColor();
 
         }
-            connection.Close();
+        connection.Close();
     }
 
     private static async Task InsertIntoSqliteWithCurrentTransactionAsync(DbConnection connection, DbTransaction transaction)
@@ -711,7 +917,7 @@ internal class Program
         {
 
             throw;
-    }
+        }
 
     }
 

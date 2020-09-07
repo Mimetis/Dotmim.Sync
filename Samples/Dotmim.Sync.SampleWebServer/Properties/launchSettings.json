@@ -20,7 +20,7 @@
     "Dotmim.Sync.SampleWebServer": {
       "commandName": "Project",
       "launchBrowser": true,
-      "launchUrl": "api/values",
+      "launchUrl": "api/sync",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       },
