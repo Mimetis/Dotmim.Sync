@@ -28,6 +28,11 @@ namespace Dotmim.Sync
         private string tableName;
         private SetupFilter filter;
 
+        public SetupFilterOn()
+        {
+
+        }
+
         public SetupFilterOn(SetupFilter filter, Join joinEnum, string tableName)
         {
             this.filter = filter;
@@ -71,6 +76,15 @@ namespace Dotmim.Sync
 
         [DataMember(Name = "rcn", IsRequired = true, Order = 6)]
         public string RightColumnName { get; set; }
+
+        /// <summary>
+        /// ctor for serializer, don't use as it, prefer the second ctor
+        /// </summary>
+        public SetupFilterJoin()
+        {
+
+        }
+
         public SetupFilterJoin(Join joinEnum, string tableName, string leftTableName, string leftColumnName, string rightTableName, string rightColumnName)
         {
             this.JoinEnum = joinEnum;

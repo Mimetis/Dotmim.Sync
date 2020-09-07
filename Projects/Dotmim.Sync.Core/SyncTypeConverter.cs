@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -161,6 +162,53 @@ namespace Dotmim.Sync
         }
 
 
+        public static object TryConvertFromDbType(object value, DbType typeOfT, CultureInfo provider = default)
+        {
+            if (typeOfT == DbType.AnsiString || typeOfT == DbType.String
+                || typeOfT == DbType.StringFixedLength || typeOfT == DbType.AnsiStringFixedLength
+                || typeOfT == DbType.Xml)
+                return TryConvertTo<string>(value, provider);
+            else if (typeOfT == DbType.Binary)
+                return TryConvertTo<byte[]>(value, provider);
+            else if (typeOfT == DbType.Boolean)
+                return TryConvertTo<bool>(value, provider);
+            else if (typeOfT == DbType.Byte)
+                return TryConvertTo<byte>(value, provider);
+            else if (typeOfT == DbType.Currency || typeOfT == DbType.Decimal)
+                return TryConvertTo<decimal>(value, provider);
+            else if (typeOfT == DbType.Date || typeOfT == DbType.DateTime
+                    || typeOfT == DbType.DateTime2 || typeOfT == DbType.DateTimeOffset)
+                return TryConvertTo<DateTime>(value, provider);
+            else if (typeOfT == DbType.Double)
+                return TryConvertTo<double>(value, provider);
+            else if (typeOfT == DbType.Guid)
+                return TryConvertTo<Guid>(value, provider);
+            else if (typeOfT == DbType.Int16)
+                return TryConvertTo<short>(value, provider);
+            else if (typeOfT == DbType.Int32)
+                return TryConvertTo<int>(value, provider);
+            else if (typeOfT == DbType.Int64)
+                return TryConvertTo<long>(value, provider);
+            else if (typeOfT == DbType.SByte)
+                return TryConvertTo<sbyte>(value, provider);
+            else if (typeOfT == DbType.Single)
+                return TryConvertTo<float>(value, provider);
+            else if (typeOfT == DbType.Time)
+                return TryConvertTo<TimeSpan>(value, provider);
+            else if (typeOfT == DbType.UInt16)
+                return TryConvertTo<ushort>(value, provider);
+            else if (typeOfT == DbType.UInt32)
+                return TryConvertTo<uint>(value, provider);
+            else if (typeOfT == DbType.UInt64)
+                return TryConvertTo<ulong>(value, provider);
+            else if (typeOfT == DbType.VarNumeric)
+                return TryConvertTo<float>(value, provider);
+            else if (typeOfT == DbType.Object)
+                return TryConvertTo<byte[]>(value, provider);
+            else
+                throw new FormatDbTypeException(typeOfT);
+
+        }
 
 
     }
