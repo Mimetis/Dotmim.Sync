@@ -206,8 +206,8 @@ namespace Dotmim.Sync.Builders
             if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.SelectRow, connection, transaction).ConfigureAwait(false))
                 await procBuilder.CreateSelectRowAsync(connection, transaction).ConfigureAwait(false);
 
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.UpdateRow, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateUpdateAsync(hasMutableColumns, connection, transaction).ConfigureAwait(false);
+            //if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.UpdateRow, connection, transaction).ConfigureAwait(false))
+            //    await procBuilder.CreateUpdateAsync(hasMutableColumns, connection, transaction).ConfigureAwait(false);
 
             if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.DeleteRow, connection, transaction).ConfigureAwait(false))
                 await procBuilder.CreateDeleteAsync(connection, transaction).ConfigureAwait(false);

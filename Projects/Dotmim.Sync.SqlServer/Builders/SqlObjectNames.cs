@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-
-
+using Dotmim.Sync.SqlServer.Manager;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -41,6 +40,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
+
+        private readonly SqlDbMetadata sqlDbMetadata = new SqlDbMetadata();
 
         //internal const string disableConstraintsText = "sp_msforeachtable";
         //internal const string enableConstraintsText = "sp_msforeachtable";
@@ -101,7 +102,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
 
             this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            //this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddName(DbCommandType.UpdateRow, CreateUpdateCommand(), false);
+
             this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
@@ -111,7 +114,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
 
             this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-
             this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
             this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
 
@@ -120,6 +122,214 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             this.AddName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand(), false);
             this.AddName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand(), false);
+        }
+
+
+        private string CreateUpdateCommand2()
+        {
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            var stringBuilderParametersValues = new StringBuilder();
+            string empty = string.Empty;
+
+            string str1 = SqlManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
+            string str2 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+            string str7 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
+
+            // Generate Update command
+            var stringBuilder = new StringBuilder();
+
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+                stringBuilderParametersValues.Append($"{empty}@{columnParameterName} as {columnName}");
+                stringBuilderArguments.Append($"{empty}{columnName}");
+                stringBuilderParameters.Append($"{empty}[c].{columnName}");
+                empty = ", ";
+            }
+
+            stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+            stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
+            stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
+
+            stringBuilder.Append($"WHERE ({SqlManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
+            stringBuilder.Append($"OR ({SqlManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
+            stringBuilder.AppendLine($"OR @sync_force_write = 1;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("declare @rowcount int = @@rowcount;");
+
+            stringBuilder.AppendLine($"UPDATE {trackingName.Quoted().ToString()} SET ");
+            stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
+            stringBuilder.AppendLine("[last_change_datetime] = Getdate()");
+            stringBuilder.AppendLine($"WHERE {SqlManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.AppendLine($"AND @rowcount > 0");
+
+            var cmdtext = stringBuilder.ToString();
+
+            return cmdtext;
+        }
+
+        private string CreateUpdateCommand()
+        {
+
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            string empty = string.Empty;
+
+            // Check if we have mutables columns
+            var hasMutableColumns = this.TableDescription.GetMutableColumns(false).Any();
+
+            var stringBuilder = new StringBuilder();
+
+            string str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[t]");
+            string str5 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[changes]", "[base]");
+            string str6 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[t]", "[side]");
+            string str7 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
+
+            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
+            stringBuilder.Append("declare @dms_changed TABLE (");
+            foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+
+                // Get the good SqlDbType (even if we are not from Sql Server def)
+                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
+                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
+            }
+            stringBuilder.Append(" PRIMARY KEY (");
+
+            var pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}{columnName}");
+                pkeyComma = ", ";
+            }
+
+            stringBuilder.AppendLine("));");
+            stringBuilder.AppendLine();
+
+            // Check if we have auto inc column
+            if (this.TableDescription.HasAutoIncrementColumns)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine();
+            }
+
+            stringBuilder.AppendLine(";WITH [changes] AS (");
+            stringBuilder.Append("\tSELECT ");
+            foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                stringBuilder.Append($"[p].{columnName}, ");
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tFROM (SELECT ");
+            stringBuilder.Append($"\t\t ");
+            string comma = "";
+            foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
+
+                stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+                comma = ", ";
+            }
+            stringBuilder.AppendLine($") AS [p]");
+            stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine($"\t{str7}");
+            stringBuilder.AppendLine($"\t)");
+
+            stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS [base]");
+            stringBuilder.AppendLine($"USING [changes] on {str5}");
+            if (hasMutableColumns)
+            {
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
+                foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilderArguments.Append(string.Concat(empty, columnName));
+                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"\tUPDATE SET");
+
+                string strSeparator = "";
+                foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false))
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
+                    strSeparator = ", ";
+                }
+            }
+
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR @sync_force_write = 1) THEN");
+
+
+            stringBuilderArguments = new StringBuilder();
+            stringBuilderParameters = new StringBuilder();
+            empty = string.Empty;
+
+            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
+                empty = ", ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\tINSERT");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
+
+            stringBuilder.AppendLine();
+            stringBuilder.Append($"OUTPUT ");
+
+            pkeyComma = " ";
+            foreach (var primaryKeyColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                pkeyComma = ", ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"INTO @dms_changed; -- populates the temp table with successful PKs");
+            stringBuilder.AppendLine();
+
+            // Check if we have auto inc column
+            if (this.TableDescription.HasAutoIncrementColumns)
+            {
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine();
+            }
+
+
+            stringBuilder.AppendLine("-- Since the update trigger is passed, we update the tracking table to reflect the real scope updater");
+            stringBuilder.AppendLine("UPDATE [side] SET");
+            stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
+            stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
+            stringBuilder.AppendLine();
+
+            var commanString = stringBuilder.ToString();
+            return commanString;
         }
 
 

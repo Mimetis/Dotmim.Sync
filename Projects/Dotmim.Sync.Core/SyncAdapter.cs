@@ -22,6 +22,7 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract class SyncAdapter
     {
+        private const int MAX_BATCH_PARAMETERS_COUNT = 2100;
         private const int BATCH_SIZE = 1000;
 
 
@@ -68,6 +69,17 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
                                                       SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction);
+
+        public virtual Task ExecuteBatchCommandAsync2(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
+                                                      SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction)
+        {
+            return Task.CompletedTask;
+        }
+
+        public virtual Task BuildTmpTableAsync(DbConnection connection, DbTransaction transaction)
+        {
+            return Task.CompletedTask;
+        }
 
         /// <summary>
         /// Create a Sync Adapter
@@ -144,7 +156,7 @@ namespace Dotmim.Sync
             await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 
             // Testing The Prepare() performance increase
-            command.Prepare();
+            //command.Prepare();
 
             return command;
         }
@@ -284,6 +296,72 @@ namespace Dotmim.Sync
             return itemsArrayCount - failedPrimaryKeysTable.Rows.Count;
         }
 
+
+        public async Task<int> ApplyBulkChangesAsync2(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts, DbConnection connection, DbTransaction transaction)
+        {
+            DbCommandType dbCommandType;
+
+            switch (this.ApplyType)
+            {
+                case DataRowState.Modified:
+                    dbCommandType = DbCommandType.UpdateRow;
+                    break;
+                case DataRowState.Deleted:
+                case DataRowState.Detached:
+                case DataRowState.Added:
+                case DataRowState.Unchanged:
+                default:
+                    throw new UnknownException("RowState not valid during ApplyBulkChanges operation");
+            }
+
+            DbCommand command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
+
+            // Create
+            var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
+
+            // get the items count
+            var itemsArrayCount = changesTable.Rows.Count;
+
+            await BuildTmpTableAsync(connection, transaction);
+
+            var batch_size = BATCH_SIZE; // (MAX_BATCH_PARAMETERS_COUNT / changesTable.Columns.Count) - 1 ;
+
+            // Make some parts of BATCH_SIZE 
+            for (int step = 0; step < itemsArrayCount; step += batch_size)
+            {
+                // get upper bound max value
+                var taken = step + batch_size >= itemsArrayCount ? itemsArrayCount - step : batch_size;
+
+                var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
+
+                // execute the batch, through the provider
+                await ExecuteBatchCommandAsync2(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
+            }
+
+            if (failedPrimaryKeysTable.Rows.Count == 0)
+                return itemsArrayCount;
+
+            // Get local and remote row and create the conflict object
+            foreach (var failedRow in failedPrimaryKeysTable.Rows)
+            {
+                //failedRow.RowState = this.ApplyType;
+
+                // Get the row that caused the problem, from the remote side (client)
+                var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
+
+                if (remoteConflictRows.Count() == 0)
+                    throw new Exception("Cant find changes row who is in conflict");
+
+                var remoteConflictRow = remoteConflictRows.ToList()[0];
+
+                var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
+
+                conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
+            }
+
+            // return applied rows minus failed rows
+            return itemsArrayCount - failedPrimaryKeysTable.Rows.Count;
+        }
 
         /// <summary>
         /// We have a conflict, try to get the source row and generate a conflict

@@ -114,7 +114,7 @@ namespace Dotmim.Sync
             // get Database builder
             var builder = this.GetDatabaseBuilder();
             builder.UseChangeTracking = this.UseChangeTracking;
-            builder.UseBulkProcedures = this.SupportBulkOperations;
+            builder.UseBulkProcedures = true;
 
             // Initialize database if needed
             await builder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
@@ -139,7 +139,7 @@ namespace Dotmim.Sync
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, setup);
                 // set if the builder supports creating the bulk operations proc stock
-                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
+                tableBuilder.UseBulkProcedures = true;
                 tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
                 // adding filter

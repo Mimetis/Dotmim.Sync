@@ -188,7 +188,7 @@ namespace Dotmim.Sync
                     if (message.UseBulkOperations && this.SupportBulkOperations)
                         rowsApplied = await syncAdapter.ApplyBulkChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
                     else
-                        rowsApplied = await syncAdapter.ApplyChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
+                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync2(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
 
                     // resolving conflicts
                     var (rowsAppliedCount, conflictsResolvedCount, syncErrorsCount) =

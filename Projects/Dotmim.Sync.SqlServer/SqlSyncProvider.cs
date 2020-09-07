@@ -93,7 +93,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Sql server support bulk operations through Table Value parameter
         /// </summary>
-        public override bool SupportBulkOperations => true;
+        public override bool SupportBulkOperations => false;
 
         /// <summary>
         /// Sql Server supports to be a server side provider
