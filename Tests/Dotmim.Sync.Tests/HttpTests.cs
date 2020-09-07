@@ -1487,7 +1487,5 @@ namespace Dotmim.Sync.Tests
 
             }
         }
-
-
     }
 }
