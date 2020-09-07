@@ -48,7 +48,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Side where filters list
         /// </summary>
-        [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public List<SetupFilterWhere> Wheres { get; } = new List<SetupFilterWhere>();
 
         /// <summary>
