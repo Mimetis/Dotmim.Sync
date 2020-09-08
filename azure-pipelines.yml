@@ -70,6 +70,34 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
+  - job: testmariadb        
+    displayName: "Tests MariaDB"
+
+    pool:
+      # get an Ubuntu image to be able to get the light SQL container
+      vmImage: "ubuntu-latest" # 'VS2017-Win2016'
+
+    variables:
+      solution: "**/*.sln"
+      buildPlatform: "Any CPU"
+      buildConfiguration: "Release"
+
+    steps:
+      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mariadb:lastest
+        displayName: "Run MariaDB on Linux container"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySql --logger trx
+        name: mariadbintegrationtests
+        displayName: "MariaDB  Integration Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
+
+      - task: PublishTestResults@2
+        inputs:
+          testRunner: VSTest
+          testResultsFiles: "**/*.trx"
+        
   - job: Beta
 
     # dependsOn: Tests
