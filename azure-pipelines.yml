@@ -83,7 +83,7 @@ jobs:
       buildConfiguration: "Release"
 
     steps:
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mariadb:lastest
+      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySql --logger trx
