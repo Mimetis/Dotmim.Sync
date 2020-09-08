@@ -14,7 +14,7 @@
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
     <Version>0.5.8</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>8.0</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
     <PackageIcon>packageIcon.png</PackageIcon>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -44,7 +44,7 @@
   
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>
