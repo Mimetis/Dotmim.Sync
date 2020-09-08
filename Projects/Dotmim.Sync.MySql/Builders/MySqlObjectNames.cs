@@ -8,7 +8,7 @@ namespace Dotmim.Sync.MySql
 {
     public class MySqlObjectNames
     {
-        public const string TimestampValue = "ROUND(UNIX_TIMESTAMP(CURTIME(4)) * 10000)";
+        public const string TimestampValue = "ROUND(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6)) * 10000)";
 
         internal const string insertTriggerName = "`{0}_insert_trigger`";
         internal const string updateTriggerName = "`{0}_update_trigger`";
