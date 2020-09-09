@@ -242,7 +242,7 @@ namespace Dotmim.Sync.Sqlite
 
             using (var command = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
             {
-                return ((long)await command.ExecuteScalarAsync()) != 1;
+                return ((long)await command.ExecuteScalarAsync().ConfigureAwait(false)) != 1;
             }
         }
 

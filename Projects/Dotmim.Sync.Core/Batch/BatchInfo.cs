@@ -152,12 +152,6 @@ namespace Dotmim.Sync.Batch
 
                     if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t.EqualsByName(tableInfo)))
                     {
-                        // TODO : Need to implement IAsyncEnumerable
-                        // Need to use GetAwaiter().GetResult() until we have await in foreach yield
-                        // IAsyncEnumerable is part of .Net Standard 2.1
-                        // But .Net Standard 2.1 is not compatible with .Net Framework 4.8
-                        // So far, we can't use it, until we decide to abandon .Net FX 4.8
-                        // For sure, it will be replaced when .Net 5 will appears ...
                         await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
 
                         // Get the table from the batchPartInfo
