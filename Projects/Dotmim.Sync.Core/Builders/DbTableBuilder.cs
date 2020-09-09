@@ -96,33 +96,33 @@ namespace Dotmim.Sync.Builders
         /// Apply config.
         /// Create relations if needed
         /// </summary>
-        public async Task CreateForeignKeysAsync(DbConnection connection, DbTransaction transaction)
-        {
-            if (TableDescription.PrimaryKeys.Count <= 0)
-                throw new MissingPrimaryKeyException(TableDescription.TableName);
+        //public async Task CreateForeignKeysAsync(DbConnection connection, DbTransaction transaction)
+        //{
+        //    if (TableDescription.PrimaryKeys.Count <= 0)
+        //        throw new MissingPrimaryKeyException(TableDescription.TableName);
 
-            var alreadyOpened = connection.State != ConnectionState.Closed;
+        //    var alreadyOpened = connection.State != ConnectionState.Closed;
 
-            if (!alreadyOpened)
-                await connection.OpenAsync().ConfigureAwait(false);
+        //    if (!alreadyOpened)
+        //        await connection.OpenAsync().ConfigureAwait(false);
 
-            var tableBuilder = CreateTableBuilder();
+        //    var tableBuilder = CreateTableBuilder();
 
-            // Get all parent table and create the foreign key on it
-            foreach (var constraint in this.TableDescription.GetRelations())
-            {
-                // Check if we need to create the foreign key constraint
-                if (await tableBuilder.NeedToCreateForeignKeyConstraintsAsync(constraint, connection, transaction).ConfigureAwait(false))
-                {
-                    await tableBuilder.CreateForeignKeyConstraintsAsync(constraint, connection, transaction).ConfigureAwait(false);
-                }
-            }
+        //    // Get all parent table and create the foreign key on it
+        //    foreach (var constraint in this.TableDescription.GetRelations())
+        //    {
+        //        // Check if we need to create the foreign key constraint
+        //        if (await tableBuilder.NeedToCreateForeignKeyConstraintsAsync(constraint, connection, transaction).ConfigureAwait(false))
+        //        {
+        //            await tableBuilder.CreateForeignKeyConstraintsAsync(constraint, connection, transaction).ConfigureAwait(false);
+        //        }
+        //    }
 
-            if (!alreadyOpened)
-                connection.Close();
+        //    if (!alreadyOpened)
+        //        connection.Close();
 
 
-        }
+        //}
 
         public async Task RenameTrackingTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
@@ -136,11 +136,11 @@ namespace Dotmim.Sync.Builders
 
             var trackingTableBuilder = CreateTrackingTableBuilder();
 
-            // be sure the table actually exists
-            var hasbeenCreated = await this.CreateTrackingTableAsync(connection, transaction);
+            //// TODO be sure the table actually exists
+            //var hasbeenCreated = await this.CreateTrackingTableAsync(connection, transaction);
+            //if (!hasbeenCreated)
 
-            if (!hasbeenCreated)
-                await trackingTableBuilder.RenameTableAsync(oldTableName, connection, transaction);
+            await trackingTableBuilder.RenameTableAsync(oldTableName, connection, transaction);
 
             if (!alreadyOpened)
                 connection.Close();
@@ -162,16 +162,10 @@ namespace Dotmim.Sync.Builders
             var trackingTableBuilder = CreateTrackingTableBuilder();
             var tableBuilder = CreateTableBuilder();
 
-            if (await trackingTableBuilder.NeedToCreateTrackingTableAsync(connection, transaction).ConfigureAwait(false))
-            {
-                if (await tableBuilder.NeedToCreateSchemaAsync(connection, transaction).ConfigureAwait(false))
-                    await tableBuilder.CreateSchemaAsync(connection, transaction).ConfigureAwait(false);
+            await tableBuilder.CreateSchemaAsync(connection, transaction).ConfigureAwait(false);
+            await trackingTableBuilder.CreateTableAsync(connection, transaction).ConfigureAwait(false);
 
-                await trackingTableBuilder.CreateTableAsync(connection, transaction).ConfigureAwait(false);
-                await trackingTableBuilder.CreatePkAsync(connection, transaction).ConfigureAwait(false);
-                await trackingTableBuilder.CreateIndexAsync(connection, transaction).ConfigureAwait(false);
-                hasBeenCreated = true;
-            }
+            hasBeenCreated = true;
 
             if (!alreadyOpened)
                 connection.Close();
@@ -197,26 +191,13 @@ namespace Dotmim.Sync.Builders
             if (procBuilder == null)
                 return;
 
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.SelectChanges, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateSelectIncrementalChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
-
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.SelectInitializedChanges, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateSelectInitializedChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
-
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.SelectRow, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateSelectRowAsync(connection, transaction).ConfigureAwait(false);
-
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.UpdateRow, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateUpdateAsync(hasMutableColumns, connection, transaction).ConfigureAwait(false);
-
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.DeleteRow, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateDeleteAsync(connection, transaction).ConfigureAwait(false);
-
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.DeleteMetadata, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateDeleteMetadataAsync(connection, transaction).ConfigureAwait(false);
-
-            if (await procBuilder.NeedToCreateProcedureAsync(DbCommandType.Reset, connection, transaction).ConfigureAwait(false))
-                await procBuilder.CreateResetAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.CreateSelectIncrementalChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
+            await procBuilder.CreateSelectInitializedChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
+            await procBuilder.CreateSelectRowAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.CreateUpdateAsync(hasMutableColumns, connection, transaction).ConfigureAwait(false);
+            await procBuilder.CreateDeleteAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.CreateDeleteMetadataAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.CreateResetAsync(connection, transaction).ConfigureAwait(false);
 
             if (this.UseBulkProcedures && await procBuilder.NeedToCreateTypeAsync(DbCommandType.BulkTableType, connection, transaction).ConfigureAwait(false))
             {
@@ -245,15 +226,19 @@ namespace Dotmim.Sync.Builders
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            // Check if we need to create the tables
-            if (await tableBuilder.NeedToCreateTableAsync(connection, transaction).ConfigureAwait(false))
-            {
-                if (await tableBuilder.NeedToCreateSchemaAsync(connection, transaction).ConfigureAwait(false))
-                    await tableBuilder.CreateSchemaAsync(connection, transaction).ConfigureAwait(false);
 
-                await tableBuilder.CreateTableAsync(connection, transaction).ConfigureAwait(false);
-                await tableBuilder.CreatePrimaryKeyAsync(connection, transaction).ConfigureAwait(false);
-            }
+            await tableBuilder.CreateSchemaAsync(connection, transaction).ConfigureAwait(false);
+            await tableBuilder.CreateTableAsync(connection, transaction).ConfigureAwait(false);
+
+            //// Check if we need to create the tables
+            //if (await tableBuilder.NeedToCreateTableAsync(connection, transaction).ConfigureAwait(false))
+            //{
+            //    if (await tableBuilder.NeedToCreateSchemaAsync(connection, transaction).ConfigureAwait(false))
+            //        await tableBuilder.CreateSchemaAsync(connection, transaction).ConfigureAwait(false);
+
+            //    await tableBuilder.CreateTableAsync(connection, transaction).ConfigureAwait(false);
+            //    await tableBuilder.CreatePrimaryKeyAsync(connection, transaction).ConfigureAwait(false);
+            //}
 
             if (!alreadyOpened)
                 connection.Close();
@@ -277,6 +262,9 @@ namespace Dotmim.Sync.Builders
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
+            System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+            stopwatch.Start();
+
             if (provision.HasFlag(SyncProvision.Table))
                 await this.CreateTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -288,6 +276,10 @@ namespace Dotmim.Sync.Builders
 
             if (provision.HasFlag(SyncProvision.StoredProcedures))
                 await this.CreateStoredProceduresAsync(connection, transaction).ConfigureAwait(false);
+
+            stopwatch.Stop();
+            var str = $"{stopwatch.Elapsed.Minutes}:{stopwatch.Elapsed.Seconds}.{stopwatch.Elapsed.Milliseconds}";
+            System.Diagnostics.Debug.WriteLine(str);
 
             if (!alreadyOpened)
                 connection.Close();
@@ -310,25 +302,18 @@ namespace Dotmim.Sync.Builders
             if (procBuilder == null)
                 return;
 
-            if (!await procBuilder.NeedToCreateProcedureAsync(DbCommandType.SelectChanges, connection, transaction).ConfigureAwait(false))
-                await procBuilder.DropSelectIncrementalChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
-            if (!await procBuilder.NeedToCreateProcedureAsync(DbCommandType.SelectInitializedChanges, connection, transaction).ConfigureAwait(false))
-                await procBuilder.DropSelectInitializedChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
-            if (!await procBuilder.NeedToCreateProcedureAsync(DbCommandType.SelectRow, connection, transaction).ConfigureAwait(false))
-                await procBuilder.DropSelectRowAsync(connection, transaction).ConfigureAwait(false);
-            if (!await procBuilder.NeedToCreateProcedureAsync(DbCommandType.UpdateRow, connection, transaction).ConfigureAwait(false))
-                await procBuilder.DropUpdateAsync(connection, transaction).ConfigureAwait(false);
-            if (!await procBuilder.NeedToCreateProcedureAsync(DbCommandType.DeleteRow, connection, transaction).ConfigureAwait(false))
-                await procBuilder.DropDeleteAsync(connection, transaction).ConfigureAwait(false);
-            if (!await procBuilder.NeedToCreateProcedureAsync(DbCommandType.DeleteMetadata, connection, transaction).ConfigureAwait(false))
-                await procBuilder.DropDeleteMetadataAsync(connection, transaction).ConfigureAwait(false);
-            if (!await procBuilder.NeedToCreateProcedureAsync(DbCommandType.Reset, connection, transaction).ConfigureAwait(false))
-                await procBuilder.DropResetAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.DropSelectIncrementalChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
+            await procBuilder.DropSelectInitializedChangesAsync(this.Filter, connection, transaction).ConfigureAwait(false);
+            await procBuilder.DropSelectRowAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.DropUpdateAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.DropDeleteAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.DropDeleteMetadataAsync(connection, transaction).ConfigureAwait(false);
+            await procBuilder.DropResetAsync(connection, transaction).ConfigureAwait(false);
 
             if (this.UseBulkProcedures && !await procBuilder.NeedToCreateTypeAsync(DbCommandType.BulkTableType, connection, transaction).ConfigureAwait(false))
             {
-                await procBuilder.DropBulkUpdateAsync( connection, transaction).ConfigureAwait(false);
-                await procBuilder.DropBulkDeleteAsync( connection, transaction).ConfigureAwait(false);
+                await procBuilder.DropBulkUpdateAsync(connection, transaction).ConfigureAwait(false);
+                await procBuilder.DropBulkDeleteAsync(connection, transaction).ConfigureAwait(false);
                 await procBuilder.DropTVPTypeAsync(connection, transaction).ConfigureAwait(false);
             }
 
@@ -347,8 +332,7 @@ namespace Dotmim.Sync.Builders
 
             var trackingTableBuilder = this.CreateTrackingTableBuilder();
 
-            if (!await trackingTableBuilder.NeedToCreateTrackingTableAsync(connection, transaction).ConfigureAwait(false))
-                await trackingTableBuilder.DropTableAsync(connection, transaction).ConfigureAwait(false);
+            await trackingTableBuilder.DropTableAsync(connection, transaction).ConfigureAwait(false);
 
             if (!alreadyOpened)
                 connection.Close();
@@ -367,8 +351,7 @@ namespace Dotmim.Sync.Builders
 
             var tableBuilder = this.CreateTableBuilder();
 
-            if (!await tableBuilder.NeedToCreateTableAsync(connection, transaction).ConfigureAwait(false))
-                await tableBuilder.DropTableAsync(connection, transaction).ConfigureAwait(false);
+            await tableBuilder.DropTableAsync(connection, transaction).ConfigureAwait(false);
 
             if (!alreadyOpened)
                 connection.Close();

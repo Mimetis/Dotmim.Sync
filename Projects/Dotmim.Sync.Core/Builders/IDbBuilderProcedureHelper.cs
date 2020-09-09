@@ -11,7 +11,6 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderProcedureHelper
     {
-        Task<bool> NeedToCreateProcedureAsync(DbCommandType commandName, DbConnection connection, DbTransaction transaction);
         Task<bool> NeedToCreateTypeAsync(DbCommandType typeName, DbConnection connection, DbTransaction transaction);
         Task CreateSelectRowAsync(DbConnection connection, DbTransaction transaction);
         Task CreateSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction);

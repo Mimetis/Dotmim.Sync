@@ -122,7 +122,7 @@ namespace Dotmim.Sync.Tests
         {
             var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
             {
-                Console.WriteLine($"Creating MySql database failed when connecting to sys ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                Console.WriteLine($"Creating MySql database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
                 return Task.CompletedTask;
             });
 
@@ -130,7 +130,7 @@ namespace Dotmim.Sync.Tests
 
             await policy.ExecuteAsync(async () =>
             {
-                using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
+                using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema")))
                 {
                     sysConnection.Open();
 
@@ -172,7 +172,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropMySqlDatabase(string dbName)
         {
-            using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("sys")))
+            using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema")))
             {
                 sysConnection.Open();
 
