@@ -48,7 +48,7 @@ namespace Dotmim.Sync.Sqlite
         public string CreateTableCommandText()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
@@ -85,7 +85,7 @@ namespace Dotmim.Sync.Sqlite
 
             stringBuilder.Append(");");
 
-            stringBuilder.AppendLine($"CREATE INDEX [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE INDEX IF NOT EXISTS [{trackingName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.AppendLine($"\t [timestamp] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
@@ -97,10 +97,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(");");
             return stringBuilder.ToString();
         }
-
-        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction)
-            => !await SqliteManagementUtils.TableExistsAsync((SqliteConnection)connection, (SqliteTransaction)transaction, trackingName).ConfigureAwait(false);
-
 
         public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
