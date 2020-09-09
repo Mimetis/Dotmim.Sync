@@ -13,29 +13,6 @@ namespace Dotmim.Sync.Builders
     {
 
         /// <summary>
-        /// Check if trigger exists
-        /// </summary>
-        public async Task<bool> TriggerExistsAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
-        {
-            if (TableDescription.PrimaryKeys.Count <= 0)
-                throw new MissingPrimaryKeyException(TableDescription.TableName);
-
-            var alreadyOpened = connection.State != ConnectionState.Closed;
-
-            if (!alreadyOpened)
-                await connection.OpenAsync().ConfigureAwait(false);
-
-            var triggerBuilder = CreateTriggerBuilder();
-
-            var exists = !await triggerBuilder.NeedToCreateTriggerAsync(triggerType, connection, transaction).ConfigureAwait(false);
-
-            if (!alreadyOpened)
-                connection.Close();
-
-            return exists;
-        }
-
-        /// <summary>
         /// Create a trigger if not exists already
         /// </summary>
         public async Task CreateTriggerAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
@@ -50,24 +27,19 @@ namespace Dotmim.Sync.Builders
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            var needToCreateTrigger = await triggerBuilder.NeedToCreateTriggerAsync(triggerType, connection, transaction).ConfigureAwait(false);
-
-            if (needToCreateTrigger)
+            switch (triggerType)
             {
-                switch (triggerType)
-                {
-                    case DbTriggerType.Insert:
-                        await triggerBuilder.CreateInsertTriggerAsync(connection, transaction).ConfigureAwait(false);
-                        break;
-                    case DbTriggerType.Update:
-                        await triggerBuilder.CreateUpdateTriggerAsync(connection, transaction).ConfigureAwait(false);
-                        break;
-                    case DbTriggerType.Delete:
-                        await triggerBuilder.CreateDeleteTriggerAsync(connection, transaction).ConfigureAwait(false);
-                        break;
-                    default:
-                        break;
-                }
+                case DbTriggerType.Insert:
+                    await triggerBuilder.CreateInsertTriggerAsync(connection, transaction).ConfigureAwait(false);
+                    break;
+                case DbTriggerType.Update:
+                    await triggerBuilder.CreateUpdateTriggerAsync(connection, transaction).ConfigureAwait(false);
+                    break;
+                case DbTriggerType.Delete:
+                    await triggerBuilder.CreateDeleteTriggerAsync(connection, transaction).ConfigureAwait(false);
+                    break;
+                default:
+                    break;
             }
 
             if (!alreadyOpened)
@@ -104,17 +76,12 @@ namespace Dotmim.Sync.Builders
 
             var triggerBuilder = CreateTriggerBuilder();
 
-            if (!await triggerBuilder.NeedToCreateTriggerAsync(DbTriggerType.Insert, connection, transaction).ConfigureAwait(false))
-                await triggerBuilder.DropInsertTriggerAsync(connection, transaction).ConfigureAwait(false);
-            if (!await triggerBuilder.NeedToCreateTriggerAsync(DbTriggerType.Update, connection, transaction).ConfigureAwait(false))
-                await triggerBuilder.DropUpdateTriggerAsync(connection, transaction).ConfigureAwait(false);
-            if (!await triggerBuilder.NeedToCreateTriggerAsync(DbTriggerType.Delete, connection, transaction).ConfigureAwait(false))
-                await triggerBuilder.DropDeleteTriggerAsync(connection, transaction).ConfigureAwait(false);
-
+            await triggerBuilder.DropInsertTriggerAsync(connection, transaction).ConfigureAwait(false);
+            await triggerBuilder.DropUpdateTriggerAsync(connection, transaction).ConfigureAwait(false);
+            await triggerBuilder.DropDeleteTriggerAsync(connection, transaction).ConfigureAwait(false);
 
             if (!alreadyOpened)
                 connection.Close();
-
         }
 
         /// <summary>
@@ -132,22 +99,19 @@ namespace Dotmim.Sync.Builders
 
             var triggerBuilder = CreateTriggerBuilder();
 
-            if (!await triggerBuilder.NeedToCreateTriggerAsync(triggerType, connection, transaction).ConfigureAwait(false))
+            switch (triggerType)
             {
-                switch (triggerType)
-                {
-                    case DbTriggerType.Insert:
-                        await triggerBuilder.DropInsertTriggerAsync(connection, transaction).ConfigureAwait(false);
-                        break;
-                    case DbTriggerType.Update:
-                        await triggerBuilder.DropUpdateTriggerAsync(connection, transaction).ConfigureAwait(false);
-                        break;
-                    case DbTriggerType.Delete:
-                        await triggerBuilder.DropDeleteTriggerAsync(connection, transaction).ConfigureAwait(false);
-                        break;
-                    default:
-                        break;
-                }
+                case DbTriggerType.Insert:
+                    await triggerBuilder.DropInsertTriggerAsync(connection, transaction).ConfigureAwait(false);
+                    break;
+                case DbTriggerType.Update:
+                    await triggerBuilder.DropUpdateTriggerAsync(connection, transaction).ConfigureAwait(false);
+                    break;
+                case DbTriggerType.Delete:
+                    await triggerBuilder.DropDeleteTriggerAsync(connection, transaction).ConfigureAwait(false);
+                    break;
+                default:
+                    break;
             }
 
             if (!alreadyOpened)

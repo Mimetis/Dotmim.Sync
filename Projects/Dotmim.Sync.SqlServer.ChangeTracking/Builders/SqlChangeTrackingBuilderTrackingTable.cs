@@ -59,19 +59,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
         private string CreateTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
 
-        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var schemaName = this.tableName.SchemaName;
-            var tableName = this.tableName.ObjectName;
-
-            var table = await SqlChangeTrackingManagementUtils.ChangeTrackingTableAsync((SqlConnection)connection, (SqlTransaction)transaction, tableName, schemaName);
-
-            return table.Rows.Count <= 0;
-        }
-
-
-        public Task CreateIndexAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-        public Task CreatePkAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
         public Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
     }
 }

@@ -278,7 +278,7 @@ namespace Dotmim.Sync.MySql
         {
             var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
+            createTrigger.AppendLine($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 
@@ -290,35 +290,38 @@ namespace Dotmim.Sync.MySql
 
         public Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
-        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
-        {
-            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
-            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name, tableName.Unquoted().Normalized().ToString());
-            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name, tableName.Unquoted().Normalized().ToString());
 
-            string triggerName = string.Empty;
-            switch (type)
-            {
-                case DbTriggerType.Insert:
-                    {
-                        triggerName = insTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Update:
-                    {
-                        triggerName = updTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Delete:
-                    {
-                        triggerName = delTriggerName;
-                        break;
-                    }
-            }
+        public Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
+            => Task.FromResult(true);
+        //public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
+        //{
+        //    var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
+        //    var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name, tableName.Unquoted().Normalized().ToString());
+        //    var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name, tableName.Unquoted().Normalized().ToString());
 
-            return !await MySqlManagementUtils.TriggerExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, triggerName).ConfigureAwait(false);
+        //    string triggerName = string.Empty;
+        //    switch (type)
+        //    {
+        //        case DbTriggerType.Insert:
+        //            {
+        //                triggerName = insTriggerName;
+        //                break;
+        //            }
+        //        case DbTriggerType.Update:
+        //            {
+        //                triggerName = updTriggerName;
+        //                break;
+        //            }
+        //        case DbTriggerType.Delete:
+        //            {
+        //                triggerName = delTriggerName;
+        //                break;
+        //            }
+        //    }
 
-        }
+        //    return !await MySqlManagementUtils.TriggerExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, triggerName).ConfigureAwait(false);
+
+        //}
 
         public async Task DropTriggerAsync(DbCommandType triggerType, DbConnection connection, DbTransaction transaction)
         {

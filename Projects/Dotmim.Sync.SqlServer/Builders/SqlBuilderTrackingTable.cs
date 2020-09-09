@@ -17,7 +17,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
     {
-        private ParserName tableName;
         private ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
@@ -27,89 +26,17 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
-            this.tableName = tableName;
             this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public async Task CreateIndexAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = new SqlCommand(this.CreateIndexCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-        }
-
-        private string CreateIndexCommandText()
-        {
-            var stringBuilder = new StringBuilder();
-            var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
-            var tableName = trackingName.Schema().Quoted().ToString();
-
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {tableName} (");
-            stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
-            stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
-            stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} ASC");
-            }
-            stringBuilder.Append(")");
-            return stringBuilder.ToString();
-        }
-
-        public async Task CreatePkAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = new SqlCommand(this.CreatePkCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public string CreatePkCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
-
-            var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
-            for (int i = 0; i < primaryKeysColumns.Count; i++)
-            {
-                var pkColumn = primaryKeysColumns[i];
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append(quotedColumnName);
-
-                if (i < primaryKeysColumns.Count - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.Append(")");
-
-            return stringBuilder.ToString();
-        }
-
         public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            using (var command = new SqlCommand(this.CreateTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = new SqlCommand(this.CreateDropTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        private string CreateDropTableCommandText()
-            => $"DROP TABLE {trackingName.Schema().Quoted().ToString()};";
-
-        private string CreateTableCommandText()
-        {
             var stringBuilder = new StringBuilder();
+            var tbl = trackingName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+            stringBuilder.AppendLine("IF NOT EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) ");
+            stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
 
             // Adding the primary key
@@ -132,25 +59,94 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
+            stringBuilder.Append(");");
 
-            stringBuilder.Append(")");
-            return stringBuilder.ToString();
-        }
+            // Primary Keys
+            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
 
-        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction) =>
-            !await SqlManagementUtils.TableExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, trackingName.Schema().Quoted().ToString()).ConfigureAwait(false);
-
-
-        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = new SqlCommand(this.RenameTableCommandText(oldTableName), (SqlConnection)connection, (SqlTransaction)transaction))
+            var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
+            for (int i = 0; i < primaryKeysColumns.Count; i++)
             {
+                var pkColumn = primaryKeysColumns[i];
+                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append(quotedColumnName);
+
+                if (i < primaryKeysColumns.Count - 1)
+                    stringBuilder.Append(", ");
+            }
+            stringBuilder.Append(");");
+
+
+            // Index
+            var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
+         
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
+            stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
+            stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.AppendLine($"\t,{columnName} ASC");
+            }
+            stringBuilder.Append(");");
+
+            stringBuilder.AppendLine("END");
+
+            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                SqlParameter sqlParameter = new SqlParameter()
+                {
+                    ParameterName = "@tableName",
+                    Value = tbl
+                };
+                command.Parameters.Add(sqlParameter);
+
+                sqlParameter = new SqlParameter()
+                {
+                    ParameterName = "@schemaName",
+                    Value = schema
+                };
+                command.Parameters.Add(sqlParameter);
+
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
 
-        public string RenameTableCommandText(ParserName oldTableName)
+        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
+            var tbl = trackingName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) ");
+            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {trackingName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine("END");
+
+            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                SqlParameter sqlParameter = new SqlParameter()
+                {
+                    ParameterName = "@tableName",
+                    Value = tbl
+                };
+                command.Parameters.Add(sqlParameter);
+
+                sqlParameter = new SqlParameter()
+                {
+                    ParameterName = "@schemaName",
+                    Value = schema
+                };
+                command.Parameters.Add(sqlParameter);
+
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
+        }
+
+        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
+        {
+
             StringBuilder stringBuilder = new StringBuilder();
 
             var schemaName = this.trackingName.SchemaName;
@@ -170,8 +166,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
                 stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
             }
-
-            return stringBuilder.ToString();
+            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
         }
 
 
