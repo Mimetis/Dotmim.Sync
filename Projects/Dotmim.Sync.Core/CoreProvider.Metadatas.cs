@@ -27,10 +27,11 @@ namespace Dotmim.Sync
 
                 var tableHelper = tableBuilder.CreateTableBuilder();
 
-                // check if table exists
-                // If not, kindly continue, without exception
-                if (await tableHelper.NeedToCreateTableAsync(connection, transaction).ConfigureAwait(false))
-                    continue;
+                // TODO : Maybe making a method like tableHelper.TableExistsAsync()
+                //// check if table exists
+                //// If not, kindly continue, without exception
+                //if (await tableHelper.NeedToCreateTableAsync(connection, transaction).ConfigureAwait(false))
+                //    continue;
 
                 // Create sync adapter
                 var syncAdapter = tableBuilder.CreateSyncAdapter();

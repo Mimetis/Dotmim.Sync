@@ -53,83 +53,12 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-
-        private MySqlCommand BuildForeignKeyConstraintsCommand(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
-        {
-            var command = new MySqlCommand((MySqlConnection)connection, (MySqlTransaction)transaction);
-
-            var tableName = ParserName.Parse(constraint.GetTable(), "`").Quoted().ToString();
-            var parentTableName = ParserName.Parse(constraint.GetParentTable(), "`").Quoted().ToString();
-
-            var relationName = NormalizeRelationName(constraint.RelationName);
-
-            var keyColumns = constraint.Keys;
-            var referencesColumns = constraint.ParentKeys;
-
-            var stringBuilder = new StringBuilder();
-            stringBuilder.Append("SET FOREIGN_KEY_CHECKS=0;");
-            stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.AppendLine(tableName);
-            stringBuilder.Append("ADD CONSTRAINT ");
-
-            stringBuilder.AppendLine($"`{relationName}`");
-            stringBuilder.Append("FOREIGN KEY (");
-            string empty = string.Empty;
-            foreach (var keyColumn in keyColumns)
-            {
-                var foreignKeyColumnName = ParserName.Parse(keyColumn.ColumnName, "`").Quoted().ToString();
-                stringBuilder.Append($"{empty} {foreignKeyColumnName}");
-                empty = ", ";
-            }
-            stringBuilder.AppendLine(" )");
-            stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(parentTableName).Append(" (");
-            empty = string.Empty;
-            foreach (var referencesColumn in referencesColumns)
-            {
-                var referencesColumnName = ParserName.Parse(referencesColumn.ColumnName, "`").Quoted().ToString();
-                stringBuilder.Append($"{empty} {referencesColumnName}");
-                empty = ", ";
-            }
-            stringBuilder.AppendLine(" );");
-            stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=1;");
-
-            command.CommandText = stringBuilder.ToString();
-
-            return command;
-        }
-
-        public async Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation relation, DbConnection connection, DbTransaction transaction)
-        {
-            string tableName = relation.GetTable().TableName;
-
-            var relationName = NormalizeRelationName(relation.RelationName);
-
-            var relations = await MySqlManagementUtils.GetRelationsForTableAsync((MySqlConnection)connection, (MySqlTransaction)transaction, tableName).ConfigureAwait(false);
-
-            var foreignKeyExist = relations.Rows.Any(r =>
-               string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
-
-            return !foreignKeyExist;
-        }
-
-        public async Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = this.BuildForeignKeyConstraintsCommand(constraint, connection, transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-        }
-
-
-
-        public Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
-
         private MySqlCommand BuildTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {this.tableName.Quoted().ToString()} (");
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=0;");
+            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {this.tableName.Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -189,7 +118,46 @@ namespace Dotmim.Sync.MySql
             }
 
             stringBuilder.Append(")");
-            stringBuilder.Append(")");
+            stringBuilder.Append(");");
+
+
+            // Foreign Keys
+            foreach (var constraint in this.tableDescription.GetRelations())
+            {
+                var tableName = ParserName.Parse(constraint.GetTable(), "`").Quoted().ToString();
+                var parentTableName = ParserName.Parse(constraint.GetParentTable(), "`").Quoted().ToString();
+                var relationName = NormalizeRelationName(constraint.RelationName);
+                var keyColumns = constraint.Keys;
+                var referencesColumns = constraint.ParentKeys;
+
+                stringBuilder.Append("ALTER TABLE ");
+                stringBuilder.AppendLine(tableName);
+                stringBuilder.Append("ADD CONSTRAINT ");
+
+                stringBuilder.AppendLine($"`{relationName}`");
+                stringBuilder.Append("FOREIGN KEY (");
+                empty = string.Empty;
+                foreach (var keyColumn in keyColumns)
+                {
+                    var foreignKeyColumnName = ParserName.Parse(keyColumn.ColumnName, "`").Quoted().ToString();
+                    stringBuilder.Append($"{empty} {foreignKeyColumnName}");
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine(" )");
+                stringBuilder.Append("REFERENCES ");
+                stringBuilder.Append(parentTableName).Append(" (");
+                empty = string.Empty;
+                foreach (var referencesColumn in referencesColumns)
+                {
+                    var referencesColumnName = ParserName.Parse(referencesColumn.ColumnName, "`").Quoted().ToString();
+                    stringBuilder.Append($"{empty} {referencesColumnName}");
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine(" );");
+            }
+            stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=1;");
+
+
             return new MySqlCommand(stringBuilder.ToString(), (MySqlConnection)connection, (MySqlTransaction)transaction);
         }
 
@@ -200,15 +168,6 @@ namespace Dotmim.Sync.MySql
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
-
-
-        /// <summary>
-        /// Check if we need to create the table in the current database
-        /// </summary>
-        public async Task<bool> NeedToCreateTableAsync(DbConnection connection, DbTransaction transaction)
-            => !await MySqlManagementUtils.TableExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, this.tableName).ConfigureAwait(false);
-
-        public Task<bool> NeedToCreateSchemaAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
 
         public Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 

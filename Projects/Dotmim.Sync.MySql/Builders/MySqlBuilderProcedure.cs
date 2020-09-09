@@ -120,6 +120,7 @@ namespace Dotmim.Sync.MySql
         private string CreateProcedureCommandText(MySqlCommand cmd, string procName)
         {
             var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"drop procedure if exists {procName};");
             stringBuilder.Append("create procedure ");
             stringBuilder.Append(procName);
             stringBuilder.Append(" (");
@@ -179,17 +180,20 @@ namespace Dotmim.Sync.MySql
         /// <summary>
         /// Check if we need to create the stored procedure
         /// </summary>
-        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.mySqlObjectNames.GetCommandName(commandType).name;
-
-            return !await MySqlManagementUtils.ProcedureExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, commandName).ConfigureAwait(false);
-        }
+        //public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+        //{
+        //    var commandName = this.mySqlObjectNames.GetCommandName(commandType).name;
+        //    return !await MySqlManagementUtils.ProcedureExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, commandName).ConfigureAwait(false);
+        //}
+        
+        public Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+            => Task.FromResult(true);
 
         /// <summary>
         /// Check if we need to create the TVP Type
         /// </summary>
-        public Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
+        public Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction) 
+            => Task.FromResult(false);
 
         //------------------------------------------------------------------
         // Reset command

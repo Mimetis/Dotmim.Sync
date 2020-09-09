@@ -31,7 +31,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        private string DeleteTriggerBodyText()
+        public virtual Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
@@ -81,46 +81,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
-            return stringBuilder.ToString();
+
+            return CreateTriggerAsync(connection, transaction, DbCommandType.DeleteTrigger, stringBuilder.ToString());
+
         }
 
-        public virtual async Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var createTrigger = new StringBuilder($"CREATE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-        public virtual async Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var commandText = $"DROP TRIGGER {delTriggerName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public virtual async Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var createTrigger = new StringBuilder($"ALTER TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR DELETE AS ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.DeleteTriggerBodyText());
-
-            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        private string InsertTriggerBodyText()
+        public virtual Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
@@ -171,48 +137,15 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
-            return stringBuilder.ToString();
-        }
-        public virtual async Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-            var createTrigger = new StringBuilder($"CREATE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
 
-            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            }
+            return CreateTriggerAsync(connection, transaction, DbCommandType.InsertTrigger, stringBuilder.ToString());
+
         }
 
-        public virtual async Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
+        public virtual Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-            var commandText = $"DROP TRIGGER {triggerName};";
 
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public virtual async Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-            var createTrigger = new StringBuilder($"ALTER TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR INSERT AS ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.InsertTriggerBodyText());
-
-            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        private string UpdateTriggerBodyText()
-        {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("SET NOCOUNT ON;");
@@ -298,75 +231,65 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
-            return stringBuilder.ToString();
-        }
-        public virtual async Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var createTrigger = new StringBuilder($"CREATE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.UpdateTriggerBodyText());
+            return CreateTriggerAsync(connection, transaction, DbCommandType.UpdateTrigger, stringBuilder.ToString());
 
-            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
+        }
+
+        private async Task CreateTriggerAsync(DbConnection connection, DbTransaction transaction, DbCommandType triggerType, string commandText)
+        {
+
+            var commandTriggerName = this.sqlObjectNames.GetCommandName(triggerType).name;
+            var triggerName = ParserName.Parse(commandTriggerName).ToString();
+            var triggerSchemaName = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName)");
+            stringBuilder.AppendLine($"DROP TRIGGER {commandTriggerName};");
+
+            using var commandDrop = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+            commandDrop.Parameters.AddWithValue("@triggerName", triggerName);
+            commandDrop.Parameters.AddWithValue("@schemaName", triggerSchemaName);
+            await commandDrop.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
+            stringBuilder.AppendLine(commandText);
+
+            using var commandCreate = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+
+            await commandCreate.ExecuteNonQueryAsync().ConfigureAwait(false);
+        }
+
+
+
+        public virtual Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
+            => DropTriggerAsync(connection, transaction, DbCommandType.DeleteTrigger);
+
+        public virtual Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
+            => DropTriggerAsync(connection, transaction, DbCommandType.InsertTrigger);
+
+        public virtual Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
+            => DropTriggerAsync(connection, transaction, DbCommandType.UpdateTrigger);
+
+        private async Task DropTriggerAsync(DbConnection connection, DbTransaction transaction, DbCommandType triggerType)
+        {
+            var commandTriggerName = this.sqlObjectNames.GetCommandName(triggerType).name;
+            var triggerName = ParserName.Parse(commandTriggerName).ToString();
+            var triggerSchemaName = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName)");
+            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine($"DROP TRIGGER {commandTriggerName};");
+            stringBuilder.AppendLine("BEGIN");
+
+            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
             {
+                command.Parameters.AddWithValue("@triggerName", triggerName);
+                command.Parameters.AddWithValue("@schemaName", triggerSchemaName);
+
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
-        }
-
-        public virtual async Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var triggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var commandText = $"DROP TRIGGER {triggerName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-
-        public virtual async Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
-        {
-
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var createTrigger = new StringBuilder($"ALTER TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS ");
-            createTrigger.AppendLine();
-            createTrigger.AppendLine(this.UpdateTriggerBodyText());
-
-            using (var command = new SqlCommand(createTrigger.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public virtual async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
-        {
-
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-
-            string triggerName = string.Empty;
-            switch (type)
-            {
-                case DbTriggerType.Insert:
-                    {
-                        triggerName = insTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Update:
-                    {
-                        triggerName = updTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Delete:
-                    {
-                        triggerName = delTriggerName;
-                        break;
-                    }
-            }
-
-            return !await SqlManagementUtils.TriggerExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, triggerName).ConfigureAwait(false);
         }
 
 

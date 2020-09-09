@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -246,6 +247,7 @@ namespace Dotmim.Sync.MySql
         {
             bool tableExist;
 
+
             using (DbCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
@@ -274,6 +276,7 @@ namespace Dotmim.Sync.MySql
 
 
             }
+
             return tableExist;
         }
 

@@ -24,7 +24,7 @@ namespace Dotmim.Sync.MySql
         {
 
             var commandText =
-                $@"CREATE TABLE {scopeTableName.Quoted().ToString()}(
+                $@"CREATE TABLE IF NOT EXISTS {scopeTableName.Quoted().ToString()}(
                         sync_scope_id varchar(36) NOT NULL,
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    sync_scope_schema longtext NULL,
@@ -49,7 +49,7 @@ namespace Dotmim.Sync.MySql
             var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
 
             var commandText =
-                $@"CREATE TABLE `{tableName}`(
+                $@"CREATE TABLE IF NOT EXISTS `{tableName}`(
                         sync_scope_id varchar(36) NOT NULL,
                         sync_scope_name varchar(100) NOT NULL,
                         scope_last_sync_timestamp bigint NULL,
@@ -70,7 +70,7 @@ namespace Dotmim.Sync.MySql
             var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
 
             var commandText =
-                $@"CREATE TABLE `{tableName}` (
+                $@"CREATE TABLE IF NOT EXISTS `{tableName}` (
 	                    sync_scope_name varchar(100) NOT NULL,
 	                    sync_scope_schema longtext NULL,
 	                    sync_scope_setup longtext NULL,
@@ -521,38 +521,48 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        public async Task<bool> NeedToCreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.Unquoted().ToString()}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+        public Task<bool> NeedToCreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+            => Task.FromResult(true);
 
-            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
-            {
-                return ((long)await command.ExecuteScalarAsync()) != 1;
-            }
-        }
+        //public async Task<bool> NeedToCreateClientScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+        //{
+        //    var commandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{scopeTableName.Unquoted().ToString()}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
-        public async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
-            var commandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+        //    using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
+        //    {
+        //        return ((long)await command.ExecuteScalarAsync()) != 1;
+        //    }
+        //}
 
-            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
-            {
-                return ((long)await command.ExecuteScalarAsync()) != 1;
-            }
+        public Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+            => Task.FromResult(true);
 
-        }
 
-        public async Task<bool> NeedToCreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
-            var commandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
-            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
-            {
-                return ((long)await command.ExecuteScalarAsync()) != 1;
-            }
+        //public async Task<bool> NeedToCreateServerHistoryScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+        //{
+        //    var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_history";
+        //    var commandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
-        }
+        //    using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
+        //    {
+        //        return ((long)await command.ExecuteScalarAsync()) != 1;
+        //    }
+
+        //}
+
+        public Task<bool> NeedToCreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+            => Task.FromResult(true);
+
+        //public async Task<bool> NeedToCreateServerScopeInfoTableAsync(DbConnection connection, DbTransaction transaction)
+        //{
+        //    var tableName = $"{scopeTableName.Unquoted().Normalized().ToString()}_server";
+        //    var commandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+
+        //    using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
+        //    {
+        //        return ((long)await command.ExecuteScalarAsync()) != 1;
+        //    }
+        //}
     }
 }
