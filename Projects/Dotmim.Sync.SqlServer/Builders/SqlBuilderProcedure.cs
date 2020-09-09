@@ -128,17 +128,25 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var str = CreateProcedureCommandText(BuildCommand(), procName);
 
-            using (var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var storedProcExists = await SqlManagementUtils.ProcedureExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, procName);
+
+            if (storedProcExists)
+                return;
+
+            using var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction);
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
 
         private async Task CreateProcedureCommandAsync<T>(Func<T, SqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
-
             var str = CreateProcedureCommandText(BuildCommand(t), procName);
+
+            var storedProcExists = await SqlManagementUtils.ProcedureExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, procName);
+
+            if (storedProcExists)
+                return;
+
             using (var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction))
             {
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
