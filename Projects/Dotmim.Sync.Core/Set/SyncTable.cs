@@ -73,6 +73,7 @@ namespace Dotmim.Sync
             private set => rows = value;
         }
 
+
         /// <summary>
         /// Gets the ShemaTable's SyncSchema
         /// </summary>
