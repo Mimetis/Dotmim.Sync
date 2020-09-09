@@ -278,7 +278,8 @@ namespace Dotmim.Sync.MySql
         {
             var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
+            createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {updTriggerName};");
+            createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
 

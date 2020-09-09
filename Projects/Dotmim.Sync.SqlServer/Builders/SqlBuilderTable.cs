@@ -268,19 +268,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "dbo")
                 return;
 
-            var schemaCommand = $"IF NOT EXISTS (SELECT sch.name FROM sys.schemas sch WHERE sch.name = @schemaName) BEGIN Create Schema {tableName.SchemaName} END";
+            var schemaExists = await SqlManagementUtils.SchemaExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, tableName.SchemaName);
 
-            using (var command = new SqlCommand(schemaCommand, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                var sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@schemaName",
-                    Value = tableName.SchemaName
-                };
-                command.Parameters.Add(sqlParameter);
+            if (schemaExists)
+                return;
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var schemaCommand = $"Create Schema {tableName.SchemaName} END";
+
+            using var command = new SqlCommand(schemaCommand, (SqlConnection)connection, (SqlTransaction)transaction);
+            
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
