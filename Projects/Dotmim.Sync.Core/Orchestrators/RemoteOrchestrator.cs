@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -347,8 +348,10 @@ namespace Dotmim.Sync
                             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
                             await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+                            
 
                             ctx = await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
 
                             // So far, we don't have already a database provisionned
                             ctx.SyncStage = SyncStage.Provisioned;
@@ -370,7 +373,7 @@ namespace Dotmim.Sync
                         {
                             // Setup stored on local or remote is different from the one provided.
                             // So, we can migrate
-                            if (serverScopeInfo.Setup.EqualsByProperties(this.Setup))
+                            if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
                             {
                                 // 1) Get Schema from remote provider
                                 (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

@@ -86,6 +86,7 @@ namespace Dotmim.Sync.MySql
         {
             var delTriggerName = this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
             StringBuilder createTrigger = new StringBuilder();
+            createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {delTriggerName};");
             createTrigger.AppendLine($"CREATE TRIGGER {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
@@ -95,9 +96,6 @@ namespace Dotmim.Sync.MySql
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
-
-        public Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
 
         private string InsertTriggerBodyText()
         {
@@ -161,6 +159,7 @@ namespace Dotmim.Sync.MySql
             var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name, tableName.Unquoted().Normalized().ToString());
 
             StringBuilder createTrigger = new StringBuilder();
+            createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {insTriggerName}; ");
             createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
@@ -170,9 +169,6 @@ namespace Dotmim.Sync.MySql
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
-
-        public Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
         private string UpdateTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
@@ -278,6 +274,7 @@ namespace Dotmim.Sync.MySql
         {
             var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
             StringBuilder createTrigger = new StringBuilder();
+            createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {updTriggerName};");
             createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
@@ -288,42 +285,11 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-        public Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
-        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
-        {
-            var updTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name, tableName.Unquoted().Normalized().ToString());
-            var delTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name, tableName.Unquoted().Normalized().ToString());
-            var insTriggerName = string.Format(this.mySqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name, tableName.Unquoted().Normalized().ToString());
-
-            string triggerName = string.Empty;
-            switch (type)
-            {
-                case DbTriggerType.Insert:
-                    {
-                        triggerName = insTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Update:
-                    {
-                        triggerName = updTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Delete:
-                    {
-                        triggerName = delTriggerName;
-                        break;
-                    }
-            }
-
-            return !await MySqlManagementUtils.TriggerExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, triggerName).ConfigureAwait(false);
-
-        }
-
+ 
         public async Task DropTriggerAsync(DbCommandType triggerType, DbConnection connection, DbTransaction transaction)
         {
             var triggerName = string.Format(this.mySqlObjectNames.GetCommandName(triggerType).name, tableName.Unquoted().Normalized().ToString());
-            var commandText = $"drop trigger if exists {triggerName}";
+            var commandText = $"DROP TRIGGER IF EXISTS {triggerName}";
 
             using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
             {
