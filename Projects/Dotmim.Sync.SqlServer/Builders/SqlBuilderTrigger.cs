@@ -251,8 +251,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             commandDrop.Parameters.AddWithValue("@schemaName", triggerSchemaName);
             await commandDrop.ExecuteNonQueryAsync().ConfigureAwait(false);
 
+            string triggerFor = triggerType == DbCommandType.DeleteTrigger ? "DELETE" 
+                              : triggerType == DbCommandType.UpdateTrigger ? "UPDATE" 
+                              : "INSERT";
+
             stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR UPDATE AS");
+            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR {triggerFor} AS");
             stringBuilder.AppendLine(commandText);
 
             using var commandCreate = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
