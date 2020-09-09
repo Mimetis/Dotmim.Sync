@@ -63,65 +63,7 @@ namespace Dotmim.Sync.Manager
             else
                 parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
 
-            // OBSOLETE : Wait for tests to pass and then, jsut remove
-            //if (value != null && value != DBNull.Value)
-            //{
-            //    var columnType = parameter.DbType;
-            //    var valueType = value.GetType();
 
-            //    try
-            //    {
-            //        if (columnType == DbType.Guid && valueType != typeof(Guid) && (value as string) != null)
-            //            value = new Guid(value.ToString());
-            //        else if (columnType == DbType.Guid && valueType != typeof(Guid) && value.GetType() == typeof(byte[]))
-            //            value = new Guid((byte[])value);
-            //        else if (columnType == DbType.Int32 && valueType != typeof(int))
-            //            value = Convert.ToInt32(value);
-            //        else if (columnType == DbType.UInt32 && valueType != typeof(uint))
-            //            value = Convert.ToUInt32(value);
-            //        else if (columnType == DbType.UInt16 && valueType != typeof(short))
-            //            value = Convert.ToInt16(value);
-            //        else if (columnType == DbType.UInt16 && valueType != typeof(ushort))
-            //            value = Convert.ToUInt16(value);
-            //        else if (columnType == DbType.Int64 && valueType != typeof(long))
-            //            value = Convert.ToInt64(value);
-            //        else if (columnType == DbType.UInt64 && valueType != typeof(ulong))
-            //            value = Convert.ToUInt64(value);
-            //        else if (columnType == DbType.Byte && valueType != typeof(byte))
-            //            value = Convert.ToByte(value);
-            //        else if (columnType == DbType.Currency && valueType != typeof(Decimal))
-            //            value = Convert.ToDecimal(value);
-            //        else if (columnType == DbType.DateTime && valueType != typeof(DateTime))
-            //            value = Convert.ToDateTime(value);
-            //        else if (columnType == DbType.DateTime2 && valueType != typeof(DateTime))
-            //            value = Convert.ToDateTime(value);
-            //        else if (columnType == DbType.DateTimeOffset && valueType != typeof(DateTimeOffset))
-            //            value = SyncTypeConverter.TryConvertTo<DateTimeOffset>(value);
-            //        else if (columnType == DbType.Decimal && valueType != typeof(decimal))
-            //            value = Convert.ToDecimal(value);
-            //        else if (columnType == DbType.Double && valueType != typeof(double))
-            //            value = Convert.ToDouble(value);
-            //        else if (columnType == DbType.SByte && valueType != typeof(sbyte))
-            //            value = Convert.ToSByte(value);
-            //        else if (columnType == DbType.VarNumeric && valueType != typeof(float))
-            //            value = Convert.ToSingle(value);
-            //        else if (columnType == DbType.String && valueType != typeof(string))
-            //            value = Convert.ToString(value);
-            //        else if (columnType == DbType.StringFixedLength && valueType != typeof(string))
-            //            value = Convert.ToString(value);
-            //        else if (columnType == DbType.AnsiString && valueType != typeof(string))
-            //            value = Convert.ToString(value);
-            //        else if (columnType == DbType.AnsiStringFixedLength && valueType != typeof(string))
-            //            value = Convert.ToString(value);
-            //        else if (columnType == DbType.Boolean && valueType != typeof(bool))
-            //            value = Convert.ToBoolean(value);
-            //    }
-            //    catch
-            //    {
-            //        // if execption, just try to set the value, directly
-            //    }
-            //}
-            //parameter.Value = value;
         }
 
         public static int GetSyncIntOutParameter(string parameter, DbCommand command)

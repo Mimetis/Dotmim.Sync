@@ -105,7 +105,7 @@ namespace Dotmim.Sync
                 });
 
                 // Get the reader
-                using (var dataReader = selectIncrementalChangesCommand.ExecuteReader())
+                using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     // memory size total
                     double rowsMemorySize = 0L;
