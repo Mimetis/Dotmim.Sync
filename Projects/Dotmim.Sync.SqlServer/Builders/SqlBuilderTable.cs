@@ -273,7 +273,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (schemaExists)
                 return;
 
-            var schemaCommand = $"Create Schema {tableName.SchemaName} END";
+            var schemaCommand = $"Create Schema {tableName.SchemaName}";
 
             using var command = new SqlCommand(schemaCommand, (SqlConnection)connection, (SqlTransaction)transaction);
             
