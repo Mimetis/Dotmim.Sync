@@ -56,10 +56,11 @@ namespace Dotmim.Sync.MySql
         private MySqlCommand BuildTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
+            string empty = string.Empty;
 
             stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=0;");
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {this.tableName.Quoted().ToString()} (");
-            string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
@@ -117,11 +118,8 @@ namespace Dotmim.Sync.MySql
                 i++;
             }
 
-            stringBuilder.Append(")");
-            stringBuilder.Append(");");
+            stringBuilder.AppendLine(")");
 
-
-            // Foreign Keys
             foreach (var constraint in this.tableDescription.GetRelations())
             {
                 var tableName = ParserName.Parse(constraint.GetTable(), "`").Quoted().ToString();
@@ -129,12 +127,9 @@ namespace Dotmim.Sync.MySql
                 var relationName = NormalizeRelationName(constraint.RelationName);
                 var keyColumns = constraint.Keys;
                 var referencesColumns = constraint.ParentKeys;
+                stringBuilder.Append($"\t,CONSTRAINT ");
 
-                stringBuilder.Append("ALTER TABLE ");
-                stringBuilder.AppendLine(tableName);
-                stringBuilder.Append("ADD CONSTRAINT ");
-
-                stringBuilder.AppendLine($"`{relationName}`");
+                stringBuilder.Append($"`{relationName}` ");
                 stringBuilder.Append("FOREIGN KEY (");
                 empty = string.Empty;
                 foreach (var keyColumn in keyColumns)
@@ -143,7 +138,7 @@ namespace Dotmim.Sync.MySql
                     stringBuilder.Append($"{empty} {foreignKeyColumnName}");
                     empty = ", ";
                 }
-                stringBuilder.AppendLine(" )");
+                stringBuilder.Append(" ) ");
                 stringBuilder.Append("REFERENCES ");
                 stringBuilder.Append(parentTableName).Append(" (");
                 empty = string.Empty;
@@ -153,10 +148,13 @@ namespace Dotmim.Sync.MySql
                     stringBuilder.Append($"{empty} {referencesColumnName}");
                     empty = ", ";
                 }
-                stringBuilder.AppendLine(" );");
+                stringBuilder.AppendLine(" )");
             }
-            stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=1;");
 
+
+            stringBuilder.Append(");");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=1;");
 
             return new MySqlCommand(stringBuilder.ToString(), (MySqlConnection)connection, (MySqlTransaction)transaction);
         }
