@@ -84,8 +84,6 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public Task AlterDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
         private string InsertTriggerBodyText()
         {
             var stringBuilder = new StringBuilder();
@@ -142,8 +140,7 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public Task AlterInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
+  
         private string UpdateTriggerBodyText()
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -245,37 +242,6 @@ namespace Dotmim.Sync.Sqlite
             }
 
         }
-        public Task AlterUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
-        public async Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction)
-        {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger), tableName.Unquoted().ToString());
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.Unquoted().ToString());
-
-            string triggerName = string.Empty;
-            switch (type)
-            {
-                case DbTriggerType.Insert:
-                    {
-                        triggerName = insTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Update:
-                    {
-                        triggerName = updTriggerName;
-                        break;
-                    }
-                case DbTriggerType.Delete:
-                    {
-                        triggerName = delTriggerName;
-                        break;
-                    }
-            }
-
-            return !await SqliteManagementUtils.TriggerExistsAsync((SqliteConnection)connection, (SqliteTransaction)transaction, triggerName).ConfigureAwait(false);
-        }
-
 
         public Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.InsertTrigger, connection, transaction);
         public Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.UpdateTrigger, connection, transaction);
