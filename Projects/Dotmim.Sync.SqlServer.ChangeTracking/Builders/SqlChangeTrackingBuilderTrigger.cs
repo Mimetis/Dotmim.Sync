@@ -23,8 +23,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
         }
 
-        public override Task<bool> NeedToCreateTriggerAsync(DbTriggerType type, DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
-
         public override Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
         public override Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
         public override Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;

@@ -12,13 +12,11 @@ namespace Dotmim.Sync.Builders
     /// </summary>
     public interface IDbBuilderTableHelper
     {
-       Task<bool> NeedToCreateTableAsync(DbConnection connection, DbTransaction transaction);
-       Task<bool> NeedToCreateSchemaAsync(DbConnection connection, DbTransaction transaction);
-       Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction);
+       //Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction);
        Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction);
        Task CreateTableAsync(DbConnection connection, DbTransaction transaction);
-       Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction);
-       Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction);
+       //Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction);
+       //Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction);
        Task DropTableAsync(DbConnection connection, DbTransaction transaction);
     }
 }

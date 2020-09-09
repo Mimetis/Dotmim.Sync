@@ -619,7 +619,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-  
+
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
@@ -1365,8 +1365,8 @@ namespace Dotmim.Sync.Tests
             }
         }
 
- 
- 
+
+
         /// <summary>
         /// </summary>
         //[Fact, TestPriority(29)]
@@ -1440,32 +1440,6 @@ namespace Dotmim.Sync.Tests
 
                         await dbConnection.OpenAsync();
 
-                        Assert.False(await trackingTablesBuilder.NeedToCreateTrackingTableAsync(dbConnection, null));
-
-                        Assert.False(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Insert, dbConnection, null));
-                        Assert.False(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Delete, dbConnection, null));
-                        Assert.False(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Update, dbConnection, null ));
-
-                        // sqlite does not have stored procedures
-                        if (spBuider != null)
-                        {
-                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.Reset, dbConnection, null));
-                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectChanges, dbConnection, null));
-                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectRow, dbConnection, null));
-                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteMetadata, dbConnection, null));
-                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteRow, dbConnection, null));
-
-                            // Check if we have mutables columns to see if the update row / metadata have been generated
-                            if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
-                                Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.UpdateRow, dbConnection, null));
-                        }
-
-                        if (client.ProviderType == ProviderType.Sql)
-                        {
-                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkDeleteRows, dbConnection, null));
-                            Assert.False(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkUpdateRows, dbConnection, null));
-                        }
-
                         dbConnection.Close();
 
                     }
@@ -1479,50 +1453,6 @@ namespace Dotmim.Sync.Tests
                 // Deprovision the database with all tracking tables, stored procedures, triggers and scope
                 await localOrchestrator.DeprovisionAsync(schema, provision);
 
-                // get the db manager
-                foreach (var dmTable in syncSchema.Tables)
-                {
-                    var tableName = dmTable.TableName;
-                    using (var dbConnection = localOrchestrator.Provider.CreateConnection())
-                    {
-                        // get the database manager factory then the db manager itself
-                        var dbTableBuilder = localOrchestrator.Provider.GetTableBuilder(dmTable, setup);
-
-                        // get builders
-                        var trackingTablesBuilder = dbTableBuilder.CreateTrackingTableBuilder();
-                        var triggersBuilder = dbTableBuilder.CreateTriggerBuilder();
-                        var spBuider = dbTableBuilder.CreateProcBuilder();
-
-                        await dbConnection.OpenAsync();
-
-                        Assert.True(await trackingTablesBuilder.NeedToCreateTrackingTableAsync(dbConnection, null));
-                        Assert.True(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Insert, dbConnection, null));
-                        Assert.True(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Delete, dbConnection, null));
-                        Assert.True(await triggersBuilder.NeedToCreateTriggerAsync(Builders.DbTriggerType.Update, dbConnection, null));
-                        if (spBuider != null)
-                        {
-
-                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.Reset, dbConnection, null));
-                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectChanges, dbConnection, null));
-                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.SelectRow, dbConnection, null));
-                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteMetadata, dbConnection, null));
-                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.DeleteRow, dbConnection, null));
-
-                            // Check if we have mutables columns to see if the update row / metadata have been generated
-                            if (dbTableBuilder.TableDescription.GetMutableColumns(false).Any())
-                                Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.UpdateRow, dbConnection, null));
-                        }
-
-                        if (client.ProviderType == ProviderType.Sql)
-                        {
-                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkDeleteRows, dbConnection, null));
-                            Assert.True(await spBuider.NeedToCreateProcedureAsync(Builders.DbCommandType.BulkUpdateRows, dbConnection, null));
-                        }
-
-                        dbConnection.Close();
-
-                    }
-                }
                 localOrchestrator.OnTableDeprovisioned(null);
             }
         }
@@ -3363,5 +3293,5 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-      }
+    }
 }
