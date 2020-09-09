@@ -46,15 +46,58 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeWithFiltersAndCustomerSerializerAsync();
+        await SynchronizeAsync();
 
     }
+
+    private static async Task SynchronizeAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("dedee.db");
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+
+        var options = new SyncOptions();
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var r = await agent.SynchronizeAsync(progress);
+                // Write results
+                Console.WriteLine(r);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
 
     private static async Task SynchronizeWithFiltersAndCustomerSerializerAsync()
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new MySqlSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
 
@@ -1637,67 +1680,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-    private static async Task SynchronizeAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqliteSyncProvider("longrunning.db");
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
-        //var setup = new SyncSetup(new string[] { "Customer" });
-        //var setup = new SyncSetup(new[] { "Customer" });
-        //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
-
-
-        var options = new SyncOptions();
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var r = await agent.SynchronizeAsync(progress);
-                // Write results
-                Console.WriteLine(r);
-
-                //using (var sqliteConnection = new SqliteConnection(clientProvider.ConnectionString))
-                //{
-                //    using (var command = new SqliteCommand("Select * from Product", sqliteConnection))
-                //    {
-                //        sqliteConnection.Open();
-                //        var reader = command.ExecuteReader();
-
-                //        while (reader.Read())
-                //        {
-                //            var rowId = reader["rowguid"] != DBNull.Value? new Guid((string)reader["rowguid"]) : Guid.Empty;
-                //        }
-                //        sqliteConnection.Close();
-
-                //    }
-                //}
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
+ 
     public static async Task SyncHttpThroughKestrellAsync()
     {
         // server provider

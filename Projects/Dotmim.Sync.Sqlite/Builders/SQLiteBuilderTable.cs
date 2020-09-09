@@ -135,19 +135,7 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        /// <summary>
-        /// Check if we need to create the table in the current database
-        /// </summary>
-        public async Task<bool> NeedToCreateTableAsync(DbConnection connection, DbTransaction transaction) =>
-            !await SqliteManagementUtils.TableExistsAsync((SqliteConnection)connection, (SqliteTransaction)transaction, tableName).ConfigureAwait(false);
-
-        public Task<bool> NeedToCreateSchemaAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
-
         public Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
-        public Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction) => Task.FromResult(false);
-
-        public Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
 
         public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
@@ -156,7 +144,5 @@ namespace Dotmim.Sync.Sqlite
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
-
-        public Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
     }
 }

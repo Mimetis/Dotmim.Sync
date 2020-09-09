@@ -133,6 +133,39 @@ namespace Dotmim.Sync.Batch
         }
 
 
+        public async IAsyncEnumerable<SyncTable> GetTableAsync(string tableName, string schemaName, BaseOrchestrator orchestrator = null)
+        {
+            if (this.SanitizedSchema == null)
+                throw new NullReferenceException("Batch info schema should not be null");
+
+            var tableInfo = new BatchPartTableInfo(tableName, schemaName);
+
+            if (InMemory)
+            {
+                if (this.InMemoryData != null && this.InMemoryData.HasTables)
+                    yield return this.InMemoryData.Tables[tableName, schemaName];
+            }
+            else
+            {
+                foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
+                {
+
+                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t.EqualsByName(tableInfo)))
+                    {
+                        await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
+
+                        // Get the table from the batchPartInfo
+                        // generate a tmp SyncTable for 
+                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt.EqualsByName(new SyncTable(tableName, schemaName)));
+
+                        if (batchTable != null)
+                            yield return batchTable;
+
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Get all parts containing this table
         /// Could be multiple parts, since the table may be spread across multiples files
@@ -146,7 +179,7 @@ namespace Dotmim.Sync.Batch
 
             if (InMemory)
             {
-                if (this.InMemoryData!= null && this.InMemoryData.HasTables)
+                if (this.InMemoryData != null && this.InMemoryData.HasTables)
                     yield return this.InMemoryData.Tables[tableName, schemaName];
             }
             else
@@ -154,7 +187,7 @@ namespace Dotmim.Sync.Batch
                 foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
 
-                    
+
 
                     if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t.EqualsByName(tableInfo)))
                     {

@@ -189,7 +189,7 @@ namespace Dotmim.Sync.Sqlite
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                tableExist = ((long)await dbCommand.ExecuteScalarAsync()) != 0L;
+                tableExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
             }
             return tableExist;
         }
@@ -208,7 +208,7 @@ namespace Dotmim.Sync.Sqlite
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
 
-                triggerExist = ((long)await dbCommand.ExecuteScalarAsync()) != 0L;
+                triggerExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
             }
             return triggerExist;
         }

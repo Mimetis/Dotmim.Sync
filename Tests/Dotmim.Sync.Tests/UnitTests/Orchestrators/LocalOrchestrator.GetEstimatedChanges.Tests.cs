@@ -50,7 +50,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync();
+            var s = await agent.SynchronizeAsync();
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;

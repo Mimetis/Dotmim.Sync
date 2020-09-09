@@ -32,26 +32,10 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction)
-             => !await MySqlManagementUtils.TableExistsAsync((MySqlConnection)connection, (MySqlTransaction)transaction, trackingName).ConfigureAwait(false);
-
-        public Task CreateIndexAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-        public Task CreatePkAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
         public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = this.CreateTableCommandText();
-
-            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public string CreateTableCommandText()
-        {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
@@ -84,9 +68,13 @@ namespace Dotmim.Sync.MySql
 
                 comma = ", ";
             }
-            stringBuilder.Append("))");
+            stringBuilder.Append("));");
 
-            return stringBuilder.ToString();
+
+            using (var command = new MySqlCommand(stringBuilder.ToString(), (MySqlConnection)connection, (MySqlTransaction)transaction))
+            {
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            }
         }
 
 
