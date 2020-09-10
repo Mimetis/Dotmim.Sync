@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>Sébastien Pertus</Authors>
+    <Company>Microsoft</Company>
+    <Title>Dotmim.Sync.MariaDB</Title>
+    <Summary>MariaDB Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
+    <Description>MariaDB Sync Provider. Manage a sync process beetween two relational databases provider. This provider can be used as Client or Server provider .Net Standard 2.0</Description>
+    <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, MariaDB, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+    <PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
+    <Version>0.5.8</Version>
+    <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+    <LangVersion>8.0</LangVersion>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
+    <PackageIcon>packageIcon.png</PackageIcon>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <!--generate NUGET package including symbols ans source on each release build -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeSource>True</IncludeSource>
+    <IncludeSymbols>True</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <DefineConstants>MARIADB</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;MARIADB</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilder.cs" Link="Builders\MySqlBuilder.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderProcedure.cs" Link="Builders\MySqlBuilderProcedure.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTable.cs" Link="Builders\MySqlBuilderTable.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTrackingTable.cs" Link="Builders\MySqlBuilderTrackingTable.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTrigger.cs" Link="Builders\MySqlBuilderTrigger.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlDbMetadata.cs" Link="Builders\MySqlDbMetadata.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlObjectNames.cs" Link="Builders\MySqlObjectNames.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeBuilder.cs" Link="Builders\MySqlScopeBuilder.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeInfoBuilder.cs" Link="Builders\MySqlScopeInfoBuilder.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlManager.cs" Link="Manager\MySqlManager.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlManagerTable.cs" Link="Manager\MySqlManagerTable.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlTableBuilder.cs" Link="Manager\MySqlTableBuilder.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\MySqlExtensionsMethods.cs" Link="MySqlExtensionsMethods.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\MySqlManagementUtils.cs" Link="MySqlManagementUtils.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.cs" Link="MySqlSyncAdapter.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\MySqlTokenizer.cs" Link="MySqlTokenizer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\assets\packageIcon.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector">
+      <Version>0.63.0</Version>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Builders\" />
+    <Folder Include="Manager\" />
+  </ItemGroup>
+  
+  
+</Project>
