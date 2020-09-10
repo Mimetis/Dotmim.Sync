@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Web.Server
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var serAndsizeString = string.Empty;
-            var converter = string.Empty;
+            var cliConverterKey = string.Empty;
 
 
             // Get the serialization and batch size format
@@ -87,7 +87,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Get the serialization and batch size format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-converter", out var cs))
-                converter = cs.ToLowerInvariant();
+                cliConverterKey = cs.ToLowerInvariant();
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
@@ -125,11 +125,11 @@ namespace Dotmim.Sync.Web.Server
                 action?.Invoke(this);
 
                 // Get the serializer and batchsize
-                (var clientBatchSize, var clientSerializerFactory) = GetClientSerializer(serAndsizeString, this);
+                (var clientBatchSize, var clientSerializerFactory) = this.GetClientSerializer(serAndsizeString);
 
                 // Get converter used by client
                 // Can be null
-                var clientConverter = GetClientConverter(converter, this);
+                var clientConverter = this.GetClientConverter(cliConverterKey);
                 this.ClientConverter = clientConverter;
 
                 byte[] binaryData = null;
@@ -245,7 +245,7 @@ namespace Dotmim.Sync.Web.Server
             return binaryData;
         }
 
-        private (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString, WebServerOrchestrator serverOrchestrator)
+        private (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString)
         {
             try
             {
@@ -255,30 +255,30 @@ namespace Dotmim.Sync.Web.Server
                 var serAndsize = JsonConvert.DeserializeAnonymousType(serAndsizeString, new { f = "", s = 0 });
 
                 var clientBatchSize = serAndsize.s;
-                var clientSerializerFactory = serverOrchestrator.WebServerOptions.Serializers[serAndsize.f];
+                var clientSerializerFactory = this.WebServerOptions.Serializers[serAndsize.f];
 
                 return (clientBatchSize, clientSerializerFactory);
             }
             catch
             {
-                throw new HttpSerializerNotConfiguredException(serverOrchestrator.WebServerOptions.Serializers.Select(sf => sf.Key));
+                throw new HttpSerializerNotConfiguredException(this.WebServerOptions.Serializers.Select(sf => sf.Key));
             }
         }
 
-        private IConverter GetClientConverter(string cs, WebServerOrchestrator serverOrchestrator)
+        private IConverter GetClientConverter(string cliConverterKey)
         {
             try
             {
-                if (string.IsNullOrEmpty(cs))
+                if (string.IsNullOrEmpty(cliConverterKey))
                     return null;
 
-                var clientConverter = serverOrchestrator.WebServerOptions.Converters.First(c => c.Key == cs);
+                var clientConverter = this.WebServerOptions.Converters.First(c => c.Key.ToLowerInvariant() == cliConverterKey);
 
                 return clientConverter;
             }
             catch
             {
-                throw new HttpConverterNotConfiguredException(serverOrchestrator.WebServerOptions.Converters.Select(sf => sf.Key));
+                throw new HttpConverterNotConfiguredException(this.WebServerOptions.Converters.Select(sf => sf.Key));
             }
         }
 
