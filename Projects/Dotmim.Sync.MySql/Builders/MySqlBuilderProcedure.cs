@@ -56,7 +56,11 @@ namespace Dotmim.Sync.MySql
                 IsNullable = column.AllowDBNull
             };
 
+#if MARIADB
+            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+#elif MYSQL
             (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+#endif
 
             if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
                  || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)
@@ -520,7 +524,12 @@ namespace Dotmim.Sync.MySql
                 {
                     // Get column name and type
                     var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
+#if MARIADB
+                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MariaDB.MariaDBSyncProvider.ProviderType, MariaDB.MariaDBSyncProvider.ProviderType);
+#elif MYSQL
                     var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
+#endif
+
 
                     var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;
@@ -540,7 +549,11 @@ namespace Dotmim.Sync.MySql
 
                     // Get column name and type
                     var columnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
+#if MARIADB
+                    var sqlDbType = (SqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+#elif MYSQL
                     var sqlDbType = (SqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
+#endif
 
                     // Add it as parameter
                     var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
@@ -645,7 +658,11 @@ namespace Dotmim.Sync.MySql
 
                 var columnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
                 var parameterName = ParserName.Parse(whereFilter.ParameterName, "`").Unquoted().Normalized().ToString();
+#if MARIADB
+                var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+#elif MYSQL
                 var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
+#endif
 
                 var param = filter.Parameters[parameterName];
 

@@ -249,8 +249,12 @@ namespace Dotmim.Sync.MySql
                 {
                     // Get column name and type
                     var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
 
+#if MARIADB
+                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MariaDB.MariaDBSyncProvider.ProviderType, MariaDB.MariaDBSyncProvider.ProviderType);
+#elif MYSQL
+                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
+#endif
                     var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;
                     customParameterFilter.IsNullable = param.AllowNull;
@@ -269,8 +273,11 @@ namespace Dotmim.Sync.MySql
 
                     // Get column name and type
                     var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+#if MARIADB
+                    var sqlDbType = (SqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+#elif MYSQL
                     var sqlDbType = (SqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
-
+#endif
                     // Add it as parameter
                     var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     sqlParamFilter.Size = columnFilter.MaxLength;
