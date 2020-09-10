@@ -3,7 +3,7 @@ How does it work
 
 Basically, **DMS** architecture is composed of several business objects:
 
-* **Providers** : A provider is in charge of the communication with the local database. You can choose various providers, like ``SQL``, ``MySQL`` or ``Sqlite``. Each provider can work on both side of the sync architecture : Server side or Client side.
+* **Providers** : A provider is in charge of the communication with the local database. You can choose various providers, like ``SQL``, ``MySQL``, ``MariaDB`` or ``Sqlite``. Each provider can work on both side of the sync architecture : Server side or Client side.
 * **Orchestrators** : An orchestrator is agnostic to the underlying database. it communicates with the database through a provider. A provider is always required when you're creating a new orchestrator. We have two kind of orchestrator : *local* and *remote* (or let's say *client side* and *server side* orchestrators)
 * **SyncAgent**: There is only one sync agent. This object is responsible of the correct *flow* between two orchestrators. The sync agent will:
   

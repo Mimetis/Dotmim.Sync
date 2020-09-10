@@ -7,7 +7,7 @@ Overview
 
 | **Dotmim.Sync** (**DMS**) is the easiest way to handle a full **synchronization** between one server database and multiples clients databases.  
 | **Dotmim.Sync** is cross-platforms, multi-databases and based on **.Net Standard 2.0**.   
-| Choose either **SQL Server**, **SQLite**, **MySQL**, and (hopefully, I hope soon...) Oracle or PostgreSQL !
+| Choose either **SQL Server**, **SQLite**, **MySQL**, **MariaDB** and (hopefully, I hope soon...) Oracle or PostgreSQL !
 
 For simplicity, we can say **DMS** framework.
 
@@ -33,6 +33,8 @@ Obviously, you can add them through your command line, assuming you are developi
     dotnet add package Dotmim.Sync.SqlServer.ChangeTracking
     # Adding the package required to synchronize a MySQL database:
     dotnet add package Dotmim.Sync.MySql
+    # Adding the package required to synchronize a MariaDB database:
+    dotnet add package Dotmim.Sync.MariaDB
     # Adding the package required to synchronize a SQLite database:
     dotnet add package Dotmim.Sync.Sqlite
 
@@ -52,6 +54,7 @@ All packages are available through **nuget.org**:
 | **Dotmim.Sync.SqlSyncChangeTrackingProvider** : `<https://www.nuget.org/packages/Dotmim.Sync.SqlServer.ChangeTracking>`_ 
 | **Dotmim.Sync.Sqlite** : `<https://www.nuget.org/packages/Dotmim.Sync.Sqlite>`_ 
 | **Dotmim.Sync.MySql** : `<https://www.nuget.org/packages/Dotmim.Sync.MySql>`_ 
+| **Dotmim.Sync.MariaDB** : `<https://www.nuget.org/packages/Dotmim.Sync.MariaDB>`_ 
 | **Dotmim.Sync.Web.Server** : `<https://www.nuget.org/packages/Dotmim.Sync.Web.Server>`_ 
 | **Dotmim.Sync.Web.Client** : `<ttps://www.nuget.org/packages/Dotmim.Sync.Web.Client>`_ 
 
