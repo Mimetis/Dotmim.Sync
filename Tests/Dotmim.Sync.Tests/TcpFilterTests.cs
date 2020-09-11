@@ -561,7 +561,6 @@ namespace Dotmim.Sync.Tests
         }
 
 
-
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>

@@ -114,7 +114,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 sColumn.IsAutoIncrement = (bool)c["is_identity"];
                 sColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
                 sColumn.IsCompute = (bool)c["is_computed"];
-                sColumn.DefaultValue = c["defaultValue"] != DBNull.Value ? c["defaultValue"].ToString() : null;
+                sColumn.DefaultValue = c["defaultvalue"] != DBNull.Value ? c["defaultvalue"].ToString() : null;
 
                 if (sColumn.IsAutoIncrement)
                 {

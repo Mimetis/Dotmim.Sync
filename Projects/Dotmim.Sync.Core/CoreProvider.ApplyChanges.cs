@@ -151,11 +151,17 @@ namespace Dotmim.Sync
             // Each table in the messages contains scope columns. Don't forget it
             if (hasChanges)
             {
+
+                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, this.Orchestrator);
+                var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
+
                 // getting the table to be applied
                 // we may have multiple batch files, so we can have multipe sync tables with the same name
                 // We can say that dmTable may be contained in several files
-                foreach (var syncTable in message.Changes.GetTable(schemaTable.TableName, schemaTable.SchemaName, this.Orchestrator))
+                while (await enumeratorOfTable.MoveNextAsync())
                 {
+                    var syncTable = enumeratorOfTable.Current;
+
                     if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count == 0)
                         continue;
 

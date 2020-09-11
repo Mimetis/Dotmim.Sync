@@ -37,41 +37,38 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
         public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = this.CreateTableCommandText();
 
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var changetrackingtable = await SqlChangeTrackingManagementUtils.ChangeTrackingTableAsync(
+                (SqlConnection)connection, (SqlTransaction)transaction, tableName.ToString(), tableName.SchemaName);
+
+            if (changetrackingtable !=  null && changetrackingtable.Rows != null && changetrackingtable.Rows.Count > 0)
+                return;
+
+            var commandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
+
+            using var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction);
+            
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
         }
 
         public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
         {
-            using (var command = new SqlCommand(this.CreateDropTableCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var changetrackingtable = await SqlChangeTrackingManagementUtils.ChangeTrackingTableAsync(
+                (SqlConnection)connection, (SqlTransaction)transaction, tableName.ToString(), tableName.SchemaName);
+
+            if (changetrackingtable == null || changetrackingtable.Rows == null || changetrackingtable.Rows.Count <= 0)
+                return;
+
+            var commandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;";
+
+            using var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction);
+
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
         }
 
 
-        private string CreateDropTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;";
-
-        private string CreateTableCommandText() => $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
-
-        public async Task<bool> NeedToCreateTrackingTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var schemaName = this.tableName.SchemaName;
-            var tableName = this.tableName.ObjectName;
-
-            var table = await SqlChangeTrackingManagementUtils.ChangeTrackingTableAsync((SqlConnection)connection, (SqlTransaction)transaction, tableName, schemaName);
-
-            return table.Rows.Count <= 0;
-        }
-
-
-        public Task CreateIndexAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-        public Task CreatePkAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
         public Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
     }
 }

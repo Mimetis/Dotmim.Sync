@@ -134,6 +134,7 @@ namespace Dotmim.Sync
             var schemaTables = schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
+            
 
             foreach (var schemaTable in schemaTables)
             {
@@ -151,11 +152,11 @@ namespace Dotmim.Sync
                 await this.Orchestrator.InterceptAsync(new TableProvisioningArgs(context, provision, tableBuilder, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 await tableBuilder.CreateAsync(provision, connection, transaction).ConfigureAwait(false);
-                await tableBuilder.CreateForeignKeysAsync(connection, transaction).ConfigureAwait(false);
 
                 // Interceptor
                 await this.Orchestrator.InterceptAsync(new TableProvisionedArgs(context, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
             }
+
 
             return context;
         }

@@ -27,7 +27,7 @@ namespace Dotmim.Sync
 
 
         // Internal commands cache
-        private ConcurrentDictionary<string, Lazy<DbCommand>> commands = new ConcurrentDictionary<string, Lazy<DbCommand>>();
+        private ConcurrentDictionary<string, Lazy<SyncCommand>> commands = new ConcurrentDictionary<string, Lazy<SyncCommand>>();
 
         /// <summary>
         /// Gets the table description
@@ -102,10 +102,11 @@ namespace Dotmim.Sync
 
             foreach (DbParameter parameter in command.Parameters)
             {
-                // foreach parameter, check if we have a column 
                 if (!string.IsNullOrEmpty(parameter.SourceColumn))
                 {
-                    var column = schemaTable.Columns.FirstOrDefault(sc => sc.ColumnName.Equals(parameter.SourceColumn, SyncGlobalization.DataSourceStringComparison));
+                    // foreach parameter, check if we have a column 
+                    var column = schemaTable.Columns[parameter.SourceColumn];
+
                     if (column != null)
                     {
                         object value = row[column] ?? DBNull.Value;
@@ -133,10 +134,10 @@ namespace Dotmim.Sync
             var commandKey = $"{connection.DataSource}-{connection.Database}-{this.TableDescription.GetFullName()}-{commandType}";
 
             // Get a lazy command instance
-            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<DbCommand>(() => GetCommand(commandType, filter)));
+            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() => new SyncCommand(GetCommand(commandType, filter))));
 
             // Get the concrete instance
-            var command = lazyCommand.Value;
+            var command = lazyCommand.Value.DbCommand;
 
             if (command == null)
                 throw new MissingCommandException(commandType.ToString());
@@ -152,11 +153,20 @@ namespace Dotmim.Sync
             if (transaction != null)
                 command.Transaction = transaction;
 
+            // lazyCommand.Metadata is a boolean indicating if the command is already prepared on the server
+            if (lazyCommand.Value.IsPrepared == true)
+                return command;
+
             // Add Parameters
             await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 
             // Testing The Prepare() performance increase
             //command.Prepare();
+
+            // Adding this command as prepared
+            lazyCommand.Value.IsPrepared = true;
+
+            commands.AddOrUpdate(commandKey, lazyCommand, (key, lc) => new Lazy<SyncCommand>(() => lc.Value));
 
             return command;
         }
@@ -259,38 +269,42 @@ namespace Dotmim.Sync
             // get the items count
             var itemsArrayCount = changesTable.Rows.Count;
 
-            // Make some parts of BATCH_SIZE 
-            for (int step = 0; step < itemsArrayCount; step += BATCH_SIZE)
+            // Make some parts of BATCH_SIZE
+            await Task.Run(async () =>
             {
-                // get upper bound max value
-                var taken = step + BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : BATCH_SIZE;
+                var rowsList = changesTable.Rows.ToList();
+                for (int step = 0; step < itemsArrayCount; step += BATCH_SIZE)
+                {
+                    // get upper bound max value
+                    var taken = step + BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : BATCH_SIZE;
 
-                var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
+                    var arrayStepChanges = rowsList.Skip(step).Take(taken);
 
-                // execute the batch, through the provider
-                await ExecuteBatchCommandAsync(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
-            }
+                    // execute the batch, through the provider
+                    await ExecuteBatchCommandAsync(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
+                }
 
-            if (failedPrimaryKeysTable.Rows.Count == 0)
-                return itemsArrayCount;
+                if (failedPrimaryKeysTable.Rows.Count > 0)
+                {
+                    // Get local and remote row and create the conflict object
+                    foreach (var failedRow in failedPrimaryKeysTable.Rows)
+                    {
+                        //failedRow.RowState = this.ApplyType;
 
-            // Get local and remote row and create the conflict object
-            foreach (var failedRow in failedPrimaryKeysTable.Rows)
-            {
-                //failedRow.RowState = this.ApplyType;
+                        // Get the row that caused the problem, from the remote side (client)
+                        var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
 
-                // Get the row that caused the problem, from the remote side (client)
-                var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
+                        if (remoteConflictRows.Count() == 0)
+                            throw new Exception("Cant find changes row who is in conflict");
 
-                if (remoteConflictRows.Count() == 0)
-                    throw new Exception("Cant find changes row who is in conflict");
+                        var remoteConflictRow = remoteConflictRows.ToList()[0];
 
-                var remoteConflictRow = remoteConflictRows.ToList()[0];
+                        var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
 
-                var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
-
-                conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
-            }
+                        conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
+                    }
+                }
+            });
 
             // return applied rows minus failed rows
             return itemsArrayCount - failedPrimaryKeysTable.Rows.Count;
@@ -416,46 +430,54 @@ namespace Dotmim.Sync
         {
             int appliedRows = 0;
 
-            foreach (var row in changesTable.Rows)
+            // Making an async call on all the rows to ensure we don't freeze any client UI
+            appliedRows = await Task.Run(async () =>
             {
-                bool operationComplete = false;
+                int appliedRowsTmp = 0;
 
-                try
+                foreach (var row in changesTable.Rows)
                 {
-                    if (ApplyType == DataRowState.Modified)
-                        operationComplete = await this.ApplyUpdateAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
-                    else if (ApplyType == DataRowState.Deleted)
-                        operationComplete = await this.ApplyDeleteAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
+                    bool operationComplete = false;
 
-                    if (operationComplete)
-                        appliedRows++;
-                    else
-                        conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false)));
-
-                }
-                catch (Exception ex)
-                {
-                    if (this.IsUniqueKeyViolation(ex))
+                    try
                     {
-                        // Generate the conflict
-                        var conflict = new SyncConflict(ConflictType.UniqueKeyConstraint);
+                        if (ApplyType == DataRowState.Modified)
+                            operationComplete = await this.ApplyUpdateAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
+                        else if (ApplyType == DataRowState.Deleted)
+                            operationComplete = await this.ApplyDeleteAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
 
-                        // Add the row as Remote row
-                        conflict.AddRemoteRow(row);
+                        if (operationComplete)
+                            appliedRowsTmp++;
+                        else
+                            conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false)));
 
-                        // Get the local row
-                        var localRow = await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false);
-                        if (localRow != null)
-                            conflict.AddLocalRow(localRow);
-
-                        conflicts.Add(conflict);
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        throw;
+                        if (this.IsUniqueKeyViolation(ex))
+                        {
+                            // Generate the conflict
+                            var conflict = new SyncConflict(ConflictType.UniqueKeyConstraint);
+
+                            // Add the row as Remote row
+                            conflict.AddRemoteRow(row);
+
+                            // Get the local row
+                            var localRow = await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false);
+                            if (localRow != null)
+                                conflict.AddLocalRow(localRow);
+
+                            conflicts.Add(conflict);
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
                 }
-            }
+
+                return appliedRowsTmp;
+            }).ConfigureAwait(false);
 
             return appliedRows;
         }
@@ -586,7 +608,7 @@ namespace Dotmim.Sync
         {
             var command = await this.PrepareCommandAsync(DbCommandType.Reset, connection, transaction);
 
-            var rowCount = command.ExecuteNonQuery();
+            var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             return rowCount > 0;
 

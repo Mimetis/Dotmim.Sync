@@ -9,7 +9,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.SampleConsole
+namespace Dotmim.Sync.Tests.Serializers
 {
 
     public class CustomMessagePackSerializerFactory : ISerializerFactory

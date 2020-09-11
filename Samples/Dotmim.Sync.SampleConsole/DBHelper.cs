@@ -32,6 +32,9 @@ namespace Dotmim.Sync.SampleConsole
         public static string GetMySqlDatabaseConnectionString(string dbName) =>
             string.Format(configuration.GetSection("ConnectionStrings")["MySqlConnection"], dbName);
 
+        public static string GetMariadbDatabaseConnectionString(string dbName) =>
+            string.Format(configuration.GetSection("ConnectionStrings")["MariadbConnection"], dbName);
+
 
         public static string GetNpgsqlDatabaseConnectionString(string dbName) =>
             string.Format(configuration.GetSection("ConnectionStrings")["NpgsqlConnection"], dbName);
