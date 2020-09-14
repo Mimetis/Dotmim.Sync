@@ -27,7 +27,7 @@ namespace Dotmim.Sync.Sqlite
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription, tableName, trackingName, this.setup);
+            this.sqliteObjectNames = new SqliteObjectNames(this.tableDescription, this.setup);
         }
 
         private string DeleteTriggerBodyText()
@@ -73,7 +73,8 @@ namespace Dotmim.Sync.Sqlite
         }
         public async Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            var delTriggerName = this.sqliteObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var delTriggerName = this.sqliteObjectNames.GetDeleteTriggerName();
+
             StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {tableName.Quoted().ToString()} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.DeleteTriggerBodyText());
@@ -129,7 +130,9 @@ namespace Dotmim.Sync.Sqlite
 
         public async Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.InsertTrigger), tableName.Unquoted().ToString());
+
+            var insTriggerName = this.sqliteObjectNames.GetInsertTriggerName();
+
             StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.InsertTriggerBodyText());
@@ -231,7 +234,7 @@ namespace Dotmim.Sync.Sqlite
 
         public async Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
         {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetCommandName(DbCommandType.UpdateTrigger), tableName.Unquoted().ToString());
+            var updTriggerName = this.sqliteObjectNames.GetUpdateTriggerName();
             StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} ");
             createTrigger.AppendLine();
             createTrigger.AppendLine(this.UpdateTriggerBodyText());
@@ -243,13 +246,20 @@ namespace Dotmim.Sync.Sqlite
 
         }
 
-        public Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.InsertTrigger, connection, transaction);
-        public Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.UpdateTrigger, connection, transaction);
-        public Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) => this.DropTriggerAsync(DbCommandType.DeleteTrigger, connection, transaction);
+        public Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction) 
+            => this.DropTriggerAsync("INSERT", connection, transaction);
+        public Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) 
+            => this.DropTriggerAsync("UPDATE", connection, transaction);
+        public Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) 
+            => this.DropTriggerAsync("DELETE", connection, transaction);
 
-        private async Task DropTriggerAsync(DbCommandType triggerType, DbConnection connection, DbTransaction transaction)
+        private async Task DropTriggerAsync(string triggerType, DbConnection connection, DbTransaction transaction)
         {
-            var triggerName = string.Format(this.sqliteObjectNames.GetCommandName(triggerType), tableName.Unquoted().ToString());
+            string triggerName = triggerType == "DELETE" ? this.sqliteObjectNames.GetDeleteTriggerName()
+                               : triggerType == "UPDATE" ? this.sqliteObjectNames.GetUpdateTriggerName()
+                               : this.sqliteObjectNames.GetInsertTriggerName();
+
+
             var dropTrigger = $"DROP TRIGGER IF EXISTS {triggerName}";
 
             using (var command = new SqliteCommand(dropTrigger, (SqliteConnection)connection, (SqliteTransaction)transaction))

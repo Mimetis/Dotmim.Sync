@@ -33,7 +33,6 @@ namespace Dotmim.Sync
             // get Database builder
             var builder = this.GetDatabaseBuilder();
             builder.UseChangeTracking = this.UseChangeTracking;
-            builder.UseBulkProcedures = this.SupportBulkOperations;
 
             // Deprovision
             // Generate a fake SyncSet since we don't need complete table schema
@@ -44,13 +43,9 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(new SyncTable(migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName), oldSetup);
 
                 // set if the builder supports creating the bulk operations proc stock
-                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
                 tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
                 // Deprovision
-                if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
-                    await tableBuilder.DropStoredProceduresAsync(connection, transaction);
-
                 if (migrationTable.Triggers == MigrationAction.Drop || migrationTable.Triggers == MigrationAction.CreateOrRecreate)
                     await tableBuilder.DropTriggersAsync(connection, transaction);
 
@@ -75,7 +70,6 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(syncTable, newSetup);
 
                 // set if the builder supports creating the bulk operations proc stock
-                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
                 tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
                 // Re provision table
@@ -102,13 +96,6 @@ namespace Dotmim.Sync
                 {
                     await tableBuilder.DropTrackingTableAsync(connection, transaction);
                     await tableBuilder.CreateTrackingTableAsync(connection, transaction);
-                }
-
-                // Re provision stored procedures
-                if (migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
-                {
-                    await tableBuilder.DropStoredProceduresAsync(connection, transaction);
-                    await tableBuilder.CreateStoredProceduresAsync(connection, transaction);
                 }
 
                 // Re provision triggers

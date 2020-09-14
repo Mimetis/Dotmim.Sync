@@ -29,6 +29,9 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Builders\IDbBuilderProcedureHelper.cs" />
+  </ItemGroup>
   
   <ItemGroup>
     <None Include="..\..\docs\assets\packageIcon.png">

@@ -34,12 +34,6 @@ namespace Dotmim.Sync.Sqlite
             }
         }
      
-
-        /// <summary>
-        /// Sqlite does not support Bulk operations
-        /// </summary>
-        public override bool SupportBulkOperations => false;
-
         /// <summary>
         /// SQLIte does not support to be a server side.
         /// Reason 1 : Can't easily insert / update batch with handling conflict

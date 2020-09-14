@@ -605,7 +605,7 @@ namespace Dotmim.Sync
                         await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, true, connection, transaction, cancellationToken, progress);
 
                         // Now call the ProvisionAsync() to provision new tables
-                        provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                        provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
 
                         await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 

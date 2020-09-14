@@ -17,8 +17,6 @@ namespace Dotmim.Sync.Web.Client
 
         public override string ProviderTypeName => "Fancy";
 
-        public override bool SupportBulkOperations => throw new NotImplementedException();
-
         public override bool CanBeServerProvider => true;
 
         public override DbConnection CreateConnection() => throw new NotImplementedException();

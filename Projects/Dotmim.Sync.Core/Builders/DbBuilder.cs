@@ -8,10 +8,6 @@ namespace Dotmim.Sync.Builders
 {
     public abstract class DbBuilder
     {
-        /// <summary>
-        /// Gets or Sets if the Database builder supports bulk procedures
-        /// </summary>
-        public bool UseBulkProcedures { get; set; } = true;
 
         /// <summary>
         /// Gets or Sets if the Database builder shoud use change tracking

@@ -33,8 +33,6 @@ namespace Dotmim.Sync
             // get Database builder
             var builder = this.GetDatabaseBuilder();
             builder.UseChangeTracking = this.UseChangeTracking;
-            builder.UseBulkProcedures = this.SupportBulkOperations;
-
 
             // Sorting tables based on dependencies between them
             var schemaTables = schema.Tables
@@ -54,7 +52,6 @@ namespace Dotmim.Sync
                 {
                     var tableBuilder = this.GetTableBuilder(schemaTable, setup);
                     // set if the builder supports creating the bulk operations proc stock
-                    tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
                     tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
                     // adding filter
@@ -114,7 +111,6 @@ namespace Dotmim.Sync
             // get Database builder
             var builder = this.GetDatabaseBuilder();
             builder.UseChangeTracking = this.UseChangeTracking;
-            builder.UseBulkProcedures = true;
 
             // Initialize database if needed
             await builder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
@@ -139,8 +135,7 @@ namespace Dotmim.Sync
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, setup);
-                // set if the builder supports creating the bulk operations proc stock
-                tableBuilder.UseBulkProcedures = true;
+
                 tableBuilder.UseChangeTracking = this.UseChangeTracking;
 
                 // adding filter

@@ -60,7 +60,7 @@ namespace Dotmim.Sync
         /// Get a table builder helper. Need a complete table description (SchemaTable). Will then generate table, table tracking, stored proc and triggers
         /// </summary>
         /// <returns></returns>
-        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup);
+        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup, string scopeName);
 
         /// <summary>
         /// Get a table manager, which can get informations directly from data source
@@ -90,7 +90,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a boolean indicating if the provider can use bulk operations
         /// </summary>
-        public abstract bool SupportBulkOperations { get; }
+        //public abstract bool SupportBulkOperations { get; }
 
         /// <summary>
         /// Gets a boolean indicating if the provider can use change tracking

@@ -19,12 +19,14 @@ namespace Dotmim.Sync.SqlServer.Builders
     {
         private ParserName trackingName;
         private readonly SyncTable tableDescription;
+        private readonly ParserName tableName;
         private readonly SyncSetup setup;
         private readonly SqlDbMetadata sqlDbMetadata;
 
         public SqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
+            this.tableName = tableName;
             this.setup = setup;
             this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
@@ -93,24 +95,71 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine("END");
 
-            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
+            using var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+            
+            SqlParameter sqlParameter = new SqlParameter()
             {
-                SqlParameter sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@tableName",
-                    Value = tbl
-                };
-                command.Parameters.Add(sqlParameter);
+                ParameterName = "@tableName",
+                Value = tbl
+            };
+            command.Parameters.Add(sqlParameter);
 
-                sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@schemaName",
-                    Value = schema
-                };
-                command.Parameters.Add(sqlParameter);
+            sqlParameter = new SqlParameter()
+            {
+                ParameterName = "@schemaName",
+                Value = schema
+            };
+            command.Parameters.Add(sqlParameter);
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            var tvpName = this.tableName.Schema().Unquoted().Normalized().ToString();
+
+            var tvpExists = await SqlManagementUtils.TypeExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, tvpName).ConfigureAwait(false);
+
+            if (!tvpExists)
+            {
+                using var commandtvp = new SqlCommand(CreateTVPTypeCommandText(), (SqlConnection)connection, (SqlTransaction)transaction);
+
+                await commandtvp.ExecuteNonQueryAsync().ConfigureAwait(false);
+
             }
+        }
+
+
+        private string CreateTVPTypeCommandText()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            var tvpName = this.tableName.Schema().Unquoted().Normalized().ToString();
+            stringBuilder.AppendLine($"CREATE TYPE {tvpName} AS TABLE (");
+            string str = "";
+            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            {
+                var isPrimaryKey = this.tableDescription.IsPrimaryKey(c.ColumnName);
+
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
+
+                // Get the good SqlDbType (even if we are not from Sql Server def)
+                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
+                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} {nullString}");
+                str = ", ";
+            }
+            //stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
+            stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
+            str = "";
+            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(c).Quoted().ToString();
+                stringBuilder.Append($"{str}{columnName} ASC");
+                str = ", ";
+            }
+
+            stringBuilder.Append("))");
+            return stringBuilder.ToString();
         }
 
         public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)

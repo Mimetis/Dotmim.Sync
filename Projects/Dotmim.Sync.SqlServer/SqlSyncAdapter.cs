@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient.Server;
 using System.Text;
 using Dotmim.Sync.Manager;
+using System.IO;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -30,10 +31,24 @@ namespace Dotmim.Sync.SqlServer.Builders
         private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<SqlParameter>>();
 
-        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
+
+        // Internal commands cache
+        private ConcurrentDictionary<string, Lazy<DbCommand>> commands = new ConcurrentDictionary<string, Lazy<DbCommand>>();
+
+        private readonly ParserName tableName;
+        private readonly ParserName trackingName;
+        private readonly SyncSetup setup;
+        private readonly SqlBuilderCommands sqlBuilderCommands;
+
+        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) 
+            : base(tableDescription, setup, scopeName)
         {
-            this.sqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup);
             this.sqlMetadata = new SqlDbMetadata();
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.setup = setup;
+            this.sqlBuilderCommands = new SqlBuilderCommands(tableDescription, tableName, trackingName, setup);
+            this.sqlObjectNames = new SqlObjectNames(tableDescription, setup);
         }
 
         private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
@@ -103,215 +118,43 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-
-
-        private void BuildTmpInsertCommand(DbCommand command, IEnumerable<SyncRow> rows)
+        public override async Task<string> PreExecuteBatchCommandAsync(DbCommandType commandType, Guid senderScopeId,
+                                                                 SyncTable schemaChangesTable, SyncTable failedRows,
+                                                                 long lastTimestamp,
+                                                                 DbConnection connection, DbTransaction transaction)
         {
-            var stringBuilder = new StringBuilder();
-            var sqlDbMetadata = new SqlDbMetadata();
-
-            var tableName = string.Concat("@", this.TableDescription.GetFullName().Replace(".", "_"));
-
-            string str = "";
-
-            stringBuilder.AppendLine($"DECLARE {tableName} dbo.Customer_BulkType");
-
-            stringBuilder.AppendLine($"INSERT INTO {tableName} (");
-            foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"{str}{columnName}");
-                str = ", ";
-            }
-            stringBuilder.Append($") VALUES ");
-
-            int cpt = 0;
+            //if (commandType == DbCommandType.UpdateBatchRows)
+            //    return await PreExecuteBatchUpdateWithTmpCommandAsync(commandType, senderScopeId, schemaChangesTable, failedRows, lastTimestamp, connection, transaction);
 
 
-            string rowStr = "";
-            foreach (var row in rows)
-            {
-                stringBuilder.Append($"{rowStr}(");
-
-                str = "";
-                foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
-                {
-                    if (row[c] == null || row[c] == DBNull.Value)
-                        stringBuilder.Append($"{str}NULL");
-                    else if (sqlDbMetadata.IsTextType(c.OriginalDbType))
-                        stringBuilder.Append($"{str}N'{row[c]}'");
-                    else if (c.GetDbType() == DbType.Guid)
-                        stringBuilder.Append($"{str}'{row[c]}'");
-                    else
-                        stringBuilder.Append($"{str}{row[c]}");
-
-
-                    //var parameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
-                    //stringBuilder.Append($"{str}@P{cpt}");
-
-                    //var unquotedColumn = ParserName.Parse(c).Normalized().Unquoted().ToString();
-                    //var p = command.CreateParameter();
-                    //p.ParameterName = $"@P{cpt}";
-                    //p.DbType = c.GetDbType();
-                    //p.Size = c.MaxLength;
-                    //p.SourceColumn = c.ColumnName;
-                    //p.Value = SyncTypeConverter.TryConvertFromDbType(row[c], p.DbType);
-                    //if (p.Value == null)
-                    //    p.Value = DBNull.Value;
-
-                    //command.Parameters.Add(p);
-
-                    str = ", ";
-                    cpt++;
-                }
-                stringBuilder.AppendLine($")");
-                rowStr = ",";
-            }
-
-            var buildTmpInsertCommand = stringBuilder.ToString();
-
-            command.CommandText += buildTmpInsertCommand;
+            return null;
         }
 
-        private string BuildTempTable()
+        public override async Task PostExecuteBatchCommandAsync(DbCommandType commandType, Guid senderScopeId,
+                                                                 SyncTable schemaChangesTable, SyncTable failedRows,
+                                                                 long lastTimestamp, string optionalState,
+                                                                 DbConnection connection, DbTransaction transaction)
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            var sqlDbMetadata = new SqlDbMetadata();
-
-            var tableName = string.Concat("#", this.TableDescription.GetFullName().Replace(".", "_"));
-
-            stringBuilder.AppendLine($"CREATE TABLE {tableName} (");
-            string str = "";
-            foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var isPrimaryKey = this.TableDescription.IsPrimaryKey(c.ColumnName);
-
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
-
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} {nullString}");
-                str = ", ";
-            }
-            //stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
-            stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
-            str = "";
-            foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"{str}{columnName} ASC");
-                str = ", ";
-            }
-
-            stringBuilder.Append("))");
-            return stringBuilder.ToString();
-        }
-        private string BuildVarTable()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            var sqlDbMetadata = new SqlDbMetadata();
-
-            var tableName = string.Concat("@", this.TableDescription.GetFullName().Replace(".", "_"));
-
-            stringBuilder.AppendLine($"DECLARE {tableName} TABLE (");
-            string str = "";
-            foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var isPrimaryKey = this.TableDescription.IsPrimaryKey(c.ColumnName);
-
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
-
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} {nullString}");
-                str = ", ";
-            }
-
-            //stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
-            //str = "";
-            //foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
-            //{
-            //    var columnName = ParserName.Parse(c).Quoted().ToString();
-            //    stringBuilder.Append($"{str}{columnName} ASC");
-            //    str = ", ";
-            //}
-            //stringBuilder.Append("))");
-
-            stringBuilder.Append(")");
-            return stringBuilder.ToString();
+            //if (commandType == DbCommandType.UpdateBatchRows)
+            //    await PostExecuteBatchUpdateWithTmpCommand(commandType, senderScopeId, schemaChangesTable, failedRows, lastTimestamp, optionalState, connection, transaction);
         }
 
-        public override async Task BuildTmpTableAsync(DbConnection connection, DbTransaction transaction)
+        public async override Task ExecuteBatchCommandAsync(DbCommandType commandType, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
+                                                            SyncTable failedRows, long lastTimestamp, string optionalState, DbConnection connection, DbTransaction transaction = null)
         {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
 
-                // Create table tmp
-                var commandCreateTableTmp = connection.CreateCommand();
-                commandCreateTableTmp.Connection = connection;
-                commandCreateTableTmp.CommandText = BuildTempTable();
-                if (transaction != null)
-                    commandCreateTableTmp.Transaction = transaction;
-
-                commandCreateTableTmp.ExecuteNonQuery();
-
-            }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
+            if (commandType == DbCommandType.UpdateBatchRows)
+                await ExecuteBatchUpdateWithTvpCommand(commandType, senderScopeId, applyRows, schemaChangesTable, failedRows, lastTimestamp, optionalState, connection, transaction);
+            // await ExecuteBatchUpdateWithTmpCommand(senderScopeId, applyRows, schemaChangesTable, failedRows, lastTimestamp, optionalState, connection, transaction);
         }
 
-        public override async Task ExecuteBatchCommandAsync2(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction)
-        {
-            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+        public override Task<string> PreExecuteCommandAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+            => Task.FromResult(string.Empty);
 
-                var commandInsertIntoTableTmp = connection.CreateCommand();
-                commandInsertIntoTableTmp.Connection = connection;
+        public override Task PostExecuteCommandAsync(DbCommandType commandType, string optionalState, DbConnection connection, DbTransaction transaction)
+            => Task.CompletedTask;
 
-                if (transaction != null)
-                    commandInsertIntoTableTmp.Transaction = transaction;
-
-                BuildTmpInsertCommand(commandInsertIntoTableTmp, applyRows);
-                commandInsertIntoTableTmp.ExecuteNonQuery();
-
-
-            }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-
-        }
 
 
         internal void SetColumnParametersValues(DbCommand command, SyncRow row)
@@ -344,12 +187,390 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <summary>
-        /// Executing a batch command
+        /// Check if an exception is a primary key exception
         /// </summary>
-        public async override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
-                                                            SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null)
+        public override bool IsPrimaryKeyViolation(Exception exception)
         {
+            if (exception is SqlException error && error.Number == 2627)
+                return true;
 
+            return false;
+        }
+
+
+        public override bool IsUniqueKeyViolation(Exception exception)
+        {
+            if (exception is SqlException error && error.Number == 2627)
+                return true;
+
+            return false;
+        }
+
+        public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter)
+        {
+            var command = new SqlCommand();
+
+            string commandText = null;
+
+            switch (commandType)
+            {
+                case DbCommandType.SelectChanges:
+                    commandText = this.sqlBuilderCommands.GetSelectChangesCommandText();
+                    break;
+                case DbCommandType.SelectChangesWithFilters:
+                    commandText = this.sqlBuilderCommands.GetSelectChangesCommandText(filter);
+                    break;
+                case DbCommandType.SelectInitializedChanges:
+                    commandText = this.sqlBuilderCommands.GetSelectInitializeChangesCommandText();
+                    break;
+                case DbCommandType.SelectInitializedChangesWithFilters:
+                    commandText = this.sqlBuilderCommands.GetSelectInitializeChangesCommandText(filter);
+                    break;
+                case DbCommandType.SelectRow:
+                    commandText = this.sqlBuilderCommands.GetSelectRowCommandText();
+                    break;
+                case DbCommandType.UpdateRow:
+                    commandText = this.sqlBuilderCommands.GetUpdateCommandText();
+                    break;
+                case DbCommandType.UpdateBatchRows:
+                    commandText = this.sqlBuilderCommands.GetUpdateBulkCommandWithTvpText();
+                    break;
+                case DbCommandType.DeleteRow:
+                    commandText = this.sqlBuilderCommands.GetDeleteRowCommandText();
+                    break;
+                case DbCommandType.DeleteBatchRows:
+                    commandText = this.sqlBuilderCommands.GetDeleteBulkCommandText();
+                    break;
+                case DbCommandType.DisableConstraints:
+                    commandText = this.sqlBuilderCommands.GetDisableConstraintsCommandText();
+                    break;
+                case DbCommandType.EnableConstraints:
+                    commandText = this.sqlBuilderCommands.GetEnableConstraintsCommandText();
+                    break;
+                case DbCommandType.DeleteMetadata:
+                    commandText = this.sqlBuilderCommands.GetDeleteMetadataRowCommandText();
+                    break;
+                case DbCommandType.UpdateMetadata:
+                    commandText = this.sqlBuilderCommands.GetUpdateMetadataRowCommandText();
+                    break;
+                case DbCommandType.UpdateUntrackedRows:
+                    commandText = this.sqlBuilderCommands.GetUpdateUntrackedRowsCommandText();
+                    break;
+                case DbCommandType.Reset:
+                    var ins = this.sqlObjectNames.GetInsertTriggerName();
+                    var upd = this.sqlObjectNames.GetUpdateTriggerName();
+                    var del = this.sqlObjectNames.GetDeleteTriggerName();
+                    commandText = this.sqlBuilderCommands.GetResetCommandText(ins, upd, del);
+                    break;
+                default:
+                    break;
+            }
+
+            command.CommandType = CommandType.Text;
+            command.CommandText = commandText;
+
+            return command;
+        }
+
+        /// <summary>
+        /// Set a stored procedure parameters or text parameters
+        /// </summary>
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
+        {
+            if (command == null)
+                return Task.CompletedTask;
+
+            if (command.Parameters != null && command.Parameters.Count > 0)
+                return Task.CompletedTask;
+
+
+            switch (commandType)
+            {
+                case DbCommandType.SelectChanges:
+                    this.SetSelecteChangesParameters(command);
+                    break;
+                case DbCommandType.SelectChangesWithFilters:
+                    this.SetSelecteChangesWithFiltersParameters(command, filter);
+                    break;
+                case DbCommandType.SelectInitializedChanges:
+                    // No parameters for this one
+                    break;
+                case DbCommandType.SelectInitializedChangesWithFilters:
+                    this.SetSelecteInitializeChangesWithFiltersParameters(command, filter);
+                    break;
+                case DbCommandType.SelectRow:
+                    this.SetSelectRowParameters(command);
+                    break;
+                case DbCommandType.UpdateRow:
+                    this.SetUpdateRowParameters(command);
+                    break;
+                case DbCommandType.UpdateBatchRows:
+                    this.SetUpdateBatchRowsParameters(command);
+                    break;
+                case DbCommandType.DeleteRow:
+                    this.SetDeleteRowParameters(command);
+                    break;
+                case DbCommandType.DeleteBatchRows:
+                    this.SetDeleteBatchRowsParameters(command);
+                    break;
+                case DbCommandType.DisableConstraints:
+                    // No parameters
+                    break;
+                case DbCommandType.EnableConstraints:
+                    // No parameters
+                    break;
+                case DbCommandType.DeleteMetadata:
+                    this.SetDeleteMetadataParameters(command);
+                    break;
+                case DbCommandType.UpdateMetadata:
+                    this.SetUpdateMetadataParameters(command);
+                    break;
+                case DbCommandType.UpdateUntrackedRows:
+                    break;
+                case DbCommandType.Reset:
+                    // No parameters
+                    break;
+                default:
+                    break;
+            }
+
+            return Task.CompletedTask;
+
+        }
+
+
+        /// <summary>
+        /// Execute batch update when used with TVP
+        /// </summary>
+        private async Task ExecuteBatchUpdateWithTmpCommand(Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
+                                                            SyncTable failedRows, long lastTimestamp, string optionalState, DbConnection connection, DbTransaction transaction = null)
+        {
+            var applyRowsCount = applyRows.Count();
+
+            if (applyRowsCount <= 0)
+                return;
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+
+            // Create the key
+            var commandKey = $"{connection.DataSource}-{connection.Database}-{this.TableDescription.GetFullName()}-{DbCommandType.UpdateBatchRows}-{applyRowsCount}";
+
+            var commandExist = commands.TryGetValue(commandKey, out var lazyCommand);
+
+            SqlCommand commandTmpInsert = null;
+
+            if (commandExist)
+            {
+                commandTmpInsert = lazyCommand.Value as SqlCommand;
+            }
+            else
+            {
+                commandTmpInsert = new SqlCommand();
+            }
+
+            commandTmpInsert.Connection = connection as SqlConnection;
+
+            if (transaction != null)
+                commandTmpInsert.Transaction = transaction as SqlTransaction;
+
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"Insert into {optionalState} Values ");
+
+            int cpt = 0;
+            string commaLine = "";
+            foreach (var row in applyRows)
+            {
+                stringBuilder.Append($"{commaLine}(");
+                string comma = "";
+                foreach (var column in row.Table.Columns.Where(c => !c.IsReadOnly))
+                {
+                    // build parameter command
+                    stringBuilder.Append($"{comma}@P{cpt}");
+
+                    long maxLength = column.MaxLength;
+                    var dataType = column.GetDataType();
+                    var dbType = column.GetDbType();
+
+                    var sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, dbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                    if (!commandExist)
+                    {
+
+                        // add parameter
+                        var p = new SqlParameter
+                        {
+                            ParameterName = $"@P{cpt}",
+                            DbType = column.GetDbType(),
+                            Size = column.MaxLength,
+                            SourceColumn = column.ColumnName,
+                            Value = row[column] == null ? DBNull.Value : row[column]
+                        };
+
+                        if (column.PrecisionSpecified && column.ScaleSpecified)
+                        {
+                            var (precision, scale) = this.sqlMetadata.ValidatePrecisionAndScale(column);
+                            p.Precision = precision;
+                            p.Scale = scale;
+
+                        }
+
+                        if (column.PrecisionSpecified)
+                        {
+                            var precision = this.sqlMetadata.ValidatePrecision(column);
+                            p.Precision = precision;
+                            p.Scale = 0;
+                        }
+
+                        commandTmpInsert.Parameters.Add(p);
+                    }
+                    else
+                    {
+                        commandTmpInsert.Parameters[$"@P{cpt}"].Value = row[column] == null ? DBNull.Value : row[column];
+
+                    }
+
+                    cpt++;
+                    comma = ", ";
+                }
+
+                stringBuilder.AppendLine(")");
+                commaLine = ", ";
+            }
+
+            if (!commandExist)
+            {
+                var commandTmpInsertText = stringBuilder.ToString();
+                commandTmpInsert.CommandText = commandTmpInsertText;
+                commandTmpInsert.Prepare();
+
+                // Adding this command as prepared
+                //lazyCommand.Value.IsPrepared = true;
+
+                commands.AddOrUpdate(commandKey, new Lazy<DbCommand>(() => commandTmpInsert)
+                                               , (key, lc) => new Lazy<DbCommand>(() => lc.Value));
+
+            }
+
+            await commandTmpInsert.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+
+
+        }
+
+
+
+        public async Task<string> PreExecuteBatchUpdateWithTmpCommandAsync(DbCommandType commandType, Guid senderScopeId,
+                                                         SyncTable schemaChangesTable, SyncTable failedRows,
+                                                         long lastTimestamp,
+                                                         DbConnection connection, DbTransaction transaction)
+        {
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+            try
+            {
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                var randomString = Path.GetRandomFileName().Replace(".", "");
+                var tableName = this.tableName.Unquoted().Normalized().ToString();
+                var tmptTableName = $"#{tableName}_{randomString}";
+
+                // Create the TVP name
+                using var commandCreateTableTmp = connection.CreateCommand();
+
+                commandCreateTableTmp.Connection = connection;
+                commandCreateTableTmp.CommandText = this.sqlBuilderCommands.GetTempTableCommandText(tmptTableName);
+
+                if (transaction != null)
+                    commandCreateTableTmp.Transaction = transaction;
+
+                commandCreateTableTmp.ExecuteNonQuery();
+
+                return tmptTableName;
+            }
+            catch (DbException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+        }
+
+        private async Task PostExecuteBatchUpdateWithTmpCommand(DbCommandType commandType, Guid senderScopeId,
+                                                                 SyncTable schemaChangesTable, SyncTable failedRows,
+                                                                 long lastTimestamp, string optionalState,
+                                                                 DbConnection connection, DbTransaction transaction)
+        {
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+            try
+            {
+                // Now merge
+                using var commandMerge = new SqlCommand()
+                {
+                    Connection = connection as SqlConnection
+                };
+
+                if (transaction != null)
+                    commandMerge.Transaction = transaction as SqlTransaction;
+
+                commandMerge.CommandText = this.sqlBuilderCommands.GetUpdateBulkCommandWithTempTableText(optionalState);
+
+                await this.AddCommandParametersAsync(DbCommandType.UpdateBatchRows, commandMerge, connection, transaction);
+
+                ((SqlParameterCollection)commandMerge.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
+                ((SqlParameterCollection)commandMerge.Parameters)["@sync_scope_id"].Value = senderScopeId;
+
+
+                using var dataReader = await commandMerge.ExecuteReaderAsync().ConfigureAwait(false);
+
+                while (dataReader.Read())
+                {
+                    //var itemArray = new object[dataReader.FieldCount];
+                    var itemArray = new object[failedRows.Columns.Count];
+                    for (var i = 0; i < dataReader.FieldCount; i++)
+                    {
+                        var columnValueObject = dataReader.GetValue(i);
+                        var columnName = dataReader.GetName(i);
+
+                        var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+
+                        var failedColumn = failedRows.Columns[columnName];
+                        var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
+                        itemArray[failedIndexColumn] = columnValue;
+                    }
+
+                    // don't care about row state 
+                    // Since it will be requested by next request from GetConflict()
+                    failedRows.Rows.Add(itemArray, base.ApplyType);
+                }
+            }
+            catch (DbException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+
+        }
+
+        /// <summary>
+        /// Execute batch update when used with TVP
+        /// </summary>
+        private async Task ExecuteBatchUpdateWithTvpCommand(DbCommandType commandType, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
+                                                            SyncTable failedRows, long lastTimestamp, string optionalState, DbConnection connection, DbTransaction transaction = null)
+        {
             var applyRowsCount = applyRows.Count();
 
             if (applyRowsCount <= 0)
@@ -488,10 +709,26 @@ namespace Dotmim.Sync.SqlServer.Builders
                 throw new InvalidOperationException($"Can't create a SqlRecord based on the rows we have: {ex.Message}");
             }
 
-            ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
-            ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = senderScopeId;
+
+
+            // Create the key
+            var commandKey = $"{connection.DataSource}-{connection.Database}-{this.TableDescription.GetFullName()}-{DbCommandType.UpdateBatchRows}-{applyRowsCount}";
+
+            var commandExist = commands.TryGetValue(commandKey, out var lazyCommand);
+
+            SqlCommand cmd = null;
+
+            if (commandExist)
+            {
+                cmd = lazyCommand.Value as SqlCommand;
+            }
+            else
+            {
+                cmd = new SqlCommand();
+            }
+
+
+            cmd.Connection = connection as SqlConnection;
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -501,30 +738,54 @@ namespace Dotmim.Sync.SqlServer.Builders
                     await connection.OpenAsync().ConfigureAwait(false);
 
                 if (transaction != null)
-                    cmd.Transaction = transaction;
+                    cmd.Transaction = transaction as SqlTransaction;
 
-                using (var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                if (!commandExist)
                 {
-                    while (dataReader.Read())
+                    cmd.CommandText = this.sqlBuilderCommands.GetUpdateBulkCommandWithTvpText();
+
+                    await this.AddCommandParametersAsync(DbCommandType.UpdateBatchRows, cmd, connection, transaction);
+
+                    var tvpName = this.tableName.Schema().Unquoted().Normalized().ToString();
+
+                    var p = new SqlParameter();
+                    p.ParameterName = "@changeTable";
+                    p.TypeName = tvpName;
+                    p.Size = -1;
+                    p.SqlDbType = SqlDbType.Structured;
+                    cmd.Parameters.Add(p);
+
+                    cmd.Prepare();
+
+                    commands.AddOrUpdate(commandKey, new Lazy<DbCommand>(() => cmd)
+                                                   , (key, lc) => new Lazy<DbCommand>(() => lc.Value));
+                }
+
+                cmd.Parameters["@changeTable"].Value = records;
+                cmd.Parameters["@sync_min_timestamp"].Value = lastTimestamp;
+                cmd.Parameters["@sync_scope_id"].Value = senderScopeId;
+
+                using var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+
+                while (dataReader.Read())
+                {
+                    //var itemArray = new object[dataReader.FieldCount];
+                    var itemArray = new object[failedRows.Columns.Count];
+                    for (var i = 0; i < dataReader.FieldCount; i++)
                     {
-                        //var itemArray = new object[dataReader.FieldCount];
-                        var itemArray = new object[failedRows.Columns.Count];
-                        for (var i = 0; i < dataReader.FieldCount; i++)
-                        {
-                            var columnValueObject = dataReader.GetValue(i);
-                            var columnName = dataReader.GetName(i);
+                        var columnValueObject = dataReader.GetValue(i);
+                        var columnName = dataReader.GetName(i);
 
-                            var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                        var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
 
-                            var failedColumn = failedRows.Columns[columnName];
-                            var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
-                            itemArray[failedIndexColumn] = columnValue;
-                        }
-
-                        // don't care about row state 
-                        // Since it will be requested by next request from GetConflict()
-                        failedRows.Rows.Add(itemArray, dataRowState);
+                        var failedColumn = failedRows.Columns[columnName];
+                        var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
+                        itemArray[failedIndexColumn] = columnValue;
                     }
+
+                    // don't care about row state 
+                    // Since it will be requested by next request from GetConflict()
+                    failedRows.Rows.Add(itemArray, dataRowState);
                 }
             }
             catch (DbException ex)
@@ -542,160 +803,43 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-
-        //private static TypeConverter Int16Converter = TypeDescriptor.GetConverter(typeof(short));
-        //private static TypeConverter Int32Converter = TypeDescriptor.GetConverter(typeof(int));
-        //private static TypeConverter Int64Converter = TypeDescriptor.GetConverter(typeof(long));
-        //private static TypeConverter UInt16Converter = TypeDescriptor.GetConverter(typeof(ushort));
-        //private static TypeConverter UInt32Converter = TypeDescriptor.GetConverter(typeof(uint));
-        //private static TypeConverter UInt64Converter = TypeDescriptor.GetConverter(typeof(ulong));
-        //private static TypeConverter DateTimeConverter = TypeDescriptor.GetConverter(typeof(DateTime));
-        //private static TypeConverter StringConverter = TypeDescriptor.GetConverter(typeof(string));
-        //private static TypeConverter ByteConverter = TypeDescriptor.GetConverter(typeof(byte));
-        //private static TypeConverter BoolConverter = TypeDescriptor.GetConverter(typeof(bool));
-        //private static TypeConverter GuidConverter = TypeDescriptor.GetConverter(typeof(Guid));
-        //private static TypeConverter CharConverter = TypeDescriptor.GetConverter(typeof(char));
-        //private static TypeConverter DecimalConverter = TypeDescriptor.GetConverter(typeof(decimal));
-        //private static TypeConverter DoubleConverter = TypeDescriptor.GetConverter(typeof(double));
-        //private static TypeConverter FloatConverter = TypeDescriptor.GetConverter(typeof(float));
-        //private static TypeConverter SByteConverter = TypeDescriptor.GetConverter(typeof(sbyte));
-        //private static TypeConverter TimeSpanConverter = TypeDescriptor.GetConverter(typeof(TimeSpan));
-
-
-        /// <summary>
-        /// Check if an exception is a primary key exception
-        /// </summary>
-        public override bool IsPrimaryKeyViolation(Exception exception)
+        private void SetUpdateBatchRowsParameters(DbCommand command)
         {
-            if (exception is SqlException error && error.Number == 2627)
-                return true;
+            SqlParameter p;
 
-            return false;
+            p = new SqlParameter();
+            p.ParameterName = "@sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            p.Size = 4;
+            command.Parameters.Add(p);
+
+            p = new SqlParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            p.Size = 36;
+            command.Parameters.Add(p);
+
+            // Not used wit tmp table
+            //p = new SqlParameter();
+            //p.ParameterName = "@changeTable";
+            //p.SqlDbType = SqlDbType.Structured;
+            //command.Parameters.Add(p);
         }
 
-
-        public override bool IsUniqueKeyViolation(Exception exception)
+        private void SetDeleteBatchRowsParameters(DbCommand command)
         {
-            if (exception is SqlException error && error.Number == 2627)
-                return true;
-
-            return false;
+            throw new NotImplementedException();
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        private void SetSelecteChangesWithFiltersParameters(DbCommand command, SyncFilter filter)
         {
-            var command = new SqlCommand();
-
-            string text;
-            bool isStoredProc;
-
-            (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filter);
-
-            command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
-            command.CommandText = text;
-
-            return command;
+            throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// Set a stored procedure parameters or text parameters
-        /// </summary>
-        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
+        private void SetSelecteInitializeChangesWithFiltersParameters(DbCommand command, SyncFilter filter)
         {
-            if (command == null)
-                return;
-
-            if (command.Parameters != null && command.Parameters.Count > 0)
-                return;
-
-            // special case for constraint
-            if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
-                return;
-
-
-            // special case for UpdateMetadata
-            if (commandType == DbCommandType.UpdateMetadata)
-            {
-                this.SetUpdateRowMetadataParameters(command);
-                return;
-            }
-
-            if (commandType == DbCommandType.UpdateRow)
-            {
-                this.SetUpdateRowParameters(command);
-                return;
-            }
-
-            // if we don't have stored procedure, return, because we don't want to derive parameters
-            if (command.CommandType != CommandType.StoredProcedure)
-                return;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
-            {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                if (transaction != null)
-                    command.Transaction = transaction;
-
-                var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
-
-                var source = connection.Database;
-
-                textParser = $"{source}-{textParser}";
-
-                if (derivingParameters.ContainsKey(textParser))
-                {
-                    foreach (var p in derivingParameters[textParser])
-                        command.Parameters.Add(p.Clone());
-                }
-                else
-                {
-                    // Using the SqlCommandBuilder.DeriveParameters() method is not working yet, 
-                    // because default value is not well done handled on the Dotmim.Sync framework
-                    // TODO: Fix that.
-                    //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
-
-                    await ((SqlConnection)connection).DeriveParametersAsync((SqlCommand)command, false, (SqlTransaction)transaction).ConfigureAwait(false);
-
-                    var arrayParameters = new List<SqlParameter>();
-                    foreach (var p in command.Parameters)
-                        arrayParameters.Add(((SqlParameter)p).Clone());
-
-                    derivingParameters.TryAdd(textParser, arrayParameters);
-                }
-
-                if (command.Parameters.Count > 0 && command.Parameters[0].ParameterName == "@RETURN_VALUE")
-                    command.Parameters.RemoveAt(0);
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DeriveParameters failed : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
-
-
-            foreach (var parameter in command.Parameters)
-            {
-                var sqlParameter = (SqlParameter)parameter;
-
-                // try to get the source column (from the SchemaTable)
-                var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
-                var colDesc = TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
-
-                if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
-                    sqlParameter.SourceColumn = colDesc.ColumnName;
-            }
+            throw new NotImplementedException();
         }
-
 
         private void SetUpdateRowParameters(DbCommand command)
         {
@@ -726,12 +870,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
-
-
-
         }
 
-        private void SetUpdateRowMetadataParameters(DbCommand command)
+        private void SetSelectRowParameters(DbCommand command)
         {
             DbParameter p;
 
@@ -741,23 +882,97 @@ namespace Dotmim.Sync.SqlServer.Builders
                 p = command.CreateParameter();
                 p.ParameterName = $"@{unquotedColumn}";
                 p.DbType = column.GetDbType();
-                p.SourceColumn = column.ColumnName;
                 p.Size = column.MaxLength;
+                p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
             }
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
-            p.Size = 32;
+            command.Parameters.Add(p);
+
+        }
+
+        private void SetSelecteChangesParameters(DbCommand command)
+        {
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+        }
+
+        private void SetDeleteRowParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+                p = command.CreateParameter();
+                p.ParameterName = $"@{unquotedColumn}";
+                p.Size = column.MaxLength;
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_force_write";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+        }
+
+        private void SetDeleteMetadataParameters(DbCommand command)
+        {
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_row_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+        }
+
+        private void SetUpdateMetadataParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+                p = command.CreateParameter();
+                p.ParameterName = $"@{unquotedColumn}";
+                p.Size = column.MaxLength;
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_row_is_tombstone";
             p.DbType = DbType.Boolean;
-            p.Size = 2;
             command.Parameters.Add(p);
 
         }
+
     }
 }

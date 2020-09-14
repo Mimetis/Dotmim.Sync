@@ -54,11 +54,6 @@ namespace Dotmim.Sync
         public SetupTable SetupTable { get; set; }
 
         /// <summary>
-        /// Gets or Sets a boolean indicating that this table should recreate the stored procedures
-        /// </summary>
-        public MigrationAction StoredProcedures { get; set; }
-
-        /// <summary>
         /// Gets or Sets a boolean indicating that this table should recreate triggers
         /// </summary>
         public MigrationAction Triggers { get; set; }
@@ -125,7 +120,6 @@ namespace Dotmim.Sync
             foreach (var deletedTable in deletedTables)
             {
                 var migrationDeletedSetupTable = new MigrationSetupTable(deletedTable);
-                migrationDeletedSetupTable.StoredProcedures = MigrationAction.Drop;
                 migrationDeletedSetupTable.TrackingTable = MigrationAction.Drop;
                 migrationDeletedSetupTable.Triggers = MigrationAction.Drop;
                 migrationDeletedSetupTable.Table = MigrationAction.Drop;
@@ -153,14 +147,12 @@ namespace Dotmim.Sync
                 // Then compare all columns
                 if (oldTable.Columns.Count != newTable.Columns.Count || !oldTable.Columns.All(item1 => newTable.Columns.Any(item2 => string.Equals(item1, item2, sc))))
                 {
-                    migrationSetupTable.StoredProcedures = MigrationAction.CreateOrRecreate;
                     migrationSetupTable.TrackingTable = MigrationAction.CreateOrRecreate;
                     migrationSetupTable.Triggers = MigrationAction.CreateOrRecreate;
                     migrationSetupTable.Table = MigrationAction.CreateOrRecreate;
                 }
                 else
                 {
-                    migrationSetupTable.StoredProcedures = migrationSetup.AllStoredProcedures;
                     migrationSetupTable.TrackingTable = migrationSetup.AllTrackingTables;
                     migrationSetupTable.Triggers = migrationSetup.AllTriggers;
                 }

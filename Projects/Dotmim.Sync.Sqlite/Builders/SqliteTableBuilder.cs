@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Sqlite
 
         public SqliteTableBuilder(SyncTable tableDescription,  SyncSetup setup) : base(tableDescription, setup)
         {
-            sqlObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
+            sqlObjectNames = new SqliteObjectNames(tableDescription, setup);
         }
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
@@ -61,8 +61,6 @@ namespace Dotmim.Sync.Sqlite
         /// <param name="connection"></param>
         /// <param name="transaction"></param>
         /// <returns></returns>
-        public override IDbBuilderProcedureHelper CreateProcBuilder() => null;
-
         public override IDbBuilderTriggerHelper CreateTriggerBuilder() 
             => new SqliteBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
 

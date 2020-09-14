@@ -25,7 +25,6 @@ namespace Dotmim.Sync
         private const int MAX_BATCH_PARAMETERS_COUNT = 2100;
         private const int BATCH_SIZE = 1000;
 
-
         // Internal commands cache
         private ConcurrentDictionary<string, Lazy<SyncCommand>> commands = new ConcurrentDictionary<string, Lazy<SyncCommand>>();
 
@@ -42,7 +41,22 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get or Set the current step (could be only Added, Modified, Deleted)
         /// </summary>
-        internal DataRowState ApplyType { get; set; }
+        public DataRowState ApplyType { get; set; }
+
+        /// <summary>
+        /// Gets the scope name
+        /// </summary>
+        public string ScopeName { get; private set; }
+
+        /// <summary>
+        /// Create a Sync Adapter
+        /// </summary>
+        public SyncAdapter(SyncTable tableDescription, SyncSetup setup, string scopeName)
+        {
+            this.TableDescription = tableDescription;
+            this.Setup = setup;
+            this.ScopeName = scopeName;
+        }
 
         /// <summary>
         /// Get if the error is a primarykey exception
@@ -67,28 +81,38 @@ namespace Dotmim.Sync
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
-                                                      SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction);
-
-        public virtual Task ExecuteBatchCommandAsync2(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
-                                                      SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction)
-        {
-            return Task.CompletedTask;
-        }
-
-        public virtual Task BuildTmpTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            return Task.CompletedTask;
-        }
+        public abstract Task ExecuteBatchCommandAsync(DbCommandType commandType, Guid senderScopeId, IEnumerable<SyncRow> arrayItems,
+                                                      SyncTable schemaChangesTable, SyncTable failedRows,
+                                                      long lastTimestamp, string optionalState,
+                                                      DbConnection connection, DbTransaction transaction);
 
         /// <summary>
-        /// Create a Sync Adapter
+        /// This command is executed before a starting a batch execution
         /// </summary>
-        public SyncAdapter(SyncTable tableDescription, SyncSetup setup)
-        {
-            this.TableDescription = tableDescription;
-            this.Setup = setup;
-        }
+        public abstract Task<string> PreExecuteBatchCommandAsync(DbCommandType commandType, Guid senderScopeId, 
+                                                                 SyncTable schemaChangesTable,SyncTable failedRows, 
+                                                                 long lastTimestamp, 
+                                                                 DbConnection connection, DbTransaction transaction);
+
+        /// <summary>
+        /// This command is executed after a end of the batch execution
+        /// </summary>
+        public abstract Task PostExecuteBatchCommandAsync(DbCommandType commandType, Guid senderScopeId,
+                                                        SyncTable schemaChangesTable, SyncTable failedRows,
+                                                        long lastTimestamp, string optionalState,
+                                                        DbConnection connection, DbTransaction transaction);
+
+
+        /// <summary>
+        /// This command is executed before a starting a command execution
+        /// </summary>
+        public abstract Task<string> PreExecuteCommandAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction);
+
+
+        /// <summary>
+        /// This command is executed before a starting a command execution
+        /// </summary>
+        public abstract Task PostExecuteCommandAsync(DbCommandType commandType, string optionalState, DbConnection connection, DbTransaction transaction);
 
         /// <summary>
         /// Set command parameters value mapped to Row
@@ -122,7 +146,6 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 syncRowCountParam.Direction = ParameterDirection.Output;
         }
-
 
         /// <summary>
         /// Get the command from provider, check connection is opened, affect connection and transaction
@@ -161,6 +184,7 @@ namespace Dotmim.Sync
             await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 
             // Testing The Prepare() performance increase
+            // TODO: Uncomment
             //command.Prepare();
 
             // Adding this command as prepared
@@ -238,97 +262,23 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Launch apply bulk changes
+        /// Launch a bulk apply changes
         /// </summary>
-        /// <returns></returns>
         public async Task<int> ApplyBulkChangesAsync(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts, DbConnection connection, DbTransaction transaction)
         {
             DbCommandType dbCommandType;
 
             switch (this.ApplyType)
             {
-                case DataRowState.Deleted:
-                    dbCommandType = DbCommandType.BulkDeleteRows;
-                    break;
                 case DataRowState.Modified:
-                    dbCommandType = DbCommandType.BulkUpdateRows;
+                    dbCommandType = DbCommandType.UpdateBatchRows;
                     break;
-                case DataRowState.Detached:
-                case DataRowState.Added:
-                case DataRowState.Unchanged:
+                case DataRowState.Deleted:
+                    dbCommandType = DbCommandType.DeleteBatchRows;
+                    break;
                 default:
                     throw new UnknownException("RowState not valid during ApplyBulkChanges operation");
             }
-
-            DbCommand command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
-
-            // Create
-            var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
-            //AddSchemaForFailedRowsTable(failedPrimaryKeysTable);
-
-            // get the items count
-            var itemsArrayCount = changesTable.Rows.Count;
-
-            // Make some parts of BATCH_SIZE
-            await Task.Run(async () =>
-            {
-                var rowsList = changesTable.Rows.ToList();
-                for (int step = 0; step < itemsArrayCount; step += BATCH_SIZE)
-                {
-                    // get upper bound max value
-                    var taken = step + BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : BATCH_SIZE;
-
-                    var arrayStepChanges = rowsList.Skip(step).Take(taken);
-
-                    // execute the batch, through the provider
-                    await ExecuteBatchCommandAsync(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
-                }
-
-                if (failedPrimaryKeysTable.Rows.Count > 0)
-                {
-                    // Get local and remote row and create the conflict object
-                    foreach (var failedRow in failedPrimaryKeysTable.Rows)
-                    {
-                        //failedRow.RowState = this.ApplyType;
-
-                        // Get the row that caused the problem, from the remote side (client)
-                        var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
-
-                        if (remoteConflictRows.Count() == 0)
-                            throw new Exception("Cant find changes row who is in conflict");
-
-                        var remoteConflictRow = remoteConflictRows.ToList()[0];
-
-                        var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
-
-                        conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
-                    }
-                }
-            });
-
-            // return applied rows minus failed rows
-            return itemsArrayCount - failedPrimaryKeysTable.Rows.Count;
-        }
-
-
-        public async Task<int> ApplyBulkChangesAsync2(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts, DbConnection connection, DbTransaction transaction)
-        {
-            DbCommandType dbCommandType;
-
-            switch (this.ApplyType)
-            {
-                case DataRowState.Modified:
-                    dbCommandType = DbCommandType.UpdateRow;
-                    break;
-                case DataRowState.Deleted:
-                case DataRowState.Detached:
-                case DataRowState.Added:
-                case DataRowState.Unchanged:
-                default:
-                    throw new UnknownException("RowState not valid during ApplyBulkChanges operation");
-            }
-
-            DbCommand command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
 
             // Create
             var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
@@ -336,9 +286,18 @@ namespace Dotmim.Sync
             // get the items count
             var itemsArrayCount = changesTable.Rows.Count;
 
-            await BuildTmpTableAsync(connection, transaction);
+            // First command to execute before launching batch, if need by the provider
+            var state = await PreExecuteBatchCommandAsync(dbCommandType, senderScopeId, changesTable,
+                                               failedPrimaryKeysTable, lastTimestamp,
+                                               connection, transaction);
 
-            var batch_size = BATCH_SIZE; // (MAX_BATCH_PARAMETERS_COUNT / changesTable.Columns.Count) - 1 ;
+            // Get command for batch insertion
+            DbCommand command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
+
+            //var batch_size = BATCH_SIZE;
+            var batch_size = (MAX_BATCH_PARAMETERS_COUNT / changesTable.Columns.Where(c => !c.IsReadOnly).Count()) - 1;
+
+            batch_size = Math.Min(batch_size, 200);
 
             // Make some parts of BATCH_SIZE 
             for (int step = 0; step < itemsArrayCount; step += batch_size)
@@ -349,8 +308,15 @@ namespace Dotmim.Sync
                 var arrayStepChanges = changesTable.Rows.ToList().Skip(step).Take(taken);
 
                 // execute the batch, through the provider
-                await ExecuteBatchCommandAsync2(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
+                await ExecuteBatchCommandAsync(dbCommandType, senderScopeId, arrayStepChanges, changesTable,
+                                               failedPrimaryKeysTable, lastTimestamp,
+                                               state, connection, transaction).ConfigureAwait(false);
             }
+
+            // Last command to execute after batch has ended, if need by the provider
+            await PostExecuteBatchCommandAsync(dbCommandType, senderScopeId, changesTable,
+                                               failedPrimaryKeysTable, lastTimestamp,
+                                               state, connection, transaction).ConfigureAwait(false);
 
             if (failedPrimaryKeysTable.Rows.Count == 0)
                 return itemsArrayCount;
@@ -536,7 +502,9 @@ namespace Dotmim.Sync
             return rowUpdatedCount > 0;
         }
 
-
+        /// <summary>
+        /// Update untracked rows on client side
+        /// </summary>
         internal async Task<int> UpdateUntrackedRowsAsync(DbConnection connection, DbTransaction transaction)
         {
             // Get correct Select incremental changes command 
@@ -553,7 +521,6 @@ namespace Dotmim.Sync
 
             return rowAffected;
         }
-
 
         /// <summary>
         /// Delete all metadatas from one table before a timestamp limit

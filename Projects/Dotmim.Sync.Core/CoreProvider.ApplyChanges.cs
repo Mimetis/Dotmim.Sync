@@ -109,7 +109,7 @@ namespace Dotmim.Sync
 
                 this.Orchestrator.logger.LogDebug(SyncEventsId.ResetTable, tableDescription);
 
-                var builder = this.GetTableBuilder(tableDescription, setup);
+                var builder = this.GetTableBuilder(tableDescription, setup, this.Scopen);
                 var syncAdapter = builder.CreateSyncAdapter();
 
                 // reset table
@@ -191,10 +191,12 @@ namespace Dotmim.Sync
 
                     int rowsApplied = 0;
 
-                    if (message.UseBulkOperations && this.SupportBulkOperations)
+                    // If configured, changes will be applied send batch rows
+                    // Otherwise changes will be send line by line
+                    if (message.UseBulkOperations)
                         rowsApplied = await syncAdapter.ApplyBulkChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
                     else
-                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync2(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
+                        rowsApplied = await syncAdapter.ApplyChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
 
                     // resolving conflicts
                     var (rowsAppliedCount, conflictsResolvedCount, syncErrorsCount) =

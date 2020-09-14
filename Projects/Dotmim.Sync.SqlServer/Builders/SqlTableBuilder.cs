@@ -12,34 +12,16 @@ namespace Dotmim.Sync.SqlServer.Builders
     public class SqlTableBuilder : DbTableBuilder
     {
 
-        public SqlObjectNames ObjectNames { get; private set; }
-
-        public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
+        public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
         {
-            this.ObjectNames = new SqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
         }
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
-            var originalTableName = ParserName.Parse(tableDescription);
-
-            var pref = setup.TrackingTablesPrefix;
-            var suf = setup.TrackingTablesSuffix;
-
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trakingTableNameString = $"{pref}{originalTableName.ObjectName}{suf}";
-
-            if (!string.IsNullOrEmpty(originalTableName.SchemaName))
-                trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
-
-            var trackingTableName = ParserName.Parse(trakingTableNameString);
-
-            return (originalTableName, trackingTableName);
+            var sqlObjectNames = new SqlObjectNames(tableDescription, setup);
+            return (sqlObjectNames.GetTableName(), sqlObjectNames.GetTrackingTableName());
         }
+
         public static string WrapScriptTextWithComments(string commandText, string commentText, bool includeGo = true, int indentLevel = 0)
         {
             var stringBuilder = new StringBuilder();
@@ -59,19 +41,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-        public override IDbBuilderProcedureHelper CreateProcBuilder() 
-            => new SqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
+        // TODO : Virer table name et tracking name
         public override IDbBuilderTriggerHelper CreateTriggerBuilder() 
             => new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
+        // TODO : Virer table name et tracking name
         public override IDbBuilderTableHelper CreateTableBuilder() 
             => new SqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
+        // TODO : Virer table name et tracking name
         public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
             => new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
 
+        // TODO : Virer table name et tracking name
         public override SyncAdapter CreateSyncAdapter() 
-            => new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
+            => new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup, this.ScopeName);
     }
 }

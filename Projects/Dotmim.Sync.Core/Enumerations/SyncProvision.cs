@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Enumerations
         None = 0,
         Table = 1,
         TrackingTable = 2,
-        StoredProcedures = 4,
+        //StoredProcedures = 4,
         Triggers = 8,
         ClientScope = 16,
         ServerScope = 32,

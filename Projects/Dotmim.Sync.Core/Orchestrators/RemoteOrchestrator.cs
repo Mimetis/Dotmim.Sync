@@ -217,7 +217,7 @@ namespace Dotmim.Sync
                             await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress);
 
                             // Now call the ProvisionAsync() to provision new tables
-                            var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                            var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
 
                             await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -345,10 +345,10 @@ namespace Dotmim.Sync
                             schema.EnsureSchema();
 
                             // 2) Ensure databases are ready
-                            var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                            var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
 
                             await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
-                            
+
 
                             ctx = await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -386,7 +386,7 @@ namespace Dotmim.Sync
                                 await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress);
 
                                 // Now call the ProvisionAsync() to provision new tables
-                                var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                                var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
 
                                 await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -476,7 +476,7 @@ namespace Dotmim.Sync
                         await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress);
 
                         // Now call the ProvisionAsync() to provision new tables
-                        provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                        provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
 
                         await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -911,7 +911,7 @@ namespace Dotmim.Sync
                         (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // 2) Ensure databases are ready
-                        var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                        var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
 
                         await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
