@@ -44,7 +44,7 @@ Server side
 Once your **ASP.NET** application is created, we're adding the specific web server package and our server provider:
 
 * ``Dotmim.Sync.Web.Server``: This package will allow us to expose everything we need, through a **.Net core Web API**
-* ``Dotmim.Sync.SqlSyncChangeTrackingProvider``: This package will allow us to communicate with the SQL Server database.
+* ``Dotmim.Sync.SqlServer.ChangeTracking``: This package will allow us to communicate with the SQL Server database.
 
 Once we have added these **DMS** packages to our project, we are configuring the Sync provider in the ``Startup`` class, thanks to Dependency Injection.
 
