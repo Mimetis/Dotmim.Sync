@@ -40,8 +40,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SyncSetup setup;
         private readonly SqlBuilderCommands sqlBuilderCommands;
 
-        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) 
-            : base(tableDescription, setup, scopeName)
+        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) 
+            : base(tableDescription, setup)
         {
             this.sqlMetadata = new SqlDbMetadata();
             this.tableName = tableName;

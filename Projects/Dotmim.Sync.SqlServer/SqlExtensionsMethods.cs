@@ -6,6 +6,8 @@ using System.Data;
 using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -148,6 +150,13 @@ namespace Dotmim.Sync.SqlServer
 
             return p;
         }
+
+
+        /// <summary>
+        /// For the SqlSyncProvider, add an option to use stored procedures
+        /// </summary>
+        public static void AddStoredProcedures(this SyncOptions options, SyncOrchestrator orchestrator, bool useStoredProcedures) 
+            => options.AddAdditionalProperties(orchestrator, "UseStoredProcedures", useStoredProcedures);
 
     }
 }

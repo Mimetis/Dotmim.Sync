@@ -35,7 +35,13 @@ namespace Dotmim.Sync.Serialization
                     return jobject.ToObject<T>();
                 }
             }
-            
+
+            // TODO : Replace with ???
+            //JsonSerializer serializer = new JsonSerializer();
+            //T t = serializer.Deserialize<T>(jtr);
+            //return t;
+
+
         }
 
 

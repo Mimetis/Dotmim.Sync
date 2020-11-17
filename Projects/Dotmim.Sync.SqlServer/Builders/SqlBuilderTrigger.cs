@@ -287,13 +287,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"DROP TRIGGER {triggerFor};");
             stringBuilder.AppendLine("BEGIN");
 
-            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                command.Parameters.AddWithValue("@triggerName", triggerName);
-                command.Parameters.AddWithValue("@schemaName", triggerSchemaName);
+            using var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+            
+            command.Parameters.AddWithValue("@triggerName", triggerName);
+            command.Parameters.AddWithValue("@schemaName", triggerSchemaName);
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
 

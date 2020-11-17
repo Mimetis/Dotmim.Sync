@@ -43,19 +43,14 @@ namespace Dotmim.Sync
         /// </summary>
         public DataRowState ApplyType { get; set; }
 
-        /// <summary>
-        /// Gets the scope name
-        /// </summary>
-        public string ScopeName { get; private set; }
 
         /// <summary>
         /// Create a Sync Adapter
         /// </summary>
-        public SyncAdapter(SyncTable tableDescription, SyncSetup setup, string scopeName)
+        public SyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
-            this.ScopeName = scopeName;
         }
 
         /// <summary>

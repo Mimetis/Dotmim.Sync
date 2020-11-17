@@ -26,11 +26,6 @@ namespace Dotmim.Sync.Builders
         public SyncSetup Setup { get; }
 
         /// <summary>
-        /// Gets Scopename
-        /// </summary>
-        public string ScopeName { get; }
-
-        /// <summary>
         /// Filtered Columns
         /// </summary>
         public SyncFilter Filter { get; set; }
@@ -84,11 +79,10 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
-        public DbTableBuilder(SyncTable tableDescription, SyncSetup setup, string scopeName)
+        public DbTableBuilder(SyncTable tableDescription, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
-            this.ScopeName = scopeName;
 
             (this.TableName, this.TrackingTableName) = GetParsers(tableDescription, setup);
         }

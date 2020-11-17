@@ -109,7 +109,7 @@ namespace Dotmim.Sync
 
                 this.Orchestrator.logger.LogDebug(SyncEventsId.ResetTable, tableDescription);
 
-                var builder = this.GetTableBuilder(tableDescription, setup, this.Scopen);
+                var builder = this.GetTableBuilder(tableDescription, setup);
                 var syncAdapter = builder.CreateSyncAdapter();
 
                 // reset table

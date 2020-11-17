@@ -12,7 +12,7 @@ namespace Dotmim.Sync.SqlServer.Builders
     public class SqlTableBuilder : DbTableBuilder
     {
 
-        public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
+        public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
         {
         }
 
@@ -55,6 +55,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         // TODO : Virer table name et tracking name
         public override SyncAdapter CreateSyncAdapter() 
-            => new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup, this.ScopeName);
+            => new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
     }
 }

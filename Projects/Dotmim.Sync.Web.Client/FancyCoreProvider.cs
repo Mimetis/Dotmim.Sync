@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Web.Client
 
         public override DbBuilder GetDatabaseBuilder() => throw new NotImplementedException();
 
-        public override DbScopeBuilder GetScopeBuilder() => throw new NotImplementedException();
+        public override IDbScopeInfoBuilder GetScopeInfoBuilder(string scopeTableName) => throw new NotImplementedException();
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
 

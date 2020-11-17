@@ -1,6 +1,9 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,6 +17,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncOptions
     {
+
         /// <summary>
         /// Default name if nothing is specified for the scope inf table, stored on the client db
         /// On the server side, server scope table is prefixed with _server and history table with _history
@@ -81,6 +85,16 @@ namespace Dotmim.Sync
         /// </summary>
         public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
+
+        [JsonProperty("AdditionalOptions")]
+        private Dictionary<string, object> internalAdditionalOptions;
+
+        /// <summary>
+        /// Add provider options
+        /// </summary>
+        [JsonIgnore()]
+        public IReadOnlyList<KeyValuePair<string, object>> AdditionalOptions => this.internalAdditionalOptions?.ToList();
+
         /// <summary>
         /// Gets or Sets the default logger used for logging purpose
         /// </summary>
@@ -103,6 +117,14 @@ namespace Dotmim.Sync
         }
 
 
+        public void AddAdditionalProperties(SyncOrchestrator orchestrator,  string name, object value)
+        {
+            if (internalAdditionalOptions == null)
+                internalAdditionalOptions = new Dictionary<string, object>();
+
+            this.internalAdditionalOptions.Add($"{orchestrator}-{name}", value);
+        }
+
         /// <summary>
         /// Get the default Batch directory full path ([User Temp Path]/[DotmimSync])
         /// </summary>
@@ -118,4 +140,6 @@ namespace Dotmim.Sync
         /// </summary>
         public static string GetDefaultUserBatchDirectoryName() => "DotmimSync";
     }
+
+
 }

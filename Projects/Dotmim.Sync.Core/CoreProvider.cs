@@ -60,7 +60,7 @@ namespace Dotmim.Sync
         /// Get a table builder helper. Need a complete table description (SchemaTable). Will then generate table, table tracking, stored proc and triggers
         /// </summary>
         /// <returns></returns>
-        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup, string scopeName);
+        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup);
 
         /// <summary>
         /// Get a table manager, which can get informations directly from data source
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a Scope Builder, which can create scope table, and scope config
         /// </summary>
-        public abstract DbScopeBuilder GetScopeBuilder();
+        public abstract IDbScopeInfoBuilder GetScopeInfoBuilder(string scopeTableName);
 
         /// <summary>
         /// Gets or sets the metadata resolver (validating the columns definition from the data store)
@@ -121,11 +121,10 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            var scopeBuilder = this.GetScopeBuilder();
             
             // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
             // in client database is not the DefaultScopeInfoTableName
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
 
             var localTime = await scopeInfoBuilder.GetLocalTimestampAsync(connection, transaction).ConfigureAwait(false);
 

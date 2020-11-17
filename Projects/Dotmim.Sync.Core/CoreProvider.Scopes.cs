@@ -22,8 +22,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -44,8 +43,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             var exist = !await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -60,8 +58,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateClientScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -82,8 +79,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             var need = await scopeInfoBuilder.NeedToCreateServerHistoryScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -104,8 +100,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             var need = await scopeInfoBuilder.NeedToCreateServerHistoryScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -127,8 +122,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateServerScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -149,8 +143,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             var needToCreateScopeInfoTable = await scopeInfoBuilder.NeedToCreateServerScopeInfoTableAsync(connection, transaction).ConfigureAwait(false);
 
@@ -174,8 +167,7 @@ namespace Dotmim.Sync
 
             var scopes = new List<ScopeInfo>();
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             // get all scopes shared by all (identified by scopeName)
             scopes = await scopeInfoBuilder.GetAllClientScopesAsync(scopeName, connection, transaction).ConfigureAwait(false);
@@ -226,8 +218,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.GetClientScope, new { ScopeName = scopeName, ScopeInfoTableName = scopeInfoTableName });
 
@@ -273,8 +264,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.GetServerScopeHistory, new { ScopeName = scopeName, ScopeInfoTableName = scopeInfoTableName });
 
@@ -295,8 +285,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.WriteClientScope, scope);
 
@@ -313,8 +302,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.WriteServerScope, scope);
 
@@ -331,8 +319,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            var scopeBuilder = this.GetScopeBuilder();
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(scopeInfoTableName);
+            var scopeInfoBuilder = this.GetScopeInfoBuilder(scopeInfoTableName);
 
             this.Orchestrator.logger.LogDebug(SyncEventsId.WriteServerScopeHistory, scope);
 
