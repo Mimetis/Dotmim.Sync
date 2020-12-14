@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
-    public class MySqlBuilderTable : IDbBuilderTableHelper
+    public class MySqlBuilderTable 
     {
         private readonly ParserName tableName;
         private readonly ParserName trackingName;

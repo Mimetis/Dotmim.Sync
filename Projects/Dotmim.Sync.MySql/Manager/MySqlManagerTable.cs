@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
-    public class MySqlManagerTable : IDbTableManager
+    public class MySqlManagerTable
     {
         private string tableName;
         private readonly MySqlTransaction sqlTransaction;

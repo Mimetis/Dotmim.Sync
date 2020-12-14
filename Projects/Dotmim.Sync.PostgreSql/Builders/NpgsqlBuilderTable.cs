@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Postgres.Builders
 {
-    public class NpgsqlBuilderTable : IDbBuilderTableHelper
+    public class NpgsqlBuilderTable
     {
         private ParserName tableName;
         private ParserName trackingName;

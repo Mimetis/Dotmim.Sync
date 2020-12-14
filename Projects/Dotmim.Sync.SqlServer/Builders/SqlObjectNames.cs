@@ -33,6 +33,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string resetMetadataProcName = "[{0}].[{1}_reset]";
 
         internal const string bulkTableTypeName = "[{0}].[{1}_BulkType]";
+
         internal const string bulkInsertProcName = "[{0}].[{1}_bulkinsert]";
         internal const string bulkUpdateProcName = "[{0}].[{1}_bulkupdate]";
         internal const string bulkDeleteProcName = "[{0}].[{1}_bulkdelete]";
@@ -45,30 +46,73 @@ namespace Dotmim.Sync.SqlServer.Builders
         //internal const string disableConstraintsText = "sp_msforeachtable";
         //internal const string enableConstraintsText = "sp_msforeachtable";
 
-        Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
-        
+        Dictionary<DbStoredProcedureType, string> storedProceduresNames = new Dictionary<DbStoredProcedureType, string>();
+        Dictionary<DbTriggerType, string> triggersNames = new Dictionary<DbTriggerType, string>();
+        Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
+
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
 
-        public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
+        public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
         {
-            if (names.ContainsKey(objectType))
+            if (storedProceduresNames.ContainsKey(objectType))
                 throw new Exception("Yous can't add an objectType multiple times");
 
-            names.Add(objectType, (name, isStoredProcedure));
+            storedProceduresNames.Add(objectType, name);
         }
-        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, SyncFilter filter = null)
+        public string GetStoredProcedureCommandName(DbStoredProcedureType objectType, SyncFilter filter = null)
         {
-            if (!names.ContainsKey(objectType))
+            if (!storedProceduresNames.ContainsKey(objectType))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
-            (var commandName, var isStoredProc) = names[objectType];
+            var commandName = storedProceduresNames[objectType];
 
             // concat filter name
             if (filter != null)
                 commandName = string.Format(commandName, filter.GetFilterName());
 
-            return (commandName, isStoredProc);
+            return commandName;
+        }
+
+        public void AddTriggerName(DbTriggerType objectType, string name)
+        {
+            if (triggersNames.ContainsKey(objectType))
+                throw new Exception("Yous can't add an objectType multiple times");
+
+            triggersNames.Add(objectType, name);
+        }
+        public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
+        {
+            if (!triggersNames.ContainsKey(objectType))
+                throw new Exception("Yous should provide a value for all DbCommandName");
+
+            var commandName = triggersNames[objectType];
+
+            // concat filter name
+            if (filter != null)
+                commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
+        }
+        public void AddCommandName(DbCommandType objectType, string name)
+        {
+            if (commandNames.ContainsKey(objectType))
+                throw new Exception("Yous can't add an objectType multiple times");
+
+            commandNames.Add(objectType, name);
+        }
+        public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
+        {
+            if (!commandNames.ContainsKey(objectType))
+                throw new Exception("Yous should provide a value for all DbCommandName");
+
+            var commandName = commandNames[objectType];
+
+            // concat filter name
+            if (filter != null)
+                commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
         }
 
         public SqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
@@ -94,32 +138,32 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"));
 
-            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"));
 
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
+            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
 
-            this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
 
-            this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
 
-            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
-            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
+            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
+            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
 
-            this.AddName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand(), false);
-            this.AddName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand(), false);
+            this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
+            this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
         }
 
 
@@ -190,7 +234,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
 
             var comma = "";
-            foreach(var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
+            foreach (var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
             {
                 var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
 

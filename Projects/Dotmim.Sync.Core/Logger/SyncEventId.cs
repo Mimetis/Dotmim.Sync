@@ -9,78 +9,6 @@ namespace Dotmim.Sync
 
     public static class SyncEventsExtensions
     {
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void Log(this ILogger logger, LogLevel logLevel, SyncStage stage, string message, params object[] args)
-        //        => logger.Log(logLevel, new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void Log(this ILogger logger, LogLevel logLevel, SyncStage stage, Exception exception, string message, params object[] args)
-        //        => logger.Log(logLevel, new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), exception, message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogTrace(this ILogger logger, SyncStage stage, string message, params object[] args)
-        //         => logger.LogTrace(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogTrace(this ILogger logger, SyncStage stage, Exception exception, string message, params object[] args)
-        //        => logger.LogTrace(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), exception, message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogCritical(this ILogger logger, SyncStage stage, string message, params object[] args)
-        //        => logger.LogCritical(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogCritical(this ILogger logger, SyncStage stage, Exception exception, string message, params object[] args)
-        //        => logger.LogCritical(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), exception, message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogDebug(this ILogger logger, SyncStage stage, string message, params object[] args)
-        //       => logger.LogDebug(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogDebug(this ILogger logger, SyncStage stage, Exception exception, string message, params object[] args)
-        //        => logger.LogDebug(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), exception, message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogError(this ILogger logger, SyncStage stage, string message, params object[] args)
-        //      => logger.LogError(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogError(this ILogger logger, SyncStage stage, Exception exception, string message, params object[] args)
-        //        => logger.LogError(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), exception, message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogInformation(this ILogger logger, SyncStage stage, string message, params object[] args)
-        //      => logger.LogInformation(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogInformation(this ILogger logger, SyncStage stage, Exception exception, string message, params object[] args)
-        //        => logger.LogInformation(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), exception, message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogWarning(this ILogger logger, SyncStage stage, string message, params object[] args)
-        //       => logger.LogWarning(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), message, args);
-        //    /// <summary>
-        //    /// Create a Log with an EventId generated from a SyncStage enumeration
-        //    /// </summary>
-        //    public static void LogWarning(this ILogger logger, SyncStage stage, Exception exception, string message, params object[] args)
-        //        => logger.LogWarning(new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage)), exception, message, args);
-
-
         public static void LogTrace<T>(this ILogger logger, EventId id, T value) where T : class
         {
             if (!logger.IsEnabled(LogLevel.Trace))
@@ -209,6 +137,15 @@ namespace Dotmim.Sync
         public static EventId ResetTable => CreateEventId(action + 31, nameof(ResetTable));
         public static EventId ResolveConflicts => CreateEventId(action + 32, nameof(ResolveConflicts));
 
+        public static EventId CreateTrigger => CreateEventId(action + 33, nameof(CreateTrigger));
+        public static EventId ExistTrigger => CreateEventId(action + 34, nameof(CreateTrigger));
+        public static EventId DropTrigger => CreateEventId(action + 35, nameof(DropTrigger));
 
+        public static EventId CreateStoredProcedure => CreateEventId(action + 36, nameof(CreateStoredProcedure));
+        public static EventId ExistStoredProcedure => CreateEventId(action + 37, nameof(ExistStoredProcedure));
+        public static EventId DropStoredProcedure => CreateEventId(action + 38, nameof(DropStoredProcedure));
+
+        public static EventId EnableConstraints => CreateEventId(action + 39, nameof(EnableConstraints));
+        public static EventId DisableConstraints => CreateEventId(action + 40, nameof(DisableConstraints));
     }
 }

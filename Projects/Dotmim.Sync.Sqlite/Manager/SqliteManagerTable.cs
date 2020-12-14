@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite.Manager
 {
-    public class SqliteManagerTable : IDbTableManager
+    public class SqliteManagerTable
     {
         private string tableName;
         private string schemaName;

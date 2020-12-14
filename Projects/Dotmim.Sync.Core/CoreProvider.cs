@@ -43,7 +43,7 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public virtual SyncOptions Options { get; set; }
 
-   
+
         /// <summary>
         /// Create a new instance of the implemented Connection provider
         /// </summary>
@@ -51,21 +51,21 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Get a database builder helper;
+        /// Get Database Builder which can create object at the database level
         /// </summary>
         /// <returns></returns>
         public abstract DbBuilder GetDatabaseBuilder();
 
         /// <summary>
-        /// Get a table builder helper. Need a complete table description (SchemaTable). Will then generate table, table tracking, stored proc and triggers
+        /// Get a table builder helper which can create object at the table level
         /// </summary>
         /// <returns></returns>
         public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup);
 
         /// <summary>
-        /// Get a table manager, which can get informations directly from data source
+        /// Get sync adapter which can executes all the commands needed for a complete sync
         /// </summary>
-        public abstract DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName);
+        public abstract SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup);
 
         /// <summary>
         /// Create a Scope Builder, which can create scope table, and scope config
@@ -102,7 +102,11 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
 
- 
+        /// <summary>
+        /// Get naming tables
+        /// </summary>
+        public abstract (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup);
+
         /// <summary>
         /// Let a chance to provider to enrich SyncExecption
         /// </summary>
@@ -114,38 +118,6 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual bool ShouldRetryOn(Exception exception) => false;
 
-        /// <summary>
-        /// Read a scope info
-        /// </summary>
-        public virtual async Task<long> GetLocalTimestampAsync(SyncContext context,
-                             DbConnection connection, DbTransaction transaction,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        {
-            var scopeBuilder = this.GetScopeBuilder();
-            
-            // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
-            // in client database is not the DefaultScopeInfoTableName
-            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
-
-            var localTime = await scopeInfoBuilder.GetLocalTimestampAsync(connection, transaction).ConfigureAwait(false);
-
-            this.Orchestrator.logger.LogDebug(SyncEventsId.GetLocalTimestamp, new { Timestamp = localTime });
-
-            return localTime;
-        }
-
-        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
-                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-            // get database builder
-            var databaseBuilder = this.GetDatabaseBuilder();
-
-            var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
-
-            this.Orchestrator.logger.LogDebug(SyncEventsId.GetHello, new { hello.DatabaseName, hello.Version });
-
-            return (context, hello.DatabaseName, hello.Version);
-        }
 
     }
 }
