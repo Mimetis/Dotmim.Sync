@@ -117,12 +117,46 @@ namespace Dotmim.Sync.MySql
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new MyTableSqlBuilder(tableDescription, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
 
-        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new MySqlManager(tableName);
+            var tableBuilder = new MyTableSqlBuilder(tableDescription, tableName, trackingName, setup)
+            {
+                UseBulkProcedures = this.SupportBulkOperations,
+                UseChangeTracking = this.UseChangeTracking,
+                Filter = tableDescription.GetFilter()
+            };
+
+            return tableBuilder;
+        }
 
         public override DbScopeBuilder GetScopeBuilder() => new MySqlScopeBuilder();
 
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
+        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+            var adapter = new MySqlSyncAdapter(tableDescription, tableName, trackingName, setup);
+            return adapter;
+        }
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        {
+            string tableAndPrefixName = tableDescription.TableName;
+
+            var originalTableName = ParserName.Parse(tableDescription, "`");
+
+            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
+            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
+
+            // be sure, at least, we have a suffix if we have empty values. 
+            // othewise, we have the same name for both table and tracking table
+            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
+                suf = "_tracking";
+
+            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}", "`");
+
+            return (originalTableName, trackingTableName);
+        }
     }
 }

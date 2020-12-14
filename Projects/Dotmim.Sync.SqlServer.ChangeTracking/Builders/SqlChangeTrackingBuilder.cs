@@ -9,19 +9,20 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
     public class SqlChangeTrackingBuilder : SqlTableBuilder
     {
-        public SqlChangeTrackingBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
+        //public SqlChangeTrackingBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
+        //{
+        //}
+
+        //public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
+        //    => new SqlChangeTrackingBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
+
+        //public override IDbBuilderStoreProcedureCommands GetStoredProceduresCommands() 
+        //    => new SqlChangeTrackingBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
+
+        //public override IDbBuilderTriggerCommands GetTriggerCommands() 
+        //    => new SqlChangeTrackingBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
+        public SqlChangeTrackingBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
         {
         }
-
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
-            => new SqlChangeTrackingBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderProcedureHelper CreateProcBuilder() 
-            => new SqlChangeTrackingBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder() 
-            => new SqlChangeTrackingBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-
     }
 }

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Dotmim.Sync.Builders
 {
-    public enum DbCommandType
+    public enum DbCommandType 
     {
         SelectChanges,
         SelectInitializedChanges,

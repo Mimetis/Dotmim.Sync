@@ -99,12 +99,66 @@ namespace Dotmim.Sync.SqlServer
         /// Sql Server supports to be a server side provider
         /// </summary>
         public override bool CanBeServerProvider => true;
-     
+
+
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        {
+            var originalTableName = ParserName.Parse(tableDescription);
+
+            var pref = setup.TrackingTablesPrefix;
+            var suf = setup.TrackingTablesSuffix;
+
+            // be sure, at least, we have a suffix if we have empty values. 
+            // othewise, we have the same name for both table and tracking table
+            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
+                suf = "_tracking";
+
+            var trakingTableNameString = $"{pref}{originalTableName.ObjectName}{suf}";
+
+            if (!string.IsNullOrEmpty(originalTableName.SchemaName))
+                trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
+
+            var trackingTableName = ParserName.Parse(trakingTableNameString);
+
+            return (originalTableName, trackingTableName);
+        }
+
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new SqlScopeBuilder();
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new SqlTableBuilder(tableDescription, setup);
-        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqlManager(tableName, schemaName);
-        public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
-       
+        
+        /// <summary>
+        /// Get the table builder. Table builder builds table, stored procedures and triggers
+        /// </summary>
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+
+            var tableBuilder = new SqlTableBuilder(tableDescription, tableName, trackingName, setup)
+            {
+                UseBulkProcedures = this.SupportBulkOperations,
+                UseChangeTracking = this.UseChangeTracking,
+                Filter = tableDescription.GetFilter()
+            };
+
+            return tableBuilder;
+        }
+
+        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+            var adapter = new SqlSyncAdapter(tableDescription, tableName, trackingName, setup);
+            return adapter;
+        }
+        public override DbBuilder GetDatabaseBuilder()
+        {
+            var tableBuilder = new SqlBuilder()
+            {
+                UseBulkProcedures = this.SupportBulkOperations,
+                UseChangeTracking = this.UseChangeTracking
+            };
+
+            return tableBuilder;
+        }
+
     }
 }

@@ -460,8 +460,6 @@ namespace Dotmim.Sync.SqlServer
             return (dbName, dbVersion);
         }
 
-
-
         public static async Task<bool> DatabaseExistsAsync(SqlConnection connection, SqlTransaction transaction)
         {
             bool tableExist;

@@ -2,6 +2,9 @@
 using System.Text;
 
 using System.Data.Common;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using Dotmim.Sync.Manager;
 
 namespace Dotmim.Sync.MySql
 {
@@ -15,30 +18,13 @@ namespace Dotmim.Sync.MySql
 
         MySqlObjectNames sqlObjectNames;
 
-        public MyTableSqlBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
+        public MyTableSqlBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
         {
 
             sqlObjectNames = new MySqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
         }
 
-        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
-        {
-            string tableAndPrefixName = tableDescription.TableName;
-
-            var originalTableName = ParserName.Parse(tableDescription, "`");
-
-            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
-            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
-
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}", "`");
-
-            return (originalTableName, trackingTableName);
-        }
+        
         public static string WrapScriptTextWithComments(string commandText, string commentText)
         {
             var stringBuilder = new StringBuilder();
@@ -53,15 +39,23 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("DELIMITER ;");
             return stringBuilder.ToString();
         }
-
-        public override IDbBuilderProcedureHelper CreateProcBuilder() => new MySqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder() => new MySqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTableHelper CreateTableBuilder() => new MySqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() => new MySqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override SyncAdapter CreateSyncAdapter() => new MySqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
+        public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
     }
 }

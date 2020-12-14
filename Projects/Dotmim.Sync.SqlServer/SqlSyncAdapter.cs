@@ -301,26 +301,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-
-        //private static TypeConverter Int16Converter = TypeDescriptor.GetConverter(typeof(short));
-        //private static TypeConverter Int32Converter = TypeDescriptor.GetConverter(typeof(int));
-        //private static TypeConverter Int64Converter = TypeDescriptor.GetConverter(typeof(long));
-        //private static TypeConverter UInt16Converter = TypeDescriptor.GetConverter(typeof(ushort));
-        //private static TypeConverter UInt32Converter = TypeDescriptor.GetConverter(typeof(uint));
-        //private static TypeConverter UInt64Converter = TypeDescriptor.GetConverter(typeof(ulong));
-        //private static TypeConverter DateTimeConverter = TypeDescriptor.GetConverter(typeof(DateTime));
-        //private static TypeConverter StringConverter = TypeDescriptor.GetConverter(typeof(string));
-        //private static TypeConverter ByteConverter = TypeDescriptor.GetConverter(typeof(byte));
-        //private static TypeConverter BoolConverter = TypeDescriptor.GetConverter(typeof(bool));
-        //private static TypeConverter GuidConverter = TypeDescriptor.GetConverter(typeof(Guid));
-        //private static TypeConverter CharConverter = TypeDescriptor.GetConverter(typeof(char));
-        //private static TypeConverter DecimalConverter = TypeDescriptor.GetConverter(typeof(decimal));
-        //private static TypeConverter DoubleConverter = TypeDescriptor.GetConverter(typeof(double));
-        //private static TypeConverter FloatConverter = TypeDescriptor.GetConverter(typeof(float));
-        //private static TypeConverter SByteConverter = TypeDescriptor.GetConverter(typeof(sbyte));
-        //private static TypeConverter TimeSpanConverter = TypeDescriptor.GetConverter(typeof(TimeSpan));
-
-
         /// <summary>
         /// Check if an exception is a primary key exception
         /// </summary>
@@ -344,14 +324,87 @@ namespace Dotmim.Sync.SqlServer.Builders
         public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqlCommand();
-
-            string text;
-            bool isStoredProc;
-
-            (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filter);
-
-            command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
-            command.CommandText = text;
+            switch (nameType)
+            {
+                case DbCommandType.SelectChanges:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
+                    break;
+                case DbCommandType.SelectInitializedChanges:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges, filter);
+                    break;
+                case DbCommandType.SelectInitializedChangesWithFilters:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+                    break;
+                case DbCommandType.SelectChangesWithFilters:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+                    break;
+                case DbCommandType.SelectRow:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    break;
+                case DbCommandType.UpdateRow:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                    break;
+                case DbCommandType.DeleteRow:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                    break;
+                case DbCommandType.DisableConstraints:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
+                    break;
+                case DbCommandType.EnableConstraints:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
+                    break;
+                case DbCommandType.DeleteMetadata:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
+                    break;
+                case DbCommandType.UpdateMetadata:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    break;
+                case DbCommandType.InsertTrigger:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
+                    break;
+                case DbCommandType.UpdateTrigger:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Update, filter);
+                    break;
+                case DbCommandType.DeleteTrigger:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete, filter);
+                    break;
+                case DbCommandType.BulkTableType:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
+                    break;
+                case DbCommandType.BulkUpdateRows:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                    break;
+                case DbCommandType.BulkDeleteRows:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    break;
+                case DbCommandType.UpdateUntrackedRows:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
+                    break;
+                case DbCommandType.Reset:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    break;
+                default:
+                    throw new NotImplementedException($"This command type {nameType} is not implemented");
+            }
 
             return command;
         }

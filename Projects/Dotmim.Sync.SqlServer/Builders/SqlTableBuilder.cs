@@ -1,6 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Manager;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -11,67 +14,59 @@ namespace Dotmim.Sync.SqlServer.Builders
     /// </summary>
     public class SqlTableBuilder : DbTableBuilder
     {
+        private SqlBuilderProcedure sqlBuilderProcedure;
+        private SqlBuilderTable sqlBuilderTable;
+        private SqlBuilderTrackingTable sqlBuilderTrackingTable;
+        private SqlBuilderTrigger sqlBuilderTrigger;
 
-        public SqlObjectNames ObjectNames { get; private set; }
-
-        public SqlTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
+        public SqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
         {
-            this.ObjectNames = new SqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
+            this.sqlBuilderProcedure = new SqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderTable = new SqlBuilderTable(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderTrackingTable = new SqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderTrigger = new SqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
         }
 
-        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
-        {
-            var originalTableName = ParserName.Parse(tableDescription);
+        public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetCreateSchemaCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetCreateTableCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetExistsTableCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetExistsSchemaCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetDropTableCommandAsync(connection, transaction);
 
-            var pref = setup.TrackingTablesPrefix;
-            var suf = setup.TrackingTablesSuffix;
+        public override Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetColumnsAsync(connection, transaction);
+        public override Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetRelationsAsync(connection, transaction);
+        public override Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetPrimaryKeysAsync(connection, transaction);
 
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
 
-            var trakingTableNameString = $"{pref}{originalTableName.ObjectName}{suf}";
+        public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderProcedure.GetExistsStoredProcedureCommandAsync(storedProcedureType, connection, transaction);
+        public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderProcedure.GetCreateStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
+        public override Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderProcedure.GetDropStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
 
-            if (!string.IsNullOrEmpty(originalTableName.SchemaName))
-                trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
+        public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTrackingTable.GetCreateTrackingTableCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTrackingTable.GetDropTrackingTableCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTrackingTable.GetRenameTrackingTableCommandAsync(oldTableName, connection, transaction);
+        public override Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTrackingTable.GetExistsTrackingTableCommandAsync(connection, transaction);
 
-            var trackingTableName = ParserName.Parse(trakingTableNameString);
-
-            return (originalTableName, trackingTableName);
-        }
-        public static string WrapScriptTextWithComments(string commandText, string commentText, bool includeGo = true, int indentLevel = 0)
-        {
-            var stringBuilder = new StringBuilder();
-            var stringBuilder1 = new StringBuilder("\n");
-
-            for (int i = 0; i < indentLevel; i++)
-            {
-                stringBuilder.Append("\t");
-                stringBuilder1.Append("\t");
-            }
-
-            string str = stringBuilder1.ToString();
-            stringBuilder.Append(string.Concat("-- BEGIN ", commentText, str));
-            stringBuilder.Append(commandText);
-            stringBuilder.Append(string.Concat(str, includeGo ? string.Concat("GO", str) : string.Empty));
-            stringBuilder.Append(string.Concat("-- END ", commentText, str, "\n"));
-            return stringBuilder.ToString();
-        }
-
-        public override IDbBuilderProcedureHelper CreateProcBuilder() 
-            => new SqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder() 
-            => new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTableHelper CreateTableBuilder() 
-            => new SqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
-            => new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override SyncAdapter CreateSyncAdapter() 
-            => new SqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
+        public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTrigger.GetExistsTriggerCommandAsync(triggerType, connection, transaction);
+        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTrigger.GetCreateTriggerCommandAsync(triggerType, connection, transaction);
+        public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTrigger.GetDropTriggerCommandAsync(triggerType, connection, transaction);
     }
 }

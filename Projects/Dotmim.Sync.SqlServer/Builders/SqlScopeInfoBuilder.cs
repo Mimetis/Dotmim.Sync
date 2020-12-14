@@ -9,6 +9,7 @@ using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Dotmim.Sync.Manager;
 
 namespace Dotmim.Sync.SqlServer.Scope
 {
@@ -182,7 +183,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                var outputParameter = SqlManager.GetParameter(command, "sync_new_timestamp");
+                var outputParameter = SyncAdapter.GetParameter(command, "sync_new_timestamp");
 
                 if (outputParameter == null)
                     return 0L;

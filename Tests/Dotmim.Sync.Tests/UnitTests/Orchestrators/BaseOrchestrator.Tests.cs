@@ -685,60 +685,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-        [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldCreate_Triggers()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var scopeName = "scope";
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            setup.TrackingTablesSuffix = "sync";
-            setup.TrackingTablesPrefix = "trck";
-
-            setup.TriggersPrefix = "trg_";
-            setup.TriggersSuffix = "_trg";
-
-
-            // trackign table name is composed with prefix and suffix from setup
-            var triggerDelete = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_delete_trigger";
-            var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
-
-            // Needs the tracking table to be able to create triggers
-            var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
-
-            await localOrchestrator.ProvisionAsync(provision);
-
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-
-                var trigDel = await SqlManagementUtils.GetTriggerAsync(c, null, triggerDelete, "SalesLT");
-                Assert.Equal(triggerDelete, trigDel.Rows[0]["Name"].ToString());
-
-                var trigIns = await SqlManagementUtils.GetTriggerAsync(c, null, triggerInsert, "SalesLT");
-                Assert.Equal(triggerInsert, trigIns.Rows[0]["Name"].ToString());
-
-                var trigUdate = await SqlManagementUtils.GetTriggerAsync(c, null, triggerUpdate, "SalesLT");
-                Assert.Equal(triggerUpdate, trigUdate.Rows[0]["Name"].ToString());
-
-                c.Close();
-            }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
+      
         [Fact]
         public async Task BaseOrchestrator_Provision_ShouldCreate_StoredProcedures()
         {

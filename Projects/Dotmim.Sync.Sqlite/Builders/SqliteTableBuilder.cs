@@ -2,7 +2,9 @@ using Dotmim.Sync.Builders;
 using System.Text;
 
 using System.Data.Common;
-
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using Dotmim.Sync.Manager;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -16,28 +18,11 @@ namespace Dotmim.Sync.Sqlite
 
         SqliteObjectNames sqlObjectNames;
 
-        public SqliteTableBuilder(SyncTable tableDescription,  SyncSetup setup) : base(tableDescription, setup)
+        public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
         {
             sqlObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
         }
 
-        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
-        {
-            string tableAndPrefixName = tableDescription.TableName;
-            var originalTableName = ParserName.Parse(tableDescription);
-
-            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
-            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
-
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}");
-
-            return (originalTableName, trackingTableName);
-        }
         public static string WrapScriptTextWithComments(string commandText, string commentText, bool includeGo = true, int indentLevel = 0)
         {
             var stringBuilder = new StringBuilder();
@@ -55,24 +40,24 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        /// <summary>
-        /// Proc are not supported in Sqlite
-        /// </summary>
-        /// <param name="connection"></param>
-        /// <param name="transaction"></param>
-        /// <returns></returns>
-        public override IDbBuilderProcedureHelper CreateProcBuilder() => null;
-
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder() 
-            => new SqliteBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTableHelper CreateTableBuilder() 
-            => new SqliteBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder() 
-            => new SqliteBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-
-        public override SyncAdapter CreateSyncAdapter() 
-            => new SqliteSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
+        
+        public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
     }
 }

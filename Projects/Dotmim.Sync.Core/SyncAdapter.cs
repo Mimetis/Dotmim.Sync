@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 using System.Reflection;
 using System.Collections.Concurrent;
+using System.Text;
 
 namespace Dotmim.Sync
 {
@@ -98,14 +99,14 @@ namespace Dotmim.Sync
                     if (column != null)
                     {
                         object value = row[column] ?? DBNull.Value;
-                        DbTableManagerFactory.SetParameterValue(command, parameter.ParameterName, value);
+                        SyncAdapter.SetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
 
             }
 
             // return value
-            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 syncRowCountParam.Direction = ParameterDirection.Output;
@@ -423,7 +424,7 @@ namespace Dotmim.Sync
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowDeletedCount = (int)syncRowCountParam.Value;
@@ -450,7 +451,7 @@ namespace Dotmim.Sync
             var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowUpdatedCount = (int)syncRowCountParam.Value;
@@ -468,14 +469,13 @@ namespace Dotmim.Sync
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;
 
             return rowAffected;
         }
-
 
         /// <summary>
         /// Delete all metadatas from one table before a timestamp limit
@@ -485,12 +485,12 @@ namespace Dotmim.Sync
             var command = await this.PrepareCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
             // Set the special parameters for delete metadata
-            DbTableManagerFactory.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+            SyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
             var metadataDeletedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 metadataDeletedRowsCount = (int)syncRowCountParam.Value;
@@ -515,7 +515,7 @@ namespace Dotmim.Sync
             var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = DbTableManagerFactory.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
@@ -563,10 +563,10 @@ namespace Dotmim.Sync
         private void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
-            DbTableManagerFactory.SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
-            DbTableManagerFactory.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
-            DbTableManagerFactory.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
-            DbTableManagerFactory.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
+            SyncAdapter.SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
+            SyncAdapter.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
+            SyncAdapter.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
+            SyncAdapter.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
         /// <summary>
@@ -598,5 +598,88 @@ namespace Dotmim.Sync
 
             return changesTable;
         }
+
+
+        /// <summary>
+        /// Get a parameter even if it's a @param or :param or param
+        /// </summary>
+        public static DbParameter GetParameter(DbCommand command, string parameterName)
+        {
+            if (command == null)
+                return null;
+
+            if (command.Parameters.Contains($"@{parameterName}"))
+                return command.Parameters[$"@{parameterName}"];
+
+            if (command.Parameters.Contains($":{parameterName}"))
+                return command.Parameters[$":{parameterName}"];
+
+            if (command.Parameters.Contains($"in_{parameterName}"))
+                return command.Parameters[$"in_{parameterName}"];
+
+            if (!command.Parameters.Contains(parameterName))
+                return null;
+
+            return command.Parameters[parameterName];
+        }
+
+        /// <summary>
+        /// Set a parameter value
+        /// </summary>
+        public static void SetParameterValue(DbCommand command, string parameterName, object value)
+        {
+            var parameter = GetParameter(command, parameterName);
+            if (parameter == null)
+                return;
+
+            if (value == null || value == DBNull.Value)
+                parameter.Value = DBNull.Value;
+            else
+                parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
+
+
+        }
+
+        public static int GetSyncIntOutParameter(string parameter, DbCommand command)
+        {
+            DbParameter dbParameter = GetParameter(command, parameter);
+            if (dbParameter == null || dbParameter.Value == null || string.IsNullOrEmpty(dbParameter.Value.ToString()))
+                return 0;
+
+            return int.Parse(dbParameter.Value.ToString(), CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Parse a time stamp value
+        /// </summary>
+        public static long ParseTimestamp(object obj)
+        {
+            if (obj == DBNull.Value)
+                return 0;
+
+            if (obj is long || obj is int || obj is ulong || obj is uint || obj is decimal)
+                return Convert.ToInt64(obj, NumberFormatInfo.InvariantInfo);
+            long timestamp;
+            if (obj is string str)
+            {
+                long.TryParse(str, NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out timestamp);
+                return timestamp;
+            }
+
+            if (!(obj is byte[] numArray))
+                return 0;
+
+            var stringBuilder = new StringBuilder();
+            for (int i = 0; i < numArray.Length; i++)
+            {
+                string str1 = numArray[i].ToString("X", NumberFormatInfo.InvariantInfo);
+                stringBuilder.Append((str1.Length == 1 ? string.Concat("0", str1) : str1));
+            }
+
+            long.TryParse(stringBuilder.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out timestamp);
+            return timestamp;
+        }
+
+
     }
 }

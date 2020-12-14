@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
-    public class SqlChangeTrackingBuilderTrackingTable : IDbBuilderTrackingTableHelper
+    public class SqlChangeTrackingBuilderTrackingTable
     {
         private ParserName tableName;
         private ParserName trackingName;

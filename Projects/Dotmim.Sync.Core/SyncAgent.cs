@@ -368,13 +368,6 @@ namespace Dotmim.Sync
             // Lock sync to prevent multi call to sync at the same time
             LockSync();
 
-            //logger.LogError(SyncStage.BeginSession, "Session Begins");
-            //logger.LogWarning(SyncStage.BeginSession, "Session Begins");
-            //logger.LogTrace(SyncStage.BeginSession, "Session Begins");
-            //logger.LogInformation(SyncStage.BeginSession, "Session Begins");
-            //logger.LogDebug(SyncStage.BeginSession, "Session Begins");
-            //logger.LogCritical(SyncStage.BeginSession, "Session Begins");
-
             // Context, used to back and forth data between servers
             var context = new SyncContext(Guid.NewGuid(), this.ScopeName)
             {

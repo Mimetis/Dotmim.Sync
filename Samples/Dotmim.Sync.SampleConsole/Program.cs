@@ -46,7 +46,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeAsync();
+        await SyncHttpThroughKestrellAsync();
 
     }
 
@@ -167,45 +167,44 @@ internal class Program
         });
 
 
-        using (var server = new KestrellTestServer(configureServices))
+        using var server = new KestrellTestServer(configureServices);
+
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            do
             {
-                do
+                Console.Clear();
+                Console.WriteLine("Web sync start");
+                try
                 {
-                    Console.Clear();
-                    Console.WriteLine("Web sync start");
-                    try
-                    {
-                        var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new CustomMessagePackSerializerFactory());
-                        var agent = new SyncAgent(clientProvider, webClientOrchestrator);
+                    var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new CustomMessagePackSerializerFactory());
+                    var agent = new SyncAgent(clientProvider, webClientOrchestrator);
 
                         // Launch the sync process
                         if (!agent.Parameters.Contains("CompanyName"))
-                            agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+                        agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
 
-                        var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                        Console.WriteLine(s);
-                    }
-                    catch (SyncException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                    }
-
-
-                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                    var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
 
 
-            });
-            await server.Run(serverHandler, clientHandler);
-        }
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+        });
+        await server.Run(serverHandler, clientHandler);
     }
 
 
@@ -847,6 +846,7 @@ internal class Program
         Console.WriteLine();
         Console.WriteLine("SECOND PARALLEL SYNC");
         Console.WriteLine("--------------------");
+
 
         agent.LocalOrchestrator.OnDatabaseChangesSelecting(dcsa =>
         {

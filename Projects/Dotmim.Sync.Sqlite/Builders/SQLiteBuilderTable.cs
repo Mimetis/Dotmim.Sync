@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
-    public class SqliteBuilderTable : IDbBuilderTableHelper
+    public class SqliteBuilderTable
     {
         private ParserName tableName;
         private ParserName trackingName;

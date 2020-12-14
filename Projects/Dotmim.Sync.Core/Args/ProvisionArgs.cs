@@ -39,10 +39,9 @@ namespace Dotmim.Sync
         public override int EventId => 22;
     }
 
-
     public class TableDeprovisionedArgs : TableProvisionedArgs
     {
-        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null) 
+        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, provision, schemaTable, connection, transaction)
         {
         }
@@ -95,7 +94,7 @@ namespace Dotmim.Sync
 
     public class DatabaseDeprovisionedArgs : DatabaseProvisionedArgs
     {
-        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null) 
+        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, provision, schema, connection, transaction)
         {
         }
@@ -109,4 +108,6 @@ namespace Dotmim.Sync
         }
         public override int EventId => 27;
     }
+
+
 }
