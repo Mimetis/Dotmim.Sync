@@ -245,7 +245,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncFilter GetFilter()
         {
-            if (this.Schema.Filters == null || this.Schema.Filters.Count <= 0)
+            if (this.Schema == null || this.Schema.Filters == null || this.Schema.Filters.Count <= 0)
                 return null;
 
             return this.Schema.Filters.FirstOrDefault(sf =>

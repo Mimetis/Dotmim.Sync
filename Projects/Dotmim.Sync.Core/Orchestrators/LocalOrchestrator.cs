@@ -201,300 +201,199 @@ namespace Dotmim.Sync
         /// Get changes from local database
         /// </summary>
         /// <returns></returns>
-        public async Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)> GetChangesAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)> GetChangesAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(async (ctx, connection, transaction) =>
         {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
             // Output
             long clientTimestamp = 0L;
             BatchInfo clientBatchInfo = null;
             DatabaseChangesSelected clientChangesSelected = null;
+            ctx.SyncStage = SyncStage.ChangesSelecting;
 
-            // Get context or create a new one
-            var ctx = this.GetContext();
-            using (var connection = this.Provider.CreateConnection())
+            // Get local scope, if not provided 
+            if (localScopeInfo == null)
             {
-                try
-                {
-                    ctx.SyncStage = SyncStage.ChangesSelecting;
+                ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        // Get local scope, if not provided 
-                        if (localScopeInfo == null)
-                        {
-                            ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                            (ctx, localScopeInfo) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                        }
-
-                        // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
-                        if (localScopeInfo.Schema == null)
-                            throw new MissingLocalOrchestratorSchemaException();
-
-                        this.logger.LogInformation(SyncEventsId.GetClientScope, localScopeInfo);
-
-                        // On local, we don't want to chase rows from "others" 
-                        // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
-                        Guid? remoteScopeId = null;
-                        // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
-                        var lastSyncTS = localScopeInfo.LastSyncTimestamp;
-                        // isNew : If isNew, lasttimestamp is not correct, so grab all
-                        var isNew = localScopeInfo.IsNewScope;
-                        //Direction set to Upload
-                        ctx.SyncWay = SyncWay.Upload;
-
-                        // JUST before the whole process, get the timestamp, to be sure to 
-                        // get rows inserted / updated elsewhere since the sync is not over
-                        clientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
-
-                        // Creating the message
-                        var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
-
-                        // Call interceptor
-                        await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        this.logger.LogDebug(SyncEventsId.GetChanges, message);
-
-                        // Locally, if we are new, no need to get changes
-                        if (isNew)
-                            (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(message).ConfigureAwait(false);
-                        else
-                            (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    // Event progress & interceptor
-                    ctx.SyncStage = SyncStage.ChangesSelected;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, clientTimestamp, clientBatchInfo, clientChangesSelected, connection);
-                    this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
-                    await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-
-                this.logger.LogInformation(SyncEventsId.GetChanges, new { ClientTimestamp = clientTimestamp, ClientBatchInfo = clientBatchInfo, ClientChangesSelected = clientChangesSelected });
-
-                return (clientTimestamp, clientBatchInfo, clientChangesSelected);
+                (ctx, localScopeInfo) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
-        }
+
+            // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
+            if (localScopeInfo.Schema == null)
+                throw new MissingLocalOrchestratorSchemaException();
+
+            this.logger.LogInformation(SyncEventsId.GetClientScope, localScopeInfo);
+
+            // On local, we don't want to chase rows from "others" 
+            // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
+            Guid? remoteScopeId = null;
+            // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
+            var lastSyncTS = localScopeInfo.LastSyncTimestamp;
+            // isNew : If isNew, lasttimestamp is not correct, so grab all
+            var isNew = localScopeInfo.IsNewScope;
+            //Direction set to Upload
+            ctx.SyncWay = SyncWay.Upload;
+
+            // JUST before the whole process, get the timestamp, to be sure to 
+            // get rows inserted / updated elsewhere since the sync is not over
+            clientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+
+            // Creating the message
+            var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
+
+            // Call interceptor
+            await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+            // Locally, if we are new, no need to get changes
+            if (isNew)
+                (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(message).ConfigureAwait(false);
+            else
+                (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+            // Event progress & interceptor
+            ctx.SyncStage = SyncStage.ChangesSelected;
+
+            await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+            var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, clientTimestamp, clientBatchInfo, clientChangesSelected, connection);
+            this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
+            await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+
+            return (clientTimestamp, clientBatchInfo, clientChangesSelected);
+        }, cancellationToken);
 
 
         /// <summary>
         /// Get estimated changes from local database to be sent to the server
         /// </summary>
         /// <returns></returns>
-        public async Task<(long ClientTimestamp, DatabaseChangesSelected ClientChangesSelected)> GetEstimatedChangesCountAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
-            // Output
-            long clientTimestamp = 0L;
-            DatabaseChangesSelected clientChangesSelected = null;
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
-            using (var connection = this.Provider.CreateConnection())
+        public Task<(long ClientTimestamp, DatabaseChangesSelected ClientChangesSelected)> GetEstimatedChangesCountAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => RunInTransactionAsync(async (ctx, connection, transaction) =>
             {
-                try
+                // Output
+                long clientTimestamp = 0L;
+                DatabaseChangesSelected clientChangesSelected = null;
+
+                ctx.SyncStage = SyncStage.ChangesSelecting;
+
+                // Get local scope, if not provided 
+                if (localScopeInfo == null)
                 {
-                    ctx.SyncStage = SyncStage.ChangesSelecting;
+                    ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        // Get local scope, if not provided 
-                        if (localScopeInfo == null)
-                        {
-                            ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                            (ctx, localScopeInfo) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                        }
-
-                        // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
-                        if (localScopeInfo.Schema == null)
-                            throw new MissingLocalOrchestratorSchemaException();
-
-                        this.logger.LogInformation(SyncEventsId.GetClientScope, localScopeInfo);
-
-                        // On local, we don't want to chase rows from "others" 
-                        // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
-                        Guid? remoteScopeId = null;
-                        // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
-                        var lastSyncTS = localScopeInfo.LastSyncTimestamp;
-                        // isNew : If isNew, lasttimestamp is not correct, so grab all
-                        var isNew = localScopeInfo.IsNewScope;
-                        //Direction set to Upload
-                        ctx.SyncWay = SyncWay.Upload;
-
-                        // JUST before the whole process, get the timestamp, to be sure to 
-                        // get rows inserted / updated elsewhere since the sync is not over
-                        clientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
-
-                        // Creating the message
-                        // Since it's an estimated count, we don't need to create batches, so we hard code the batchsize to 0
-                        var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory);
-
-                        // Call interceptor
-                        await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        this.logger.LogDebug(SyncEventsId.GetChanges, message);
-
-                        // Locally, if we are new, no need to get changes
-                        if (isNew)
-                            clientChangesSelected = new DatabaseChangesSelected();
-                        else
-                            (ctx, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    // Event progress & interceptor
-                    ctx.SyncStage = SyncStage.ChangesSelected;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
+                    (ctx, localScopeInfo) = await this.Provider.GetClientScopeAsync(ctx, this.Options.ScopeInfoTableName, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                this.logger.LogInformation(SyncEventsId.GetChanges, new { ClientTimestamp = clientTimestamp, ClientChangesSelected = clientChangesSelected });
+                // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
+                if (localScopeInfo.Schema == null)
+                    throw new MissingLocalOrchestratorSchemaException();
+
+                this.logger.LogInformation(SyncEventsId.GetClientScope, localScopeInfo);
+
+                // On local, we don't want to chase rows from "others" 
+                // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
+                Guid? remoteScopeId = null;
+                // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
+                var lastSyncTS = localScopeInfo.LastSyncTimestamp;
+                // isNew : If isNew, lasttimestamp is not correct, so grab all
+                var isNew = localScopeInfo.IsNewScope;
+                //Direction set to Upload
+                ctx.SyncWay = SyncWay.Upload;
+
+                // JUST before the whole process, get the timestamp, to be sure to 
+                // get rows inserted / updated elsewhere since the sync is not over
+                clientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+
+                // Creating the message
+                // Since it's an estimated count, we don't need to create batches, so we hard code the batchsize to 0
+                var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory);
+
+                // Call interceptor
+                await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                // Locally, if we are new, no need to get changes
+                if (isNew)
+                    clientChangesSelected = new DatabaseChangesSelected();
+                else
+                    (ctx, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+                // Event progress & interceptor
+                ctx.SyncStage = SyncStage.ChangesSelected;
+
 
                 return (clientTimestamp, clientChangesSelected);
-            }
-        }
+            }, cancellationToken);
 
         /// <summary>
         /// Apply changes locally
         /// </summary>
-        internal async Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)> ApplyChangesAsync(ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
+        internal Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)> ApplyChangesAsync(ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy,
                               CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(async (ctx, connection, transaction) =>
         {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
+            ctx.SyncStage = SyncStage.ChangesApplying;
 
-            // Get context or create a new one
-            var ctx = this.GetContext();
             DatabaseChangesApplied clientChangesApplied = null;
 
-            using (var connection = this.Provider.CreateConnection())
-            {
-                try
-                {
-                    ctx.SyncStage = SyncStage.ChangesApplying;
+            // lastSyncTS : apply lines only if they are not modified since last client sync
+            var lastSyncTS = scope.LastSyncTimestamp;
+            // isNew : if IsNew, don't apply deleted rows from server
+            var isNew = scope.IsNewScope;
+            // We are in downloading mode
+            ctx.SyncWay = SyncWay.Download;
 
 
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+            // Create the message containing everything needed to apply changes
+            var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, this.Setup, policy,
+                            this.Options.DisableConstraintsOnApplyChanges,
+                            this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder,
+                            serverBatchInfo);
 
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+            // call interceptor
+            await this.InterceptAsync(new DatabaseChangesApplyingArgs(ctx, applyChanges, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        // lastSyncTS : apply lines only if they are not modified since last client sync
-                        var lastSyncTS = scope.LastSyncTimestamp;
-                        // isNew : if IsNew, don't apply deleted rows from server
-                        var isNew = scope.IsNewScope;
-                        // We are in downloading mode
-                        ctx.SyncWay = SyncWay.Download;
+            // Call apply changes on provider
+            (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(ctx, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
-                        // Create the message containing everything needed to apply changes
-                        var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, this.Setup, policy,
-                                        this.Options.DisableConstraintsOnApplyChanges,
-                                        this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder,
-                                        serverBatchInfo);
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
 
-                        // call interceptor
-                        await this.InterceptAsync(new DatabaseChangesApplyingArgs(ctx, applyChanges, connection, transaction), cancellationToken).ConfigureAwait(false);
+            // check if we need to delete metadatas
+            if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0)
+                await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, lastSyncTS, connection, transaction, cancellationToken, progress);
 
-                        // Call apply changes on provider
-                        (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(ctx, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            // now the sync is complete, remember the time
+            this.CompleteTime = DateTime.UtcNow;
+
+            // generate the new scope item
+            scope.IsNewScope = false;
+            scope.LastSync = this.CompleteTime;
+            scope.LastSyncTimestamp = clientTimestamp;
+            scope.LastServerSyncTimestamp = remoteClientTimestamp;
+            scope.LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks;
+            scope.Setup = this.Setup;
+
+            // Write scopes locally
+            ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
-                        if (cancellationToken.IsCancellationRequested)
-                            cancellationToken.ThrowIfCancellationRequested();
+            ctx.SyncStage = SyncStage.ChangesApplied;
 
-                        // check if we need to delete metadatas
-                        if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0)
-                            await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, lastSyncTS, connection, transaction, cancellationToken, progress);
+            await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                        // now the sync is complete, remember the time
-                        this.CompleteTime = DateTime.UtcNow;
+            this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
 
-                        // generate the new scope item
-                        scope.IsNewScope = false;
-                        scope.LastSync = this.CompleteTime;
-                        scope.LastSyncTimestamp = clientTimestamp;
-                        scope.LastServerSyncTimestamp = remoteClientTimestamp;
-                        scope.LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks;
-                        scope.Setup = this.Setup;
+            var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(ctx, clientChangesApplied, connection);
+            await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
+            this.ReportProgress(ctx, progress, databaseChangesAppliedArgs);
 
-                        // Write scopes locally
-                        ctx = await this.Provider.WriteClientScopeAsync(ctx, this.Options.ScopeInfoTableName, scope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.ChangesApplied;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
-
-                    var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(ctx, clientChangesApplied, connection);
-                    await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, databaseChangesAppliedArgs);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-                return (clientChangesApplied, scope);
-            }
-        }
+            return (clientChangesApplied, scope);
+        }, cancellationToken);
 
 
         /// <summary>
@@ -502,6 +401,8 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)> ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+
+            // TODO : this value is ovewritten in this.ApplyChangesAsync, 10 lines later...
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
@@ -542,7 +443,6 @@ namespace Dotmim.Sync
 
         }
 
-
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from scope info table
         /// </summary>
@@ -573,7 +473,7 @@ namespace Dotmim.Sync
             var ctx = this.GetContext();
 
             using var connection = this.Provider.CreateConnection();
-            
+
             try
             {
                 ctx.SyncStage = SyncStage.Migrating;

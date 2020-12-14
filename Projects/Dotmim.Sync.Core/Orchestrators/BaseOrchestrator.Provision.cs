@@ -31,8 +31,7 @@ namespace Dotmim.Sync
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
         /// <returns>Full schema with table and columns properties</returns>
         public virtual Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.OperationSchemaAsync(new Func<SyncContext, DbConnection, DbTransaction, Task<SyncSet>>(async (ctx, connection, transaction) =>
-
+            => RunInTransactionAsync(new Func<SyncContext, DbConnection, DbTransaction, Task<SyncSet>>(async (ctx, connection, transaction) =>
             {
                 // Check incompatibility with the flags
                 if (this is LocalOrchestrator && (provision.HasFlag(SyncProvision.ServerHistoryScope) || provision.HasFlag(SyncProvision.ServerScope)))
@@ -42,12 +41,10 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                this.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = this.Options.ScopeInfoTableName });
+                ctx.SyncStage = SyncStage.Provisioning;
 
                 ctx = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                
-                // ------
-
                 ctx.SyncStage = SyncStage.Provisioned;
 
                 var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
@@ -56,11 +53,13 @@ namespace Dotmim.Sync
 
                 return schema;
 
-            }), schema, progress, cancellationToken);
+            }), cancellationToken);
 
 
         internal async Task<SyncContext> InternalProvisionAsync(SyncContext ctx, SyncSet schema, SyncProvision provision, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
+            this.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = this.Options.ScopeInfoTableName });
+
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
 
@@ -163,7 +162,7 @@ namespace Dotmim.Sync
         /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
         public virtual Task DeprovisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => OperationSchemaAsync(new Func<SyncContext, DbConnection, DbTransaction, Task<bool>>(async (ctx, connection, transaction) =>
+            => RunInTransactionAsync(new Func<SyncContext, DbConnection, DbTransaction, Task<bool>>(async (ctx, connection, transaction) =>
             {
                 this.logger.LogInformation(SyncEventsId.Deprovision, new { connection.Database, Provision = provision });
 
@@ -279,7 +278,7 @@ namespace Dotmim.Sync
                 this.ReportProgress(ctx, progress, args);
 
                 return true;
-            }), schema, progress, cancellationToken);
+            }), cancellationToken);
 
     }
 }
