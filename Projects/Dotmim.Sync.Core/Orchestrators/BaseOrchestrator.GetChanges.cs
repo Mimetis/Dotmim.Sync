@@ -299,7 +299,7 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        private async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, SyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
+        internal async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, SyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
         {
             DbCommand command;
             DbCommandType dbCommandType;
@@ -333,7 +333,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set common parameters to SelectChanges Sql command
         /// </summary>
-        private void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long lastTimestamp, DbCommand selectIncrementalChangesCommand)
+        internal void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
             // Generate the isNewScope Flag.
             var isNewScope = isNew ? 1 : 0;
@@ -391,7 +391,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new SyncRow from a dataReader.
         /// </summary>
-        private SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table)
+        internal SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table)
         {
             // Create a new row, based on table structure
             var row = table.NewRow();
