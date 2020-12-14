@@ -132,17 +132,22 @@ namespace Dotmim.Sync
         public static EventId CreateSnapshotSummary => CreateEventId(action + 26, nameof(CreateSnapshotSummary));
         public static EventId LoadSnapshotSummary => CreateEventId(action + 27, nameof(LoadSnapshotSummary));
         public static EventId DirectoryNotExists => CreateEventId(action + 28, nameof(DirectoryNotExists));
+
         public static EventId CreateTable => CreateEventId(action + 29, nameof(CreateTable));
+        public static EventId CreateSchemaName => CreateEventId(action + 29, nameof(CreateSchemaName));
         public static EventId DropTable => CreateEventId(action + 30, nameof(DropTable));
         public static EventId ResetTable => CreateEventId(action + 31, nameof(ResetTable));
+
+        public static EventId CreateTrackingTable => CreateEventId(action + 29, nameof(CreateTrackingTable));
+        public static EventId DropTrackingTable => CreateEventId(action + 30, nameof(DropTrackingTable));
+        public static EventId RenameTrackingTable => CreateEventId(action + 31, nameof(RenameTrackingTable));
+
         public static EventId ResolveConflicts => CreateEventId(action + 32, nameof(ResolveConflicts));
 
         public static EventId CreateTrigger => CreateEventId(action + 33, nameof(CreateTrigger));
-        public static EventId ExistTrigger => CreateEventId(action + 34, nameof(CreateTrigger));
         public static EventId DropTrigger => CreateEventId(action + 35, nameof(DropTrigger));
 
         public static EventId CreateStoredProcedure => CreateEventId(action + 36, nameof(CreateStoredProcedure));
-        public static EventId ExistStoredProcedure => CreateEventId(action + 37, nameof(ExistStoredProcedure));
         public static EventId DropStoredProcedure => CreateEventId(action + 38, nameof(DropStoredProcedure));
 
         public static EventId EnableConstraints => CreateEventId(action + 39, nameof(EnableConstraints));
