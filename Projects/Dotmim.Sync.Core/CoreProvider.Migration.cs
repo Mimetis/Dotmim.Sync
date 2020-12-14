@@ -43,22 +43,23 @@ namespace Dotmim.Sync
 
                 var tableBuilder = this.GetTableBuilder(new SyncTable(migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName), oldSetup);
 
-                // set if the builder supports creating the bulk operations proc stock
-                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
-                tableBuilder.UseChangeTracking = this.UseChangeTracking;
-
                 // Deprovision
-                if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
-                    await tableBuilder.DropStoredProceduresAsync(connection, transaction);
+                //if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
+                //    await tableBuilder.DropStoredProceduresAsync(connection, transaction);
 
                 if (migrationTable.Triggers == MigrationAction.Drop || migrationTable.Triggers == MigrationAction.CreateOrRecreate)
-                    await tableBuilder.DropTriggersAsync(connection, transaction);
+                {
+                    // reimplement
+                    //await tableBuilder.DropTriggerAsync(DbTriggerType.Insert, connection, transaction);
+                    //await tableBuilder.DropTriggerAsync(DbTriggerType.Update, connection, transaction);
+                    //await tableBuilder.DropTriggerAsync(DbTriggerType.Delete, connection, transaction);
+                }
 
-                if (migrationTable.TrackingTable == MigrationAction.Drop || migrationTable.TrackingTable == MigrationAction.CreateOrRecreate)
-                    await tableBuilder.DropTrackingTableAsync(connection, transaction);
+                //if (migrationTable.TrackingTable == MigrationAction.Drop || migrationTable.TrackingTable == MigrationAction.CreateOrRecreate)
+                //    await tableBuilder.DropTrackingTableAsync(connection, transaction);
 
-                if (includeTable && (migrationTable.Table == MigrationAction.Drop || migrationTable.Table == MigrationAction.CreateOrRecreate))
-                    await tableBuilder.DropTableAsync(connection, transaction);
+                //if (includeTable && (migrationTable.Table == MigrationAction.Drop || migrationTable.Table == MigrationAction.CreateOrRecreate))
+                //    await tableBuilder.DropTableAsync(connection, transaction);
 
             }
 
@@ -74,15 +75,11 @@ namespace Dotmim.Sync
 
                 var tableBuilder = this.GetTableBuilder(syncTable, newSetup);
 
-                // set if the builder supports creating the bulk operations proc stock
-                tableBuilder.UseBulkProcedures = this.SupportBulkOperations;
-                tableBuilder.UseChangeTracking = this.UseChangeTracking;
-
                 // Re provision table
                 if (migrationTable.Table == MigrationAction.CreateOrRecreate && includeTable)
                 {
-                    await tableBuilder.DropTableAsync(connection, transaction);
-                    await tableBuilder.CreateTableAsync(connection, transaction);
+                    //await tableBuilder.DropTableAsync(connection, transaction);
+                    //await tableBuilder.CreateTableAsync(connection, transaction);
                 }
 
 
@@ -95,30 +92,30 @@ namespace Dotmim.Sync
 
                     var oldTableName = oldTableBuilder.TrackingTableName;
 
-                    if (oldTable != null)
-                        await tableBuilder.RenameTrackingTableAsync(oldTableName, connection, transaction);
+                    //if (oldTable != null)
+                    //    await tableBuilder.RenameTrackingTableAsync(oldTableName, connection, transaction);
                 }
                 else if (migrationTable.TrackingTable == MigrationAction.CreateOrRecreate)
                 {
-                    await tableBuilder.DropTrackingTableAsync(connection, transaction);
-                    await tableBuilder.CreateTrackingTableAsync(connection, transaction);
+                    //await tableBuilder.DropTrackingTableAsync(connection, transaction);
+                    //await tableBuilder.CreateTrackingTableAsync(connection, transaction);
                 }
 
                 // Re provision stored procedures
                 if (migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
                 {
-                    await tableBuilder.DropStoredProceduresAsync(connection, transaction);
-                    await tableBuilder.CreateStoredProceduresAsync(connection, transaction);
+                    //await tableBuilder.DropStoredProceduresAsync(connection, transaction);
+                    //await tableBuilder.CreateStoredProceduresAsync(connection, transaction);
                 }
 
                 // Re provision triggers
                 if (migrationTable.Triggers == MigrationAction.CreateOrRecreate)
                 {
-                    await tableBuilder.DropTriggersAsync(connection, transaction);
-                    await tableBuilder.CreateTriggersAsync(connection, transaction);
+                    // TODO : Re implement
+                    //await tableBuilder.CreateTriggerAsync(DbTriggerType.Delete, true, connection, transaction);
+                    //await tableBuilder.CreateTriggerAsync(DbTriggerType.Insert, true, connection, transaction);
+                    //await tableBuilder.CreateTriggerAsync(DbTriggerType.Update, true, connection, transaction);
                 }
-
-               
             }
             return context;
         }

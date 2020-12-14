@@ -16,29 +16,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlChangeTrackingBuilderTrigger : SqlBuilderTrigger
     {
-
-
         public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
             : base(tableDescription, tableName, trackingName, setup)
         {
         }
-        public override Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
-            => Task.CompletedTask;
 
-        public override Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
-            => Task.CompletedTask;
-
-        public override Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
-            => Task.CompletedTask;
-
-        public override Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction) 
-            => Task.CompletedTask;
-
-        public override Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction) 
-            => Task.CompletedTask;
-
-        public override Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction) 
-            => Task.CompletedTask;
-
+        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => null;
+        public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => null;
+        public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => null;
     }
+
+
 }

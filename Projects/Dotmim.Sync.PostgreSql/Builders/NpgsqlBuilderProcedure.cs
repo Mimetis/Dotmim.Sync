@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Postgres.Builders
 {
-    public class NpgsqlBuilderProcedure : IDbBuilderProcedureHelper
+    public class NpgsqlBuilderProcedure : IDbBuilderStoreProcedureCommands
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -1113,5 +1113,11 @@ namespace Dotmim.Sync.Postgres.Builders
         {
             throw new NotImplementedException();
         }
+
+        public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetExistsBulkTypeCommandAsync(DbBulkType bulkType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetCreateBulkTypeCommandAsync(DbBulkType bulkType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, bool overwrite, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
     }
 }

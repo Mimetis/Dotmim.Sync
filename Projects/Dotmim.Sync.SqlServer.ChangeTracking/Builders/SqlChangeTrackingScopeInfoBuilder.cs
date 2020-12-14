@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.SqlServer.Manager;
+﻿using Dotmim.Sync.Manager;
+using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.SqlServer.Scope;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
@@ -32,7 +33,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                var outputParameter = SqlManager.GetParameter(command, "sync_new_timestamp");
+                var outputParameter = SyncAdapter.GetParameter(command, "sync_new_timestamp");
 
                 if (outputParameter == null)
                     return 0L;

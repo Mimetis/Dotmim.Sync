@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
-    public class MySqlBuilderProcedure : IDbBuilderProcedureHelper
+    public class MySqlBuilderProcedure
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -831,16 +831,11 @@ namespace Dotmim.Sync.MySql
             }
         }
 
-
-
         public Task CreateTVPTypeAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
-
 
         public Task CreateBulkUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
 
-
         public Task CreateBulkDeleteAsync(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
-
 
         private async Task DropProcedureAsync(DbCommandType procType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
@@ -863,7 +858,6 @@ namespace Dotmim.Sync.MySql
                 }
             }
         }
-
 
         public Task DropSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.SelectInitializedChanges, filter, connection, transaction);
         public Task DropSelectRowAsync(DbConnection connection, DbTransaction transaction) => this.DropProcedureAsync(DbCommandType.SelectRow, null, connection, transaction);
@@ -936,7 +930,6 @@ namespace Dotmim.Sync.MySql
 
             return sqlCommand;
         }
-
         public async Task CreateSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.mySqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
@@ -953,5 +946,8 @@ namespace Dotmim.Sync.MySql
 
         }
 
+        public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
     }
 }

@@ -57,17 +57,17 @@ namespace Dotmim.Sync.Postgres.Builders
             return stringBuilder.ToString();
         }
 
-        public override IDbBuilderProcedureHelper CreateProcBuilder()
+        public override IDbBuilderStoreProcedureCommands GetStoredProceduresCommands()
         {
             return new NpgsqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
 
-        public override IDbBuilderTriggerHelper CreateTriggerBuilder()
+        public override IDbBuilderTriggerCommands GetTriggerCommands()
         {
             return new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }
 
-        public override IDbBuilderTableHelper CreateTableBuilder()
+        public override IDbBuilderTableHelper GetTableCommands()
         {
             return new NpgsqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
         }

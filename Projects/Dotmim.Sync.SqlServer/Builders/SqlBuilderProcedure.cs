@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlBuilderProcedure : IDbBuilderProcedureHelper
+    public class SqlBuilderProcedure
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -28,6 +28,78 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.trackingName = trackingName;
             this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, setup);
             this.sqlDbMetadata = new SqlDbMetadata();
+        }
+
+        public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction)
+        {
+            var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType);
+
+            var procedureName = ParserName.Parse(quotedProcedureName).ToString();
+
+            var text = "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+            if (storedProcedureType == DbStoredProcedureType.BulkTableType)
+                text = "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+            var sqlCommand = connection.CreateCommand();
+
+            if (transaction != null)
+                sqlCommand.Transaction = transaction;
+
+            sqlCommand.CommandText = text;
+
+            var p = sqlCommand.CreateParameter();
+            p.ParameterName = "@procName";
+            p.Value = procedureName;
+            sqlCommand.Parameters.Add(p);
+
+            p = sqlCommand.CreateParameter();
+            p.ParameterName = "@schemaName";
+            p.Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName));
+            sqlCommand.Parameters.Add(p);
+
+            return Task.FromResult(sqlCommand);
+        }
+
+        public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+
+        {
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows);
+            var text = $"DROP PROCEDURE {commandName};";
+
+            if (storedProcedureType == DbStoredProcedureType.BulkTableType)
+                text = $"DROP TYPE {commandName};";
+
+            var sqlCommand = connection.CreateCommand();
+
+            if (transaction != null)
+                sqlCommand.Transaction = transaction;
+
+            sqlCommand.CommandText = text;
+
+            return Task.FromResult(sqlCommand);
+        }
+
+        public Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        {
+            var command = storedProcedureType switch
+            {
+                DbStoredProcedureType.SelectChanges => this.CreateSelectIncrementalChangesCommand(connection, transaction),
+                DbStoredProcedureType.SelectChangesWithFilters => this.CreateSelectIncrementalChangesWithFilterCommand(filter, connection, transaction),
+                DbStoredProcedureType.SelectInitializedChanges => this.CreateSelectInitializedChangesCommand(connection, transaction),
+                DbStoredProcedureType.SelectInitializedChangesWithFilters => this.CreateSelectInitializedChangesWithFilterCommand(filter, connection, transaction),
+                DbStoredProcedureType.SelectRow => this.CreateSelectRowCommand(connection, transaction),
+                DbStoredProcedureType.UpdateRow => this.CreateUpdateCommand(connection, transaction),
+                DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
+                DbStoredProcedureType.DeleteMetadata => this.CreateDeleteMetadataCommand(connection, transaction),
+                DbStoredProcedureType.BulkTableType => this.CreateBulkTableTypeCommand(connection, transaction),
+                DbStoredProcedureType.BulkUpdateRows => this.CreateBulkUpdateCommand(connection, transaction),
+                DbStoredProcedureType.BulkDeleteRows => this.CreateBulkDeleteCommand(connection, transaction),
+                DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
+                _ => throw new NotImplementedException($"this DbStoredProcedureType {storedProcedureType} has no command to create.")
+            };
+
+            return Task.FromResult(command);
         }
 
         protected void AddPkColumnParametersToCommand(SqlCommand sqlCommand)
@@ -104,12 +176,15 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <summary>
-        /// From a SqlCommand, create a stored procedure string
+        /// Create a stored procedure Command
         /// </summary>
-        private string CreateProcedureCommandText(SqlCommand cmd, string procName)
+        protected DbCommand CreateProcedureCommand(Func<SqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
         {
+            var cmd = BuildCommand();
+
             StringBuilder stringBuilder = new StringBuilder(string.Concat("CREATE PROCEDURE ", procName));
             string str = "\n\t";
+
             foreach (SqlParameter parameter in cmd.Parameters)
             {
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
@@ -118,63 +193,34 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("\nAS\nBEGIN\n");
             stringBuilder.Append(cmd.CommandText);
             stringBuilder.Append("\nEND");
-            return stringBuilder.ToString();
-        }
+            var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
-        /// <summary>
-        /// Create a stored procedure
-        /// </summary>
-        protected async Task CreateProcedureCommandAsync(Func<SqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
-        {
-            var str = CreateProcedureCommandText(BuildCommand(), procName);
-
-            var storedProcExists = await SqlManagementUtils.ProcedureExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, procName);
-
-            if (storedProcExists)
-                return;
-
-            using var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction);
-            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            return command;
         }
 
 
-        private async Task CreateProcedureCommandAsync<T>(Func<T, SqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
+        private DbCommand CreateProcedureCommand<T>(Func<T, SqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
-            var str = CreateProcedureCommandText(BuildCommand(t), procName);
+            var cmd = BuildCommand(t);
 
-            var storedProcExists = await SqlManagementUtils.ProcedureExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, procName);
+            StringBuilder stringBuilder = new StringBuilder(string.Concat("CREATE PROCEDURE ", procName));
+            string str = "\n\t";
 
-            if (storedProcExists)
-                return;
-
-            using (var command = new SqlCommand(str, (SqlConnection)connection, (SqlTransaction)transaction))
+            foreach (SqlParameter parameter in cmd.Parameters)
             {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
             }
+            stringBuilder.Append("\nAS\nBEGIN\n");
+            stringBuilder.Append(cmd.CommandText);
+            stringBuilder.Append("\nEND");
+
+            var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+
+            return command;
 
         }
 
-
-        /// <summary>
-        /// Check if we need to create the stored procedure
-        /// </summary>
-        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
-
-            return !await SqlManagementUtils.ProcedureExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, commandName).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Check if we need to create the TVP Type
-        /// </summary>
-        public async Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
-
-            return !await SqlManagementUtils.TypeExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, commandName).ConfigureAwait(false);
-
-        }
 
         protected string BulkSelectUnsuccessfulRows()
         {
@@ -232,7 +278,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
+                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType)
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -311,22 +357,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public Task CreateBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateBulkDeleteCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
-            return CreateProcedureCommandAsync(this.BuildBulkDeleteCommand, commandName, connection, transaction);
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows);
+            return CreateProcedureCommand(this.BuildBulkDeleteCommand, commandName, connection, transaction);
         }
 
-        public async Task DropBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkDeleteRows).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
 
         //------------------------------------------------------------------
         // Bulk Update command
@@ -346,7 +382,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
+                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType)
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -486,33 +522,24 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public Task CreateBulkUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateBulkUpdateCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-            return CreateProcedureCommandAsync(BuildBulkUpdateCommand, commandName, hasMutableColumns, connection, transaction);
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows);
+            
+            // Check if we have mutables columns
+            var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
+
+            return CreateProcedureCommand(BuildBulkUpdateCommand, commandName, hasMutableColumns, connection, transaction);
         }
-
-        public async Task DropBulkUpdateAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkUpdateRows).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-        }
-
 
         //------------------------------------------------------------------
         // Reset command
         //------------------------------------------------------------------
         protected virtual SqlCommand BuildResetCommand()
         {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
+            var updTriggerName = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Update);
+            var delTriggerName = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete);
+            var insTriggerName = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert);
 
             SqlCommand sqlCommand = new SqlCommand();
             SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
@@ -542,21 +569,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateResetAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            return CreateProcedureCommandAsync(BuildResetCommand, commandName, connection, transaction);
-        }
-        public async Task DropResetAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
+            return CreateProcedureCommand(BuildResetCommand, commandName, connection, transaction);
         }
 
         //------------------------------------------------------------------
@@ -646,21 +662,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateDeleteAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateDeleteCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            return CreateProcedureCommandAsync(BuildDeleteCommand, commandName, connection, transaction);
-        }
-        public async Task DropDeleteAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            }
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow);
+            return CreateProcedureCommand(BuildDeleteCommand, commandName, connection, transaction);
         }
 
         //------------------------------------------------------------------
@@ -688,21 +693,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-
-        public Task CreateDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateDeleteMetadataCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            return CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
-        }
-        public async Task DropDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
+            return CreateProcedureCommand(BuildDeleteMetadataCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
         }
 
         //------------------------------------------------------------------
@@ -752,31 +746,23 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public Task CreateSelectRowAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateSelectRowCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            return CreateProcedureCommandAsync(BuildSelectRowCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
-        }
-        public async Task DropSelectRowAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
+            return CreateProcedureCommand(BuildSelectRowCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
         }
 
         //------------------------------------------------------------------
         // Create TVP command
         //------------------------------------------------------------------
-        private string CreateTVPTypeCommandText()
+        private string CreateBulkTableTypeCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType);
+
             stringBuilder.AppendLine($"CREATE TYPE {commandName} AS TABLE (");
             string str = "";
+
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var isPrimaryKey = this.tableDescription.IsPrimaryKey(c.ColumnName);
@@ -805,30 +791,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("))");
             return stringBuilder.ToString();
         }
-        public async Task CreateTVPTypeAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateBulkTableTypeCommand(DbConnection connection, DbTransaction transaction)
         {
-            using (SqlCommand sqlCommand = new SqlCommand(this.CreateTVPTypeCommandText(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-        public async Task DropTVPTypeAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
-            var commandText = $"DROP TYPE {commandName};";
+            var command = new SqlCommand(this.CreateBulkTableTypeCommandText(), (SqlConnection)connection, (SqlTransaction)transaction);
+            return command;
 
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
         }
+
 
         //------------------------------------------------------------------
         // Update command
         //------------------------------------------------------------------
         protected virtual SqlCommand BuildUpdateCommand(bool hasMutableColumns)
         {
-
             var sqlCommand = new SqlCommand();
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderParameters = new StringBuilder();
@@ -999,20 +974,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateUpdateCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            return this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns, (SqlConnection)connection, (SqlTransaction)transaction);
-        }
-        public async Task DropUpdateAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
 
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            // Check if we have mutables columns
+            var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
+
+            return this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns, (SqlConnection)connection, (SqlTransaction)transaction);
         }
 
         /// <summary>
@@ -1302,42 +1271,18 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return sqlCommand;
         }
-        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
             SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
-
-            if (filter != null)
-            {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
-                SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
-
-            }
-
+            return this.CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
         }
-        public async Task DropSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateSelectIncrementalChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-            if (filter != null)
-            {
-                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
-                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
-
-                using (var command = new SqlCommand(commandTextWithFilter, (SqlConnection)connection, (SqlTransaction)transaction))
-                {
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+            SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
+            return this.CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
         }
-
 
         //------------------------------------------------------------------
         // Select initialized changes command
@@ -1400,39 +1345,18 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        public DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
             SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(connection, transaction, null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
-
-            if (filter != null)
-            {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
-                SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(connection, transaction, filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
-            }
+            return this.CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
         }
-        public async Task DropSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
+
+        public DbCommand CreateSelectInitializedChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new SqlCommand(commandText, (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-            if (filter != null)
-            {
-                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
-                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
-
-                using (var command = new SqlCommand(commandTextWithFilter, (SqlConnection)connection, (SqlTransaction)transaction))
-                {
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+            SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(connection, transaction, filter);
+            return this.CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
 
         }
     }

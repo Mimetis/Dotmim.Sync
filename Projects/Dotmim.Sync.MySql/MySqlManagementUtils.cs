@@ -285,7 +285,6 @@ namespace Dotmim.Sync.MySql
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName, "`");
 
-
             using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from information_schema.TRIGGERS where trigger_name = @triggerName AND trigger_schema = schema()";

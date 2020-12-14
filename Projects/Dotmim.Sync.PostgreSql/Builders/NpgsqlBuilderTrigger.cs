@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Postgres.Builders
 {
-    public class SqlBuilderTrigger : IDbBuilderTriggerHelper
+    public class SqlBuilderTrigger : IDbBuilderTriggerCommands
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -352,6 +352,11 @@ namespace Dotmim.Sync.Postgres.Builders
             return !await NpgsqlManagementUtils.TriggerExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, triggerName).ConfigureAwait(false);
         }
 
-
+        public Task<bool> ExistsTriggerAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task CreateTriggerAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task DropTriggerAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
     }
 }

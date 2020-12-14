@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -13,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    public abstract class BaseOrchestrator
+    public abstract partial class BaseOrchestrator
     {
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
@@ -210,10 +211,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Sets the current context
         /// </summary>
-        internal virtual void SetContext(SyncContext context)
-        {
-            this.syncContext = context;
-        }
+        internal virtual void SetContext(SyncContext context) => this.syncContext = context;
 
         /// <summary>
         /// Gets the current context
@@ -228,183 +226,7 @@ namespace Dotmim.Sync
             return this.syncContext;
         }
 
-        /// <summary>
-        /// Provision the orchestrator database based on the orchestrator Setup, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-                   => this.ProvisionAsync(new SyncSet(this.Setup), provision, cancellationToken, progress);
-
-        /// <summary>
-        /// Provision the orchestrator database based on the schema argument, and the provision enumeration
-        /// </summary>
-        /// <param name="schema">Schema to be applied to the database managed by the orchestrator, through the provider.</param>
-        /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        /// <returns>Full schema with table and columns properties</returns>
-        public virtual async Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
-            using (var connection = this.Provider.CreateConnection())
-            {
-                // log
-                this.logger.LogInformation(SyncEventsId.Provision, new { connection.Database, Provision = provision });
-
-                try
-                {
-                    ctx.SyncStage = SyncStage.Provisioning;
-
-                    // If schema does not have any table, just return
-                    if (schema == null || schema.Tables == null || !schema.HasTables)
-                        throw new MissingTablesException();
-
-                    if (this is LocalOrchestrator && (provision.HasFlag(SyncProvision.ServerHistoryScope) || provision.HasFlag(SyncProvision.ServerScope)))
-                        throw new InvalidProvisionForLocalOrchestratorException();
-                    else if (!(this is LocalOrchestrator) && provision.HasFlag(SyncProvision.ClientScope))
-                        throw new InvalidProvisionForRemoteOrchestratorException();
-
-
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        // Check if we have tables AND columns
-                        // If we don't have any columns it's most probably because user called method with the Setup only
-                        // So far we have only tables names, it's enough to get the schema
-                        if (schema.HasTables && !schema.HasColumns)
-                        {
-                            this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
-                            (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                        }
-
-                        if (!schema.HasTables)
-                            throw new MissingTablesException();
-
-                        if (!schema.HasColumns)
-                            throw new MissingColumnsException();
-
-                        await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.Provisioned;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
-                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, args);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State == ConnectionState.Open)
-                        connection.Close();
-                }
-
-                return schema;
-            }
-        }
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the Setup table argument, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SetupTable table, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var setup = new SyncSetup();
-            setup.Tables.Add(table);
-
-            return this.DeprovisionAsync(new SyncSet(setup), provision, cancellationToken, progress);
-        }
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.DeprovisionAsync(new SyncSet(this.Setup), provision, cancellationToken, progress);
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
-        /// </summary>
-        /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual async Task DeprovisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
-            using (var connection = this.Provider.CreateConnection())
-            {
-                // Encapsulate in a try catch for a better exception handling
-                // Especially when called from web proxy
-                try
-                {
-                    this.logger.LogInformation(SyncEventsId.Deprovision, new { connection.Database, Provision = provision });
-
-                    ctx.SyncStage = SyncStage.Deprovisioning;
-
-                    // If schema does not have any table, just return
-                    if (schema == null || schema.Tables == null || !schema.HasTables)
-                        throw new MissingTablesException();
-
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new DatabaseDeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        await this.Provider.DeprovisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, this.Options.DisableConstraintsOnApplyChanges, connection, transaction, cancellationToken, progress);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.Deprovisioned;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var args = new DatabaseDeprovisionedArgs(ctx, provision, schema, connection);
-                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, args);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State == ConnectionState.Open)
-                        connection.Close();
-                }
-            }
-        }
-
+     
         /// <summary>
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
@@ -419,54 +241,53 @@ namespace Dotmim.Sync
 
 
             SyncSet schema = null;
-            using (var connection = this.Provider.CreateConnection())
+            using var connection = this.Provider.CreateConnection();
+            
+            // Encapsulate in a try catch for a better exception handling
+            // Especially whew called from web proxy
+            try
             {
-                // Encapsulate in a try catch for a better exception handling
-                // Especially whew called from web proxy
-                try
+
+                this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
+
+                ctx.SyncStage = SyncStage.SchemaReading;
+
+                if (this.Setup.Tables.Count <= 0)
+                    throw new MissingTablesException();
+
+                // Open connection
+                await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                // Create a transaction
+                using (var transaction = connection.BeginTransaction())
                 {
+                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                    this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
+                    (ctx, schema) = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    ctx.SyncStage = SyncStage.SchemaReading;
-
-                    if (this.Setup.Tables.Count <= 0)
-                        throw new MissingTablesException();
-
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.SchemaRead;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var schemaArgs = new SchemaArgs(ctx, schema, connection);
-                    await this.InterceptAsync(schemaArgs, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, schemaArgs);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
+                    await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                    transaction.Commit();
                 }
 
-                return schema;
+                ctx.SyncStage = SyncStage.SchemaRead;
+
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                var schemaArgs = new SchemaArgs(ctx, schema, connection);
+                await this.InterceptAsync(schemaArgs, cancellationToken).ConfigureAwait(false);
+                this.ReportProgress(ctx, progress, schemaArgs);
             }
+            catch (Exception ex)
+            {
+                RaiseError(ex);
+            }
+            finally
+            {
+                if (connection != null && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+
+            return schema;
         }
 
         /// <summary>
@@ -505,7 +326,7 @@ namespace Dotmim.Sync
                         // No need columns or primary keys to be able to deprovision a table
                         SyncSet schema = new SyncSet(this.Setup);
 
-                        (ctx, databaseMetadatasCleaned) = await this.Provider.DeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (ctx, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -535,7 +356,6 @@ namespace Dotmim.Sync
 
         }
 
-
         /// <summary>
         /// Check if the orchestrator database is outdated
         /// </summary>
@@ -551,7 +371,7 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
-             
+
             // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
             // so far we return directly false
             if (clientScopeInfo.IsNewScope)
@@ -595,7 +415,7 @@ namespace Dotmim.Sync
 
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
-            
+
             // Get context or create a new one
             var ctx = this.GetContext();
 
@@ -612,7 +432,7 @@ namespace Dotmim.Sync
                     {
                         await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        timestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+                        timestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
                         await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -637,8 +457,248 @@ namespace Dotmim.Sync
                 return timestamp;
             }
 
-            
+
         }
 
+
+        /// <summary>
+        /// Read a scope info
+        /// </summary>
+        public virtual async Task<long> InternalGetLocalTimestampAsync(SyncContext context,
+                             DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+            var scopeBuilder = this.Provider.GetScopeBuilder();
+
+            // Create a scopeInfo builder based on default scope inf table, since we don't use it to retrieve local time stamp, even if scope info table
+            // in client database is not the DefaultScopeInfoTableName
+            var scopeInfoBuilder = scopeBuilder.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
+
+            var localTime = await scopeInfoBuilder.GetLocalTimestampAsync(connection, transaction).ConfigureAwait(false);
+
+            this.logger.LogDebug(SyncEventsId.GetLocalTimestamp, new { Timestamp = localTime });
+
+            return localTime;
+        }
+
+        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
+                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            // get database builder
+            var databaseBuilder = this.Provider.GetDatabaseBuilder();
+
+            var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
+
+            this.logger.LogDebug(SyncEventsId.GetHello, new { hello.DatabaseName, hello.Version });
+
+            return (context, hello.DatabaseName, hello.Version);
+        }
+
+
+
+        internal virtual async Task<(SyncContext syncContext, DatabaseMetadatasCleaned databaseMetadatasCleaned)> InternalDeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit,
+                    DbConnection connection, DbTransaction transaction,
+                    CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
+
+            foreach (var syncTable in schema.Tables)
+            {
+                // Create sync adapter
+                var syncAdapter = this.Provider.GetSyncAdapter(syncTable, setup);
+
+                // Delete metadatas
+                var rowsCleanedCount = await syncAdapter.DeleteMetadatasAsync(timestampLimit, connection, transaction).ConfigureAwait(false);
+
+                // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
+                if (rowsCleanedCount > 0)
+                {
+                    var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
+                    {
+                        RowsCleanedCount = rowsCleanedCount,
+                        TimestampLimit = timestampLimit
+                    };
+
+                    this.logger.LogDebug(SyncEventsId.MetadataCleaning, tableMetadatasCleaned);
+                    databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                }
+
+            }
+
+            this.logger.LogDebug(SyncEventsId.MetadataCleaning, databaseMetadatasCleaned);
+
+            return (context, databaseMetadatasCleaned);
+        }
+
+
+        private async Task<T> OperationAsync<T>(Func<SyncContext, SyncTable, DbConnection, DbTransaction, Task<T>> actionTask, SetupTable table, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            using var connection = this.Provider.CreateConnection();
+
+            try
+            {
+                // Open connection
+                await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                // Create a transaction
+                using var transaction = connection.BeginTransaction();
+
+                await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
+
+                SyncSet schema = null;
+                (ctx, schema) = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (schema == null || !schema.HasTables)
+                    throw new MissingTablesException();
+
+                if (!schema.HasColumns)
+                    throw new MissingColumnsException();
+
+                var schemaTable = schema.Tables[table.TableName, table.SchemaName];
+
+                if (schemaTable == null)
+                    throw new MissingTableException(table.GetFullName());
+
+                if (schemaTable.PrimaryKeys.Count <= 0)
+                    throw new MissingPrimaryKeyException(schemaTable.GetFullName());
+
+                var result = await actionTask(ctx, schemaTable, connection, transaction);
+
+                await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                transaction.Commit();
+
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                RaiseError(ex);
+            }
+            finally
+            {
+                if (connection != null && connection.State == ConnectionState.Open)
+                    connection.Close();
+            }
+            return default;
+        }
+
+        private async Task<T> OperationTableAsync<T>(Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask, SyncTable table, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        {
+
+            if (table == null)
+                throw new ArgumentNullException(nameof(table));
+
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            using var connection = this.Provider.CreateConnection();
+
+            try
+            {
+                // Open connection
+                await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                // Create a transaction
+                using var transaction = connection.BeginTransaction();
+
+                await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                var result = await actionTask(ctx, connection, transaction);
+
+                await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                transaction.Commit();
+
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                RaiseError(ex);
+            }
+            finally
+            {
+                if (connection != null && connection.State == ConnectionState.Open)
+                    connection.Close();
+            }
+            return default;
+        }
+
+        private async Task<T> OperationSchemaAsync<T>(Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask, SyncSet schema, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        {
+
+            if (schema == null)
+                throw new ArgumentNullException(nameof(schema));
+
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            using var connection = this.Provider.CreateConnection();
+
+            try
+            {
+                // Open connection
+                await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                // Create a transaction
+                using var transaction = connection.BeginTransaction();
+
+                await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                // Check if we have tables AND columns
+                // If we don't have any columns it's most probably because user called method with the Setup only
+                // So far we have only tables names, it's enough to get the schema
+                if (schema.HasTables && !schema.HasColumns)
+                {
+                    this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
+
+                    (ctx, schema) = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (schema == null || !schema.HasTables)
+                        throw new MissingTablesException();
+
+                    if (!schema.HasColumns)
+                        throw new MissingColumnsException();
+                }
+
+                var result = await actionTask(ctx, connection, transaction);
+
+                await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                transaction.Commit();
+
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                RaiseError(ex);
+            }
+            finally
+            {
+                if (connection != null && connection.State == ConnectionState.Open)
+                    connection.Close();
+            }
+            return default;
+        }
     }
 }

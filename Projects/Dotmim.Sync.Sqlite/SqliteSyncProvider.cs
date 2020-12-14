@@ -165,12 +165,41 @@ namespace Dotmim.Sync.Sqlite
 
 
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new SqliteTableBuilder(tableDescription, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
 
-        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqliteManager(tableName);
 
+            var tableBuilder = new SqliteTableBuilder(tableDescription, tableName, trackingName, setup)
+            {
+                UseBulkProcedures = this.SupportBulkOperations,
+                UseChangeTracking = this.UseChangeTracking,
+                Filter = tableDescription.GetFilter()
+            };
+
+            return tableBuilder;
+        }
         public override DbScopeBuilder GetScopeBuilder() => new SqliteScopeBuilder();
 
         public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
+        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
+
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        {
+            string tableAndPrefixName = tableDescription.TableName;
+            var originalTableName = ParserName.Parse(tableDescription);
+
+            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
+            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
+
+            // be sure, at least, we have a suffix if we have empty values. 
+            // othewise, we have the same name for both table and tracking table
+            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
+                suf = "_tracking";
+
+            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}");
+
+            return (originalTableName, trackingTableName);
+        }
     }
 }
