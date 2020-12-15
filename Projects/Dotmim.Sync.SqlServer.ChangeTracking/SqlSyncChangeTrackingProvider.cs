@@ -72,7 +72,8 @@ namespace Dotmim.Sync.SqlServer
         //    => Task.FromResult((context, new DatabaseMetadatasCleaned()));
 
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
-        public override DbScopeBuilder GetScopeBuilder() => new SqlChangeTrackingScopeBuilder();
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
+
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
         {
             var (tableName, trackingName) = GetParsers(tableDescription, setup);

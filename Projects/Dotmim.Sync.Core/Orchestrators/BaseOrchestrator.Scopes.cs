@@ -184,7 +184,7 @@ namespace Dotmim.Sync
                     _ => throw new NotImplementedException($"Type {typeof(T).Name} is not implemented when trying to get a single instance")
                 };
 
-                scope = await this.InternalUpsertScopeAsync(ctx, DbScopeType.Client, scope, scopeBuilder, connection, transaction, cancellationToken);
+                scope = await this.InternalUpsertScopeAsync(ctx, scopeType, scope, scopeBuilder, connection, transaction, cancellationToken);
 
                 scopes.Add(scope);
             }
