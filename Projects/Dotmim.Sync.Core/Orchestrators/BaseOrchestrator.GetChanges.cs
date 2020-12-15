@@ -80,104 +80,104 @@ namespace Dotmim.Sync
 
                 var syncAdapter = this.Provider.GetSyncAdapter(syncTable, message.Setup);
 
-                // launch interceptor if any
-                await this.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
-
                 // Get Command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
 
-                // log
-                this.logger.LogDebug(SyncEventsId.GetChanges, selectIncrementalChangesCommand);
+                // launch interceptor if any
+                var args = new TableChangesSelectingArgs(context, syncTable, selectIncrementalChangesCommand, connection, transaction);
+                await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
 
-                // Statistics
-                var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
-
-                // Create a chnages table with scope columns
-                var changesSetTable = SyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
-
-                // Get the reader
-                using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                if (!args.Cancel && args.Command != null)
                 {
-                    // memory size total
-                    double rowsMemorySize = 0L;
+                    // log
+                    this.logger.LogDebug(SyncEventsId.GetChanges, args.Command);
 
-                    while (dataReader.Read())
+                    // Statistics
+                    var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
+
+                    // Create a chnages table with scope columns
+                    var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+
+                    // Get the reader
+                    using (var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false))
                     {
-                        // Create a row from dataReader
-                        var row = CreateSyncRowFromReader(dataReader, changesSetTable);
+                        // memory size total
+                        double rowsMemorySize = 0L;
 
-                        // Add the row to the changes set
-                        changesSetTable.Rows.Add(row);
-
-                        // Log trace row
-                        this.logger.LogTrace(SyncEventsId.GetChanges, row);
-
-                        // Set the correct state to be applied
-                        if (row.RowState == DataRowState.Deleted)
-                            tableChangesSelected.Deletes++;
-                        else if (row.RowState == DataRowState.Modified)
-                            tableChangesSelected.Upserts++;
-
-                        // calculate row size if in batch mode
-                        if (isBatch)
+                        while (dataReader.Read())
                         {
-                            var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
-                            var finalFieldSize = fieldsSize / 1024d;
+                            // Create a row from dataReader
+                            var row = CreateSyncRowFromReader(dataReader, changesSetTable);
 
-                            if (finalFieldSize > message.BatchSize)
-                                throw new RowOverSizedException(finalFieldSize.ToString());
+                            // Add the row to the changes set
+                            changesSetTable.Rows.Add(row);
 
-                            // Calculate the new memory size
-                            rowsMemorySize += finalFieldSize;
+                            // Log trace row
+                            this.logger.LogTrace(SyncEventsId.GetChanges, row);
 
-                            // Next line if we don't reach the batch size yet.
-                            if (rowsMemorySize <= message.BatchSize)
-                                continue;
+                            // Set the correct state to be applied
+                            if (row.RowState == DataRowState.Deleted)
+                                tableChangesSelected.Deletes++;
+                            else if (row.RowState == DataRowState.Modified)
+                                tableChangesSelected.Upserts++;
 
-                            // Check interceptor
-                            var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
-                            await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+                            // calculate row size if in batch mode
+                            if (isBatch)
+                            {
+                                var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
+                                var finalFieldSize = fieldsSize / 1024d;
 
-                            // add changes to batchinfo
-                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
+                                if (finalFieldSize > message.BatchSize)
+                                    throw new RowOverSizedException(finalFieldSize.ToString());
 
-                            this.logger.LogDebug(SyncEventsId.GetChanges, changesSet);
+                                // Calculate the new memory size
+                                rowsMemorySize += finalFieldSize;
 
-                            // increment batch index
-                            batchIndex++;
+                                // Next line if we don't reach the batch size yet.
+                                if (rowsMemorySize <= message.BatchSize)
+                                    continue;
 
-                            // we know the datas are serialized here, so we can flush  the set
-                            changesSet.Clear();
+                                // Check interceptor
+                                var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                                await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
-                            // Recreate an empty ContainerSet and a ContainerTable
-                            changesSet = new SyncSet();
+                                // add changes to batchinfo
+                                await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
 
-                            changesSetTable = SyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+                                this.logger.LogDebug(SyncEventsId.GetChanges, changesSet);
 
-                            // Init the row memory size
-                            rowsMemorySize = 0L;
+                                // increment batch index
+                                batchIndex++;
+
+                                // we know the datas are serialized here, so we can flush  the set
+                                changesSet.Clear();
+
+                                // Recreate an empty ContainerSet and a ContainerTable
+                                changesSet = new SyncSet();
+
+                                changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
+
+                                // Init the row memory size
+                                rowsMemorySize = 0L;
+                            }
                         }
                     }
+
+                    // We don't report progress if no table changes is empty, to limit verbosity
+                    if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
+                    {
+                        changes.TableChangesSelected.Add(tableChangesSelected);
+                        var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+
+                        await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+                        if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
+                            this.ReportProgress(context, progress, tableChangesSelectedArgs);
+                    }
                 }
-
-                // be sure it's disposed
-                // selectIncrementalChangesCommand.Dispose();
-
-                // We don't report progress if no table changes is empty, to limit verbosity
-                if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-                {
-                    changes.TableChangesSelected.Add(tableChangesSelected);
-                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
-
-                    await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-
-                    if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
-                        this.ReportProgress(context, progress, tableChangesSelectedArgs);
-                }
-
             }
 
             // We are in batch mode, and we are at the last batchpart info
@@ -227,46 +227,50 @@ namespace Dotmim.Sync
 
                 var syncAdapter = this.Provider.GetSyncAdapter(syncTable, message.Setup);
 
-                // launch interceptor if any
-                await this.InterceptAsync(new TableChangesSelectingArgs(context, syncTable, connection, transaction), cancellationToken).ConfigureAwait(false);
-
                 // Get Command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
 
-                // log
-                this.logger.LogDebug(SyncEventsId.GetChanges, selectIncrementalChangesCommand);
+                // launch interceptor if any
+                var args = new TableChangesSelectingArgs(context, syncTable, selectIncrementalChangesCommand, connection, transaction);
+                await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
 
-                // Statistics
-                var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
-
-                // Get the reader
-                using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                if (!args.Cancel && args.Command != null)
                 {
-                    while (dataReader.Read())
+                    // log
+                    this.logger.LogDebug(SyncEventsId.GetChanges, args.Command);
+
+                    // Statistics
+                    var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
+
+                    // Get the reader
+                    using (var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false))
                     {
-                        bool isTombstone = false;
-                        for (var i = 0; i < dataReader.FieldCount; i++)
+                        while (dataReader.Read())
                         {
-                            if (dataReader.GetName(i) == "sync_row_is_tombstone")
+                            bool isTombstone = false;
+                            for (var i = 0; i < dataReader.FieldCount; i++)
                             {
-                                isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                                break;
+                                if (dataReader.GetName(i) == "sync_row_is_tombstone")
+                                {
+                                    isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                                    break;
+                                }
                             }
+
+                            // Set the correct state to be applied
+                            if (isTombstone)
+                                tableChangesSelected.Deletes++;
+                            else
+                                tableChangesSelected.Upserts++;
                         }
-
-                        // Set the correct state to be applied
-                        if (isTombstone)
-                            tableChangesSelected.Deletes++;
-                        else
-                            tableChangesSelected.Upserts++;
                     }
-                }
 
-                if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-                    changes.TableChangesSelected.Add(tableChangesSelected);
+                    if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
+                        changes.TableChangesSelected.Add(tableChangesSelected);
+                }
             }
 
             return (context, changes);
@@ -299,7 +303,7 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        internal async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, SyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
+        internal async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
         {
             DbCommand command;
             DbCommandType dbCommandType;
@@ -358,8 +362,8 @@ namespace Dotmim.Sync
             }
 
             // Set the parameters
-            SyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            SyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
+            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
 
             // Check filters
             SyncFilter tableFilter = null;
@@ -383,7 +387,7 @@ namespace Dotmim.Sync
 
                 object val = parameter?.Value;
 
-                SyncAdapter.SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
+                DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
             }
 
         }

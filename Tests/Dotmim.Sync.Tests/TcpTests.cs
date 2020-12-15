@@ -1414,36 +1414,37 @@ namespace Dotmim.Sync.Tests
                 //--------------------------
 
                 // check if scope table is correctly created
-                var scopeBuilderFactory = client.Provider.GetScopeBuilder();
-                SyncSet syncSchema;
+                // TODO
+                //var scopeBuilderFactory = client.Provider.GetScopeBuilder();
+                //SyncSet syncSchema;
 
-                using (var dbConnection = client.Provider.CreateConnection())
-                {
-                    syncSchema = await localOrchestrator.GetSchemaAsync();
-                    dbConnection.Open();
-                    var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
-                    Assert.False(await scopeBuilder.NeedToCreateClientScopeInfoTableAsync(dbConnection, null));
-                    dbConnection.Close();
-                }
+                //using (var dbConnection = client.Provider.CreateConnection())
+                //{
+                //    syncSchema = await localOrchestrator.GetSchemaAsync();
+                //    dbConnection.Open();
+                //    var scopeBuilder = scopeBuilderFactory.CreateScopeInfoBuilder(SyncOptions.DefaultScopeInfoTableName);
+                //    Assert.False(await scopeBuilder.NeedToCreateClientScopeInfoTableAsync(dbConnection, null));
+                //    dbConnection.Close();
+                //}
 
-                // get the db manager
-                foreach (var syncTable in syncSchema.Tables)
-                {
-                    var tableName = syncTable.TableName;
-                    using (var dbConnection = client.Provider.CreateConnection())
-                    {
-                        // get the database manager factory then the db manager itself
-                        var dbTableBuilder = client.Provider.GetTableBuilder(syncTable, setup);
+                //// get the db manager
+                //foreach (var syncTable in syncSchema.Tables)
+                //{
+                //    var tableName = syncTable.TableName;
+                //    using (var dbConnection = client.Provider.CreateConnection())
+                //    {
+                //        // get the database manager factory then the db manager itself
+                //        var dbTableBuilder = client.Provider.GetTableBuilder(syncTable, setup);
 
 
-                        await dbConnection.OpenAsync();
+                //        await dbConnection.OpenAsync();
 
-                        // Check if trioggers exists
-                        // TODO
-                        dbConnection.Close();
+                //        // Check if trioggers exists
+                //        // TODO
+                //        dbConnection.Close();
 
-                    }
-                }
+                //    }
+                //}
 
                 localOrchestrator.OnTableProvisioned(null);
 

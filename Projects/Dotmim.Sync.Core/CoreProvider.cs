@@ -65,12 +65,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get sync adapter which can executes all the commands needed for a complete sync
         /// </summary>
-        public abstract SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup);
+        public abstract DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup);
 
         /// <summary>
         /// Create a Scope Builder, which can create scope table, and scope config
         /// </summary>
-        public abstract DbScopeBuilder GetScopeBuilder();
+        public abstract DbScopeBuilder GetScopeBuilder(string scopeInfoTableName);
 
         /// <summary>
         /// Gets or sets the metadata resolver (validating the columns definition from the data store)

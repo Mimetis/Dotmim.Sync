@@ -44,7 +44,7 @@ namespace Dotmim.Sync
                 ctx.SyncStage = SyncStage.Provisioning;
 
                 ctx = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
-               
+
                 ctx.SyncStage = SyncStage.Provisioned;
 
                 var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
@@ -66,15 +66,33 @@ namespace Dotmim.Sync
             // Initialize database if needed
             await builder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
 
+            // Get Scope Builder
+            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
             // Shoudl we create scope
             if (provision.HasFlag(SyncProvision.ClientScope))
-                ctx = await this.Provider.EnsureClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            {
+                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken);
+            }
 
             if (provision.HasFlag(SyncProvision.ServerScope))
-                ctx = await this.Provider.EnsureServerScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            {
+                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken);
+            }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
-                ctx = await this.Provider.EnsureServerHistoryScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            {
+                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken);
+            }
 
             // Sorting tables based on dependencies between them
             var schemaTables = schema.Tables
@@ -91,10 +109,20 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new TableProvisioningArgs(ctx, provision, tableBuilder, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 if (provision.HasFlag(SyncProvision.Table))
-                    await this.InternalCreateTableAsync(ctx, schemaTable, tableBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                {
+                    var tableExistst = await this.InternalExistsTableAsync(ctx, schemaTable, tableBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+
+                    if (!tableExistst)
+                        await this.InternalCreateTableAsync(ctx, schemaTable, tableBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                }
 
                 if (provision.HasFlag(SyncProvision.TrackingTable))
-                    await this.InternalCreateTrackingTableAsync(ctx, schemaTable, tableBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                {
+                    var trackingTableExistst = await this.InternalExistsTrackingTableAsync(ctx, schemaTable, tableBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+
+                    if (!trackingTableExistst)
+                        await this.InternalCreateTrackingTableAsync(ctx, schemaTable, tableBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                }
 
                 if (provision.HasFlag(SyncProvision.Triggers))
                 {
@@ -112,18 +140,34 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
+                    // First , delete all the stored procedures, except the Bulk Type, since we can delete them before deleting the attached stored procedures
+                    foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
+                    {
+                        if (storedProcedureType is DbStoredProcedureType.BulkTableType)
+                            continue;
+
+                        var exists = await InternalExistsStoredProcedureAsync(ctx, schemaTable, tableBuilder, storedProcedureType, connection, transaction, cancellationToken);
+
+                        if (exists)
+                            await InternalDropStoredProcedureAsync(ctx, schemaTable, tableBuilder, storedProcedureType, connection, transaction, cancellationToken).ConfigureAwait(false);
+                    }
+
+
+                    // Then delete bulk type if exists and provider supports them
+                    if (this.Provider.SupportBulkOperations)
+                    {
+                        var exists = await InternalExistsStoredProcedureAsync(ctx, schemaTable, tableBuilder, DbStoredProcedureType.BulkTableType, connection, transaction, cancellationToken);
+                        if (exists)
+                            await InternalDropStoredProcedureAsync(ctx, schemaTable, tableBuilder, DbStoredProcedureType.BulkTableType, connection, transaction, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // Then create everything again
                     foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
                     {
                         // if we are iterating on bulk, but provider do not support it, just loop through and continue
                         if ((storedProcedureType is DbStoredProcedureType.BulkTableType || storedProcedureType is DbStoredProcedureType.BulkUpdateRows || storedProcedureType is DbStoredProcedureType.BulkDeleteRows)
                             && !this.Provider.SupportBulkOperations)
                             continue;
-
-                        var exists = await InternalExistsStoredProcedureAsync(ctx, schemaTable, tableBuilder, storedProcedureType, connection, transaction, cancellationToken);
-
-                        // Drop storedProcedure if already exists
-                        if (exists)
-                            await InternalDropStoredProcedureAsync(ctx, schemaTable, tableBuilder, storedProcedureType, connection, transaction, cancellationToken).ConfigureAwait(false);
 
                         await InternalCreateStoredProcedureAsync(ctx, schemaTable, tableBuilder, storedProcedureType, connection, transaction, cancellationToken).ConfigureAwait(false);
                     }
@@ -260,15 +304,32 @@ namespace Dotmim.Sync
                     }
                 }
 
+                // Get Scope Builder
+                var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
                 if (provision.HasFlag(SyncProvision.ClientScope))
-                    ctx = await this.Provider.DropClientScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                {
+                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken);
+
+                    if (exists)
+                        await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken);
+                }
 
                 if (provision.HasFlag(SyncProvision.ServerScope))
-                    ctx = await this.Provider.DropServerScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                {
+                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken);
+
+                    if (exists)
+                        await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken);
+                }
 
                 if (provision.HasFlag(SyncProvision.ServerHistoryScope))
-                    ctx = await this.Provider.DropServerHistoryScopeAsync(ctx, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                {
+                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken);
 
+                    if (exists)
+                        await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken);
+                }
                 // --
 
                 ctx.SyncStage = SyncStage.Deprovisioned;
