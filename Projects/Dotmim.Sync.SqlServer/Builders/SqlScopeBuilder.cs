@@ -237,7 +237,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             if (transaction != null)
                 command.Transaction = transaction;
 
-            command.CommandText = "SELECT @sync_new_timestamp = @@DBTS";
+            command.CommandText = "SELECT CONVERT(bigint, @@DBTS) as lastTimestamp";
 
             DbParameter p = command.CreateParameter();
             p.ParameterName = "@sync_new_timestamp";
