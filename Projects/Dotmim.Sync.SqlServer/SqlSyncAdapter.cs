@@ -15,7 +15,7 @@ using Microsoft.Data.SqlClient.Server;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlSyncAdapter : SyncAdapter
+    public class SqlSyncAdapter : DbSyncAdapter
     {
         private SqlObjectNames sqlObjectNames;
         private SqlDbMetadata sqlMetadata;

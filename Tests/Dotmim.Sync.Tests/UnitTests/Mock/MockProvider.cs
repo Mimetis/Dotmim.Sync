@@ -30,7 +30,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
         public override DbScopeBuilder GetScopeBuilder() => new MockScopeBuilder();
-        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
 

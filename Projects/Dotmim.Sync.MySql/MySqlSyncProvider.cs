@@ -134,7 +134,7 @@ namespace Dotmim.Sync.MySql
         public override DbScopeBuilder GetScopeBuilder() => new MySqlScopeBuilder();
 
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
-        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
             var (tableName, trackingName) = GetParsers(tableDescription, setup);
             var adapter = new MySqlSyncAdapter(tableDescription, tableName, trackingName, setup);

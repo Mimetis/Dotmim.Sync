@@ -148,7 +148,7 @@ namespace Dotmim.Sync
 
                     // Create a Schema set without readonly columns, attached to memory changes
                     foreach (var table in schema.Tables)
-                        SyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+                        DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
                     using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
                     {
@@ -240,7 +240,8 @@ namespace Dotmim.Sync
                 var syncAdapter = this.Provider.GetSyncAdapter(table, setup);
 
                 // launch interceptor if any
-                await this.InterceptAsync(new TableChangesSelectingArgs(context, table, connection, transaction), cancellationToken).ConfigureAwait(false);
+                // TODO : supply command
+                await this.InterceptAsync(new TableChangesSelectingArgs(context, table, null, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Select initialize changes command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, table, true, connection, transaction);
@@ -264,7 +265,7 @@ namespace Dotmim.Sync
                     double rowsMemorySize = 0L;
 
                     // Create a chnages table with scope columns
-                    var changesSetTable = SyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+                    var changesSetTable = DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
                     while (dataReader.Read())
                     {
@@ -304,7 +305,7 @@ namespace Dotmim.Sync
                         // Recreate an empty ContainerSet and a ContainerTable
                         changesSet = new SyncSet();
 
-                        changesSetTable = SyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+                        changesSetTable = DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
                         // Init the row memory size
                         rowsMemorySize = 0L;

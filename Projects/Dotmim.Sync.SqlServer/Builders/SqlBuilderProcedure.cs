@@ -64,7 +64,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
 
         {
-            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows);
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType);
             var text = $"DROP PROCEDURE {commandName};";
 
             if (storedProcedureType == DbStoredProcedureType.BulkTableType)
@@ -1279,6 +1279,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public DbCommand CreateSelectIncrementalChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
+            if (filter == null)
+                return null;
+
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
             SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
             return this.CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
@@ -1354,6 +1357,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public DbCommand CreateSelectInitializedChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
+            if (filter == null)
+                return null;
+
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
             SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(connection, transaction, filter);
             return this.CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);

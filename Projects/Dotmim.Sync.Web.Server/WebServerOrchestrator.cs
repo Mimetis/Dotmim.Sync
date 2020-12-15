@@ -513,7 +513,7 @@ namespace Dotmim.Sync.Web.Server
             var changesSet = new SyncSet();
 
             foreach (var table in httpMessage.Changes.Tables)
-                SyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
+                DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             changesSet.ImportContainerSet(httpMessage.Changes, false);
 
@@ -606,7 +606,7 @@ namespace Dotmim.Sync.Web.Server
             var changesSet = new SyncSet();
 
             foreach (var table in Schema.Tables)
-                SyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
+                DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath(), this);
 
