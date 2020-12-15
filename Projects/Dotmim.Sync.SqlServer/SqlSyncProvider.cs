@@ -124,7 +124,7 @@ namespace Dotmim.Sync.SqlServer
         }
 
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
-        public override DbScopeBuilder GetScopeBuilder() => new SqlScopeBuilder();
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlScopeBuilder(scopeInfoTableName);
         
         /// <summary>
         /// Get the table builder. Table builder builds table, stored procedures and triggers
@@ -143,7 +143,7 @@ namespace Dotmim.Sync.SqlServer
             return tableBuilder;
         }
 
-        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
             var (tableName, trackingName) = GetParsers(tableDescription, setup);
             var adapter = new SqlSyncAdapter(tableDescription, tableName, trackingName, setup);

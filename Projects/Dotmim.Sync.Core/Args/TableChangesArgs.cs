@@ -38,8 +38,16 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesSelectingArgs : ProgressArgs
     {
-        public TableChangesSelectingArgs(SyncContext context, SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction) => this.Table = schemaTable;
+
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
+
+        public TableChangesSelectingArgs(SyncContext context, SyncTable schemaTable, DbCommand command, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.Table = schemaTable;
+            this.Command = command;
+        }
 
         /// <summary>
         /// Gets the table from where the changes are going to be selected.

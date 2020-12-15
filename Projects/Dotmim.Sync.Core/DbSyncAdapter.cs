@@ -21,7 +21,7 @@ namespace Dotmim.Sync
     /// The SyncAdapter is the datasource manager for ONE table
     /// Should be implemented by every database provider and provide every SQL action
     /// </summary>
-    public abstract class SyncAdapter
+    public abstract class DbSyncAdapter
     {
         private const int BATCH_SIZE = 1000;
 
@@ -73,7 +73,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a Sync Adapter
         /// </summary>
-        public SyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public DbSyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
@@ -99,14 +99,14 @@ namespace Dotmim.Sync
                     if (column != null)
                     {
                         object value = row[column] ?? DBNull.Value;
-                        SyncAdapter.SetParameterValue(command, parameter.ParameterName, value);
+                        DbSyncAdapter.SetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
 
             }
 
             // return value
-            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 syncRowCountParam.Direction = ParameterDirection.Output;
@@ -424,7 +424,7 @@ namespace Dotmim.Sync
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowDeletedCount = (int)syncRowCountParam.Value;
@@ -451,7 +451,7 @@ namespace Dotmim.Sync
             var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowUpdatedCount = (int)syncRowCountParam.Value;
@@ -469,7 +469,7 @@ namespace Dotmim.Sync
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;
@@ -485,12 +485,12 @@ namespace Dotmim.Sync
             var command = await this.PrepareCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
             // Set the special parameters for delete metadata
-            SyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+            DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
             var metadataDeletedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 metadataDeletedRowsCount = (int)syncRowCountParam.Value;
@@ -515,7 +515,7 @@ namespace Dotmim.Sync
             var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = SyncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
@@ -563,10 +563,10 @@ namespace Dotmim.Sync
         private void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
-            SyncAdapter.SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
-            SyncAdapter.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
-            SyncAdapter.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
-            SyncAdapter.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
+            DbSyncAdapter.SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
+            DbSyncAdapter.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
+            DbSyncAdapter.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
         /// <summary>

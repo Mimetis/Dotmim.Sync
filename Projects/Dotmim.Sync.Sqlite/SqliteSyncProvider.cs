@@ -182,7 +182,7 @@ namespace Dotmim.Sync.Sqlite
         public override DbScopeBuilder GetScopeBuilder() => new SqliteScopeBuilder();
 
         public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
-        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {

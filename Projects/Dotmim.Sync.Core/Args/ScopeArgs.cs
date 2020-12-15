@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -6,121 +7,84 @@ using System.Text;
 
 namespace Dotmim.Sync
 {
-    /// <summary>
-    /// Args generated when a scope is about to be loaded
-    /// </summary>
-    public class ScopeLoadingArgs : ProgressArgs
-    {
-        public ScopeLoadingArgs(SyncContext context, string scopeName, string scopeTableInfoName, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.ScopeName = scopeName;
-            this.ScopeTableInfoName = scopeTableInfoName;
-        }
 
-        /// <summary>
-        /// Gets the scope name to load from the client database
-        /// </summary>
+
+    public class ScopeTableDroppedArgs : ProgressArgs
+    {
+        public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
 
-        /// <summary>
-        /// Gets the table where the scope will be loaded from.
-        /// </summary>
-        public string ScopeTableInfoName { get; }
-
-        public override string Message => $"Loading scope {this.ScopeName} from table {this.ScopeTableInfoName}";
-
-        public override int EventId => 28;
-    }
-
-    /// <summary>
-    /// Args generated when a scope has been loaded from client database
-    /// </summary>
-    public class ScopeLoadedArgs : ProgressArgs
-    {
-        public ScopeLoadedArgs(SyncContext context, ScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
+        public ScopeTableDroppedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            this.ScopeInfo = scope;
-        }
-
-        /// <summary>
-        /// Gets the current scope from the local database
-        /// </summary>
-        public ScopeInfo ScopeInfo { get; }
-
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}] Last sync:{ScopeInfo?.LastSync} Last sync duration:{ScopeInfo?.LastSyncDurationString} ";
-        public override int EventId => 29;
-    }
-
-
-    /// <summary>
-    /// Args generated when a server scope is about to be loaded from server
-    /// </summary>
-    public class ServerScopeLoadingArgs : ProgressArgs
-    {
-        public ServerScopeLoadingArgs(SyncContext context, string scopeName, string scopeTableInfoName, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
+            this.ScopeType = scopeType;
             this.ScopeName = scopeName;
-            this.ScopeTableInfoName = scopeTableInfoName;
         }
 
-        /// <summary>
-        /// Gets the scope name to load from the client database
-        /// </summary>
-        public string ScopeName { get; }
-
-        /// <summary>
-        /// Gets the table where the scope will be loaded from.
-        /// </summary>
-        public string ScopeTableInfoName { get; }
-
-        public override string Message => $"Loading server scope {this.ScopeName} from table {this.ScopeTableInfoName}";
-
-        public override int EventId => 30;
+        public override int EventId => 45;
     }
 
-    /// <summary>
-    /// Args generated before and after a scope has been applied
-    /// </summary>
-    public class ServerScopeLoadedArgs : ProgressArgs
+    public class ScopeTableCreatedArgs : ScopeTableDroppedArgs
     {
-        public ServerScopeLoadedArgs(SyncContext context, ServerScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
+        public ScopeTableCreatedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
         {
-            this.ScopeInfo = scope;
         }
-
-        /// <summary>
-        /// Gets the current scope from the local database
-        /// </summary>
-        public ServerScopeInfo ScopeInfo { get; }
-
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}]";
-
-        public override int EventId => 31;
     }
 
 
-    /// <summary>
-    /// Args generated before and after a scope has been applied
-    /// </summary>
-    public class ServerHistoryScopeLoadedArgs : ProgressArgs
+    public class ScopeLoadedArgs<T> : ScopeTableDroppedArgs where T : class
     {
-        public ServerHistoryScopeLoadedArgs(SyncContext context, ServerHistoryScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
+        public ScopeLoadedArgs(SyncContext context, string scopeName, DbScopeType scopeType, T scopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
         {
-            this.ScopeInfo = scope;
+            this.ScopeInfo = scopeInfo;
         }
 
-        /// <summary>
-        /// Gets the current scope from the local database
-        /// </summary>
-        public ServerHistoryScopeInfo ScopeInfo { get; }
+        public T ScopeInfo { get; }
+    }
 
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}]";
+    public class ScopeTableDroppingArgs : ScopeTableDroppedArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
 
-        public override int EventId => 32;
+        public ScopeTableDroppingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, scopeName, scopeType, connection, transaction)
+        {
+            this.Command = command;
+        }
+    }
+
+    public class ScopeTableCreatingArgs : ScopeTableDroppingArgs
+    {
+        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        {
+        }
+    }
+
+    public class ScopeLoadingArgs : ScopeTableDroppingArgs
+    {
+        public ScopeLoadingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        {
+        }
+    }
+
+    public class ScopeUpsertingArgs : ScopeTableDroppingArgs
+    {
+
+        public ScopeUpsertingArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        {
+            this.ScopeInfo = scopeInfo;
+        }
+
+        public object ScopeInfo { get; }
+    }
+
+    public class ScopeUpsertedArgs : ScopeTableDroppedArgs
+    {
+        public ScopeUpsertedArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
+        {
+            this.ScopeInfo = scopeInfo;
+        }
+        public object ScopeInfo { get; }
     }
 }

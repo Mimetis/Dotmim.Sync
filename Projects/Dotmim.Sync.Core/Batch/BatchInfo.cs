@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Batch
 
             // We need to create a change table set, containing table with columns not readonly
             foreach (var table in inSchema.Tables)
-                SyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
+                DbSyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
 
             // If not in memory, generate a directory name and initialize batch parts list
             if (!this.InMemory)
