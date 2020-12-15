@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Sqlite
 
             return tableBuilder;
         }
-        public override DbScopeBuilder GetScopeBuilder() => new SqliteScopeBuilder();
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqliteScopeBuilder(scopeInfoTableName);
 
         public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();

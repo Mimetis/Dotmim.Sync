@@ -1,16 +1,21 @@
 ﻿using Dotmim.Sync.Builders;
 using System.Data.Common;
 using MySql.Data.MySqlClient;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
     public class MySqlScopeBuilder : DbScopeBuilder
     {
-        
-
-        public override IDbScopeInfoBuilder CreateScopeInfoBuilder(string scopeTableName)
+        public MySqlScopeBuilder(string scopeInfoTableName) : base(scopeInfoTableName)
         {
-            return new MySqlScopeInfoBuilder(scopeTableName);
         }
+
+        public override Task<DbCommand> GetAllScopesCommandAsync(DbScopeType scopeType, string scopeName, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetCreateScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetDropScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetExistsScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetLocalTimestampCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetUpsertScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
     }
 }

@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 
 namespace Dotmim.Sync.MySql
 {
-    public class MySqlScopeInfoBuilder : IDbScopeInfoBuilder
+    public class MySqlScopeInfoBuilder
     {
         private readonly ParserName scopeTableName;
 

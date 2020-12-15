@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 
 namespace Dotmim.Sync.Sqlite
 {
-    public class SqliteScopeInfoBuilder : IDbScopeInfoBuilder
+    public class SqliteScopeInfoBuilder 
     {
         private readonly ParserName scopeTableName;
 

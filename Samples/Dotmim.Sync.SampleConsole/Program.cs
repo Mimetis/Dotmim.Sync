@@ -1029,7 +1029,7 @@ internal class Program
         serverScope.Schema = newSchema;
 
         // save it
-        await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+        await remoteOrchestrator.UpsertServerScopeAsync(serverScope);
 
         // -----------------------------------------------------------------
         // Client side
@@ -1060,7 +1060,7 @@ internal class Program
         clientScope.Schema = newSchema;
 
         // save it
-        await localOrchestrator.WriteClientScopeAsync(clientScope);
+        await localOrchestrator.UpsertClientScopeAsync(clientScope);
 
 
 
@@ -1663,7 +1663,7 @@ internal class Program
                 serverScope.Schema = null;
 
                 // save the server scope
-                await agent.RemoteOrchestrator.WriteServerScopeAsync(serverScope);
+                await agent.RemoteOrchestrator.UpsertServerScopeAsync(serverScope);
 
                 // Write results
                 Console.WriteLine(s1);
