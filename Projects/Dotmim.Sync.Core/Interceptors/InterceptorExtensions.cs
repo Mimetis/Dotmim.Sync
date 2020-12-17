@@ -297,30 +297,7 @@ namespace Dotmim.Sync
         public static void OnDatabaseProvisioned(this BaseOrchestrator orchestrator, Action<DatabaseProvisionedArgs> action)
             => orchestrator.SetInterceptor(action);
 
-        /// <summary>
-        /// Intercept the provider after it has provisioned a table
-        /// </summary>
-        public static void OnTableProvisioned(this BaseOrchestrator orchestrator, Func<TableProvisionedArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
-
-        /// <summary>
-        /// Intercept the provider after it has provisioned a table
-        /// </summary>
-        public static void OnTableProvisioned(this BaseOrchestrator orchestrator, Action<TableProvisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider before it will provisioned a table
-        /// </summary>
-        public static void OnTableProvisioning(this BaseOrchestrator orchestrator, Func<TableProvisioningArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
-
-        /// <summary>
-        /// Intercept the provider before it will provisioned a table
-        /// </summary>
-        public static void OnTableProvisioning(this BaseOrchestrator orchestrator, Action<TableProvisioningArgs> action)
-            => orchestrator.SetInterceptor(action);
-
+  
         /// <summary>
         /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
         /// </summary>

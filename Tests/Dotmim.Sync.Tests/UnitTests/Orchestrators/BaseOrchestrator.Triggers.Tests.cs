@@ -139,7 +139,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-
         [Fact]
         public async Task BaseOrchestrator_Trigger_ShouldOverwrite()
         {
@@ -179,7 +178,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
 
         [Fact]
         public async Task BaseOrchestrator_Trigger_ShouldNotOverwrite()

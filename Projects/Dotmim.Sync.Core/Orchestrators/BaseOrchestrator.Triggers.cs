@@ -65,7 +65,7 @@ namespace Dotmim.Sync
         public Task<bool> CreateTriggersAsync(SetupTable table, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
             {
-                bool hasBeenCreated = false;
+                var hasCreatedAtLeastOneTrigger = false;
 
                 var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -78,8 +78,6 @@ namespace Dotmim.Sync
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
                 var listTriggerType = Enum.GetValues(typeof(DbTriggerType));
-
-                var hasCreatedAtLeastOneTrigger = false;
 
                 foreach (DbTriggerType triggerType in listTriggerType)
                 {
@@ -94,7 +92,7 @@ namespace Dotmim.Sync
                     if (!shouldCreate)
                         continue;
 
-                    hasBeenCreated = await InternalCreateTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var hasBeenCreated = await InternalCreateTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (hasBeenCreated)
                         hasCreatedAtLeastOneTrigger = true;
@@ -164,6 +162,8 @@ namespace Dotmim.Sync
         public Task<bool> DropTriggersAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
+            var hasDroppeAtLeastOneTrigger = false;
+
             var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             var schemaTable = schema.Tables[table.TableName, table.SchemaName];
@@ -175,8 +175,6 @@ namespace Dotmim.Sync
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
             var listTriggerType = Enum.GetValues(typeof(DbTriggerType));
-
-            var hasDroppeAtLeastOneTrigger = false;
 
             foreach (DbTriggerType triggerType in listTriggerType)
             {
