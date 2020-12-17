@@ -181,12 +181,17 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
+            if (connection != null && connection.State == ConnectionState.Closed)
+                return;
+
             this.logger.LogDebug(SyncEventsId.CloseConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
             this.logger.LogTrace(SyncEventsId.CloseConnection, new { connection.ConnectionString });
 
-            connection.Close();
+            if (connection != null && connection.State == ConnectionState.Open)
+                connection.Close();
 
-            await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
+            if (!cancellationToken.IsCancellationRequested)
+                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
             this.Provider.OnConnectionClosed(connection);
@@ -291,7 +296,8 @@ namespace Dotmim.Sync
         }
 
 
-        internal async Task<T> RunInTransactionAsync<T>(Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask, CancellationToken cancellationToken)
+        internal async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+             CancellationToken cancellationToken = default) //Func<T, SyncContext, DbConnection, DbTransaction, Task> optionalEndAction = default
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -299,10 +305,15 @@ namespace Dotmim.Sync
             // Get context or create a new one
             var ctx = this.GetContext();
 
+            T result = default;
+
             using var connection = this.Provider.CreateConnection();
 
             try
             {
+                if (stage != SyncStage.None)
+                    ctx.SyncStage = stage;
+
                 // Open connection
                 await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
@@ -311,13 +322,17 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                var result = await actionTask(ctx, connection, transaction);
+                if (actionTask != null)
+                    result = await actionTask(ctx, connection, transaction);
 
                 await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 transaction.Commit();
 
                 await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+
+                //if (optionalEndAction != null)
+                //    await optionalEndAction(result, ctx, connection, transaction).ConfigureAwait(false);
 
                 return result;
             }
@@ -327,8 +342,7 @@ namespace Dotmim.Sync
             }
             finally
             {
-                if (connection != null && connection.State == ConnectionState.Open)
-                    connection.Close();
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
             }
             return default;
         }

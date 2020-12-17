@@ -42,29 +42,24 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
         internal virtual Task<ServerScopeInfo> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(async (ctx, connection, transaction) =>
+        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             // starting with scope loading
             ctx.SyncStage = SyncStage.ScopeLoading;
 
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+            var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!exists)
-                await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+            exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!exists)
-                await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
-
-            // raise scope loaded
-            ctx.SyncStage = SyncStage.ScopeLoaded;
-            var scopeArgs = new ScopeLoadedArgs<ServerScopeInfo>(ctx, this.ScopeName, DbScopeType.Server, serverScopeInfo, connection, transaction);
-            this.ReportProgress(ctx, progress, scopeArgs);
+            var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             SyncSet schema;
             // Let's compare this serverScopeInfo with the current Setup
@@ -93,10 +88,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Provision everything
-                ctx = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
-
-                // So far, we don't have already a database provisionned
-                ctx.SyncStage = SyncStage.Provisioned;
+                schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Generated the first serverscope to be updated
                 serverScopeInfo.LastCleanupTimestamp = 0;
@@ -105,7 +97,7 @@ namespace Dotmim.Sync
                 serverScopeInfo.Version = "1";
 
                 // 3) Update server scope
-                await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection, transaction);
                 await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
@@ -132,13 +124,13 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                     // Provision everything
-                    ctx = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+                    schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     serverScopeInfo.Setup = this.Setup;
                     serverScopeInfo.Schema = schema;
 
                     // Write scopes locally
-                    await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                    await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection, transaction);
                     await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
@@ -161,12 +153,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Migrate an old setup configuration to a new one. This method is usefull if you are changing your SyncSetup when a database has been already configured previously
         /// </summary>
-        public virtual Task<bool> MigrationAsync(SyncSetup oldSetup, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(async (ctx, connection, transaction) =>
+        public virtual Task<(SyncSet, SyncProvision)> MigrationAsync(SyncSetup oldSetup, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.Migrating, async (ctx, connection, transaction) =>
         {
             SyncSet schema;
-
-            ctx.SyncStage = SyncStage.Migrating;
 
             SyncProvision provision = SyncProvision.None;
 
@@ -177,7 +167,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, oldSetup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Migrate the db structure
-            await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress);
+            await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Now call the ProvisionAsync() to provision new tables
             provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -185,19 +175,17 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Provision everything
-            ctx = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+            schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var remoteScope = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+            var remoteScope = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             remoteScope.Setup = this.Setup;
             remoteScope.Schema = schema;
 
             // Write scopes locally
-            await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, remoteScope, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
-
-            ctx.SyncStage = SyncStage.Migrated;
+            await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, remoteScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
@@ -208,8 +196,10 @@ namespace Dotmim.Sync
             await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, args2);
 
-            return true;
+            return (schema, provision);
+
         }, cancellationToken);
+
 
         /// <summary>
         /// Apply changes on remote provider
@@ -259,7 +249,7 @@ namespace Dotmim.Sync
 
                     var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-                    var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, clientScope.Name, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                    var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, clientScope.Name, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Should we ?
                     if (serverScopeInfo.Schema == null)
@@ -287,9 +277,6 @@ namespace Dotmim.Sync
                     // commit first transaction
                     transaction.Commit();
                 }
-
-                ctx.SyncStage = SyncStage.ChangesApplied;
-
 
                 this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
 
@@ -341,7 +328,7 @@ namespace Dotmim.Sync
                     // Write scopes locally
                     var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-                    await this.InternalUpsertScopeAsync(ctx, DbScopeType.ServerHistory, scopeHistory, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                    await this.InternalUpsertScopeAsync(ctx, DbScopeType.ServerHistory, scopeHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Commit second transaction for getting changes
                     await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -350,8 +337,6 @@ namespace Dotmim.Sync
                 }
 
                 // Event progress & interceptor
-                ctx.SyncStage = SyncStage.ChangesSelected;
-
                 await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
                 this.logger.LogInformation(SyncEventsId.GetChanges, serverChangesSelected);
@@ -366,8 +351,7 @@ namespace Dotmim.Sync
             }
             finally
             {
-                if (connection != null && connection.State != ConnectionState.Closed)
-                    connection.Close();
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
             }
             return (remoteClientTimestamp, serverBatchInfo, this.Options.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
 
@@ -441,8 +425,6 @@ namespace Dotmim.Sync
 
 
                     // Event progress & interceptor
-                    ctx.SyncStage = SyncStage.ChangesSelected;
-
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
                     this.logger.LogInformation(SyncEventsId.GetChanges, serverChangesSelected);
@@ -458,8 +440,7 @@ namespace Dotmim.Sync
                 }
                 finally
                 {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
                 }
 
                 return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
@@ -469,95 +450,62 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get estimated changes from remote database to be applied on client
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)>
-            GetEstimatedChangesCountAsync(ScopeInfo clientScope, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
+        public virtual Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)> GetEstimatedChangesCountAsync(ScopeInfo clientScope, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+          => RunInTransactionAsync(SyncStage.ChangesSelecting, async (ctx, connection, transaction) =>
+          {
+              // Output
+              long remoteClientTimestamp = 0L;
+              DatabaseChangesSelected serverChangesSelected = null;
 
-            // Output
-            long remoteClientTimestamp = 0L;
-            DatabaseChangesSelected serverChangesSelected = null;
+              if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
+                  throw new InvalidScopeInfoException();
 
-            // Get context or create a new one
-            var ctx = this.GetContext();
+              // Before getting changes, be sure we have a remote schema available
+              var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
-                throw new InvalidScopeInfoException();
+              var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            // Before getting changes, be sure we have a remote schema available
-            var serverScope = await this.EnsureSchemaAsync(cancellationToken, progress);
+              if (!exists)
+                  throw new MissingRemoteOrchestratorSchemaException();
 
-            // Should we ?
-            if (serverScope.Schema == null)
-                throw new MissingRemoteOrchestratorSchemaException();
+              var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            using (var connection = this.Provider.CreateConnection())
-            {
-                try
-                {
-                    ctx.SyncStage = SyncStage.ChangesSelecting;
+              var serverScope = await this.EnsureSchemaAsync(cancellationToken, progress);
 
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+              // Should we ?
+              if (serverScope.Schema == null)
+                  throw new MissingRemoteOrchestratorSchemaException();
 
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+              //Direction set to Download
+              ctx.SyncWay = SyncWay.Download;
 
-                        //Direction set to Download
-                        ctx.SyncWay = SyncWay.Download;
+              // JUST Before get changes, get the timestamp, to be sure to 
+              // get rows inserted / updated elsewhere since the sync is not over
+              remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
-                        // JUST Before get changes, get the timestamp, to be sure to 
-                        // get rows inserted / updated elsewhere since the sync is not over
-                        remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+              // Get if we need to get all rows from the datasource
+              var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
 
-                        // Get if we need to get all rows from the datasource
-                        var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
+              // it's an estimation, so force In Memory (BatchSize == 0)
+              var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, serverScope.Schema, this.Setup, 0, this.Options.BatchDirectory);
 
-                        // it's an estimation, so force In Memory (BatchSize == 0)
-                        var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, serverScope.Schema, this.Setup, 0, this.Options.BatchDirectory);
+              // Call interceptor
+              await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        // Call interceptor
-                        await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+              // When we get the chnages from server, we create the batches if it's requested by the client
+              // the batch decision comes from batchsize from client
+              (ctx, serverChangesSelected) =
+                  await this.InternalGetEstimatedChangesCountAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        // When we get the chnages from server, we create the batches if it's requested by the client
-                        // the batch decision comes from batchsize from client
-                        (ctx, serverChangesSelected) =
-                            await this.InternalGetEstimatedChangesCountAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+              return (remoteClientTimestamp, serverChangesSelected);
 
-                        // Commit second transaction for getting changes
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-
-                    // Event progress & interceptor
-                    ctx.SyncStage = SyncStage.ChangesSelected;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-
-                return (remoteClientTimestamp, serverChangesSelected);
-            }
-        }
+          }, cancellationToken);
 
         /// <summary>
         /// Check if we can reach the underlying provider database
         /// </summary>
         public Task<(string DatabaseName, string Version)> GetHelloAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-          => RunInTransactionAsync(async (ctx, connection, transaction) =>
+          => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
           {
               string databaseName = null;
               string version = null;
@@ -565,6 +513,7 @@ namespace Dotmim.Sync
               (ctx, databaseName, version) = await this.GetHelloAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
               return (databaseName, version);
+
           }, cancellationToken);
 
         /// <summary>
@@ -596,10 +545,8 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-          => RunInTransactionAsync(async (ctx, connection, transaction) =>
+          => RunInTransactionAsync(SyncStage.MetadataCleaning, async (ctx, connection, transaction) =>
           {
-              ctx.SyncStage = SyncStage.MetadataCleaning;
-
               await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart, connection, transaction), cancellationToken).ConfigureAwait(false);
 
               // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
@@ -611,18 +558,16 @@ namespace Dotmim.Sync
               // Update server scope table
               var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-              var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+              var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
               if (!exists)
-                  await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+                  await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-              var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
+              var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
               serverScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
 
-              await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken).ConfigureAwait(false);
-
-              ctx.SyncStage = SyncStage.MetadataCleaned;
+              await this.InternalUpsertScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
               var args = new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, connection);
               await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
@@ -631,5 +576,6 @@ namespace Dotmim.Sync
               return databaseMetadatasCleaned;
 
           }, cancellationToken);
+
     }
 }

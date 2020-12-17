@@ -9,53 +9,151 @@ namespace Dotmim.Sync
     public class TrackingTableCreatedArgs : ProgressArgs
     {
         public SyncTable Table { get; }
+        public ParserName TrackingTableName { get; }
 
-        public TrackingTableCreatedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableCreatedArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Table = table;
+            this.TrackingTableName = trackingTableName;
         }
 
-        public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] tracking table created.";
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table created.";
 
         public override int EventId => 43;
     }
 
-    public class TrackingTableCreatingArgs : TableCreatedArgs
+    public class TrackingTableCreatingArgs : ProgressArgs
     {
+        public SyncTable Table { get; }
+        public ParserName TrackingTableName { get; }
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; }
 
-        public TrackingTableCreatingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, table, connection, transaction) => this.Command = command;
+        public TrackingTableCreatingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.Table = table;
+            this.TrackingTableName = trackingTableName;
+            this.Command = command;
+        }
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table creating.";
 
     }
 
     public class TrackingTableDroppedArgs : ProgressArgs
     {
         public SyncTable Table { get; }
+        public ParserName TrackingTableName { get; }
 
-        public TrackingTableDroppedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableDroppedArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            Table = table;
+            this.Table = table;
+            this.TrackingTableName = trackingTableName;
         }
 
-        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] tracking table dropped.";
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table dropped.";
 
         public override int EventId => 45;
     }
 
-    public class TrackingTableDroppingArgs : TableDroppedArgs
+    public class TrackingTableDroppingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; }
+        public SyncTable Table { get; }
+        public ParserName TrackingTableName { get; }
 
-        public TrackingTableDroppingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, table, connection, transaction)
+        public TrackingTableDroppingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
         {
+            this.Table = table;
+            this.TrackingTableName = trackingTableName;
             this.Command = command;
         }
 
     }
+
+    public class TrackingTableRenamedArgs : ProgressArgs
+    {
+        public ParserName TrackingTableName { get; }
+        public ParserName OldTrackingTableName { get; set; }
+
+        public TrackingTableRenamedArgs(SyncContext context, SyncTable table, ParserName trackingTableName, ParserName oldTrackingTableName, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.TrackingTableName = trackingTableName;
+            this.OldTrackingTableName = oldTrackingTableName;
+        }
+
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table renamed.";
+
+        public override int EventId => 43;
+    }
+
+    public class TrackingTableRenamingArgs : ProgressArgs
+    {
+        public SyncTable Table { get; }
+        public ParserName TrackingTableName { get; }
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
+        public ParserName OldTrackingTableName { get; set; }
+
+        public TrackingTableRenamingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, ParserName oldTrackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.Table = table;
+            this.TrackingTableName = trackingTableName;
+            this.Command = command;
+            this.OldTrackingTableName = oldTrackingTableName;
+
+        }
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table renaming.";
+
+    }
+
+    /// <summary>
+    /// Partial interceptors extensions 
+    /// </summary>
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableCreatingArgs(this BaseOrchestrator orchestrator, Action<TrackingTableCreatingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableCreatedArgs(this BaseOrchestrator orchestrator, Action<TrackingTableCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when a tracking table is dropping
+        /// </summary>
+        public static void OnTrackingTableDroppingArgs(this BaseOrchestrator orchestrator, Action<TrackingTableDroppingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when a tracking table is dropped
+        /// </summary>
+        public static void OnTrackingTableDroppedArgs(this BaseOrchestrator orchestrator, Action<TrackingTableDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableRenamingArgs(this BaseOrchestrator orchestrator, Action<TrackingTableRenamingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableRenamedArgs(this BaseOrchestrator orchestrator, Action<TrackingTableRenamedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+    }
+
 }

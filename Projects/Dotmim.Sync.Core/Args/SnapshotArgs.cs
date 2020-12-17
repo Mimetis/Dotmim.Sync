@@ -77,19 +77,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotCreatedArgs : ProgressArgs
     {
-        public SnapshotCreatedArgs(SyncContext context, SyncSet schema, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public SnapshotCreatedArgs(SyncContext context, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
-            this.Schema = schema;
             this.BatchInfo = batchInfo;
         }
 
         public override string Message => $"Created snapshot.";
 
-        /// <summary>
-        /// Gets the schema used to create the snapshot
-        /// </summary>
-        public SyncSet Schema { get; }
-        
         /// <summary>
         /// Gets the batch info summarizing the snapshot created
         /// </summary>
