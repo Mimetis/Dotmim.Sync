@@ -448,24 +448,21 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDatabaseProvisioned = true;
             });
 
-            localOrchestrator.OnTableProvisioning(args =>
+            localOrchestrator.OnTableCreating(args =>
             {
-                Assert.IsType<TableProvisioningArgs>(args);
+                Assert.IsType<TableCreatingArgs>(args);
                 Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.NotNull(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.True(args.TableBuilder.UseBulkProcedures);
-                Assert.False(args.TableBuilder.UseChangeTracking);
-                Assert.NotNull(args.TableBuilder.TableDescription);
-                Assert.Equal("SalesLT.Product", args.TableBuilder.TableDescription.GetFullName());
+                Assert.Equal("SalesLT.Product", args.Table.GetFullName());
 
                 onTableProvisioning = true;
             });
-            localOrchestrator.OnTableProvisioned(args =>
+            localOrchestrator.OnTableCreated(args =>
             {
-                Assert.IsType<TableProvisionedArgs>(args);
+                Assert.IsType<TableCreatedArgs>(args);
 
                 // We are still provisioning the tables
                 Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
@@ -473,8 +470,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(args.Connection);
                 Assert.NotNull(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.NotNull(args.SchemaTable);
-                Assert.Equal("SalesLT.Product", args.SchemaTable.GetFullName());
+                Assert.NotNull(args.Table);
+                Assert.Equal("SalesLT.Product", args.Table.GetFullName());
 
                 onTableProvisioned = true;
             });

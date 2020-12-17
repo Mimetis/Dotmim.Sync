@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// Create a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTableAsync(SyncTable syncTable, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTableAsync(SyncTable syncTable, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             var hasBeenCreated = false;
@@ -36,10 +36,76 @@ namespace Dotmim.Sync
 
             var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            if (!exists)
+            // should create only if not exists OR if overwrite has been set
+            var shouldCreate = !exists || overwrite;
+
+            if (shouldCreate)
+            {
+                // Drop if already exists and we need to overwrite
+                if (exists && overwrite)
+                    await InternalDropTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 hasBeenCreated = await InternalCreateTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
 
             return hasBeenCreated;
+
+        }, cancellationToken);
+
+        /// <summary>
+        /// Create all tables
+        /// </summary>
+        /// <param name="schema">A complete schema you want to create, containing table, primary keys and relations</param>
+        public Task<bool> CreateTablesAsync(SyncSet schema, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        {
+            var atLeastOneHasBeenCreated = false;
+
+            // Sorting tables based on dependencies between them
+            var schemaTables = schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+            // if we overwritten all tables, we need to delete all of them, before recreating them
+            if (overwrite)
+            {
+                foreach (var schemaTable in schemaTables.Reverse())
+                {
+                    var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                    var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    
+                    if (exists)
+                        await InternalDropTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
+            }
+            // Then create them
+            foreach (var schemaTable in schema.Tables)
+            {
+                // Get table builder
+                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+
+                var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (!schemaExists)
+                    await InternalCreateSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // should create only if not exists OR if overwrite has been set
+                var shouldCreate = !exists || overwrite;
+
+                if (shouldCreate)
+                {
+                    // Drop if already exists and we need to overwrite
+                    if (exists && overwrite)
+                        await InternalDropTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    var hasBeenCreated = await InternalCreateTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (hasBeenCreated)
+                        atLeastOneHasBeenCreated = true;
+                }
+            }
+
+            return atLeastOneHasBeenCreated;
 
         }, cancellationToken);
 
@@ -72,6 +138,34 @@ namespace Dotmim.Sync
         }, cancellationToken);
 
         /// <summary>
+        /// Drop all tables, declared in the Setup instance
+        /// </summary>
+        public Task<bool> DropTablesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        {
+            bool atLeastOneTableHasBeenDropped = false;
+
+            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            // Sorting tables based on dependencies between them
+            var schemaTables = schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+            foreach (var schemaTable in schemaTables.Reverse())
+            {
+                // Get table builder
+                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+
+                var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (exists)
+                    atLeastOneTableHasBeenDropped = await InternalDropTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
+
+            return atLeastOneTableHasBeenDropped;
+
+        }, cancellationToken);
+
+        /// <summary>
         /// Internal create table routine
         /// </summary>
         internal async Task<bool> InternalCreateTableAsync(SyncContext ctx, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -87,9 +181,11 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
+            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
+
             this.logger.LogInformation(SyncEventsId.CreateTable, new { Table = tableBuilder.TableDescription.GetFullName() });
 
-            var action = new TableCreatingArgs(ctx, tableBuilder.TableDescription, command, connection, transaction);
+            var action = new TableCreatingArgs(ctx, tableBuilder.TableDescription, tableName, command, connection, transaction);
 
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
@@ -98,7 +194,7 @@ namespace Dotmim.Sync
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            await this.InterceptAsync(new TableCreatedArgs(ctx, tableBuilder.TableDescription, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new TableCreatedArgs(ctx, tableBuilder.TableDescription, tableName, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             return true;
         }
@@ -141,7 +237,9 @@ namespace Dotmim.Sync
 
             this.logger.LogInformation(SyncEventsId.DropTable, new { Table = tableBuilder.TableDescription.GetFullName() });
 
-            var action = new TableDroppingArgs(ctx, tableBuilder.TableDescription, command, connection, transaction);
+            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
+
+            var action = new TableDroppingArgs(ctx, tableBuilder.TableDescription, tableName, command, connection, transaction);
 
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
@@ -150,7 +248,7 @@ namespace Dotmim.Sync
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            await this.InterceptAsync(new TableDroppedArgs(ctx, tableBuilder.TableDescription, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new TableDroppedArgs(ctx, tableBuilder.TableDescription, tableName, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             return true;
 

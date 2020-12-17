@@ -42,14 +42,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onCreating = false;
             var onCreated = false;
 
-            localOrchestrator.OnTrackingTableCreatingArgs(ttca =>
+            localOrchestrator.OnTrackingTableCreating(ttca =>
             {
                 var addingID = $" ALTER TABLE {ttca.TrackingTableName.Schema().Quoted()} ADD internal_id int identity(1,1)";
                 ttca.Command.CommandText += addingID;
                 onCreating = true;
             });
 
-            localOrchestrator.OnTrackingTableCreatedArgs(ttca =>
+            localOrchestrator.OnTrackingTableCreated(ttca =>
             {
                 onCreated = true;
             });
@@ -98,26 +98,47 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var onCreating = 0;
             var onCreated = 0;
+            var onDropping = 0;
+            var onDropped = 0;
 
-            localOrchestrator.OnTrackingTableCreatingArgs(ttca =>
-            {
-                onCreating++;
-            });
-
-            localOrchestrator.OnTrackingTableCreatedArgs(ttca =>
-            {
-                onCreated++;
-            });
+            localOrchestrator.OnTrackingTableCreating(ttca => onCreating++);
+            localOrchestrator.OnTrackingTableCreated(ttca => onCreated++);
+            localOrchestrator.OnTrackingTableDropping(ttca => onDropping++);
+            localOrchestrator.OnTrackingTableDropped(ttca => onDropped++);
 
             await localOrchestrator.CreateTrackingTablesAsync();
 
+            Assert.Equal(5, onCreating);
+            Assert.Equal(5, onCreated);
+            Assert.Equal(0, onDropping);
+            Assert.Equal(0, onDropped);
+
+            onCreating = 0;
+            onCreated = 0;
+            onDropping = 0;
+            onDropped = 0;
+
+            await localOrchestrator.CreateTrackingTablesAsync();
+
+            Assert.Equal(0, onCreating);
+            Assert.Equal(0, onCreated);
+            Assert.Equal(0, onDropping);
+            Assert.Equal(0, onDropped);
+
+            onCreating = 0;
+            onCreated = 0;
+            onDropping = 0;
+            onDropped = 0;
+
+            await localOrchestrator.CreateTrackingTablesAsync(true);
 
             Assert.Equal(5, onCreating);
             Assert.Equal(5, onCreated);
+            Assert.Equal(5, onDropping);
+            Assert.Equal(5, onDropped);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
 
         [Fact]
         public async Task TrackingTable_Drop_One()
@@ -141,12 +162,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onDropping = false;
             var onDropped = false;
 
-            localOrchestrator.OnTrackingTableDroppingArgs(ttca =>
+            localOrchestrator.OnTrackingTableDropping(ttca =>
             {
                 onDropping = true;
             });
 
-            localOrchestrator.OnTrackingTableDroppedArgs(ttca =>
+            localOrchestrator.OnTrackingTableDropped(ttca =>
             {
                 onDropped = true;
             });
@@ -195,13 +216,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onDropping = false;
             var onDropped = false;
 
-            localOrchestrator.OnTrackingTableDroppingArgs(ttca =>
+            localOrchestrator.OnTrackingTableDropping(ttca =>
             {
                 ttca.Cancel = true;
                 onDropping = true;
             });
 
-            localOrchestrator.OnTrackingTableDroppedArgs(ttca =>
+            localOrchestrator.OnTrackingTableDropped(ttca =>
             {
                 onDropped = true;
             });
@@ -249,15 +270,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTrackingTableDroppingArgs(ttca =>
-            {
-                onDropping++;
-            });
-
-            localOrchestrator.OnTrackingTableDroppedArgs(ttca =>
-            {
-                onDropped++;
-            });
+            localOrchestrator.OnTrackingTableDropping(ttca => onDropping++);
+            localOrchestrator.OnTrackingTableDropped(ttca => onDropped++);
 
             await localOrchestrator.CreateTrackingTablesAsync();
             await localOrchestrator.DropTrackingTablesAsync();
@@ -268,9 +282,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
-
-
 
     }
 }

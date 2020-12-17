@@ -287,7 +287,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return columns;
         }
-
         public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);

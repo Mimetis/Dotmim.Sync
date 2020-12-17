@@ -45,13 +45,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         public void Dispose()
         {
-
             this.stopwatch.Stop();
 
             var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
             Console.WriteLine(str);
             Debug.WriteLine(str);
-
         }
 
 
