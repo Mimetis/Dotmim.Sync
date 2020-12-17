@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// Create a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTrackingTableAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTrackingTableAsync(SetupTable table, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             bool hasBeenCreated = false;
@@ -39,12 +39,21 @@ namespace Dotmim.Sync
             var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!schemaExists)
-                await InternalCreateSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false) ;
+                await InternalCreateSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            if (!exists)
+            // should create only if not exists OR if overwrite has been set
+            var shouldCreate = !exists || overwrite;
+
+            if (shouldCreate)
+            {
+                // Drop if already exists and we need to overwrite
+                if (exists && overwrite)
+                    await InternalDropTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 hasBeenCreated = await InternalCreateTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
 
             return hasBeenCreated;
 
@@ -54,14 +63,14 @@ namespace Dotmim.Sync
         /// Create a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTrackingTablesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTrackingTablesAsync(bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
-            bool hasBeenCreated = false;
+            var atLeastOneHasBeenCreated = false;
 
             var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            foreach(var schemaTable in schema.Tables)
+            foreach (var schemaTable in schema.Tables)
             {
                 // Get table builder
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
@@ -73,12 +82,24 @@ namespace Dotmim.Sync
 
                 var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (!exists)
-                    hasBeenCreated = await InternalCreateTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // should create only if not exists OR if overwrite has been set
+                var shouldCreate = !exists || overwrite;
 
+                if (shouldCreate)
+                {
+                    // Drop if already exists and we need to overwrite
+                    if (exists && overwrite)
+                        await InternalDropTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    var hasBeenCreated = await InternalCreateTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (hasBeenCreated)
+                        atLeastOneHasBeenCreated = true;
+
+                }
             }
 
-            return hasBeenCreated;
+            return atLeastOneHasBeenCreated;
 
         }, cancellationToken);
 
@@ -112,7 +133,7 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Create a tracking table
+        /// Drop all tracking tables
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
         public Task<bool> DropTrackingTablesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)

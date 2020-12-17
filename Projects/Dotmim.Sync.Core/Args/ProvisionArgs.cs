@@ -5,40 +5,6 @@ using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync
 {
-    public class TableProvisionedArgs : ProgressArgs
-    {
-        public SyncProvision Provision { get; }
-        public SyncTable SchemaTable { get; }
-
-        public TableProvisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            Provision = provision;
-            SchemaTable = schemaTable;
-        }
-
-        public override string Message => $"[{Connection.Database}] [{SchemaTable.GetFullName()}] provision:{Provision}";
-
-        public override int EventId => 21;
-    }
-
-    public class TableProvisioningArgs : ProgressArgs
-    {
-        public SyncProvision Provision { get; }
-        public DbTableBuilder TableBuilder { get; }
-
-        public TableProvisioningArgs(SyncContext context, SyncProvision provision, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            Provision = provision;
-            TableBuilder = tableBuilder;
-        }
-
-        public override string Message => $"[{Connection.Database}] [{TableBuilder.TableDescription.GetFullName()}] provisioning:{Provision}";
-
-        public override int EventId => 22;
-    }
-
 
     public class DatabaseProvisionedArgs : ProgressArgs
     {

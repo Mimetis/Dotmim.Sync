@@ -65,8 +65,9 @@ namespace Dotmim.Sync
         public Task<bool> CreateStoredProceduresAsync(SetupTable table, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var hasCreatedAtLeastOneStoredProcedure = false;
 
+            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
             if (schemaTable == null)
@@ -76,8 +77,6 @@ namespace Dotmim.Sync
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
             var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType));
-
-            var hasCreatedAtLeastOneStoredProcedure = false;
 
             foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
             {

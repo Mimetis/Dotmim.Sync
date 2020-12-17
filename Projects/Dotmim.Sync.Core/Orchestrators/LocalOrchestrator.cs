@@ -392,9 +392,6 @@ namespace Dotmim.Sync
 
                         this.logger.LogDebug(SyncEventsId.Provision, schemaTable);
 
-                        // Interceptor
-                        await this.InterceptAsync(new TableProvisioningArgs(ctx, provision, tableBuilder, connection, transaction), cancellationToken).ConfigureAwait(false);
-
                         if (provision.HasFlag(SyncProvision.Table))
                             await this.InternalCreateTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -433,9 +430,6 @@ namespace Dotmim.Sync
                                 await InternalCreateStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                             }
                         }
-
-                        // Interceptor
-                        await this.InterceptAsync(new TableProvisionedArgs(ctx, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
                     }
 
                     ScopeInfo localScope = null;

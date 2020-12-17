@@ -41,10 +41,12 @@ namespace Dotmim.Sync
     public class TableCreatedArgs : ProgressArgs
     {
         public SyncTable Table { get; }
+        public ParserName TableName { get; }
 
-        public TableCreatedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+        public TableCreatedArgs(SyncContext context, SyncTable table, ParserName tableName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.TableName = tableName;
             this.Table = table;
         }
 
@@ -53,24 +55,35 @@ namespace Dotmim.Sync
         public override int EventId => 43;
     }
 
-    public class TableCreatingArgs : TableCreatedArgs
+    public class TableCreatingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; }
+        public SyncTable Table { get; }
+        public ParserName TableName { get; }
 
-        public TableCreatingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, table, connection, transaction) => this.Command = command;
+        public TableCreatingArgs(SyncContext context, SyncTable table, ParserName tableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.Table = table;
+            this.TableName = tableName;
+            this.Command = command;
+        }
+
+        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table creating.";
 
     }
 
     public class TableDroppedArgs : ProgressArgs
     {
         public SyncTable Table { get; }
+        public ParserName TableName { get; }
 
-        public TableDroppedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+        public TableDroppedArgs(SyncContext context, SyncTable table, ParserName tableName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            Table = table;
+            this.TableName = tableName;
+            this.Table = table;
         }
 
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table dropped.";
@@ -78,16 +91,23 @@ namespace Dotmim.Sync
         public override int EventId => 45;
     }
 
-    public class TableDroppingArgs : TableDroppedArgs
+    public class TableDroppingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; }
+        public SyncTable Table { get; }
+        public ParserName TableName { get; }
 
-        public TableDroppingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, table, connection, transaction)
+        public TableDroppingArgs(SyncContext context, SyncTable table, ParserName tableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context,  connection, transaction)
         {
             this.Command = command;
+            this.TableName = tableName;
+            this.Table = table;
         }
+
+        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table dropping.";
+
 
     }
 
@@ -122,5 +142,21 @@ namespace Dotmim.Sync
             => orchestrator.SetInterceptor(action);
 
 
+        /// <summary>
+        /// Intercept the provider when a table is dropping
+        /// </summary>
+        public static void OnTableDropping(this BaseOrchestrator orchestrator, Action<TableDroppingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when a table is dropped
+        /// </summary>
+        public static void OnTableDropped(this BaseOrchestrator orchestrator, Action<TableDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+
+
     }
+
 }

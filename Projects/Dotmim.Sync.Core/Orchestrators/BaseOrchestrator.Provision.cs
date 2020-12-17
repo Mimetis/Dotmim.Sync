@@ -140,10 +140,6 @@ namespace Dotmim.Sync
 
                 this.logger.LogDebug(SyncEventsId.Provision, schemaTable);
 
-                // Interceptor
-                await this.InterceptAsync(new TableProvisioningArgs(ctx, provision, tableBuilder, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-
                 // Check if we need to create a schema there
                 var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -214,9 +210,6 @@ namespace Dotmim.Sync
                         await InternalCreateStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
-
-                // Interceptor
-                await this.InterceptAsync(new TableProvisionedArgs(ctx, provision, schemaTable, connection, transaction), cancellationToken).ConfigureAwait(false);
             }
 
             var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
