@@ -21,35 +21,25 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
         public virtual Task<SyncSet> GetSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(async (ctx, connection, transaction) =>
+            => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
             {
-                ctx.SyncStage = SyncStage.SchemaReading;
-
-                if (this.Setup.Tables.Count <= 0)
-                    throw new MissingTablesException();
-
                 var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                ctx.SyncStage = SyncStage.SchemaRead;
-
-                var schemaArgs = new SchemaArgs(ctx, schema, connection);
-                await this.InterceptAsync(schemaArgs, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, schemaArgs);
-
                 return schema;
-            }, cancellationToken);
 
+            });
 
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        public async Task<SyncSet> InternalGetSchemaAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
+        internal async Task<SyncSet> InternalGetSchemaAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
                                                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (this.Setup == null || this.Setup.Tables.Count <= 0)
                 throw new MissingTablesException();
 
             this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
+
+            await this.InterceptAsync(new SchemaLoadingArgs(context, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Create the schema
             var schema = new SyncSet();
@@ -69,7 +59,7 @@ namespace Dotmim.Sync
                 var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
                 var tableBuilder = this.Provider.GetTableBuilder(syncTable, this.Setup);
 
-                var exists = await InternalExistsTableAsync(context, syncTable, tableBuilder, connection, transaction, cancellationToken);
+                var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
                     throw new MissingTableException(string.IsNullOrEmpty(setupTable.SchemaName) ? setupTable.TableName : setupTable.SchemaName + "." + setupTable.TableName);
@@ -104,9 +94,12 @@ namespace Dotmim.Sync
             // Ensure all objects have correct relations to schema
             schema.EnsureSchema();
 
+            var schemaArgs = new SchemaLoadedArgs(context, schema, connection);
+            await this.InterceptAsync(schemaArgs, cancellationToken).ConfigureAwait(false);
+            this.ReportProgress(context, progress, schemaArgs);
+
             return schema;
         }
-
 
         /// <summary>
         /// Generate the DmTable configuration from a given columns list

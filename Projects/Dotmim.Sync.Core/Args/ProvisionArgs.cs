@@ -39,14 +39,6 @@ namespace Dotmim.Sync
         public override int EventId => 22;
     }
 
-    public class TableDeprovisionedArgs : TableProvisionedArgs
-    {
-        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, provision, schemaTable, connection, transaction)
-        {
-        }
-        public override int EventId => 23;
-    }
 
     public class DatabaseProvisionedArgs : ProgressArgs
     {

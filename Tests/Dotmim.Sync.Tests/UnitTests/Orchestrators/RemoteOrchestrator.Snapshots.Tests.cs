@@ -84,7 +84,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var orchestrator = new RemoteOrchestrator(provider, options, setup, scopeName);
 
             // Assert on connection and transaction interceptors
-            BaseOrchestratorTests.AssertConnectionAndTransaction(orchestrator, SyncStage.SnapshotCreating, SyncStage.SnapshotCreated);
+            BaseOrchestratorTests.AssertConnectionAndTransaction(orchestrator, SyncStage.SnapshotCreating);
 
             orchestrator.OnSnapshotCreating(args =>
             {
@@ -103,12 +103,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             orchestrator.OnSnapshotCreated(args =>
             {
                 Assert.IsType<SnapshotCreatedArgs>(args);
-                Assert.Equal(SyncStage.SnapshotCreated, args.Context.SyncStage);
+                Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
                 Assert.Equal(ConnectionState.Closed, args.Connection.State);
-                Assert.NotNull(args.Schema);
                 Assert.NotNull(args.BatchInfo);
 
                 var finalDirectoryFullName = Path.Combine(snapshotDirectory, scopeName);
@@ -125,7 +124,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var bi = await orchestrator.CreateSnapshotAsync();
 
-            Assert.Equal(SyncStage.SnapshotCreated, orchestrator.GetContext().SyncStage);
+            Assert.Equal(SyncStage.SnapshotCreating, orchestrator.GetContext().SyncStage);
 
             Assert.True(onSnapshotCreating);
             Assert.True(onSnapshotCreated);

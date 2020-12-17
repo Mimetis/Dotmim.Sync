@@ -38,13 +38,13 @@ namespace Dotmim.Sync
             // Report this disabling constraints brefore opening a transaction
             if (message.DisableConstraintsOnApplyChanges)
                 foreach (var table in message.Schema.Tables.Reverse())
-                    await this.DisableConstraintsAsync(context, table, message.Setup, connection, transaction);
+                    await this.DisableConstraintsAsync(context, table, message.Setup, connection, transaction).ConfigureAwait(false);
 
             // -----------------------------------------------------
             // 0) Check if we are in a reinit mode
             // -----------------------------------------------------
             if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                await this.ResetInternalAsync(context, message.Schema, message.Setup, connection, transaction);
+                await this.ResetInternalAsync(context, message.Schema, message.Setup, connection, transaction).ConfigureAwait(false);
 
             // -----------------------------------------------------
             // 1) Applying deletes. Do not apply deletes if we are in a new database
@@ -71,7 +71,7 @@ namespace Dotmim.Sync
             // Re enable check constraints
             if (message.DisableConstraintsOnApplyChanges)
                 foreach (var table in message.Schema.Tables)
-                    await this.EnableConstraintsAsync(context, table, message.Setup, connection, transaction);
+                    await this.EnableConstraintsAsync(context, table, message.Setup, connection, transaction).ConfigureAwait(false);
 
 
             // Before cleaning, check if we are not applying changes from a snapshotdirectory

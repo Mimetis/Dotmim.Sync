@@ -35,8 +35,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             var tbl = trackingName.ToString();
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-            stringBuilder.AppendLine("IF NOT EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) ");
-            stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
 
             // Adding the primary key
@@ -59,7 +57,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
-            stringBuilder.Append(");");
+            stringBuilder.AppendLine(");");
 
             // Primary Keys
             stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
@@ -74,7 +72,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (i < primaryKeysColumns.Count - 1)
                     stringBuilder.Append(", ");
             }
-            stringBuilder.Append(");");
+            stringBuilder.AppendLine(");");
 
 
             // Index
@@ -90,8 +88,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($"\t,{columnName} ASC");
             }
             stringBuilder.Append(");");
-
-            stringBuilder.AppendLine("END");
 
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
             SqlParameter sqlParameter = new SqlParameter()

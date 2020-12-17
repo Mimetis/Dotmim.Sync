@@ -56,10 +56,10 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public void BaseOrchestrator_Constructor()
         {
-            var provider = new MockProvider();
+            var provider = new SqlSyncProvider();
             var options = new SyncOptions();
             var setup = new SyncSetup();
-            var orchestrator = new MockBaseClientOrchestrator(provider, options, setup);
+            var orchestrator = new LocalOrchestrator(provider, options, setup);
 
             Assert.NotNull(orchestrator.Options);
             Assert.Same(options, orchestrator.Options);
@@ -79,15 +79,15 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public void BaseOrchestrator_ShouldFail_When_Args_AreNull()
         {
-            var provider = new MockProvider();
+            var provider = new SqlSyncProvider();
             var options = new SyncOptions();
             var setup = new SyncSetup();
 
-            Assert.Throws<ArgumentNullException>(() => new MockBaseClientOrchestrator(null, null, null));
-            Assert.Throws<ArgumentNullException>(() => new MockBaseClientOrchestrator(provider, null, null));
-            Assert.Throws<ArgumentNullException>(() => new MockBaseClientOrchestrator(provider, options, null));
-            Assert.Throws<ArgumentNullException>(() => new MockBaseClientOrchestrator(null, options, setup));
-            Assert.Throws<ArgumentNullException>(() => new MockBaseClientOrchestrator(null, null, setup));
+            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, null, null));
+            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(provider, null, null));
+            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(provider, options, null));
+            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, options, setup));
+            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, null, setup));
         }
 
         [Fact]
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
             var provider = new SqlSyncProvider();
 
-            var localOrchestrator = new MockBaseClientOrchestrator(provider, options, setup, "scope1");
+            var localOrchestrator = new LocalOrchestrator(provider, options, setup, "scope1");
 
             var ctx = localOrchestrator.GetContext();
 
@@ -119,7 +119,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
             var provider = new SqlSyncProvider(cs);
 
-            var orchestrator = new MockBaseServerOrchestrator(provider, options, setup);
+            var orchestrator = new RemoteOrchestrator(provider, options, setup);
 
             var se = await Assert.ThrowsAsync<SyncException>(async () => await orchestrator.GetSchemaAsync());
 
@@ -131,12 +131,12 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
 
-        internal static void AssertConnectionAndTransaction(BaseOrchestrator orchestrator, SyncStage beginStage, SyncStage endStage)
+        internal static void AssertConnectionAndTransaction(BaseOrchestrator orchestrator, SyncStage stage)
         {
             orchestrator.OnConnectionOpen(args =>
             {
                 Assert.IsType<ConnectionOpenedArgs>(args);
-                Assert.Equal(beginStage, args.Context.SyncStage);
+                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(orchestrator.ScopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             orchestrator.OnTransactionOpen(args =>
             {
                 Assert.IsType<TransactionOpenedArgs>(args);
-                Assert.Equal(beginStage, args.Context.SyncStage);
+                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(orchestrator.ScopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.NotNull(args.Transaction);
@@ -155,7 +155,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             orchestrator.OnTransactionCommit(args =>
             {
                 Assert.IsType<TransactionCommitArgs>(args);
-                Assert.Equal(beginStage, args.Context.SyncStage);
+                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(orchestrator.ScopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.NotNull(args.Transaction);
@@ -165,7 +165,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             orchestrator.OnConnectionClose(args =>
             {
                 Assert.IsType<ConnectionClosedArgs>(args);
-                Assert.Equal(endStage, args.Context.SyncStage);
+                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(orchestrator.ScopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -193,10 +193,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
 
-            localOrchestrator.OnSchemaRead(args =>
+            localOrchestrator.OnSchemaLoaded(args =>
             {
-                Assert.IsType<SchemaArgs>(args);
-                Assert.Equal(SyncStage.SchemaRead, args.Context.SyncStage);
+                Assert.IsType<SchemaLoadedArgs>(args);
+                Assert.Equal(SyncStage.SchemaReading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -206,12 +206,12 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             });
 
-            AssertConnectionAndTransaction(localOrchestrator, SyncStage.SchemaReading, SyncStage.SchemaRead);
+            AssertConnectionAndTransaction(localOrchestrator, SyncStage.SchemaReading);
 
             var schema = await localOrchestrator.GetSchemaAsync();
 
             Assert.NotNull(schema);
-            Assert.Equal(SyncStage.SchemaRead, localOrchestrator.GetContext().SyncStage);
+            Assert.Equal(SyncStage.SchemaReading, localOrchestrator.GetContext().SyncStage);
             Assert.Equal(17, schema.Tables.Count);
             Assert.True(onSchemaRead);
 
@@ -278,7 +278,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var schema = await localOrchestrator.GetSchemaAsync();
 
-            Assert.Equal(SyncStage.SchemaRead, localOrchestrator.GetContext().SyncStage);
+            Assert.Equal(SyncStage.SchemaReading, localOrchestrator.GetContext().SyncStage);
             Assert.Equal(3, schema.Tables.Count);
 
             // Only 4 columns shoud be part of Customer table
@@ -437,7 +437,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnDatabaseProvisioned(args =>
             {
                 Assert.IsType<DatabaseProvisionedArgs>(args);
-                Assert.Equal(SyncStage.Provisioned, args.Context.SyncStage);
+                Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -479,11 +479,11 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onTableProvisioned = true;
             });
 
-            AssertConnectionAndTransaction(localOrchestrator, SyncStage.Provisioning, SyncStage.Provisioned);
+            AssertConnectionAndTransaction(localOrchestrator, SyncStage.Provisioning);
 
             await localOrchestrator.ProvisionAsync(schema, provision);
 
-            Assert.Equal(SyncStage.Provisioned, localOrchestrator.GetContext().SyncStage);
+            Assert.Equal(SyncStage.Provisioning, localOrchestrator.GetContext().SyncStage);
 
             Assert.True(onTableProvisioned);
             Assert.True(onTableProvisioning);
@@ -542,7 +542,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var context = localOrchestrator.GetContext();
 
-            Assert.Equal(SyncStage.Provisioned, context.SyncStage);
+            Assert.Equal(SyncStage.Provisioning, context.SyncStage);
             Assert.Single(schema.Tables);
             Assert.Equal("SalesLT.Product", schema.Tables[0].GetFullName());
             Assert.Equal(17, schema.Tables[0].Columns.Count);
@@ -822,7 +822,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
             var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
 
 
             var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.ProvisionAsync(schema, provision));

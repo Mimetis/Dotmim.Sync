@@ -39,12 +39,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            setup.StoredProceduresPrefix = "trg_";
-            setup.StoredProceduresSuffix = "_trg";
+            setup.StoredProceduresPrefix = "sp_";
+            setup.StoredProceduresSuffix = "_sp";
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
-            var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_insert_trigger";
+            var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
+            
             await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, false);
 
             using (var c = new SqlConnection(cs))

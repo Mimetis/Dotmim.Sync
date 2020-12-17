@@ -25,46 +25,44 @@ namespace Dotmim.Sync
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
         public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(async (ctx, connection, transaction) =>
-            {
-                ctx.SyncStage = SyncStage.SnapshotCreating;
+        => RunInTransactionAsync(SyncStage.SnapshotCreating, async (ctx, connection, transaction) =>
+        {
+            if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
+                throw new SnapshotMissingMandatariesOptionsException();
 
-                if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
-                    throw new SnapshotMissingMandatariesOptionsException();
+            // check parameters
+            // If context has no parameters specified, and user specifies a parameter collection we switch them
+            if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
+                ctx.Parameters = syncParameters;
 
-                // check parameters
-                // If context has no parameters specified, and user specifies a parameter collection we switch them
-                if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
-                    ctx.Parameters = syncParameters;
+            // 1) Get Schema from remote provider
+            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // 1) Get Schema from remote provider
-                var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            // 2) Ensure databases are ready
+            var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                // 2) Ensure databases are ready
-                var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+            await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+            // Provision everything
+            schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Provision everything
-                ctx = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+            // 3) Getting the most accurate timestamp
+            var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
-                // 3) Getting the most accurate timestamp
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+            await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
+            // 4) Create the snapshot
+            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, connection, transaction, this.Options.SnapshotsDirectory,
+                    this.Options.BatchSize, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
-                // 4) Create the snapshot
-                var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, connection, transaction, this.Options.SnapshotsDirectory,
-                        this.Options.BatchSize, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+            var snapshotCreated = new SnapshotCreatedArgs(ctx, batchInfo, connection);
+            await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
+            this.ReportProgress(ctx, progress, snapshotCreated);
 
-                ctx.SyncStage = SyncStage.SnapshotCreated;
 
-                var snapshotCreated = new SnapshotCreatedArgs(ctx, schema, batchInfo, connection);
-                await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, snapshotCreated);
+            return batchInfo;
+        },  cancellationToken);
 
-                return batchInfo;
-            }, cancellationToken);
 
         /// <summary>
         /// Get a snapshot
