@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnScopeLoaded(args =>
             {
-                Assert.Equal(SyncStage.ScopeLoaded, args.Context.SyncStage);
+                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.ScopeInfo);
                 Assert.Equal(scopeName, args.ScopeInfo.Name);
@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Check connection and transaction interceptors
-            BaseOrchestratorTests.AssertConnectionAndTransaction(localOrchestrator, SyncStage.ScopeLoading, SyncStage.ScopeLoaded);
+            BaseOrchestratorTests.AssertConnectionAndTransaction(localOrchestrator, SyncStage.ScopeLoading);
 
             var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
 
@@ -125,7 +125,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(scopeName, syncContext.ScopeName);
             Assert.NotEqual(Guid.Empty, syncContext.SessionId);
             Assert.Null(syncContext.Parameters);
-            Assert.Equal(SyncStage.ScopeLoaded, syncContext.SyncStage);
+            Assert.Equal(SyncStage.ScopeLoading, syncContext.SyncStage);
             Assert.Equal(SyncType.Normal, syncContext.SyncType);
             Assert.Equal(SyncWay.None, syncContext.SyncWay);
 

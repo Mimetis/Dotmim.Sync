@@ -1446,15 +1446,15 @@ namespace Dotmim.Sync.Tests
                 //    }
                 //}
 
-                localOrchestrator.OnTableProvisioned(null);
+                //localOrchestrator.OnTableProvisioned(null);
 
-                // just check interceptor
-                localOrchestrator.OnTableDeprovisioned(args => Assert.Equal(provision, args.Provision));
+                //// just check interceptor
+                //localOrchestrator.OnTableDeprovisioned(args => Assert.Equal(provision, args.Provision));
 
-                // Deprovision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.DeprovisionAsync(schema, provision);
+                //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
+                //await localOrchestrator.DeprovisionAsync(schema, provision);
 
-                localOrchestrator.OnTableDeprovisioned(null);
+                //localOrchestrator.OnTableDeprovisioned(null);
             }
         }
 

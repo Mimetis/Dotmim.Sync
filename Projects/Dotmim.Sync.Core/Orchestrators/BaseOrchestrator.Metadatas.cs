@@ -27,23 +27,14 @@ namespace Dotmim.Sync
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="progress">Progress args</param>
         public virtual Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(async (ctx, connection, transaction) =>
+        => RunInTransactionAsync(SyncStage.MetadataCleaning, async (ctx, connection, transaction) =>
         {
-            ctx.SyncStage = SyncStage.MetadataCleaning;
-
-            await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
             // No need columns or primary keys to be able to deprovision a table
             SyncSet schema = new SyncSet(this.Setup);
 
             var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            ctx.SyncStage = SyncStage.MetadataCleaned;
-
-            var args = new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, connection);
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args);
 
             return databaseMetadatasCleaned;
 
@@ -54,6 +45,7 @@ namespace Dotmim.Sync
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            await this.InterceptAsync(new MetadataCleaningArgs(context, this.Setup, timestampLimit, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
@@ -81,6 +73,10 @@ namespace Dotmim.Sync
                 }
 
             }
+
+            var args = new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection);
+            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+            this.ReportProgress(context, progress, args);
 
             this.logger.LogDebug(SyncEventsId.MetadataCleaning, databaseMetadatasCleaned);
 

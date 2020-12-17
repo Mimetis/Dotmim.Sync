@@ -5,6 +5,11 @@
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="UnitTests\Mock\**" />
+    <EmbeddedResource Remove="UnitTests\Mock\**" />
+    <None Remove="UnitTests\Mock\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="MessagePack" Version="2.1.90" />
     <PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />

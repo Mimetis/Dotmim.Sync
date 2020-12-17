@@ -3,59 +3,73 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    public class SchemaCreatedArgs : ProgressArgs
-    {
-        public SyncTable Table { get; }
 
-        public SchemaCreatedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+    public class SchemaLoadingArgs : ProgressArgs
+    {
+        public SchemaLoadingArgs(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            this.Table = table;
+            this.Setup = setup;
         }
 
-        public override string Message => $"[{Connection.Database}] [{this.Table.SchemaName}] schema created.";
+        /// <summary>
+        /// Gets the Setup to be load.
+        /// </summary>
+        public SyncSetup Setup { get; }
+        public override string Message => $"synced tables count: {this.Setup.Tables.Count}";
 
-        public override int EventId => 43;
+        public override int EventId => 11;
     }
 
-    public class SchemaCreatingArgs : TableCreatedArgs
+    public class SchemaLoadedArgs : ProgressArgs
     {
-        public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
-
-        public SchemaCreatingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, table, connection, transaction) => this.Command = command;
-
-    }
-
-    public class SchemaDroppedArgs : ProgressArgs
-    {
-        public SyncTable Table { get; }
-
-        public SchemaDroppedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+        public SchemaLoadedArgs(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            Table = table;
+            this.Schema = schema;
         }
 
-        public override string Message => $"[{Connection.Database}] [{Table.SchemaName}] schema dropped.";
+        /// <summary>
+        /// Gets the schema loaded.
+        /// </summary>
+        public SyncSet Schema { get; }
+        public override string Message => $"synced tables count: {this.Schema.Tables.Count}";
 
-        public override int EventId => 45;
+        public override int EventId => 11;
     }
 
-    public class SchemaDroppingArgs : TableDroppedArgs
+    /// <summary>
+    /// Partial interceptors extensions 
+    /// </summary>
+    public static partial class InterceptorsExtensions
     {
-        public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        /// <summary>
+        /// Intercept the provider when schema is created
+        /// </summary>
+        public static void OnSchemaCreated(this BaseOrchestrator orchestrator, Action<SchemaNameCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
 
-        public SchemaDroppingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, table, connection, transaction)
-        {
-            this.Command = command;
-        }
+        /// <summary>
+        /// Intercept the provider when schema is creating
+        /// </summary>
+        public static void OnSchemaCreating(this BaseOrchestrator orchestrator, Action<SchemaNameCreatingArgs> action)
+            => orchestrator.SetInterceptor(action);
 
+ 
+        /// <summary>
+        /// Intercept the provider when schema is loaded
+        /// </summary>
+        public static void OnSchemaLoaded(this BaseOrchestrator orchestrator, Action<SchemaLoadedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when schema is loading
+        /// </summary>
+        public static void OnSchemaLoading(this BaseOrchestrator orchestrator, Action<SchemaLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
     }
 }
