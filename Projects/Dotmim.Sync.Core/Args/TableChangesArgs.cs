@@ -82,10 +82,14 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesApplyingArgs : ProgressArgs
     {
-        public TableChangesApplyingArgs(SyncContext context, SyncTable changes, DataRowState state, DbConnection connection, DbTransaction transaction)
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
+
+        public TableChangesApplyingArgs(SyncContext context, SyncTable changes, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.State = state;
+            this.Command = command;
             this.Changes = changes;
         }
 

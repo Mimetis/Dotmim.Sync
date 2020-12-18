@@ -62,11 +62,6 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
-        agent.LocalOrchestrator.On(a =>
-        {
-            Console.WriteLine(a);
-        });
-        
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {

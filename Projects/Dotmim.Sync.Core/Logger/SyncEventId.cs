@@ -84,7 +84,7 @@ namespace Dotmim.Sync
 
     }
 
-    public static class SyncEventsId
+    public static partial class SyncEventsId
     {
         private static EventId CreateEventId(int id, string eventName) => new EventId(id, eventName);
 

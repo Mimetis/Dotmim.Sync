@@ -259,10 +259,6 @@ namespace Dotmim.Sync
 
                 this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
 
-                var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(ctx, clientChangesApplied, connection, transaction);
-                await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, databaseChangesAppliedArgs, connection, transaction);
-
                 ctx.SyncStage = SyncStage.ChangesSelecting;
 
                 using (transaction = connection.BeginTransaction())
