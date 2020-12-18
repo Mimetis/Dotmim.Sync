@@ -64,18 +64,44 @@ namespace Dotmim.Sync.Tests.UnitTests
             using (var c = new SqlConnection(cs))
             {
                 await c.OpenAsync().ConfigureAwait(false);
-
                 var cols = await SqlManagementUtils.GetColumnsForTableAsync(c, null, "t_Product_t", "SalesLT").ConfigureAwait(false);
-
                 Assert.Equal(7, cols.Rows.Count);
-
                 Assert.NotNull(cols.Rows.FirstOrDefault(r => r["name"].ToString() == "internal_id"));
-
                 c.Close();
             }
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
+
+        [Fact]
+        public async Task TrackingTable_Exists()
+        {
+            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+
+            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
+            var sqlProvider = new SqlSyncProvider(cs);
+
+            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
+            await ctx.Database.EnsureCreatedAsync();
+
+            var options = new SyncOptions();
+            var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
+            setup.TrackingTablesPrefix = "t_";
+            setup.TrackingTablesSuffix = "_t";
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+
+            await localOrchestrator.CreateTrackingTableAsync(setup.Tables[0]);
+
+            var exists = await localOrchestrator.ExistTrackingTableAsync(setup.Tables[0]);
+            Assert.True(exists);
+            exists = await localOrchestrator.ExistTrackingTableAsync(setup.Tables[1]);
+            Assert.False(exists);
+
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+        }
+
 
         [Fact]
         public async Task TrackingTable_Create_All()

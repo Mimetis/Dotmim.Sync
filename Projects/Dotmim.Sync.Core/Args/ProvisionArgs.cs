@@ -1,4 +1,5 @@
-﻿using System.Data.Common;
+﻿using System;
+using System.Data.Common;
 using System.Linq;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -65,6 +66,37 @@ namespace Dotmim.Sync
         {
         }
         public override int EventId => 27;
+    }
+
+    public static partial class InterceptorsExtensions
+    {
+
+
+        /// <summary>
+        /// Intercept the provider before it begins a database deprovisioning
+        /// </summary>
+        public static void OnDatabaseDeprovisioning(this BaseOrchestrator orchestrator, Action<DatabaseDeprovisioningArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider after it has deprovisioned a database
+        /// </summary>
+        public static void OnDatabaseDeprovisioned(this BaseOrchestrator orchestrator, Action<DatabaseDeprovisionedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
+        /// Intercept the provider before it begins a database provisioning
+        /// </summary>
+        public static void OnDatabaseProvisioning(this BaseOrchestrator orchestrator, Action<DatabaseProvisioningArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider after it has provisioned a database
+        /// </summary>
+        public static void OnDatabaseProvisioned(this BaseOrchestrator orchestrator, Action<DatabaseProvisionedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
     }
 
 

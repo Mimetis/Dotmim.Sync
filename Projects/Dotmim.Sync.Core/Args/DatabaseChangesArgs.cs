@@ -38,14 +38,18 @@ namespace Dotmim.Sync
             : base(context, connection, transaction)
         {
             this.Timestamp = timestamp;
-            this.ClientBatchInfo = clientBatchInfo;
+            this.BatchInfo = clientBatchInfo;
             this.ChangesSelected = changesSelected;
         }
 
         public override string Message => $"[{Connection.Database}] upserts:{this.ChangesSelected.TotalChangesSelectedUpdates} deletes:{this.ChangesSelected.TotalChangesSelectedDeletes} total:{this.ChangesSelected.TotalChangesSelected}";
 
         public long Timestamp { get; }
-        public BatchInfo ClientBatchInfo { get; }
+
+        /// <summary>
+        /// Get the batch info. Always null when raised from a call from GetEstimatedChangesCount
+        /// </summary>
+        public BatchInfo BatchInfo { get; }
         public DatabaseChangesSelected ChangesSelected { get; }
         public override int EventId => 14;
     }
@@ -86,6 +90,36 @@ namespace Dotmim.Sync
         public override string Message => $"[{Connection.Database}] applied:{ChangesApplied.TotalAppliedChanges} resolved conflicts:{ChangesApplied.TotalResolvedConflicts}";
 
         public override int EventId => 16;
+    }
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
+            => orchestrator.SetInterceptor(func);
+
+
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
+            => orchestrator.SetInterceptor(func);
+
+
+        /// <summary>
+        /// Occurs when changes are going to be queried on the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectingArgs> func)
+            => orchestrator.SetInterceptor(func);
+
+        /// <summary>
+        /// Occurs when changes have been retrieved from the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectedArgs> func)
+            => orchestrator.SetInterceptor(func);
+
     }
 
 

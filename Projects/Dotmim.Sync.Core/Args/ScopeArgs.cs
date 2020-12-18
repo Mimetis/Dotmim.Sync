@@ -31,6 +31,24 @@ namespace Dotmim.Sync
         }
     }
 
+    public class ScopeTableDroppingArgs : ScopeTableDroppedArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
+
+        public ScopeTableDroppingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, scopeName, scopeType, connection, transaction)
+        {
+            this.Command = command;
+        }
+    }
+
+    public class ScopeTableCreatingArgs : ScopeTableDroppingArgs
+    {
+        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        {
+        }
+    }
 
     public class ScopeLoadedArgs<T> : ScopeTableDroppedArgs where T : class
     {
@@ -53,25 +71,6 @@ namespace Dotmim.Sync
         public T ScopeInfo { get; }
     }
 
-    public class ScopeTableDroppingArgs : ScopeTableDroppedArgs
-    {
-        public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
-
-        public ScopeTableDroppingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, scopeName, scopeType, connection, transaction)
-        {
-            this.Command = command;
-        }
-    }
-
-    public class ScopeTableCreatingArgs : ScopeTableDroppingArgs
-    {
-        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
-        {
-        }
-    }
-
     public class ScopeLoadingArgs : ScopeTableDroppingArgs
     {
         public ScopeLoadingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
@@ -79,10 +78,10 @@ namespace Dotmim.Sync
         }
     }
 
-    public class ScopeUpsertingArgs : ScopeTableDroppingArgs
+    public class ScopeSavingArgs : ScopeTableDroppingArgs
     {
 
-        public ScopeUpsertingArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
         {
             this.ScopeInfo = scopeInfo;
         }
@@ -90,12 +89,78 @@ namespace Dotmim.Sync
         public object ScopeInfo { get; }
     }
 
-    public class ScopeUpsertedArgs : ScopeTableDroppedArgs
+    public class ScopeSavedArgs : ScopeTableDroppedArgs
     {
-        public ScopeUpsertedArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
+        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
         {
             this.ScopeInfo = scopeInfo;
         }
         public object ScopeInfo { get; }
     }
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the provider action when a scope table is creating
+        /// </summary>
+        public static void OnScopeTableCreating(this BaseOrchestrator orchestrator, Action<ScopeTableCreatingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope table is created
+        /// </summary>
+        public static void OnScopeTableCreated(this BaseOrchestrator orchestrator, Action<ScopeTableCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropping
+        /// </summary>
+        public static void OnScopeTableDropping(this BaseOrchestrator orchestrator, Action<ScopeTableDroppingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropped
+        /// </summary>
+        public static void OnScopeTableDropped(this BaseOrchestrator orchestrator, Action<ScopeTableDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this BaseOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from ServerScope database
+        /// </summary>
+        public static void OnServerScopeScopeLoading(this BaseOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this BaseOrchestrator orchestrator, Action<ScopeLoadedArgs<ScopeInfo>> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from Server database
+        /// </summary>
+        public static void OnServerScopeLoaded(this BaseOrchestrator orchestrator, Action<ScopeLoadedArgs<ServerScopeInfo>> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is saving
+        /// </summary>
+        public static void OnScopeSaving(this BaseOrchestrator orchestrator, Action<ScopeSavingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is saved
+        /// </summary>
+        public static void OnScopeSaved(this BaseOrchestrator orchestrator, Action<ScopeSavedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+    }
+
+
 }

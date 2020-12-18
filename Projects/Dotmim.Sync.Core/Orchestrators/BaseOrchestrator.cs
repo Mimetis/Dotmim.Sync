@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -75,12 +76,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        internal void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs =>
-            this.interceptors.GetInterceptor<T>().Set(interceptorFunc);
-
-        /// <summary>
-        /// Set an interceptor to get info on the current sync process
-        /// </summary>
         internal void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
             this.interceptors.GetInterceptor<T>().Set(interceptorAction);
 
@@ -105,12 +100,15 @@ namespace Dotmim.Sync
             {
                 var argsTypeName = args.GetType().Name;
                 this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
-                this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
             }
-
 
             return interceptor.RunAsync(args, cancellationToken);
         }
+
+        /// <summary>
+        /// Affect an interceptor
+        /// </summary>
+        internal void SetInterceptor<T>(Action<T> action) where T : ProgressArgs => this.On(action);
 
         /// <summary>
         /// Gets a boolean returning true if an interceptor of type T, exists
@@ -270,10 +268,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(outdatedArgs, cancellationToken).ConfigureAwait(false);
 
                 if (outdatedArgs.Action != OutdatedAction.Rollback)
-                {
                     ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
-                    this.logger.LogDebug(SyncEventsId.IsOutdated, outdatedArgs);
-                }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
                     throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);

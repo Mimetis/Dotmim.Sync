@@ -27,17 +27,17 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return Task.FromResult(command);
         }
 
-        public override Task<DbCommand> GetUpsertScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction)
+        public override Task<DbCommand> GetSaveScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction)
         => scopeInfo switch
         {
-            ScopeInfo si => GetUpsertClientScopeInfoCommandAsync(si, connection, transaction),
-            ServerHistoryScopeInfo shsi => GetUpsertServerHistoryScopeInfoCommandAsync(shsi, connection, transaction),
-            ServerScopeInfo ssi => GetUpsertServerScopeInfoCommandForTrackingChangeAsync(ssi, connection, transaction),
-            _ => throw new NotImplementedException($"Can't upsert this DbScopeType {scopeType}")
+            ScopeInfo si => GetSaveClientScopeInfoCommandAsync(si, connection, transaction),
+            ServerHistoryScopeInfo shsi => GetSaveServerHistoryScopeInfoCommandAsync(shsi, connection, transaction),
+            ServerScopeInfo ssi => GetSaveServerScopeInfoCommandForTrackingChangeAsync(ssi, connection, transaction),
+            _ => throw new NotImplementedException($"Can't save this DbScopeType {scopeType}")
         };
 
 
-        public Task<DbCommand> GetUpsertServerScopeInfoCommandForTrackingChangeAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetSaveServerScopeInfoCommandForTrackingChangeAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
             var commandText = $@"

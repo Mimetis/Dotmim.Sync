@@ -17,21 +17,17 @@ namespace Dotmim.Sync.Enumerations
         EndSession,
 
         ScopeLoading,
-
         ScopeWriting,
 
         SnapshotCreating,
-
         SnapshotApplying,
 
         SchemaReading,
 
         Provisioning,
-
         Deprovisioning,
 
         ChangesSelecting,
-
         ChangesApplying,
 
         Migrating,

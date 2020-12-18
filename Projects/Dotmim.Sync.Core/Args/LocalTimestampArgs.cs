@@ -24,4 +24,21 @@ namespace Dotmim.Sync
             this.Command = command;
         }
     }
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the provider action when a database is reading a timestamp
+        /// </summary>
+        public static void OnLocalTimestampLoading(this BaseOrchestrator orchestrator, Action<LocalTimestampLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// Intercept the provider action when a database has read a timestamp
+        /// </summary>
+        public static void OnLocalTimestampLoaded(this BaseOrchestrator orchestrator, Action<LocalTimestampLoadedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+    }
+
 }
