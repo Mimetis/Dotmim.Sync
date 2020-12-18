@@ -8,6 +8,7 @@ using System.Data.Common;
 using System.Runtime.Serialization;
 using System.Linq;
 using Dotmim.Sync.Batch;
+using Microsoft.Extensions.Logging;
 
 namespace Dotmim.Sync
 {
@@ -26,7 +27,7 @@ namespace Dotmim.Sync
         public override string Message => $"[{Connection.Database}] getting changes ...";
 
         public MessageGetChangesBatch ChangesRequest { get; }
-        public override int EventId => 13;
+        public override int EventId => SyncEventsId.GetEvent(nameof(DatabaseChangesSelectingArgs));
     }
 
     /// <summary>
@@ -51,7 +52,7 @@ namespace Dotmim.Sync
         /// </summary>
         public BatchInfo BatchInfo { get; }
         public DatabaseChangesSelected ChangesSelected { get; }
-        public override int EventId => 14;
+        public override int EventId => SyncEventsId.DatabaseChangesSelected.Id;
     }
 
     /// <summary>
@@ -122,5 +123,17 @@ namespace Dotmim.Sync
 
     }
 
+    public static partial class SyncEventsId
+    {
 
+        private static EventId CreateEventId3(int id, string eventName) => new EventId(id, eventName);
+
+        public static int GetEvent(string name)
+        {
+
+            return 0;
+        }
+        public static EventId DatabaseChangesSelecting => CreateEventId(1000, nameof(DatabaseChangesSelecting));
+        public static EventId DatabaseChangesSelected => CreateEventId(1000, nameof(DatabaseChangesSelected));
+    }
 }

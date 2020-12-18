@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System.Collections.Concurrent;
 using System.Text;
+using System.Threading;
 
 namespace Dotmim.Sync
 {
@@ -229,26 +230,31 @@ namespace Dotmim.Sync
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
-        public async Task<int> ApplyBulkChangesAsync(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts, DbConnection connection, DbTransaction transaction)
+        internal async Task<int> ApplyBulkChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp,
+                                                     List<SyncConflict> conflicts, InterceptorWrapper<TableChangesApplyingArgs> iTableChangesApplying, 
+                                                     DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
-            DbCommandType dbCommandType;
-
-            switch (this.ApplyType)
+            var dbCommandType = this.ApplyType switch
             {
-                case DataRowState.Deleted:
-                    dbCommandType = DbCommandType.BulkDeleteRows;
-                    break;
-                case DataRowState.Modified:
-                    dbCommandType = DbCommandType.BulkUpdateRows;
-                    break;
-                case DataRowState.Detached:
-                case DataRowState.Added:
-                case DataRowState.Unchanged:
-                default:
-                    throw new UnknownException("RowState not valid during ApplyBulkChanges operation");
-            }
+                DataRowState.Deleted => DbCommandType.BulkDeleteRows,
+                DataRowState.Modified => DbCommandType.BulkUpdateRows,
+                _ => throw new UnknownException("RowState not valid during ApplyBulkChanges operation"),
+            };
 
             DbCommand command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
+
+            // Launch any interceptor if available
+            if (iTableChangesApplying != null)
+            {
+                var action = new TableChangesApplyingArgs(context, changesTable, this.ApplyType, command, connection, transaction);
+                await iTableChangesApplying.RunAsync(action, cancellationToken);
+
+                if (action.Cancel || action.Command == null)
+                    return 0;
+
+                // get the correct pointer to the command from the interceptor in case user change the whole instance
+                command = action.Command;
+            }
 
             // Create
             var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
@@ -299,57 +305,40 @@ namespace Dotmim.Sync
         }
 
 
-        /// <summary>
-        /// We have a conflict, try to get the source row and generate a conflict
-        /// </summary>
-        private SyncConflict GetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
-        {
-
-            var dbConflictType = ConflictType.ErrorsOccurred;
-
-            if (remoteConflictRow == null)
-                throw new UnknownException("THAT can't happen...");
-
-
-            // local row is null
-            if (localConflictRow == null && remoteConflictRow.RowState == DataRowState.Modified)
-                dbConflictType = ConflictType.RemoteExistsLocalNotExists;
-            else if (localConflictRow == null && remoteConflictRow.RowState == DataRowState.Deleted)
-                dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
-
-            //// remote row is null. Can not happen
-            //else if (remoteConflictRow == null && localConflictRow.RowState == DataRowState.Modified)
-            //    dbConflictType = ConflictType.RemoteNotExistsLocalExists;
-            //else if (remoteConflictRow == null && localConflictRow.RowState == DataRowState.Deleted)
-            //    dbConflictType = ConflictType.RemoteNotExistsLocalIsDeleted;
-
-            else if (remoteConflictRow.RowState == DataRowState.Deleted && localConflictRow.RowState == DataRowState.Deleted)
-                dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
-            else if (remoteConflictRow.RowState == DataRowState.Modified && localConflictRow.RowState == DataRowState.Deleted)
-                dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
-            else if (remoteConflictRow.RowState == DataRowState.Deleted && localConflictRow.RowState == DataRowState.Modified)
-                dbConflictType = ConflictType.RemoteIsDeletedLocalExists;
-            else if (remoteConflictRow.RowState == DataRowState.Modified && localConflictRow.RowState == DataRowState.Modified)
-                dbConflictType = ConflictType.RemoteExistsLocalExists;
-
-            // Generate the conflict
-            var conflict = new SyncConflict(dbConflictType);
-            conflict.AddRemoteRow(remoteConflictRow);
-
-            if (localConflictRow != null)
-                conflict.AddLocalRow(localConflictRow);
-
-            return conflict;
-        }
-
+   
         /// <summary>
         /// Try to apply changes on the server.
         /// Internally will call ApplyUpdate or ApplyDelete and will return
         /// </summary>
         /// <param name="changes">Changes</param>
         /// <returns>every lines not updated / deleted in the destination data source</returns>
-        internal async Task<int> ApplyChangesAsync(Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, List<SyncConflict> conflicts, DbConnection connection, DbTransaction transaction)
+        internal async Task<int> ApplyChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, 
+                                                   List<SyncConflict> conflicts, InterceptorWrapper<TableChangesApplyingArgs> iTableChangesApplying, 
+                                                   DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
+
+            var dbCommandType = this.ApplyType switch
+            {
+                DataRowState.Deleted => DbCommandType.DeleteRow,
+                DataRowState.Modified => DbCommandType.UpdateRow,
+                _ => throw new UnknownException("RowState not valid during ApplyChangesAsync operation"),
+            };
+
+            var command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
+
+            // Launch any interceptor if available
+            if (iTableChangesApplying != null)
+            {
+                var action = new TableChangesApplyingArgs(context, changesTable, this.ApplyType, command, connection, transaction);
+                await iTableChangesApplying.RunAsync(action, cancellationToken);
+
+                if (action.Cancel || action.Command == null)
+                    return 0;
+
+                // get the correct pointer to the command from the interceptor in case user change the whole instance
+                command = action.Command;
+            }
+
             int appliedRows = 0;
 
             // Making an async call on all the rows to ensure we don't freeze any client UI
@@ -359,16 +348,26 @@ namespace Dotmim.Sync
 
                 foreach (var row in changesTable.Rows)
                 {
-                    bool operationComplete = false;
-
                     try
                     {
-                        if (ApplyType == DataRowState.Modified)
-                            operationComplete = await this.ApplyUpdateAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
-                        else if (ApplyType == DataRowState.Deleted)
-                            operationComplete = await this.ApplyDeleteAsync(row, lastTimestamp, senderScopeId, false, connection, transaction).ConfigureAwait(false);
+                        if (row.Table == null)
+                            throw new ArgumentException("Schema table is not present in the row");
 
-                        if (operationComplete)
+                        // Set the parameters value from row
+                        this.SetColumnParametersValues(command, row);
+
+                        // Set the special parameters for update
+                        AddScopeParametersValues(command, senderScopeId, lastTimestamp, ApplyType == DataRowState.Deleted, false);
+
+                        var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                        // Check if we have a return value instead
+                        var syncRowCountParam = GetParameter(command, "sync_row_count");
+
+                        if (syncRowCountParam != null)
+                            rowAppliedCount = (int)syncRowCountParam.Value;
+
+                        if (rowAppliedCount > 0)
                             appliedRowsTmp++;
                         else
                             conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false)));
@@ -399,10 +398,14 @@ namespace Dotmim.Sync
                 }
 
                 return appliedRowsTmp;
+
             }).ConfigureAwait(false);
 
             return appliedRows;
         }
+
+
+
 
         /// <summary>
         /// Apply a delete on a row
@@ -458,6 +461,48 @@ namespace Dotmim.Sync
             return rowUpdatedCount > 0;
         }
 
+        /// <summary>
+        /// We have a conflict, try to get the source row and generate a conflict
+        /// </summary>
+        private SyncConflict GetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
+        {
+
+            var dbConflictType = ConflictType.ErrorsOccurred;
+
+            if (remoteConflictRow == null)
+                throw new UnknownException("THAT can't happen...");
+
+
+            // local row is null
+            if (localConflictRow == null && remoteConflictRow.RowState == DataRowState.Modified)
+                dbConflictType = ConflictType.RemoteExistsLocalNotExists;
+            else if (localConflictRow == null && remoteConflictRow.RowState == DataRowState.Deleted)
+                dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
+
+            //// remote row is null. Can not happen
+            //else if (remoteConflictRow == null && localConflictRow.RowState == DataRowState.Modified)
+            //    dbConflictType = ConflictType.RemoteNotExistsLocalExists;
+            //else if (remoteConflictRow == null && localConflictRow.RowState == DataRowState.Deleted)
+            //    dbConflictType = ConflictType.RemoteNotExistsLocalIsDeleted;
+
+            else if (remoteConflictRow.RowState == DataRowState.Deleted && localConflictRow.RowState == DataRowState.Deleted)
+                dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
+            else if (remoteConflictRow.RowState == DataRowState.Modified && localConflictRow.RowState == DataRowState.Deleted)
+                dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
+            else if (remoteConflictRow.RowState == DataRowState.Deleted && localConflictRow.RowState == DataRowState.Modified)
+                dbConflictType = ConflictType.RemoteIsDeletedLocalExists;
+            else if (remoteConflictRow.RowState == DataRowState.Modified && localConflictRow.RowState == DataRowState.Modified)
+                dbConflictType = ConflictType.RemoteExistsLocalExists;
+
+            // Generate the conflict
+            var conflict = new SyncConflict(dbConflictType);
+            conflict.AddRemoteRow(remoteConflictRow);
+
+            if (localConflictRow != null)
+                conflict.AddLocalRow(localConflictRow);
+
+            return conflict;
+        }
 
         internal async Task<int> UpdateUntrackedRowsAsync(DbConnection connection, DbTransaction transaction)
         {
@@ -559,7 +604,7 @@ namespace Dotmim.Sync
         /// Add common parameters which could be part of the command
         /// if not found, no set done
         /// </summary>
-        private void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
+        internal void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
             DbSyncAdapter.SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);

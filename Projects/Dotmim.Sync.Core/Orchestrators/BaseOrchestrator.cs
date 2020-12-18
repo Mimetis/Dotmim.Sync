@@ -98,7 +98,9 @@ namespace Dotmim.Sync
             // Check logger, because we make some reflection here
             if (this.logger.IsEnabled(LogLevel.Debug))
             {
-                var argsTypeName = args.GetType().Name;
+                //for example, getting DatabaseChangesSelectingArgs and transform to DatabaseChangesSelecting
+                var argsTypeName = args.GetType().Name.Replace("Args", "");
+
                 this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
             }
 
@@ -292,7 +294,7 @@ namespace Dotmim.Sync
 
 
         internal async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-             CancellationToken cancellationToken = default) //Func<T, SyncContext, DbConnection, DbTransaction, Task> optionalEndAction = default
+             CancellationToken cancellationToken = default)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -325,9 +327,6 @@ namespace Dotmim.Sync
                 transaction.Commit();
 
                 await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                //if (optionalEndAction != null)
-                //    await optionalEndAction(result, ctx, connection, transaction).ConfigureAwait(false);
 
                 return result;
             }
