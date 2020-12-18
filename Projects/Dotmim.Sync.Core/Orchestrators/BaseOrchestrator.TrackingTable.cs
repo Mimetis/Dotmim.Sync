@@ -59,6 +59,26 @@ namespace Dotmim.Sync
 
         }, cancellationToken);
 
+
+        /// <summary>
+        /// Check if a tracking table exists
+        /// </summary>
+        /// <param name="table">A table from your Setup instance, you want to check if the corresponding tracking table exists</param>
+        public Task<bool> ExistTrackingTableAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        {
+            // Fake sync table without column definitions. Not need for making a check exists call
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+
+            // Get table builder
+            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+
+            var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return exists;
+
+        }, cancellationToken);
+
         /// <summary>
         /// Create a tracking table
         /// </summary>
@@ -112,12 +132,8 @@ namespace Dotmim.Sync
         {
             bool hasBeenDropped = false;
 
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
-
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
+            // Fake sync table without column definitions. Not needed for making drop call
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
@@ -131,19 +147,20 @@ namespace Dotmim.Sync
 
         }, cancellationToken);
 
-
         /// <summary>
         /// Drop all tracking tables
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
         public Task<bool> DropTrackingTablesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             bool atLeastOneTrackingTableHasBeenDropped = false;
 
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var schemaTables = new List<SyncTable>();
+            foreach(var table in this.Setup.Tables.Reverse())
+                schemaTables.Add(new SyncTable(table.TableName, table.SchemaName));
 
-            foreach (var schemaTable in schema.Tables.Reverse())
+            foreach (var schemaTable in schemaTables)
             {
                 // Get table builder
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);

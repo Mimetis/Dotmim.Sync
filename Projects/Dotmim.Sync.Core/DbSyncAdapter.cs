@@ -112,7 +112,6 @@ namespace Dotmim.Sync
                 syncRowCountParam.Direction = ParameterDirection.Output;
         }
 
-
         /// <summary>
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters

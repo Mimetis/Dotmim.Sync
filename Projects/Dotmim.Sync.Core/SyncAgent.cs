@@ -76,20 +76,6 @@ namespace Dotmim.Sync
         /// <param name="remoteProgress"></param>
         public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress) => this.remoteProgress = remoteProgress;
 
-        /// <summary>
-        /// Shortcut to Apply changed failed if remote orchestrator supports it
-        /// </summary>
-        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> func)
-        {
-            var remoteOrchestrator = this.RemoteOrchestrator as RemoteOrchestrator;
-
-            if (remoteOrchestrator == null)
-                throw new InvalidRemoteOrchestratorException();
-
-            remoteOrchestrator.OnApplyChangesFailed(func);
-
-        }
-
 
         /// <summary>
         /// Shortcut to Apply changed failed if remote orchestrator supports it

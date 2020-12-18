@@ -43,6 +43,9 @@ namespace Dotmim.Sync
                 return (context, batchInfo, changesSelected);
             }
 
+            // Call interceptor
+            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
             // create local directory
             if (message.BatchSize > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
             {
@@ -168,15 +171,16 @@ namespace Dotmim.Sync
 
                     // We don't report progress if no table changes is empty, to limit verbosity
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-                    {
                         changes.TableChangesSelected.Add(tableChangesSelected);
-                        var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
 
-                        await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+                    // even if no rows raise the interceptor
+                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                    await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
-                        if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
-                            this.ReportProgress(context, progress, tableChangesSelectedArgs);
-                    }
+                    // only raise report progress if we have something
+                    if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
+                        this.ReportProgress(context, progress, tableChangesSelectedArgs);
+
                 }
             }
 
@@ -191,6 +195,11 @@ namespace Dotmim.Sync
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
 
+            // Raise database changes selected
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changes, connection);
+            this.ReportProgress(context, progress, databaseChangesSelectedArgs);
+            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
             return (context, batchInfo, changes);
 
         }
@@ -204,6 +213,9 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+
+            // Call interceptor
+            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, message, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             this.logger.LogDebug(SyncEventsId.GetChanges, message);
 
@@ -228,50 +240,58 @@ namespace Dotmim.Sync
                 var syncAdapter = this.Provider.GetSyncAdapter(syncTable, message.Setup);
 
                 // Get Command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
+                var command = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
 
                 // Set parameters
-                this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
+                this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, command);
 
                 // launch interceptor if any
-                var args = new TableChangesSelectingArgs(context, syncTable, selectIncrementalChangesCommand, connection, transaction);
+                var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
                 await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
 
-                if (!args.Cancel && args.Command != null)
+                if (args.Cancel || args.Command == null)
+                    continue;
+
+                // log
+                this.logger.LogDebug(SyncEventsId.GetChanges, args.Command);
+
+                // Statistics
+                var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
+
+                // Get the reader
+                using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
+                
+                while (dataReader.Read())
                 {
-                    // log
-                    this.logger.LogDebug(SyncEventsId.GetChanges, args.Command);
-
-                    // Statistics
-                    var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
-
-                    // Get the reader
-                    using (var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false))
+                    bool isTombstone = false;
+                    for (var i = 0; i < dataReader.FieldCount; i++)
                     {
-                        while (dataReader.Read())
+                        if (dataReader.GetName(i) == "sync_row_is_tombstone")
                         {
-                            bool isTombstone = false;
-                            for (var i = 0; i < dataReader.FieldCount; i++)
-                            {
-                                if (dataReader.GetName(i) == "sync_row_is_tombstone")
-                                {
-                                    isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                                    break;
-                                }
-                            }
-
-                            // Set the correct state to be applied
-                            if (isTombstone)
-                                tableChangesSelected.Deletes++;
-                            else
-                                tableChangesSelected.Upserts++;
+                            isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                            break;
                         }
                     }
 
-                    if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-                        changes.TableChangesSelected.Add(tableChangesSelected);
+                    // Set the correct state to be applied
+                    if (isTombstone)
+                        tableChangesSelected.Deletes++;
+                    else
+                        tableChangesSelected.Upserts++;
                 }
+
+                // Check interceptor
+                var changesArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, connection, transaction);
+                await this.InterceptAsync(changesArgs, cancellationToken).ConfigureAwait(false);
+
+                if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
+                    changes.TableChangesSelected.Add(tableChangesSelected);
             }
+
+            // Raise database changes selected
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, null, changes, connection);
+            this.ReportProgress(context, progress, databaseChangesSelectedArgs);
+            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
             return (context, changes);
         }

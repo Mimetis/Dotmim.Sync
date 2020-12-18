@@ -248,16 +248,16 @@ namespace Dotmim.Sync.SqlServer.Scope
             return Task.FromResult(command);
         }
 
-        public override Task<DbCommand> GetUpsertScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction)
+        public override Task<DbCommand> GetSaveScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction)
             => scopeInfo switch
             {
-                ScopeInfo si => GetUpsertClientScopeInfoCommandAsync(si, connection, transaction),
-                ServerHistoryScopeInfo shsi => GetUpsertServerHistoryScopeInfoCommandAsync(shsi, connection, transaction),
-                ServerScopeInfo ssi => GetUpsertServerScopeInfoCommandAsync(ssi, connection, transaction),
-                _ => throw new NotImplementedException($"Can't upsert this DbScopeType {scopeType}")
+                ScopeInfo si => GetSaveClientScopeInfoCommandAsync(si, connection, transaction),
+                ServerHistoryScopeInfo shsi => GetSaveServerHistoryScopeInfoCommandAsync(shsi, connection, transaction),
+                ServerScopeInfo ssi => GetSaveServerScopeInfoCommandAsync(ssi, connection, transaction),
+                _ => throw new NotImplementedException($"Can't save this DbScopeType {scopeType}")
             };
 
-        public Task<DbCommand> GetUpsertClientScopeInfoCommandAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetSaveClientScopeInfoCommandAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"
                     MERGE {this.ScopeInfoTableName.Quoted().ToString()} AS [base] 
@@ -359,7 +359,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             return Task.FromResult(command);
 
         }
-        public Task<DbCommand> GetUpsertServerHistoryScopeInfoCommandAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetSaveServerHistoryScopeInfoCommandAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -426,7 +426,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             return Task.FromResult(command);
 
         }
-        public Task<DbCommand> GetUpsertServerScopeInfoCommandAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetSaveServerScopeInfoCommandAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
         {
 
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";

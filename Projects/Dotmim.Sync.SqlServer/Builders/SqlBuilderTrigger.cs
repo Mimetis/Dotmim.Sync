@@ -236,14 +236,13 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-
         public virtual Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
 
             var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
             var triggerName = ParserName.Parse(commandTriggerName).ToString();
 
-            var commandText = $@"IF EXISTS (SELECT tr.name FROM sys.triggers tr 
+            var commandText = $@"IF EXISTS (SELECT tr.name FROM sys.triggers tr  
                                             JOIN sys.tables t ON tr.parent_id = t.object_id 
                                             JOIN sys.schemas s ON t.schema_id = s.schema_id 
                                             WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0";
@@ -272,13 +271,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
 
             var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
-            var triggerName = ParserName.Parse(commandTriggerName).ToString();
 
-
-            var commandText = $@"IF EXISTS (SELECT tr.name FROM sys.triggers tr 
-                                            JOIN sys.tables t ON tr.parent_id = t.object_id 
-                                            JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) 
-                                DROP TRIGGER {commandTriggerName}";
+            var commandText = $@"DROP TRIGGER {commandTriggerName}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -286,16 +280,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 command.Transaction = transaction;
 
             command.CommandText = commandText;
-
-            var p1 = command.CreateParameter();
-            p1.ParameterName = "@triggerName";
-            p1.Value = triggerName;
-            command.Parameters.Add(p1);
-
-            var p2 = command.CreateParameter();
-            p2.ParameterName = "@schemaName";
-            p2.Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
-            command.Parameters.Add(p2);
 
             return Task.FromResult(command);
         }
@@ -314,8 +298,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                               : "INSERT";
 
             var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
-            //var triggerName = ParserName.Parse(commandTriggerName).ToString();
-            //var triggerSchemaName = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR {triggerFor} AS");

@@ -131,117 +131,7 @@ namespace Dotmim.Sync
 
         private static Dictionary<Type, List<PropertyInfo>> MembersInfo = new Dictionary<Type, List<PropertyInfo>>();
 
-        //internal void Serialize(object obj, Type objType)
-        //{
-
-        //    // If it's Object, we get the underlying type
-        //    if (objType == typeof(Object) && obj != null)
-        //    {
-        //        var baseType = obj.GetType().GetTypeInfo();
-        //        // var s = TypeSerializer.GetSerializer(baseType);
-        //        Serialize(obj, baseType);
-        //        return;
-        //    }
-        //}
-
-        //public static bool IsEnumerable(Type type)
-        //{
-        //    if (type.IsArray)
-        //        return true;
-
-        //    if (typeof(IEnumerable).IsAssignableFrom(type))
-        //        return true;
-
-        //    return false;
-        //}
-
-        //public static bool IsPrimitiveManagedType(Type valueType)
-        //{
-        //    if (valueType == typeof(bool))
-        //        return true;
-        //    else if (valueType == typeof(byte))
-        //        return true;
-        //    else if (valueType == typeof(char))
-        //        return true;
-        //    else if (valueType == typeof(double))
-        //        return true;
-        //    else if (valueType == typeof(float))
-        //        return true;
-        //    else if (valueType == typeof(int))
-        //        return true;
-        //    else if (valueType == typeof(long))
-        //        return true;
-        //    else if (valueType == typeof(short))
-        //        return true;
-        //    else if (valueType == typeof(uint))
-        //        return true;
-        //    else if (valueType == typeof(ulong))
-        //        return true;
-        //    else if (valueType == typeof(ushort))
-        //        return true;
-        //    else if (valueType == typeof(byte[]))
-        //        return true;
-        //    else if (valueType == typeof(DateTime))
-        //        return true;
-        //    else if (valueType == typeof(DateTimeOffset))
-        //        return true;
-        //    else if (valueType == typeof(Decimal))
-        //        return true;
-        //    else if (valueType == typeof(Guid))
-        //        return true;
-        //    else if (valueType == typeof(String))
-        //        return true;
-        //    else if (valueType == typeof(SByte))
-        //        return true;
-        //    else if (valueType == typeof(TimeSpan))
-        //        return true;
-
-        //    return false;
-        //}
-
-        //internal static void Recursive<T>(T value, StringBuilder sb, List<object> args)
-        //{
-        //    var typeofT = value.GetType();
-
-        //    List<PropertyInfo> membersInfos;
-        //    if (MembersInfo.ContainsKey(typeofT))
-        //    {
-        //        membersInfos = MembersInfo[typeofT];
-
-        //    }
-        //    else
-        //    {
-        //        membersInfos = GetProperties(typeofT);
-
-        //        if (!MembersInfo.ContainsKey(typeofT))
-        //            lock (MembersInfo)
-        //                if (!MembersInfo.ContainsKey(typeofT))
-        //                    MembersInfo.Add(typeofT, membersInfos);
-        //    }
-
-
-
-        //    for (var i = 0; i < membersInfos.Count; i++)
-        //    {
-        //        var member = membersInfos[i];
-        //        var memberBaseType = member.PropertyType;
-        //        object memberValue = GetValue(member, value);
-
-        //        var isDb = memberBaseType == typeof(IDbConnection) || memberBaseType == typeof(IDbTransaction) || memberBaseType == typeof(IDbCommand);
-
-        //        if (!isDb && !IsPrimitiveManagedType(memberBaseType) && !IsEnumerable(memberBaseType) && memberValue != null)
-        //        {
-        //            Recursive(memberValue, sb, args);
-        //        }
-        //        else
-        //        {
-
-        //            sb.Append($@"{member.Name}={{{member.Name}}} ");
-        //            args.Add(memberValue);
-        //        }
-        //    }
-
-        //}
+   
 
         internal static (string Message, object[] Args) GetLogMessageFrom<T>(T value, EventId id)
         {
@@ -295,6 +185,10 @@ namespace Dotmim.Sync
                     return ((DbConnection)pi.GetValue(obj)).ToLogString();
                 else if (pi.PropertyType != null && pi.PropertyType == typeof(DbTransaction))
                     return ((DbTransaction)pi.GetValue(obj)).ToLogString();
+                else if (pi.PropertyType != null && pi.PropertyType == typeof(DbCommand))
+                    return ((DbCommand)pi.GetValue(obj)).ToLogString();
+                else if (pi.PropertyType != null && pi.PropertyType == typeof(SyncContext))
+                    return JsonConvert.SerializeObject((SyncContext)pi.GetValue(obj));
                 else
                     return pi.GetValue(obj);
             }

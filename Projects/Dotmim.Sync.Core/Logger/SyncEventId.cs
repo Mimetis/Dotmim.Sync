@@ -86,9 +86,7 @@ namespace Dotmim.Sync
 
     public static class SyncEventsId
     {
-        // private static EventId CreateEventId(SyncStage stage) => new EventId((int)stage, Enum.GetName(typeof(SyncStage), stage));
         private static EventId CreateEventId(int id, string eventName) => new EventId(id, eventName);
-
 
         public static EventId Exception => CreateEventId(0, nameof(Exception));
         public static EventId ReportProgress => CreateEventId(5, nameof(ReportProgress));
@@ -148,7 +146,7 @@ namespace Dotmim.Sync
         public static EventId DisableConstraints => CreateEventId(action + 40, nameof(DisableConstraints));
 
         public static EventId GetScopeInfo => CreateEventId(action + 21, nameof(GetScopeInfo));
-        public static EventId UpsertScopeInfo => CreateEventId(action + 21, nameof(UpsertScopeInfo));
+        public static EventId SaveScopeInfo => CreateEventId(action + 21, nameof(SaveScopeInfo));
         public static EventId CreateScopeTable => CreateEventId(action + 21, nameof(CreateScopeTable));
         public static EventId DropScopeTable => CreateEventId(action + 21, nameof(DropScopeTable));
     }

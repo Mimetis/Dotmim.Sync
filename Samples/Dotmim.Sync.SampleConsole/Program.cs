@@ -62,6 +62,11 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
+        agent.LocalOrchestrator.On(a =>
+        {
+            Console.WriteLine(a);
+        });
+        
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
@@ -1029,7 +1034,7 @@ internal class Program
         serverScope.Schema = newSchema;
 
         // save it
-        await remoteOrchestrator.UpsertServerScopeAsync(serverScope);
+        await remoteOrchestrator.SaveServerScopeAsync(serverScope);
 
         // -----------------------------------------------------------------
         // Client side
@@ -1060,7 +1065,7 @@ internal class Program
         clientScope.Schema = newSchema;
 
         // save it
-        await localOrchestrator.UpsertClientScopeAsync(clientScope);
+        await localOrchestrator.SaveClientScopeAsync(clientScope);
 
 
 
@@ -1566,7 +1571,7 @@ internal class Program
         //options.Logger = logger;
 
 
-        // 1) create a serilog logger
+        // 2) create a serilog logger
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog().SetMinimumLevel(LogLevel.Trace); });
         //var logger = loggerFactory.CreateLogger("SyncAgent");
         //options.Logger = logger;
@@ -1663,7 +1668,7 @@ internal class Program
                 serverScope.Schema = null;
 
                 // save the server scope
-                await agent.RemoteOrchestrator.UpsertServerScopeAsync(serverScope);
+                await agent.RemoteOrchestrator.SaveServerScopeAsync(serverScope);
 
                 // Write results
                 Console.WriteLine(s1);

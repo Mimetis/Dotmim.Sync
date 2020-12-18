@@ -117,6 +117,7 @@ namespace Dotmim.Sync
     /// </summary>
     public static partial class InterceptorsExtensions
     {
+
         /// <summary>
         /// Intercept the provider when database schema is created (works only on SQL Server)
         /// </summary>

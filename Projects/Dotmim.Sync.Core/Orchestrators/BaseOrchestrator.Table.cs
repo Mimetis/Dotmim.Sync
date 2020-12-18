@@ -109,6 +109,26 @@ namespace Dotmim.Sync
 
         }, cancellationToken);
 
+
+        /// <summary>
+        /// Check if a table exists
+        /// </summary>
+        /// <param name="table">A table from your Setup instance, you want to check if it exists</param>
+        public Task<bool> ExistTableAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        {
+            // Fake sync table without column definitions. Not need for making a check exists call
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+
+            // Get table builder
+            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+
+            var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return exists;
+
+        }, cancellationToken);
+
         /// <summary>
         /// Drop a table
         /// </summary>
@@ -141,7 +161,7 @@ namespace Dotmim.Sync
         /// Drop all tables, declared in the Setup instance
         /// </summary>
         public Task<bool> DropTablesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             bool atLeastOneTableHasBeenDropped = false;
 

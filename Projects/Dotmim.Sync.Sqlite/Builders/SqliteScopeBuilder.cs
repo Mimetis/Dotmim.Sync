@@ -15,6 +15,6 @@ namespace Dotmim.Sync.Sqlite
         public override Task<DbCommand> GetDropScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
         public override Task<DbCommand> GetExistsScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
         public override Task<DbCommand> GetLocalTimestampCommandAsync(DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
-        public override Task<DbCommand> GetUpsertScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
+        public override Task<DbCommand> GetSaveScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction) => throw new System.NotImplementedException();
     }
 }

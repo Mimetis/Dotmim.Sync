@@ -110,12 +110,8 @@ namespace Dotmim.Sync
         public Task<bool> ExistTriggerAsync(SetupTable table, DbTriggerType triggerType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
-
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
+            // Fake sync table without column definitions. Not need for making a check exists call
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
@@ -131,17 +127,13 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop the trigger</param>
         /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
-        public Task<bool> DropTriggerAsync(SetupTable table, DbTriggerType triggerType, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        public Task<bool> DropTriggerAsync(SetupTable table, DbTriggerType triggerType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             bool hasBeenDropped = false;
 
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
-
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
+            // Fake sync table without column definitions. Not need for making a drop call
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
@@ -164,12 +156,8 @@ namespace Dotmim.Sync
         {
             var hasDroppeAtLeastOneTrigger = false;
 
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
-
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
+            // Fake sync table without column definitions. Not need for making a drop call
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);

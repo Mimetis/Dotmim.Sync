@@ -176,7 +176,7 @@ namespace Dotmim.Sync
                     _ => throw new NotImplementedException($"Type {typeof(T).Name} is not implemented when trying to get a single instance")
                 };
 
-                scope = await this.InternalUpsertScopeAsync(ctx, scopeType, scope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                scope = await this.InternalSaveScopeAsync(ctx, scopeType, scope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 scopes.Add(scope);
             }
@@ -218,16 +218,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal upsert scope info in a scope table
         /// </summary>
-        internal async Task<T> InternalUpsertScopeAsync<T>(SyncContext ctx, DbScopeType scopeType, T scopeInfo, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress) where T : class
+        internal async Task<T> InternalSaveScopeAsync<T>(SyncContext ctx, DbScopeType scopeType, T scopeInfo, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress) where T : class
         {
-            var command = await scopeBuilder.GetUpsertScopeInfoCommandAsync(scopeType, scopeInfo, connection, transaction).ConfigureAwait(false);
+            var command = await scopeBuilder.GetSaveScopeInfoCommandAsync(scopeType, scopeInfo, connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return null;
 
-            this.logger.LogInformation(SyncEventsId.UpsertScopeInfo, new { ScopeInfoTableName = scopeBuilder.ScopeInfoTableName.ToString(), ScopeType = scopeType, ScopeInfo = scopeInfo });
+            this.logger.LogInformation(SyncEventsId.SaveScopeInfo, new { ScopeInfoTableName = scopeBuilder.ScopeInfoTableName.ToString(), ScopeType = scopeType, ScopeInfo = scopeInfo });
 
-            var action = new ScopeUpsertingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, scopeInfo, command, connection, transaction);
+            var action = new ScopeSavingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, scopeInfo, command, connection, transaction);
 
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
@@ -246,7 +246,7 @@ namespace Dotmim.Sync
                 _ => throw new NotImplementedException($"Can't get {scopeType} from the reader ")
             };
 
-            await this.InterceptAsync(new ScopeUpsertedArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, newScopeInfo, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ScopeSavedArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, newScopeInfo, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             return newScopeInfo;
         }

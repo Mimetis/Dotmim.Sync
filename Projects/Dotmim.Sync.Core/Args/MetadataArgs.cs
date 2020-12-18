@@ -25,7 +25,7 @@ namespace Dotmim.Sync
 
     public class MetadataCleanedArgs : ProgressArgs
     {
-        public MetadataCleanedArgs(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned, DbConnection connection = null, DbTransaction transaction = null) 
+        public MetadataCleanedArgs(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.DatabaseMetadatasCleaned = databaseMetadatasCleaned;
@@ -39,5 +39,22 @@ namespace Dotmim.Sync
         public override string Message => $"Tables cleaned count:{DatabaseMetadatasCleaned.Tables.Count}. Rows cleaned count:{DatabaseMetadatasCleaned.RowsCleanedCount}";
 
         public override int EventId => 18;
+    }
+
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the provider action when a provider is cleaning metadata
+        /// </summary>
+        public static void OnMetadataCleaning(this BaseOrchestrator orchestrator, Action<MetadataCleaningArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// Intercept the provider action when a provider has cleaned metadata
+        /// </summary>
+        public static void OnMetadataCleaned(this BaseOrchestrator orchestrator, Action<MetadataCleanedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
     }
 }

@@ -115,18 +115,12 @@ namespace Dotmim.Sync
             // Creating the message
             var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
 
-            // Call interceptor
-            await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
-
             // Locally, if we are new, no need to get changes
             if (isNew)
                 (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(message).ConfigureAwait(false);
             else
                 (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, clientTimestamp, clientBatchInfo, clientChangesSelected, connection);
-            this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
-            await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
             return (clientTimestamp, clientBatchInfo, clientChangesSelected);
 
@@ -180,9 +174,6 @@ namespace Dotmim.Sync
                 // Since it's an estimated count, we don't need to create batches, so we hard code the batchsize to 0
                 var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory);
 
-                // Call interceptor
-                await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, connection, transaction), cancellationToken).ConfigureAwait(false);
-
                 // Locally, if we are new, no need to get changes
                 if (isNew)
                     clientChangesSelected = new DatabaseChangesSelected();
@@ -216,8 +207,6 @@ namespace Dotmim.Sync
                             this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder,
                             serverBatchInfo);
 
-            // call interceptor
-            await this.InterceptAsync(new DatabaseChangesApplyingArgs(ctx, applyChanges, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Call apply changes on provider
             (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(ctx, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -243,14 +232,9 @@ namespace Dotmim.Sync
             // Write scopes locally
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            await this.InternalUpsertScopeAsync(ctx, DbScopeType.Client, scope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, scope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
-
-
-            var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(ctx, clientChangesApplied, connection);
-            await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, databaseChangesAppliedArgs);
 
             return (clientChangesApplied, scope);
 
@@ -437,7 +421,7 @@ namespace Dotmim.Sync
                     localScope.Setup = this.Setup;
                     localScope.Schema = schema;
 
-                    await this.InternalUpsertScopeAsync(ctx, DbScopeType.Client, localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -470,7 +454,7 @@ namespace Dotmim.Sync
         /// Update all untracked rows from the client database
         /// </summary>
         public virtual Task<bool> UpdateUntrackedRowsAsync(SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        => RunInTransactionAsync(SyncStage.ChangesApplying, async (ctx, connection, transaction) =>
         {
             // If schema does not have any table, just return
             if (schema == null || schema.Tables == null || !schema.HasTables)

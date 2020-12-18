@@ -42,8 +42,8 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Write a server scope 
-        /// </summary>
-        public virtual Task<ScopeInfo> UpsertClientScopeAsync(ScopeInfo scopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        /// </summary> 
+        public virtual Task<ScopeInfo> SaveClientScopeAsync(ScopeInfo scopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ScopeWriting, async (ctx, connection, transaction) =>
         {
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -54,7 +54,7 @@ namespace Dotmim.Sync
                 await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Write scopes locally
-            await this.InternalUpsertScopeAsync(ctx, DbScopeType.Client, scopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, scopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return scopeInfo;
 
