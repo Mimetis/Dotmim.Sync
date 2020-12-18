@@ -22,7 +22,102 @@ namespace Dotmim.Sync.Tests.UnitTests
     public partial class InterceptorsTests
     {
         [Fact]
-        public async Task LocalOrchestrator_GetEstimatedChanges()
+        public async Task LocalOrchestrator_ApplyChanges()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var syncOptions = new SyncOptions();
+            var setup = new SyncSetup();
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
+
+            // Making a first sync, will initialize everything we need
+            var s = await agent.SynchronizeAsync();
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            // Client side : Create a product category and a product
+            // Create a productcategory item
+            // Create a new product on server
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider)))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            var onDatabaseApplying = 0;
+            var onDatabaseApplied = 0;
+            var onApplying = 0;
+            var onApplied = 0;
+
+            localOrchestrator.OnDatabaseChangesApplying(dcs =>
+            {
+                onDatabaseApplying++;
+            });
+
+            localOrchestrator.OnDatabaseChangesApplied(dcs =>
+            {
+                Assert.NotNull(dcs.ChangesApplied);
+                Assert.Equal(2, dcs.ChangesApplied.TableChangesApplied.Count);
+                onDatabaseApplied++;
+            });
+
+            localOrchestrator.OnTableChangesApplying(action =>
+            {
+                Assert.NotNull(action.Changes);
+                Assert.NotNull(action.Command);
+                onApplying++;
+            });
+
+            localOrchestrator.OnTableChangesApplied(action =>
+            {
+                Assert.Equal(1, action.TableChangesApplied.Applied);
+                onApplied++;
+            });
+
+            // Making a first sync, will initialize everything we need
+            var s2 = await agent.SynchronizeAsync();
+
+            Assert.Equal(2, onApplying);
+            Assert.Equal(2, onApplied);
+            Assert.Equal(1, onDatabaseApplying);
+            Assert.Equal(1, onDatabaseApplied);
+
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
+        }
+
+        [Fact]
+        public async Task RemoteOrchestrator_ApplyChanges()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
@@ -74,141 +169,48 @@ namespace Dotmim.Sync.Tests.UnitTests
                 await ctx.SaveChangesAsync();
             }
 
-            var onSelecting = 0;
-            var onSelected = 0;
-            var onDatabaseSelecting = 0;
-            var onDatabaseSelected = 0;
+            var onDatabaseApplying = 0;
+            var onDatabaseApplied = 0;
+            var onApplying = 0;
+            var onApplied = 0;
 
-            localOrchestrator.OnTableChangesSelecting(action =>
+            remoteOrchestrator.OnDatabaseChangesApplying(dcs =>
             {
+                onDatabaseApplying++;
+            });
+
+            remoteOrchestrator.OnDatabaseChangesApplied(dcs =>
+            {
+                Assert.NotNull(dcs.ChangesApplied);
+                Assert.Equal(2, dcs.ChangesApplied.TableChangesApplied.Count);
+                onDatabaseApplied++;
+            });
+
+            remoteOrchestrator.OnTableChangesApplying(action =>
+            {
+                Assert.NotNull(action.Changes);
                 Assert.NotNull(action.Command);
-                onSelecting++;
+                onApplying++;
             });
 
-            localOrchestrator.OnTableChangesSelected(action =>
+            remoteOrchestrator.OnTableChangesApplied(action =>
             {
-                Assert.Null(action.Changes);
-                onSelected++;
+                Assert.Equal(1, action.TableChangesApplied.Applied);
+                onApplied++;
             });
-            localOrchestrator.OnDatabaseChangesSelecting(dcs =>
-            {
-                onDatabaseSelecting++;
-            });
-
-            localOrchestrator.OnDatabaseChangesSelected(dcs =>
-            {
-                Assert.Null(dcs.BatchInfo);
-                Assert.Equal(2, dcs.ChangesSelected.TableChangesSelected.Count);
-                onDatabaseSelected++;
-            });
-
-            // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetEstimatedChangesCountAsync();
-
-            Assert.Equal(this.Tables.Length, onSelecting);
-            Assert.Equal(this.Tables.Length, onSelected);
-            Assert.Equal(1, onDatabaseSelected);
-            Assert.Equal(1, onDatabaseSelecting);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
-        }
-
-        [Fact]
-        public async Task RemoteOrchestrator_GetEstimatedChanges()
-        {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
-            var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions();
-            var setup = new SyncSetup();
-
-            // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync();
+            var s2 = await agent.SynchronizeAsync();
 
-            // Get the orchestrators
-            var localOrchestrator = agent.LocalOrchestrator;
-            var remoteOrchestrator = agent.RemoteOrchestrator;
-
-            // Server side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
-
-            var onSelecting = 0;
-            var onSelected = 0;
-            var onDatabaseSelecting = 0;
-            var onDatabaseSelected = 0;
-
-            remoteOrchestrator.OnDatabaseChangesSelecting(dcs =>
-            {
-                onDatabaseSelecting++;
-            });
-
-            remoteOrchestrator.OnDatabaseChangesSelected(dcs =>
-            {
-                Assert.Null(dcs.BatchInfo);
-                Assert.Equal(2, dcs.ChangesSelected.TableChangesSelected.Count);
-                onDatabaseSelected++;
-            });
-
-            remoteOrchestrator.OnTableChangesSelecting(action =>
-            {
-                Assert.NotNull(action.Command);
-                onSelecting++;
-            });
-
-            remoteOrchestrator.OnTableChangesSelected(action =>
-            {
-                Assert.Null(action.Changes);
-                onSelected++;
-            });
-
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
-
-            // Get changes to be populated to be sent to the client
-            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
-
-            Assert.Equal(this.Tables.Length, onSelecting);
-            Assert.Equal(this.Tables.Length, onSelected);
-            Assert.Equal(1, onDatabaseSelected);
-            Assert.Equal(1, onDatabaseSelecting);
+            Assert.Equal(2, onApplying);
+            Assert.Equal(2, onApplied);
+            Assert.Equal(1, onDatabaseApplying);
+            Assert.Equal(1, onDatabaseApplied);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
             HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
         }
+
 
     }
 }

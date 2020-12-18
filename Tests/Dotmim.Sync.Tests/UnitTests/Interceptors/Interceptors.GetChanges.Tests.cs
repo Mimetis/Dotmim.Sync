@@ -93,7 +93,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableChangesSelecting(action =>
             {
-                var cmd = action.Command;
+                Assert.NotNull(action.Command);
                 onSelecting++;
             });
 
@@ -175,7 +175,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             remoteOrchestrator.OnTableChangesSelecting(action =>
             {
-                var cmd = action.Command;
+                Assert.NotNull(action.Command);
                 onSelecting++;
             });
 

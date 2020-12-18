@@ -160,7 +160,6 @@ namespace Dotmim.Sync
             // Each table in the messages contains scope columns. Don't forget it
             if (hasChanges)
             {
-
                 var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, this);
                 var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
 
@@ -196,14 +195,19 @@ namespace Dotmim.Sync
                             this.logger.LogTrace(SyncEventsId.ApplyChanges, row);
 
                     // Launch any interceptor if available
-                    await this.InterceptAsync(new TableChangesApplyingArgs(context, schemaChangesTable, applyType, connection, transaction), cancellationToken).ConfigureAwait(false);
+                    //await this.InterceptAsync(new TableChangesApplyingArgs(context, schemaChangesTable, applyType, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+                    // Getting interceptor and passed it to syncadapter
+                    // could be done in a better way, bit for now it's fine
+                    var iTableChangesApplying = this.interceptors.GetInterceptor<TableChangesApplyingArgs>();
+
 
                     int rowsApplied = 0;
 
                     if (message.UseBulkOperations && this.Provider.SupportBulkOperations)
-                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
+                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync(context, message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, iTableChangesApplying, connection, transaction, cancellationToken);
                     else
-                        rowsApplied = await syncAdapter.ApplyChangesAsync(message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, connection, transaction);
+                        rowsApplied = await syncAdapter.ApplyChangesAsync(context, message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, iTableChangesApplying, connection, transaction, cancellationToken);
 
                     // resolving conflicts
                     var (rowsAppliedCount, conflictsResolvedCount, syncErrorsCount) =
@@ -320,8 +324,7 @@ namespace Dotmim.Sync
             SyncRow finalRow;
             ApplyAction conflictApplyAction;
             int rowAppliedCount = 0;
-            Guid? nullableSenderScopeId = senderScopeId;
-
+            Guid? nullableSenderScopeId;
 
             (conflictApplyAction, finalRow, nullableSenderScopeId) = await this.GetConflictActionAsync(context, conflict, policy, senderScopeId, connection, transaction).ConfigureAwait(false);
 
