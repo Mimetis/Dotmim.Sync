@@ -69,4 +69,23 @@ namespace Dotmim.Sync
         public SyncSetup Setup { get; }
         public override int EventId => 20;
     }
+
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the orchestrator when migrating a Setup
+        /// </summary>
+        public static void OnDatabaseMigrating(this BaseOrchestrator orchestrator, Action<DatabaseMigratingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
+        /// Intercept the orchestrator when a Setup has been migrated
+        /// </summary>
+        public static void OnDatabaseMigrated(this BaseOrchestrator orchestrator, Action<DatabaseMigratedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+    }
+
 }

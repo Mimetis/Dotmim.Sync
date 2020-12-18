@@ -20,7 +20,8 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Gets the SyncTable instances containing all changes selected
+        /// Gets the SyncTable instances containing all changes selected.
+        /// If you get this instance from a call from GetEstimatedChangesCount, this property is always null
         /// </summary>
         public SyncTable Changes { get; }
 
@@ -102,5 +103,35 @@ namespace Dotmim.Sync
 
         public override int EventId => 49;
     }
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
+        /// <summary>
+        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+    }
+
 
 }

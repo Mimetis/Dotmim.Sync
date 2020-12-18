@@ -34,7 +34,6 @@ namespace Dotmim.Sync
         /// </summary>
         public bool Contains<T>() where T : ProgressArgs => this.dictionary.ContainsKey(typeof(T));
 
-
     }
   
 }

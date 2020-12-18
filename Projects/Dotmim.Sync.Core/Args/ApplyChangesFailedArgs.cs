@@ -56,7 +56,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncConflict Conflict { get; }
 
-        
+
         /// <summary>
         /// Gets or Sets the scope id who will be marked as winner
         /// </summary>
@@ -79,6 +79,17 @@ namespace Dotmim.Sync
         public override string Message => $"{this.Conflict.Type}";
 
         public override int EventId => 10;
+
+    }
+
+    public static partial class InterceptorsExtensions
+    {
+
+        /// <summary>
+        /// Intercept the provider when an apply change is failing
+        /// </summary>
+        public static void OnApplyChangesFailed(this BaseOrchestrator orchestrator, Action<ApplyChangesFailedArgs> action)
+            => orchestrator.SetInterceptor(action);
 
     }
 }

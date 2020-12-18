@@ -1,5 +1,6 @@
 ﻿
 using Dotmim.Sync.Enumerations;
+using System;
 using System.Data.Common;
 
 namespace Dotmim.Sync
@@ -49,7 +50,16 @@ namespace Dotmim.Sync
         Rollback
     }
 
+    public static partial class InterceptorsExtensions
+    {
 
 
+        /// <summary>
+        /// Intercept the provider action when a database is out dated
+        /// </summary>
+        public static void OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
+            => orchestrator.SetInterceptor(action);
 
+
+    }
 }

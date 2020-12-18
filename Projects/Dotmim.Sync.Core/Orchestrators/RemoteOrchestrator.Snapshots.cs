@@ -41,8 +41,6 @@ namespace Dotmim.Sync
             // 2) Ensure databases are ready
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
-
             // Provision everything
             schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -63,7 +61,7 @@ namespace Dotmim.Sync
             return batchInfo;
         },  cancellationToken);
 
-
+        
         /// <summary>
         /// Get a snapshot
         /// </summary>

@@ -40,7 +40,6 @@ namespace Dotmim.Sync
         public override int EventId => 33;
     }
 
-
     /// <summary>
     /// Raise just after loading a binary change set from disk, just before calling the deserializer
     /// </summary>
@@ -75,5 +74,24 @@ namespace Dotmim.Sync
         public ContainerSet Result { get; set; }
 
         public override int EventId => 34;
+    }
+
+
+    public static partial class InterceptorsExtensions
+    {
+
+        /// <summary>
+        /// Occurs just before saving a serialized set to disk
+        /// </summary>
+        public static void OnSerializingSet(this BaseOrchestrator orchestrator, Action<SerializingSetArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Occurs just after loading a serialized set from disk
+        /// </summary>
+        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Action<DeserializingSetArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+
     }
 }

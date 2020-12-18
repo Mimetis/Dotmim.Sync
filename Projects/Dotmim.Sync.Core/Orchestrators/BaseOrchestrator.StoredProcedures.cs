@@ -76,6 +76,25 @@ namespace Dotmim.Sync
             // Get table builder
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
+            // check bulk before
+            if (this.Provider.SupportBulkOperations)
+            {
+                var orderedList = new[] { DbStoredProcedureType.BulkDeleteRows, DbStoredProcedureType.BulkUpdateRows, DbStoredProcedureType.BulkTableType };
+
+                // we need to drop bulk in order to be sure bulk type is delete after all
+                if (overwrite)
+                {
+                    foreach (DbStoredProcedureType storedProcedureType in orderedList)
+                    {
+                        var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        if (exists)
+                            await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+
+                }
+            }
+
             var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType));
 
             foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
@@ -85,11 +104,15 @@ namespace Dotmim.Sync
                     && !this.Provider.SupportBulkOperations)
                     continue;
 
+                // check with filter
+                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) && tableBuilder.Filter == null)
+                    continue;
+
                 var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Drop storedProcedure if already exists
                 if (exists && overwrite)
-                    await InternalDropStoredProcedureAsync(ctx,  tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var shouldCreate = !exists || overwrite;
 
@@ -136,7 +159,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop the Stored Procedure</param>
         /// <param name="storedProcedureType">Stored Procedure type</param>
-        public Task<bool> DropStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        public Task<bool> DropStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
             {
                 bool hasBeenDropped = false;
@@ -167,6 +190,8 @@ namespace Dotmim.Sync
         public Task<bool> DropStoredProceduresAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
             {
+                var hasDroppedAtLeastOneStoredProcedure = false;
+
                 var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var schemaTable = schema.Tables[table.TableName, table.SchemaName];
@@ -177,15 +202,36 @@ namespace Dotmim.Sync
                 // Get table builder
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
-                var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType));
+                // check bulk before
 
-                var hasDroppedAtLeastOneStoredProcedure = false;
+                if (this.Provider.SupportBulkOperations)
+                {
+                    var orderedList = new[] { DbStoredProcedureType.BulkDeleteRows, DbStoredProcedureType.BulkUpdateRows, DbStoredProcedureType.BulkTableType };
+
+                    foreach (DbStoredProcedureType storedProcedureType in orderedList)
+                    {
+                        var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (exists)
+                        {
+                            var dropped = await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            // If at least one stored proc has been dropped, we're good to return true;
+                            if (dropped)
+                                hasDroppedAtLeastOneStoredProcedure = true;
+                        }
+                    }
+
+                }
+
+                var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType))
+                                                  .Cast<DbStoredProcedureType>()
+                                                  .Where(sp => sp != DbStoredProcedureType.BulkDeleteRows && sp != DbStoredProcedureType.BulkTableType && sp != DbStoredProcedureType.BulkUpdateRows);
+
 
                 foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
                 {
-                    // if we are iterating on bulk, but provider do not support it, just loop through and continue
-                    if ((storedProcedureType is DbStoredProcedureType.BulkTableType || storedProcedureType is DbStoredProcedureType.BulkUpdateRows || storedProcedureType is DbStoredProcedureType.BulkDeleteRows)
-                        && !this.Provider.SupportBulkOperations)
+                    // check with filter
+                    if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) && tableBuilder.Filter == null)
                         continue;
 
                     var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

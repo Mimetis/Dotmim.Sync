@@ -79,6 +79,39 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
+        public async Task Table_Exists()
+        {
+            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+
+            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
+            var sqlProvider = new SqlSyncProvider(cs);
+
+            var options = new SyncOptions();
+            var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
+
+            var table = new SyncTable("Product", "SalesLT");
+            var colID = new SyncColumn("ID", typeof(Guid));
+            var colName = new SyncColumn("Name", typeof(string));
+
+            table.Columns.Add(colID);
+            table.Columns.Add(colName);
+            table.Columns.Add("Number", typeof(int));
+            table.PrimaryKeys.Add("ID");
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+
+            await localOrchestrator.CreateTableAsync(table);
+
+            var exists = await localOrchestrator.ExistTableAsync(setup.Tables[0]).ConfigureAwait(false);
+            Assert.True(exists);
+            exists = await localOrchestrator.ExistTableAsync(setup.Tables[1]).ConfigureAwait(false);
+            Assert.False(exists);
+
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+        }
+
+        [Fact]
         public async Task Table_Create_One_Overwrite()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -146,7 +179,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
 
         [Fact]
         public async Task Table_Create_All()
@@ -216,7 +248,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-
         [Fact]
         public async Task Table_Drop_One()
         {
@@ -278,7 +309,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
 
         [Fact]
         public async Task Table_Drop_One_Cancel()
@@ -347,7 +377,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-       
         [Fact]
         public async Task Table_Drop_All()
         {
@@ -378,9 +407,5 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
-
-
-
     }
 }

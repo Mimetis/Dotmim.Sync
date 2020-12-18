@@ -22,6 +22,10 @@ namespace Dotmim.Sync
             InternalApplyChangesAsync(SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+
+            // call interceptor
+            await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
             var changesApplied = new DatabaseChangesApplied();
 
             // Check if we have some data available
@@ -86,8 +90,13 @@ namespace Dotmim.Sync
                     cleanFolder = false;
 
             }
+            
             // clear the changes because we don't need them anymore
             message.Changes.Clear(cleanFolder);
+
+            var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection);
+            await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
+            this.ReportProgress(context, progress, databaseChangesAppliedArgs);
 
             this.logger.LogDebug(SyncEventsId.ApplyChanges, changesApplied);
 

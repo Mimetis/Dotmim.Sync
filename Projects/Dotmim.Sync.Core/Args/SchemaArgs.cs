@@ -47,19 +47,7 @@ namespace Dotmim.Sync
     /// </summary>
     public static partial class InterceptorsExtensions
     {
-        /// <summary>
-        /// Intercept the provider when schema is created
-        /// </summary>
-        public static void OnSchemaCreated(this BaseOrchestrator orchestrator, Action<SchemaNameCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
 
-        /// <summary>
-        /// Intercept the provider when schema is creating
-        /// </summary>
-        public static void OnSchemaCreating(this BaseOrchestrator orchestrator, Action<SchemaNameCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
-
- 
         /// <summary>
         /// Intercept the provider when schema is loaded
         /// </summary>

@@ -1585,10 +1585,10 @@ namespace Dotmim.Sync.Tests
             {
 
                 // Sleep during a selecting changes on first sync
-                Task tableChangesSelected(TableChangesSelectedArgs changes)
+                void tableChangesSelected(TableChangesSelectedArgs changes)
                 {
                     if (changes.TableChangesSelected.TableName != "PricesList")
-                        return Task.CompletedTask;
+                        return;
 
                     // Insert on same connection as current sync.
                     // Using same connection to avoid lock, especially on SQlite
@@ -1616,7 +1616,7 @@ namespace Dotmim.Sync.Tests
                         Console.WriteLine(ex.Message);
                         throw;
                     }
-                    return Task.CompletedTask;
+                    return;
                 };
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));

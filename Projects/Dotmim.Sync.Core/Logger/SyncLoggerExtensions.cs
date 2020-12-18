@@ -22,7 +22,7 @@ namespace Dotmim.Sync
             // Add a singleton for the sync log provider
             builder.Services.AddSingleton<ILoggerProvider, SyncLoggerProvider>();
 
-            // Filter is used to se the minimum level of log leve for a particular logging provider.
+            // Filter is used to se the minimum level of log level for a particular logging provider.
             // this minimum level is independant from the minimum level set bu the logger itself.
             // For ... some reasons.. I guess ... :)
             builder.AddFilter<SyncLoggerProvider>(null, LogLevel.Trace);
@@ -47,6 +47,13 @@ namespace Dotmim.Sync
                 return "null";
 
             return transaction.Connection != null ? "In progress" : "Done";
+        }
+        public static string ToLogString(this DbCommand command)
+        {
+            if (command == null)
+                return "null";
+
+            return command.CommandText;
         }
     }
 }
