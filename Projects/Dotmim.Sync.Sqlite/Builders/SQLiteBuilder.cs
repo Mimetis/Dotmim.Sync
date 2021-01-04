@@ -10,9 +10,12 @@ namespace Dotmim.Sync.Sqlite.Builders
     public class SqliteBuilder : DbBuilder
     {
         public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
-        => Task.CompletedTask;
+            => Task.CompletedTask;
 
-        public override Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null) 
-        => throw new NotImplementedException();
+        public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+            => Task.FromResult(new SyncTable(tableName));
+
+        public override Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
+            => throw new NotImplementedException();
     }
 }

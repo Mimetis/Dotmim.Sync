@@ -28,6 +28,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
+        public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+            => Task.FromResult(new SyncTable(tableName, schemaName));
+
         public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
         {
             return await SqlManagementUtils.GetHelloAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);

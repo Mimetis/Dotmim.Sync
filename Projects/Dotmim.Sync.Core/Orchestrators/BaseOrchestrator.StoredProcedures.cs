@@ -28,12 +28,22 @@ namespace Dotmim.Sync
         {
             bool hasBeenCreated = false;
 
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
+            var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (schemaTable == null)
                 throw new MissingTableException(table.GetFullName());
+
+            // Create a temporary SyncSet for attaching to the schemaTable
+            var schema = new SyncSet();
+
+            // Add this table to schema
+            schema.Tables.Add(schemaTable);
+
+            schema.EnsureSchema();
+
+            // copy filters from setup
+            foreach (var filter in this.Setup.Filters)
+                schema.Filters.Add(filter);
 
             // Get table builder
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
@@ -50,7 +60,6 @@ namespace Dotmim.Sync
                     await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 hasBeenCreated = await InternalCreateStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
             }
 
             return hasBeenCreated;
@@ -68,6 +77,7 @@ namespace Dotmim.Sync
             var hasCreatedAtLeastOneStoredProcedure = false;
 
             var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
             var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
             if (schemaTable == null)
@@ -82,16 +92,12 @@ namespace Dotmim.Sync
                 var orderedList = new[] { DbStoredProcedureType.BulkDeleteRows, DbStoredProcedureType.BulkUpdateRows, DbStoredProcedureType.BulkTableType };
 
                 // we need to drop bulk in order to be sure bulk type is delete after all
-                if (overwrite)
+                foreach (DbStoredProcedureType storedProcedureType in orderedList)
                 {
-                    foreach (DbStoredProcedureType storedProcedureType in orderedList)
-                    {
-                        var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        if (exists)
-                            await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-
+                    if (exists && overwrite)
+                        await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
@@ -105,7 +111,8 @@ namespace Dotmim.Sync
                     continue;
 
                 // check with filter
-                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) && tableBuilder.Filter == null)
+                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) 
+                && schemaTable.GetFilter() == null)
                     continue;
 
                 var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -138,14 +145,21 @@ namespace Dotmim.Sync
         public Task<bool> ExistStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            // using a fake SyncTable based on SetupTable, since we don't need columns
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
+            // Create a temporary SyncSet for attaching to the schemaTable
+            var schema = new SyncSet();
 
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
+            // Add this table to schema
+            schema.Tables.Add(schemaTable);
 
-            // Get table builder
+            schema.EnsureSchema();
+
+            // copy filters from setup
+            foreach (var filter in this.Setup.Filters)
+                schema.Filters.Add(filter);
+
             var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
             var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -164,14 +178,22 @@ namespace Dotmim.Sync
             {
                 bool hasBeenDropped = false;
 
-                var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // using a fake SyncTable based on SetupTable, since we don't need columns
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
-                var schemaTable = schema.Tables[table.TableName, table.SchemaName];
+                // Create a temporary SyncSet for attaching to the schemaTable
+                var schema = new SyncSet();
 
-                if (schemaTable == null)
-                    throw new MissingTableException(table.GetFullName());
+                // Add this table to schema
+                schema.Tables.Add(schemaTable);
 
-                // Get table builder
+                schema.EnsureSchema();
+
+                // copy filters from setup
+                foreach (var filter in this.Setup.Filters)
+                    schema.Filters.Add(filter);
+
+
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
                 var existsAndCanBeDeleted = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -192,14 +214,22 @@ namespace Dotmim.Sync
             {
                 var hasDroppedAtLeastOneStoredProcedure = false;
 
-                var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // using a fake SyncTable based on SetupTable, since we don't need columns
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
-                var schemaTable = schema.Tables[table.TableName, table.SchemaName];
+                // Create a temporary SyncSet for attaching to the schemaTable
+                var schema = new SyncSet();
 
-                if (schemaTable == null)
-                    throw new MissingTableException(table.GetFullName());
+                // Add this table to schema
+                schema.Tables.Add(schemaTable);
 
-                // Get table builder
+                schema.EnsureSchema();
+
+                // copy filters from setup
+                foreach (var filter in this.Setup.Filters)
+                    schema.Filters.Add(filter);
+
+                // using a fake SyncTable based on SetupTable, since we don't need columns
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
 
                 // check bulk before
@@ -291,7 +321,7 @@ namespace Dotmim.Sync
         internal async Task<bool> InternalDropStoredProceduresAsync(SyncContext ctx, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // check bulk before
-            var hasDroppedAtLeastOneStoredProcedure = false; 
+            var hasDroppedAtLeastOneStoredProcedure = false;
 
 
             if (this.Provider.SupportBulkOperations)
@@ -321,7 +351,8 @@ namespace Dotmim.Sync
             foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
             {
                 // check with filter
-                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) && tableBuilder.Filter == null)
+                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) 
+                    && tableBuilder.TableDescription.GetFilter() == null)
                     continue;
 
                 var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -376,7 +407,8 @@ namespace Dotmim.Sync
                     continue;
 
                 // check with filter
-                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) && tableBuilder.Filter == null)
+                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters) 
+                    && tableBuilder.TableDescription.GetFilter() == null)
                     continue;
 
                 var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
