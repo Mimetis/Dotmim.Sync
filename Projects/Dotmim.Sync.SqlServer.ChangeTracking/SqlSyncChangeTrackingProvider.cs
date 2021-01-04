@@ -81,8 +81,7 @@ namespace Dotmim.Sync.SqlServer
             var tableBuilder = new SqlChangeTrackingBuilder(tableDescription, tableName, trackingName, setup)
             {
                 UseBulkProcedures = this.SupportBulkOperations,
-                UseChangeTracking = this.UseChangeTracking,
-                Filter = tableDescription.GetFilter()
+                UseChangeTracking = this.UseChangeTracking
             };
 
             return tableBuilder;

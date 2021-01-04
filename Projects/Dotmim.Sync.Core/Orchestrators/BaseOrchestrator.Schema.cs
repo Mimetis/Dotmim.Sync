@@ -50,38 +50,15 @@ namespace Dotmim.Sync
 
             foreach (var setupTable in this.Setup.Tables)
             {
-                // creating an empty schema table with just table name / schema name.
-                // will be enough to make the exist table verification
-                var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
-                var tableBuilder = this.Provider.GetTableBuilder(syncTable, this.Setup);
-
-                var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    throw new MissingTableException(string.IsNullOrEmpty(setupTable.SchemaName) ? setupTable.TableName : setupTable.SchemaName + "." + setupTable.TableName);
-
-                // get columns list
-                var lstColumns = await tableBuilder.GetColumnsAsync(connection, transaction).ConfigureAwait(false);
-
-                //if (this.logger.IsEnabled(LogLevel.Debug))
-                //    foreach (var col in lstColumns)
-                //        this.logger.LogDebug(SyncEventsId.GetSchema, col);
-
-                // Validate the column list and get the dmTable configuration object.
-                this.FillSyncTableWithColumns(setupTable, syncTable, lstColumns);
+                var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setupTable, connection, transaction, cancellationToken, progress);
 
                 // Add this table to schema
                 schema.Tables.Add(syncTable);
 
-                // Check primary Keys
-                await SetPrimaryKeysAsync(syncTable, tableBuilder, connection, transaction).ConfigureAwait(false);
-
-                // get all relations
-                var tableRelations = await tableBuilder.GetRelationsAsync(connection, transaction).ConfigureAwait(false);
-
                 // Since we are not sure of the order of reading tables
                 // create a tmp relations list
                 relations.AddRange(tableRelations);
+
             }
 
             // Parse and affect relations to schema
@@ -95,6 +72,36 @@ namespace Dotmim.Sync
             this.ReportProgress(context, progress, schemaArgs);
 
             return schema;
+        }
+
+
+        internal async Task<(SyncTable SyncTable, IEnumerable<DbRelationDefinition> Relations)> InternalGetTableSchemaAsync(SyncContext context, SetupTable setupTable, DbConnection connection, DbTransaction transaction,
+                                                           CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            // ensure table is compliante with name / schema with provider
+            var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction);
+
+            var tableBuilder = this.Provider.GetTableBuilder(syncTable, this.Setup);
+
+            var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (!exists)
+                throw new MissingTableException(string.IsNullOrEmpty(setupTable.SchemaName) ? setupTable.TableName : setupTable.SchemaName + "." + setupTable.TableName);
+
+            // get columns list
+            var lstColumns = await tableBuilder.GetColumnsAsync(connection, transaction).ConfigureAwait(false);
+
+            // Validate the column list and get the dmTable configuration object.
+            this.FillSyncTableWithColumns(setupTable, syncTable, lstColumns);
+
+            // Check primary Keys
+            await SetPrimaryKeysAsync(syncTable, tableBuilder, connection, transaction).ConfigureAwait(false);
+
+            // get all relations
+            var tableRelations = await tableBuilder.GetRelationsAsync(connection, transaction).ConfigureAwait(false);
+
+            return (syncTable, tableRelations);
         }
 
         /// <summary>

@@ -16,7 +16,7 @@ namespace Dotmim.Sync
         /// Ensure the scope (Client, Server or ServerHistpory) is created
         /// The scope contains all about last sync, schema and scope and local / remote timestamp 
         /// </summary>
-        public virtual Task<bool> CreateScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, string scopeInfoTableName, bool overwrite = false,
+        public virtual Task<bool> CreateScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, bool overwrite = false,
                              CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
            => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
            {
@@ -43,6 +43,23 @@ namespace Dotmim.Sync
                return hasBeenCreated;
 
            },cancellationToken);
+
+
+        /// <summary>
+        /// Check if a scope info table exists
+        /// </summary>
+        public Task<bool> ExistScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        {
+            // Get table builder
+            var scopeBuilder = this.Provider.GetScopeBuilder(scopeInfoTableName);
+
+            var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return exists;
+
+        }, cancellationToken);
+
 
         /// <summary>
         /// Internal exists scope table routine

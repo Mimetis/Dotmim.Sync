@@ -25,12 +25,7 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         public SyncSetup Setup { get; }
 
-        /// <summary>
-        /// Filtered Columns
-        /// </summary>
-        public SyncFilter Filter { get; set; }
-
-        /// <summary>
+         /// <summary>
         /// Gets or Sets if the Database builder supports bulk procedures
         /// </summary>
         public bool UseBulkProcedures { get; set; } = true;
