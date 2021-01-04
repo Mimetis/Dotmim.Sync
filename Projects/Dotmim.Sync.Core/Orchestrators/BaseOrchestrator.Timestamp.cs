@@ -33,7 +33,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        public virtual async Task<long> InternalGetLocalTimestampAsync(SyncContext context,
+        internal async Task<long> InternalGetLocalTimestampAsync(SyncContext context,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -43,8 +43,6 @@ namespace Dotmim.Sync
 
             if (command == null)
                 return 0L;
-
-            this.logger.LogDebug(SyncEventsId.GetLocalTimestamp, new { ScopeInfoTable = this.Options.ScopeInfoTableName });
 
             var action = new LocalTimestampLoadingArgs(context, command, connection, transaction);
 

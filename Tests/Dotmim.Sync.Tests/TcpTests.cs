@@ -1712,19 +1712,18 @@ namespace Dotmim.Sync.Tests
             // Insert one thousand lines on each client
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                
+                for (var i = 0; i < 1000; i++)
                 {
-                    for (var i = 0; i < 1000; i++)
-                    {
-                        var name = HelperDatabase.GetRandomName();
-                        var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+                    var name = HelperDatabase.GetRandomName();
+                    var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
 
-                        var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+                    var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                        ctx.Product.Add(product);
-                    }
-                    await ctx.SaveChangesAsync();
+                    ctx.Product.Add(product);
                 }
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -2018,14 +2017,12 @@ namespace Dotmim.Sync.Tests
                         foreach (var table in agent.Schema.Tables.Where(t => t.TableName == "Product" || t.TableName == "ProductCategory"))
                         {
                             var cmd = tca.Connection.CreateCommand();
-                            tca.Connection.Open();
                             var tableAndSchemaName = ParserName.Parse(table).Schema().Quoted().ToString();
                             var tableName = ParserName.Parse(table).Schema().Quoted().ToString();
                             cmd.CommandText = $"ALTER TABLE {tableAndSchemaName} CHECK CONSTRAINT ALL";
                             cmd.Connection = tca.Connection;
                             cmd.Transaction = tca.Transaction;
                             cmd.ExecuteNonQuery();
-                            tca.Connection.Close();
                         }
                     }
 

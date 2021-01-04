@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] trigger [{this.TriggerType}] created.";
 
-        public override int EventId => 43;
+        public override int EventId => SyncEventsId.TriggerCreated.Id;
     }
 
     public class TriggerCreatingArgs : ProgressArgs
@@ -39,7 +40,7 @@ namespace Dotmim.Sync
         }
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] trigger [{this.TriggerType}] creating.";
 
-
+        public override int EventId => SyncEventsId.TriggerCreating.Id;
     }
 
     public class TriggerDroppedArgs : ProgressArgs
@@ -56,7 +57,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] trigger [{this.TriggerType}] dropped.";
 
-        public override int EventId => SyncEventsId.DropTrigger.Id;
+        public override int EventId => SyncEventsId.TriggerDropped.Id;
     }
 
     public class TriggerDroppingArgs : ProgressArgs
@@ -76,7 +77,7 @@ namespace Dotmim.Sync
         }
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] trigger [{this.TriggerType}] dropping.";
 
-
+        public override int EventId => SyncEventsId.TriggerDropping.Id;
     }
 
     /// <summary>
@@ -107,6 +108,15 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTriggerDropped(this BaseOrchestrator orchestrator, Action<TriggerDroppedArgs> action)
             => orchestrator.SetInterceptor(action);
+
+    }
+
+    public static partial class SyncEventsId
+    {
+        public static EventId TriggerCreating => CreateEventId(15000, nameof(TriggerCreating));
+        public static EventId TriggerCreated => CreateEventId(15100, nameof(TriggerCreated));
+        public static EventId TriggerDropping => CreateEventId(15200, nameof(TriggerDropping));
+        public static EventId TriggerDropped => CreateEventId(15300, nameof(TriggerDropped));
 
     }
 }

@@ -153,8 +153,8 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
-            this.logger.LogDebug(SyncEventsId.OpenConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
-            this.logger.LogTrace(SyncEventsId.OpenConnection, new { connection.ConnectionString });
+            this.logger.LogDebug(SyncEventsId.ConnectionOpen, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
+            this.logger.LogTrace(SyncEventsId.ConnectionOpen, new { connection.ConnectionString });
 
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
@@ -184,8 +184,8 @@ namespace Dotmim.Sync
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
 
-            this.logger.LogDebug(SyncEventsId.CloseConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
-            this.logger.LogTrace(SyncEventsId.CloseConnection, new { connection.ConnectionString });
+            this.logger.LogDebug(SyncEventsId.ConnectionClose, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
+            this.logger.LogTrace(SyncEventsId.ConnectionClose, new { connection.ConnectionString });
 
             if (connection != null && connection.State == ConnectionState.Open)
                 connection.Close();
@@ -256,10 +256,7 @@ namespace Dotmim.Sync
             // Check if the provider is not outdated
             // We can have negative value where we want to compare anyway
             if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
-            {
                 isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
-                this.logger.LogInformation(SyncEventsId.IsOutdated, new { serverScopeInfo.LastCleanupTimestamp, clientScopeInfo.LastServerSyncTimestamp, IsOutDated = isOutdated });
-            }
 
             // Get a chance to make the sync even if it's outdated
             if (isOutdated)
@@ -286,8 +283,6 @@ namespace Dotmim.Sync
             var databaseBuilder = this.Provider.GetDatabaseBuilder();
 
             var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
-
-            this.logger.LogDebug(SyncEventsId.GetHello, new { hello.DatabaseName, hello.Version });
 
             return (context, hello.DatabaseName, hello.Version);
         }

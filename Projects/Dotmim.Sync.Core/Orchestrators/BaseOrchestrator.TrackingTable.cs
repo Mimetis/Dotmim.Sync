@@ -208,8 +208,6 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
-            this.logger.LogInformation(SyncEventsId.CreateTrackingTable, new { TrackingTable = tableBuilder.TableDescription.GetFullName() });
-
             var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
 
             var action = new TrackingTableCreatingArgs(ctx, tableBuilder.TableDescription, trackingTableName, command, connection, transaction);
@@ -245,10 +243,8 @@ namespace Dotmim.Sync
                 return false;
 
             var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
-            this.logger.LogInformation(SyncEventsId.RenameTrackingTable, new { NewTrackingTable = trackingTableName, OldTrackingTable = oldTrackingTableName });
 
             var action = new TrackingTableRenamingArgs(ctx, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, command, connection, transaction);
-
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -271,11 +267,8 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
-            this.logger.LogInformation(SyncEventsId.DropTrackingTable, new { Table = tableBuilder.TableDescription.GetFullName() });
-
             var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
             var action = new TrackingTableDroppingArgs(ctx, tableBuilder.TableDescription, trackingTableName, command, connection, transaction);
-
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)

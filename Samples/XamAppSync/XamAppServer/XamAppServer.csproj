@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dotmim.Sync.MySql" Version="0.5.8-beta-0460" />
+    <PackageReference Include="Dotmim.Sync.SqlServer" Version="0.5.8-beta-0460" />
+    <PackageReference Include="Dotmim.Sync.Web.Server" Version="0.5.8-beta-0460" />
+  </ItemGroup>
+
+
+</Project>

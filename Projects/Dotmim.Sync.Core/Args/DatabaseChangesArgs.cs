@@ -27,7 +27,7 @@ namespace Dotmim.Sync
         public override string Message => $"[{Connection.Database}] getting changes ...";
 
         public MessageGetChangesBatch ChangesRequest { get; }
-        public override int EventId => SyncEventsId.GetEvent(nameof(DatabaseChangesSelectingArgs));
+        public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
         /// All parameters that will be used to apply changes
         /// </summary>
         public MessageApplyChanges ApplyChanges { get; }
-        public override int EventId => 15;
+        public override int EventId => SyncEventsId.DatabaseChangesApplying.Id;
     }
 
     /// <summary>
@@ -90,7 +90,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] applied:{ChangesApplied.TotalAppliedChanges} resolved conflicts:{ChangesApplied.TotalResolvedConflicts}";
 
-        public override int EventId => 16;
+        public override int EventId => SyncEventsId.DatabaseChangesApplied.Id;
     }
 
     public static partial class InterceptorsExtensions
@@ -125,15 +125,9 @@ namespace Dotmim.Sync
 
     public static partial class SyncEventsId
     {
-
-        private static EventId CreateEventId3(int id, string eventName) => new EventId(id, eventName);
-
-        public static int GetEvent(string name)
-        {
-
-            return 0;
-        }
         public static EventId DatabaseChangesSelecting => CreateEventId(1000, nameof(DatabaseChangesSelecting));
-        public static EventId DatabaseChangesSelected => CreateEventId(1000, nameof(DatabaseChangesSelected));
+        public static EventId DatabaseChangesSelected => CreateEventId(1100, nameof(DatabaseChangesSelected));
+        public static EventId DatabaseChangesApplying => CreateEventId(1200, nameof(DatabaseChangesApplying));
+        public static EventId DatabaseChangesApplied => CreateEventId(1300, nameof(DatabaseChangesApplied));
     }
 }

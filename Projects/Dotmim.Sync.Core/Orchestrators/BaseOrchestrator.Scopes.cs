@@ -1,14 +1,10 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -74,10 +70,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
-            this.logger.LogInformation(SyncEventsId.DropScopeTable, new { ScopeInfoTableName = scopeBuilder.ScopeInfoTableName.ToString(), ScopeType = scopeType });
-
             var action = new ScopeTableDroppingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, connection, transaction);
-
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -99,8 +92,6 @@ namespace Dotmim.Sync
 
             if (command == null)
                 return false;
-
-            this.logger.LogInformation(SyncEventsId.CreateScopeTable, new { ScopeInfoTableName = scopeBuilder.ScopeInfoTableName.ToString(), ScopeType = scopeType });
 
             var action = new ScopeTableCreatingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, connection, transaction);
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
@@ -124,8 +115,6 @@ namespace Dotmim.Sync
 
             if (command == null)
                 return null;
-
-            this.logger.LogInformation(SyncEventsId.GetScopeInfo, new { ScopeInfoTableName = scopeBuilder.ScopeInfoTableName.ToString(), ScopeType = scopeType, ScopeName = scopeName });
 
             var action = new ScopeLoadingArgs(ctx, scopeName, scopeType, command, connection, transaction);
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
@@ -225,10 +214,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return null;
 
-            this.logger.LogInformation(SyncEventsId.SaveScopeInfo, new { ScopeInfoTableName = scopeBuilder.ScopeInfoTableName.ToString(), ScopeType = scopeType, ScopeInfo = scopeInfo });
-
             var action = new ScopeSavingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, scopeInfo, command, connection, transaction);
-
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)

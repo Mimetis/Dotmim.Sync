@@ -362,7 +362,7 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
-        agent.RemoteOrchestrator.OnDatabaseProvisioning(args =>
+        agent.RemoteOrchestrator.OnProvisioning(args =>
         {
             var schema = args.Schema;
 

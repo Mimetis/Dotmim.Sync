@@ -30,9 +30,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType);
+            if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
+                return Task.FromResult<DbCommand>(null);
+
+            var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
 
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
 
@@ -64,7 +67,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
 
         {
-            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType);
+            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
             var text = $"DROP PROCEDURE {commandName};";
 
             if (storedProcedureType == DbStoredProcedureType.BulkTableType)
@@ -525,7 +528,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public DbCommand CreateBulkUpdateCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows);
-            
+
             // Check if we have mutables columns
             var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
 

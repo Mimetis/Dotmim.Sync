@@ -32,10 +32,7 @@ namespace Dotmim.Sync
             var hasChanges = await message.Changes.HasDataAsync(this);
 
             if (!hasChanges)
-            {
-                this.logger.LogDebug(SyncEventsId.ApplyChanges, changesApplied);
                 return (context, changesApplied);
-            }
 
             // Disable check constraints
             // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
@@ -90,15 +87,13 @@ namespace Dotmim.Sync
                     cleanFolder = false;
 
             }
-            
+
             // clear the changes because we don't need them anymore
             message.Changes.Clear(cleanFolder);
 
-            var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection);
+            var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
             await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(context, progress, databaseChangesAppliedArgs);
-
-            this.logger.LogDebug(SyncEventsId.ApplyChanges, changesApplied);
 
             return (context, changesApplied);
 
@@ -115,8 +110,6 @@ namespace Dotmim.Sync
             for (var i = 0; i < schema.Tables.Count; i++)
             {
                 var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
-
-                this.logger.LogDebug(SyncEventsId.ResetTable, tableDescription);
 
                 // get executioning adapter
                 var syncAdapter = this.Provider.GetSyncAdapter(tableDescription, setup);
@@ -140,9 +133,6 @@ namespace Dotmim.Sync
             DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
-            this.logger.LogDebug(SyncEventsId.ApplyChanges, message);
-
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && schemaTable.SyncDirection == SyncDirection.DownloadOnly)
                 return;
@@ -190,9 +180,9 @@ namespace Dotmim.Sync
                     changesSet.Tables.Add(schemaChangesTable);
                     schemaChangesTable.Rows.AddRange(filteredRows.ToList());
 
-                    if (this.logger.IsEnabled(LogLevel.Trace))
-                        foreach (var row in schemaChangesTable.Rows)
-                            this.logger.LogTrace(SyncEventsId.ApplyChanges, row);
+                    //if (this.logger.IsEnabled(LogLevel.Trace))
+                    //    foreach (var row in schemaChangesTable.Rows)
+                    //        this.logger.LogTrace(SyncEventsId.ApplyChanges, row);
 
                     // Launch any interceptor if available
                     //await this.InterceptAsync(new TableChangesApplyingArgs(context, schemaChangesTable, applyType, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -261,8 +251,6 @@ namespace Dotmim.Sync
                     {
                         await this.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
                         this.ReportProgress(context, progress, tableChangesAppliedArgs, connection, transaction);
-
-                        this.logger.LogDebug(SyncEventsId.ApplyChanges, tableChangesAppliedArgs);
                     }
                 }
             }
@@ -285,14 +273,14 @@ namespace Dotmim.Sync
             {
                 var fromScopeLocalTimeStamp = message.LastTimestamp;
 
-                this.logger.LogDebug(SyncEventsId.ResolveConflicts, conflict);
-                this.logger.LogDebug(SyncEventsId.ResolveConflicts, new
-                {
-                    LocalScopeId = localScopeId,
-                    SenderScopeId = senderScopeId,
-                    FromScopeLocalTimeStamp = fromScopeLocalTimeStamp,
-                    message.Policy
-                }); ;
+                //this.logger.LogDebug(SyncEventsId.ResolveConflicts, conflict);
+                //this.logger.LogDebug(SyncEventsId.ResolveConflicts, new
+                //{
+                //    LocalScopeId = localScopeId,
+                //    SenderScopeId = senderScopeId,
+                //    FromScopeLocalTimeStamp = fromScopeLocalTimeStamp,
+                //    message.Policy
+                //}); ;
 
 
                 var (conflictResolvedCount, resolvedRow, rowAppliedCount) =
@@ -341,7 +329,7 @@ namespace Dotmim.Sync
                 // Conflict on a line that is not present on the datasource
                 if (row == null)
                     return (conflictResolvedCount: 1, finalRow, rowAppliedCount: 0);
-            
+
                 // if we have a merge action, we apply the row on the server
                 if (isMergeAction)
                 {
@@ -440,7 +428,6 @@ namespace Dotmim.Sync
 
             // Interceptor
             var arg = new ApplyChangesFailedArgs(context, conflict, conflictAction, senderScopeId, connection, transaction);
-            this.logger.LogDebug(SyncEventsId.ResolveConflicts, arg);
 
             await this.InterceptAsync(arg, cancellationToken).ConfigureAwait(false);
 

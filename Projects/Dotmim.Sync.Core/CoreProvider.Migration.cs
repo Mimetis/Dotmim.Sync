@@ -39,8 +39,7 @@ namespace Dotmim.Sync
             // Generate a fake SyncSet since we don't need complete table schema
             foreach (var migrationTable in migrationResults.Tables)
             {
-                this.Orchestrator.logger.LogDebug(SyncEventsId.Migration, migrationTable);
-
+              
                 var tableBuilder = this.GetTableBuilder(new SyncTable(migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName), oldSetup);
 
                 // Deprovision

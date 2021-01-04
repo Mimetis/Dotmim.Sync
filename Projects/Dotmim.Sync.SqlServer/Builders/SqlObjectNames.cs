@@ -52,7 +52,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
-
         public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
         {
             if (storedProceduresNames.ContainsKey(objectType))
@@ -60,15 +59,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             storedProceduresNames.Add(objectType, name);
         }
-        public string GetStoredProcedureCommandName(DbStoredProcedureType objectType, SyncFilter filter = null)
+        public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
-            if (!storedProceduresNames.ContainsKey(objectType))
+            if (!storedProceduresNames.ContainsKey(storedProcedureType))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
-            var commandName = storedProceduresNames[objectType];
+            var commandName = storedProceduresNames[storedProcedureType];
 
             // concat filter name
-            if (filter != null)
+            if (filter != null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 commandName = string.Format(commandName, filter.GetFilterName());
 
             return commandName;

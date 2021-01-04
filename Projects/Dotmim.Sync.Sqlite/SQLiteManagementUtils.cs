@@ -13,17 +13,14 @@ namespace Dotmim.Sync.Sqlite
 {
     internal static class SqliteManagementUtils
     {
-        public static async Task<SyncTable> GetTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
         {
             string command = "select * from sqlite_master where name = @tableName limit 1";
 
-            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
-            var tableNameString = ParserName.Parse(tableName).ToString();
-
-            var syncTable = new SyncTable(tableNameNormalized);
+            var syncTable = new SyncTable(unquotedTableName);
             using (var sqlCommand = new SqliteCommand(command, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+                sqlCommand.Parameters.AddWithValue("@tableName", unquotedTableName);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -46,14 +43,11 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetColumnsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
         {
 
-            var tableNameParser = ParserName.Parse(tableName, "`");
-            var tableNameString = tableNameParser.Unquoted().ToString();
-
-            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}');";
-            var syncTable = new SyncTable(tableNameString);
+            string commandColumn = $"SELECT * FROM pragma_table_info('{unquotedTableName}');";
+            var syncTable = new SyncTable(unquotedTableName);
 
             using (var sqlCommand = new SqliteCommand(commandColumn, connection))
             {
@@ -79,45 +73,38 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
         {
 
-            var tableNameParser = ParserName.Parse(tableName, "`");
-            var tableNameString = tableNameParser.Unquoted().ToString();
+            string commandColumn = $"SELECT * FROM pragma_table_info('{unquotedTableName}') where pk = 1;";
+            var syncTable = new SyncTable(unquotedTableName);
 
-            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}') where pk = 1;";
-            var syncTable = new SyncTable(tableNameString);
+            using var sqlCommand = new SqliteCommand(commandColumn, connection);
+            
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            using (var sqlCommand = new SqliteCommand(commandColumn, connection))
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            if (transaction != null)
+                sqlCommand.Transaction = transaction;
+
+
+            using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
             {
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
-
-
-                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                {
-                    syncTable.Load(reader);
-                }
-
-                if (!alreadyOpened)
-                    connection.Close();
-
+                syncTable.Load(reader);
             }
+
+            if (!alreadyOpened)
+                connection.Close();
+
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetRelationsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetRelationsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unqotedTableName)
         {
-            var tableNameParser = ParserName.Parse(tableName, "`");
-            var tableNameString = tableNameParser.Unquoted().ToString();
-
-            string commandColumn = $"SELECT * FROM pragma_foreign_key_list('{tableNameString}')";
-            var syncTable = new SyncTable(tableNameString);
+            string commandColumn = $"SELECT * FROM pragma_foreign_key_list('{unqotedTableName}')";
+            var syncTable = new SyncTable(unqotedTableName);
 
             using (var sqlCommand = new SqliteCommand(commandColumn, connection))
             {
@@ -165,7 +152,7 @@ namespace Dotmim.Sync.Sqlite
                 dbCommand.CommandText = $"drop trigger if exist {triggerName}";
                 if (transaction != null)
                     dbCommand.Transaction = transaction;
-             
+
                 await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
         }
