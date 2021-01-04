@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -16,7 +17,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"Applying snapshot.";
-        public override int EventId => 42;
+        public override int EventId => SyncEventsId.SnapshotApplying.Id;
     }
 
 
@@ -30,7 +31,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"Snapshot applied.";
-        public override int EventId => 43;
+        public override int EventId => SyncEventsId.SnapshotApplied.Id;
     }
 
 
@@ -68,7 +69,7 @@ namespace Dotmim.Sync
         public long Timestamp { get; }
 
         public override string Message => $"Creating snapshot.";
-        public override int EventId => 44;
+        public override int EventId => SyncEventsId.SnapshotCreating.Id;
     }
 
 
@@ -88,7 +89,7 @@ namespace Dotmim.Sync
         /// Gets the batch info summarizing the snapshot created
         /// </summary>
         public BatchInfo BatchInfo { get; }
-        public override int EventId => 45;
+        public override int EventId => SyncEventsId.SnapshotCreated.Id;
     }
 
     public static partial class InterceptorsExtensions
@@ -116,6 +117,15 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnSnapshotApplied(this BaseOrchestrator orchestrator, Action<SnapshotAppliedArgs> action)
             => orchestrator.SetInterceptor(action);
+
+    }
+
+    public static partial class SyncEventsId
+    {
+        public static EventId SnapshotCreating => CreateEventId(10000, nameof(SnapshotCreating));
+        public static EventId SnapshotCreated => CreateEventId(10100, nameof(SnapshotCreated));
+        public static EventId SnapshotApplying => CreateEventId(10200, nameof(SnapshotApplying));
+        public static EventId SnapshotApplied => CreateEventId(10300, nameof(SnapshotApplied));
 
     }
 }

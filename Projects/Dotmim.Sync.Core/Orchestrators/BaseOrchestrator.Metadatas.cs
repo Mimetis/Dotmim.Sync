@@ -49,8 +49,6 @@ namespace Dotmim.Sync
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
-            this.logger.LogInformation(SyncEventsId.MetadataCleaning, new { connection.Database, TimestampLimit = timestampLimit });
-
             foreach (var syncTable in schema.Tables)
             {
                 // Create sync adapter
@@ -68,7 +66,6 @@ namespace Dotmim.Sync
                         TimestampLimit = timestampLimit
                     };
 
-                    this.logger.LogDebug(SyncEventsId.MetadataCleaning, tableMetadatasCleaned);
                     databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
                 }
 
@@ -77,8 +74,6 @@ namespace Dotmim.Sync
             var args = new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(context, progress, args);
-
-            this.logger.LogDebug(SyncEventsId.MetadataCleaning, databaseMetadatasCleaned);
 
             return databaseMetadatasCleaned;
         }

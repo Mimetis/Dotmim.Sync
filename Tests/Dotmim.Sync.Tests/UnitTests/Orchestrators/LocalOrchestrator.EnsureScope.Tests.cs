@@ -37,58 +37,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
 
-        [Fact]
-        public async Task LocalOrchestrator_EnsureScope_CheckInterceptors()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-            var scopeName = "scope";
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-            var onScopeLoading = false;
-            var onScopeLoaded = false;
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
-
-            localOrchestrator.OnScopeLoading(args =>
-            {
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.Equal(scopeName, args.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Same(args.Connection, args.Transaction.Connection);
-                onScopeLoading = true;
-            });
-
-            localOrchestrator.OnScopeLoaded(args =>
-            {
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.ScopeInfo);
-                Assert.Equal(scopeName, args.ScopeInfo.Name);
-                Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Closed, args.Connection.State);
-                onScopeLoaded = true;
-            });
-
-            // Check connection and transaction interceptors
-            BaseOrchestratorTests.AssertConnectionAndTransaction(localOrchestrator, SyncStage.ScopeLoading);
-
-            var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
-
-            Assert.True(onScopeLoaded);
-            Assert.True(onScopeLoading);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
+     
 
 
         [Fact]

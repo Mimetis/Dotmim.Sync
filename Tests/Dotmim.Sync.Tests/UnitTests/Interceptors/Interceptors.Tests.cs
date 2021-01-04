@@ -40,6 +40,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             var type = output.GetType();
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.test = (ITest)testMember.GetValue(output);
+
+            // Since we are creating a lot of databases
+            // each database will have its own pool
+            // Droping database will not clear the pool associated
+            // So clear the pools on every start of a new test
+            SqlConnection.ClearAllPools();
+
             this.stopwatch = Stopwatch.StartNew();
         }
 

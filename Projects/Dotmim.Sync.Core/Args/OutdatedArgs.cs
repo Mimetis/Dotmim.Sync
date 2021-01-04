@@ -1,5 +1,6 @@
 ﻿
 using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 
@@ -31,7 +32,7 @@ namespace Dotmim.Sync
         /// Gets the server scope info to check if client is outdated
         /// </summary>
         public ServerScopeInfo ServerScopeInfo { get; }
-        public override int EventId => 12;
+        public override int EventId => SyncEventsId.Outdated.Id;
     }
 
     public enum OutdatedAction
@@ -60,6 +61,11 @@ namespace Dotmim.Sync
         public static void OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
             => orchestrator.SetInterceptor(action);
 
-
     }
+
+    public static partial class SyncEventsId
+    {
+        public static EventId Outdated => CreateEventId(5000, nameof(Outdated));
+    }
+
 }

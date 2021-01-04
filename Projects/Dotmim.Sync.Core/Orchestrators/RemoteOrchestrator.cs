@@ -76,8 +76,6 @@ namespace Dotmim.Sync
                 // So far, we don't have already a database provisionned
                 ctx.SyncStage = SyncStage.Provisioning;
 
-                this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
-
                 // 1) Get Schema from remote provider
                 schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 schema.EnsureSchema();
@@ -107,7 +105,7 @@ namespace Dotmim.Sync
                     schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Launch InterceptAsync on Migrating
-                    await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new MigratingArgs(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                     // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
                     await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress);
@@ -125,7 +123,7 @@ namespace Dotmim.Sync
                     await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // InterceptAsync Migrated
-                    var args2 = new DatabaseMigratedArgs(ctx, schema, this.Setup, connection, transaction);
+                    var args2 = new MigratedArgs(ctx, schema, this.Setup, connection, transaction);
                     await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
                     this.ReportProgress(ctx, progress, args2);
                 }
@@ -152,7 +150,7 @@ namespace Dotmim.Sync
             schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Launch InterceptAsync on Migrating
-            await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, oldSetup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new MigratingArgs(ctx, schema, oldSetup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Migrate the db structure
             await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -174,7 +172,7 @@ namespace Dotmim.Sync
             await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, remoteScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // InterceptAsync Migrated
-            var args2 = new DatabaseMigratedArgs(ctx, schema, this.Setup);
+            var args2 = new MigratedArgs(ctx, schema, this.Setup);
             await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, args2);
 
@@ -257,8 +255,6 @@ namespace Dotmim.Sync
                     transaction.Commit();
                 }
 
-                this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
-
                 ctx.SyncStage = SyncStage.ChangesSelecting;
 
                 using (transaction = connection.BeginTransaction())
@@ -313,8 +309,6 @@ namespace Dotmim.Sync
 
                 // Event progress & interceptor
                 await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                this.logger.LogInformation(SyncEventsId.GetChanges, serverChangesSelected);
 
                 var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, connection, transaction);
                 this.ReportProgress(ctx, progress, tableChangesSelectedArgs);

@@ -200,7 +200,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Closed, args.Connection.State);
+                Assert.Equal(ConnectionState.Open, args.Connection.State);
                 Assert.Equal(17, args.Schema.Tables.Count);
                 onSchemaRead = true;
 
@@ -389,106 +389,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-        [Fact]
-        public async Task BaseOrchestrator_Provision_Check_Interceptors()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-            var scopeName = "scope";
-
-            var options = new SyncOptions();
-            // Options set here and we must check if TableBuilder has correct version
-            options.UseBulkOperations = true;
-
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var onTableProvisioned = false;
-            var onTableProvisioning = false;
-            var onDatabaseProvisioned = false;
-            var onDatabaseProvisioning = false;
-
-            var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
-
-            // Assuming GetSchemaAsync() is correct
-            // make the GetSchema call, before registrating interceptors
-            var schema = await localOrchestrator.GetSchemaAsync();
-
-
-            localOrchestrator.OnDatabaseProvisioning(args =>
-            {
-                Assert.IsType<DatabaseProvisioningArgs>(args);
-                Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Equal(provision, args.Provision);
-                Assert.Equal(schema, args.Schema);
-
-                onDatabaseProvisioning = true;
-            });
-
-            localOrchestrator.OnDatabaseProvisioned(args =>
-            {
-                Assert.IsType<DatabaseProvisionedArgs>(args);
-                Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Closed, args.Connection.State);
-                Assert.Equal(provision, args.Provision);
-                Assert.Equal(schema, args.Schema);
-
-                onDatabaseProvisioned = true;
-            });
-
-            localOrchestrator.OnTableCreating(args =>
-            {
-                Assert.IsType<TableCreatingArgs>(args);
-                Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Equal("SalesLT.Product", args.Table.GetFullName());
-
-                onTableProvisioning = true;
-            });
-            localOrchestrator.OnTableCreated(args =>
-            {
-                Assert.IsType<TableCreatedArgs>(args);
-
-                // We are still provisioning the tables
-                Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
-                Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.NotNull(args.Table);
-                Assert.Equal("SalesLT.Product", args.Table.GetFullName());
-
-                onTableProvisioned = true;
-            });
-
-            AssertConnectionAndTransaction(localOrchestrator, SyncStage.Provisioning);
-
-            await localOrchestrator.ProvisionAsync(schema, provision);
-
-            Assert.Equal(SyncStage.Provisioning, localOrchestrator.GetContext().SyncStage);
-
-            Assert.True(onTableProvisioned);
-            Assert.True(onTableProvisioning);
-            Assert.True(onDatabaseProvisioned);
-            Assert.True(onDatabaseProvisioning);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
 
         [Fact]
         public async Task BaseOrchestrator_Provision_ShouldFail_If_SetupIsEmpty()

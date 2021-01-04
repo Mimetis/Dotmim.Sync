@@ -40,8 +40,6 @@ namespace Dotmim.Sync
 
             ctx.SyncStage = SyncStage.BeginSession;
 
-            this.logger.LogInformation(SyncEventsId.BeginSession, ctx);
-
             // Progress & interceptor
             var sessionArgs = new SessionBeginArgs(ctx, null, null);
             await this.InterceptAsync(sessionArgs, cancellationToken).ConfigureAwait(false);
@@ -60,8 +58,6 @@ namespace Dotmim.Sync
             var ctx = this.GetContext();
 
             ctx.SyncStage = SyncStage.EndSession;
-
-            this.logger.LogInformation(SyncEventsId.BeginSession, ctx);
 
             // Progress & interceptor
             var sessionArgs = new SessionEndArgs(ctx, null, null);
@@ -124,7 +120,7 @@ namespace Dotmim.Sync
 
             return (clientTimestamp, clientBatchInfo, clientChangesSelected);
 
-        },  cancellationToken);
+        }, cancellationToken);
 
 
 
@@ -234,8 +230,6 @@ namespace Dotmim.Sync
 
             await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, scope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            this.logger.LogInformation(SyncEventsId.ApplyChanges, clientChangesApplied);
-
             return (clientChangesApplied, scope);
 
         }, cancellationToken);
@@ -262,8 +256,6 @@ namespace Dotmim.Sync
 
             var connection = this.Provider.CreateConnection();
 
-            this.logger.LogDebug(SyncEventsId.ApplySnapshot, new { connection.Database, ClientTimestamp = clientTimestamp, RemoteClientTimestamp = remoteClientTimestamp });
-
             if (clientScopeInfo.Schema == null)
                 throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
 
@@ -274,8 +266,6 @@ namespace Dotmim.Sync
             // Because we have initialize everything here (if syncType != Normal)
             // We don't want to download everything from server, so change syncType to Normal
             ctx.SyncType = SyncType.Normal;
-
-            this.logger.LogInformation(SyncEventsId.ApplyChanges, changesApplied);
 
             var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx);
             this.ReportProgress(ctx, progress, snapshotAppliedArgs);
@@ -306,149 +296,43 @@ namespace Dotmim.Sync
         /// <summary>
         /// Migrate an old setup configuration to a new one. This method is usefull if you are changing your SyncSetup when a database has been already configured previously
         /// </summary>
-        public virtual async Task MigrationAsync(SyncSetup oldSetup, SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<bool> MigrationAsync(SyncSetup oldSetup, SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.Migrating, async (ctx, connection, transaction) =>
         {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
+            // If schema does not have any table, just return
+            if (schema == null || schema.Tables == null || !schema.HasTables)
+                throw new MissingTablesException();
 
-            // Get context or create a new one
-            var ctx = this.GetContext();
+            SyncProvision provision = SyncProvision.None;
 
-            using var connection = this.Provider.CreateConnection();
+            // Migrate the db structure
+            await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            try
-            {
-                ctx.SyncStage = SyncStage.Migrating;
+            // Now call the ProvisionAsync() to provision new tables
+            provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                // If schema does not have any table, just return
-                if (schema == null || schema.Tables == null || !schema.HasTables)
-                    throw new MissingTablesException();
+            await this.InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Open connection
-                await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                SyncProvision provision = SyncProvision.None;
+            // Get Scope Builder
+            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-                // Create a transaction
-                using (var transaction = connection.BeginTransaction())
-                {
-                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+            ScopeInfo localScope = null;
 
-                    // Launch InterceptAsync on Migrating
-                    await this.InterceptAsync(new DatabaseMigratingArgs(ctx, schema, oldSetup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
+            var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    this.logger.LogDebug(SyncEventsId.Migration, oldSetup);
-                    this.logger.LogDebug(SyncEventsId.Migration, this.Setup);
+            if (!exists)
+                await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Migrate the db structure
-                    await this.Provider.MigrationAsync(ctx, schema, oldSetup, this.Setup, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            localScope = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Now call the ProvisionAsync() to provision new tables
-                    provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+            localScope.Setup = this.Setup;
+            localScope.Schema = schema;
 
-                    await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Provision new tables if needed
-                    // get Database builder
-                    var builder = this.Provider.GetDatabaseBuilder();
-                    builder.UseChangeTracking = this.Provider.UseChangeTracking;
-                    builder.UseBulkProcedures = this.Provider.SupportBulkOperations;
-
-                    // Initialize database if needed
-                    await builder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
-
-                    // Ensure client scope exists. since we need it
-                    var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress);
-
-                    if (!exists)
-                        await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    // Sorting tables based on dependencies between them
-                    var schemaTables = schema.Tables
-                        .SortByDependencies(tab => tab.GetRelations()
-                            .Select(r => r.GetParentTable()));
-
-                    foreach (var schemaTable in schemaTables)
-                    {
-                        var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
-
-                        this.logger.LogDebug(SyncEventsId.Provision, schemaTable);
-
-                        if (provision.HasFlag(SyncProvision.Table))
-                            await this.InternalCreateTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        if (provision.HasFlag(SyncProvision.TrackingTable))
-                            await this.InternalCreateTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        if (provision.HasFlag(SyncProvision.Triggers))
-                        {
-                            foreach (DbTriggerType triggerType in Enum.GetValues(typeof(DbTriggerType)))
-                            {
-                                var trigExists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                                // Drop trigger if already exists
-                                if (trigExists)
-                                    await InternalDropTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                                await InternalCreateTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                            }
-                        }
-
-                        if (provision.HasFlag(SyncProvision.StoredProcedures))
-                        {
-                            foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
-                            {
-                                // if we are iterating on bulk, but provider do not support it, just loop through and continue
-                                if ((storedProcedureType is DbStoredProcedureType.BulkTableType || storedProcedureType is DbStoredProcedureType.BulkUpdateRows || storedProcedureType is DbStoredProcedureType.BulkDeleteRows)
-                                    && !this.Provider.SupportBulkOperations)
-                                    continue;
-
-                                var procExists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                                // Drop storedProcedure if already exists
-                                if (procExists)
-                                    await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                                await InternalCreateStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                            }
-                        }
-                    }
-
-                    ScopeInfo localScope = null;
-
-                    localScope.Setup = this.Setup;
-                    localScope.Schema = schema;
-
-                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                    transaction.Commit();
-                }
-
-                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
-                await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args);
-
-                // InterceptAsync Migrated
-                var args2 = new DatabaseMigratedArgs(ctx, schema, this.Setup);
-                await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args2);
-
-            }
-            catch (Exception ex)
-            {
-                RaiseError(ex);
-            }
-            finally
-            {
-                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-            }
-        }
+            return true;
+        });
 
         /// <summary>
         /// Update all untracked rows from the client database
@@ -468,6 +352,7 @@ namespace Dotmim.Sync
             }
 
             return true;
+
         }, cancellationToken);
 
     }

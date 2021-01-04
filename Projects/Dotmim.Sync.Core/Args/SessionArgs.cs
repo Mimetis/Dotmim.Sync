@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -19,7 +20,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
-        public override int EventId => 35;
+        public override int EventId => SyncEventsId.ConnectionOpen.Id;
     }
 
     /// <summary>
@@ -51,7 +52,7 @@ namespace Dotmim.Sync
         /// Gets the waiting timespan duration
         /// </summary>
         public TimeSpan WaitingTimeSpan { get; }
-        public override int EventId => 36;
+        public override int EventId => SyncEventsId.ReConnect.Id;
     }
 
     /// <summary>
@@ -66,7 +67,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
-        public override int EventId => 37;
+        public override int EventId => SyncEventsId.ConnectionClose.Id;
     }
 
     /// <summary>
@@ -81,7 +82,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
-        public override int EventId => 38;
+        public override int EventId => SyncEventsId.TransactionOpen.Id;
     }
 
     /// <summary>
@@ -96,7 +97,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"";
 
-        public override int EventId => 39;
+        public override int EventId => SyncEventsId.TransactionCommit.Id;
     }
 
     /// <summary>
@@ -111,7 +112,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"Session Id:{this.Context.SessionId}";
 
-        public override int EventId => 40;
+        public override int EventId => SyncEventsId.SessionBegin.Id;
     }
 
     /// <summary>
@@ -125,7 +126,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"Session Id:{this.Context.SessionId}";
-        public override int EventId => 41;
+        public override int EventId => SyncEventsId.SessionEnd.Id;
     }
 
     /// <summary>
@@ -198,7 +199,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"{this.Conflict.Type}";
 
-        public override int EventId => 10;
+        public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
 
     }
 
@@ -253,6 +254,17 @@ namespace Dotmim.Sync
         public static void OnApplyChangesFailed(this BaseOrchestrator orchestrator, Action<ApplyChangesFailedArgs> action)
             => orchestrator.SetInterceptor(action);
 
+    }
 
+    public static partial class SyncEventsId
+    {
+        public static EventId ConnectionOpen => CreateEventId(9000, nameof(ConnectionOpen));
+        public static EventId ReConnect => CreateEventId(9100, nameof(ReConnect));
+        public static EventId TransactionOpen => CreateEventId(9200, nameof(TransactionOpen));
+        public static EventId ConnectionClose => CreateEventId(9300, nameof(ConnectionClose));
+        public static EventId TransactionCommit => CreateEventId(9400, nameof(TransactionCommit));
+        public static EventId SessionBegin => CreateEventId(9500, nameof(SessionBegin));
+        public static EventId SessionEnd => CreateEventId(9600, nameof(SessionEnd));
+        public static EventId ApplyChangesFailed => CreateEventId(9700, nameof(ApplyChangesFailed));
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table created.";
 
-        public override int EventId => 43;
+        public override int EventId => SyncEventsId.TrackingTableCreated.Id;
     }
 
     public class TrackingTableCreatingArgs : ProgressArgs
@@ -38,6 +39,7 @@ namespace Dotmim.Sync
             this.Command = command;
         }
         public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table creating.";
+        public override int EventId => SyncEventsId.TrackingTableCreating.Id;
 
     }
 
@@ -55,7 +57,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table dropped.";
 
-        public override int EventId => 45;
+        public override int EventId => SyncEventsId.TrackingTableDropped.Id;
     }
 
     public class TrackingTableDroppingArgs : ProgressArgs
@@ -72,6 +74,7 @@ namespace Dotmim.Sync
             this.TrackingTableName = trackingTableName;
             this.Command = command;
         }
+        public override int EventId => SyncEventsId.TrackingTableDropping.Id;
 
     }
 
@@ -89,7 +92,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table renamed.";
 
-        public override int EventId => 43;
+        public override int EventId => SyncEventsId.TrackingTableRenamed.Id;
     }
 
     public class TrackingTableRenamingArgs : ProgressArgs
@@ -110,6 +113,7 @@ namespace Dotmim.Sync
 
         }
         public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table renaming.";
+        public override int EventId => SyncEventsId.TrackingTableRenaming.Id;
 
     }
 
@@ -156,4 +160,14 @@ namespace Dotmim.Sync
 
     }
 
+    public static partial class SyncEventsId
+    {
+        public static EventId TrackingTableCreating => CreateEventId(14000, nameof(TrackingTableCreating));
+        public static EventId TrackingTableCreated => CreateEventId(14100, nameof(TrackingTableCreated));
+        public static EventId TrackingTableDropping => CreateEventId(14200, nameof(TrackingTableDropping));
+        public static EventId TrackingTableDropped => CreateEventId(14300, nameof(TrackingTableDropped));
+        public static EventId TrackingTableRenaming => CreateEventId(14400, nameof(TrackingTableRenaming));
+        public static EventId TrackingTableRenamed => CreateEventId(14500, nameof(TrackingTableRenamed));
+
+    }
 }

@@ -82,6 +82,9 @@ namespace Dotmim.Sync
             {
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
+                
+                var parser = ParserName.Parse(tableName);
+                var tblName = parser.ObjectName;
 
                 schemaName = schemaName == null ? string.Empty : schemaName;
 

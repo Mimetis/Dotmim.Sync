@@ -17,25 +17,27 @@ namespace Dotmim.Sync.Sqlite
         internal const string updateTriggerName = "[{0}_update_trigger]";
         internal const string deleteTriggerName = "[{0}_delete_trigger]";
 
-        private Dictionary<DbCommandType, string> names = new Dictionary<DbCommandType, string>();
+        private Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
+        Dictionary<DbTriggerType, string> triggersNames = new Dictionary<DbTriggerType, string>();
+
         private ParserName tableName, trackingName;
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
 
-        public void AddName(DbCommandType objectType, string name)
+        public void AddCommandName(DbCommandType objectType, string name)
         {
-            if (names.ContainsKey(objectType))
+            if (commandNames.ContainsKey(objectType))
                 throw new Exception("Yous can't add an objectType multiple times");
 
-            names.Add(objectType, name);
+            commandNames.Add(objectType, name);
         }
         public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
-            if (!names.ContainsKey(objectType))
+            if (!commandNames.ContainsKey(objectType))
                 throw new NotSupportedException($"Sqlite provider does not support the command type {objectType.ToString()}");
 
-            var commandName = names[objectType];
+            var commandName = commandNames[objectType];
 
             // concat filter name
             //if (filter != null)
@@ -43,6 +45,30 @@ namespace Dotmim.Sync.Sqlite
 
             return commandName;
         }
+
+
+        public void AddTriggerName(DbTriggerType objectType, string name)
+        {
+            if (triggersNames.ContainsKey(objectType))
+                throw new Exception("Yous can't add an objectType multiple times");
+
+            triggersNames.Add(objectType, name);
+        }
+        public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
+        {
+            if (!triggersNames.ContainsKey(objectType))
+                throw new Exception("Yous should provide a value for all DbCommandName");
+
+            var commandName = triggersNames[objectType];
+
+            //// concat filter name
+            //if (filter != null)
+            //    commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
+        }
+
+
 
         public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
@@ -62,9 +88,9 @@ namespace Dotmim.Sync.Sqlite
             var tpref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
             var tsuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
 
             // Check if we have mutables columns
             var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
@@ -82,8 +108,8 @@ namespace Dotmim.Sync.Sqlite
             this.CreateUpdateMetadataCommandText();
 
             // Sqlite does not have any constraints, so just return a simple statement
-            this.AddName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
-            this.AddName(DbCommandType.EnableConstraints, "Select 0");
+            this.AddCommandName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
+            this.AddCommandName(DbCommandType.EnableConstraints, "Select 0");
 
         }
 
@@ -93,9 +119,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
             stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
-            this.AddName(DbCommandType.Reset, stringBuilder.ToString());
+            this.AddCommandName(DbCommandType.Reset, stringBuilder.ToString());
         }
-
 
         private void CreateUpdateMetadataCommandText()
         {
@@ -135,9 +160,8 @@ namespace Dotmim.Sync.Sqlite
 
             var cmdtext = stringBuilder.ToString();
 
-            this.AddName(DbCommandType.UpdateMetadata, cmdtext);
+            this.AddCommandName(DbCommandType.UpdateMetadata, cmdtext);
         }
-
 
         private void CreateUpdateCommandText(bool hasMutableColumns)
         {
@@ -185,7 +209,7 @@ namespace Dotmim.Sync.Sqlite
 
             var cmdtext = stringBuilder.ToString();
 
-            this.AddName(DbCommandType.UpdateRow, cmdtext);
+            this.AddCommandName(DbCommandType.UpdateRow, cmdtext);
         }
 
         //private void CreateUpdateCommandTextBack(bool hasMutableColumns)
@@ -265,7 +289,7 @@ namespace Dotmim.Sync.Sqlite
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} WHERE [timestamp] < @sync_row_timestamp;");
 
-            this.AddName(DbCommandType.DeleteMetadata, stringBuilder.ToString());
+            this.AddCommandName(DbCommandType.DeleteMetadata, stringBuilder.ToString());
         }
         private void CreateDeleteCommandText()
         {
@@ -314,7 +338,7 @@ namespace Dotmim.Sync.Sqlite
 
             var cmdText = stringBuilder.ToString();
 
-            this.AddName(DbCommandType.DeleteRow, cmdText);
+            this.AddCommandName(DbCommandType.DeleteRow, cmdText);
         }
         private void CreateSelectRowCommandText()
         {
@@ -351,7 +375,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString()));
             stringBuilder.Append(";");
-            this.AddName(DbCommandType.SelectRow, stringBuilder.ToString());
+            this.AddCommandName(DbCommandType.SelectRow, stringBuilder.ToString());
         }
         private void CreateSelectChangesCommandText()
         {
@@ -389,8 +413,8 @@ namespace Dotmim.Sync.Sqlite
             //stringBuilder.AppendLine("\tOR ([side].[sync_row_is_frozen] = 1 AND [side].[update_scope_id] <> @sync_scope_id AND [side].[update_scope_id] IS NOT NULL))");
             stringBuilder.AppendLine(")");
 
-            this.AddName(DbCommandType.SelectChanges, stringBuilder.ToString());
-            this.AddName(DbCommandType.SelectChangesWithFilters, stringBuilder.ToString());
+            this.AddCommandName(DbCommandType.SelectChanges, stringBuilder.ToString());
+            this.AddCommandName(DbCommandType.SelectChangesWithFilters, stringBuilder.ToString());
         }
 
 
@@ -416,8 +440,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
 
 
-            this.AddName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
-            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
+            this.AddCommandName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
+            this.AddCommandName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
         }
 
         private void CreateUpdateUntrackedRowsCommandText()
@@ -456,7 +480,7 @@ namespace Dotmim.Sync.Sqlite
 
             var r = stringBuilder.ToString();
 
-            this.AddName(DbCommandType.UpdateUntrackedRows, r);
+            this.AddCommandName(DbCommandType.UpdateUntrackedRows, r);
 
         }
 
