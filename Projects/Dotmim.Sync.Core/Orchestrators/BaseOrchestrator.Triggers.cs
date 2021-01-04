@@ -197,8 +197,6 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
-            this.logger.LogInformation(SyncEventsId.CreateTrigger, new { Table = tableBuilder.TableDescription.GetFullName(), TriggerType = triggerType });
-
             var action = new TriggerCreatingArgs(ctx, tableBuilder.TableDescription, triggerType, command, connection, transaction);
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
@@ -220,8 +218,6 @@ namespace Dotmim.Sync
 
             if (command == null)
                 return false;
-
-            this.logger.LogInformation(SyncEventsId.DropTrigger, new { Table = tableBuilder.TableDescription.GetFullName(), TriggerType = triggerType });
 
             var action = new TriggerDroppingArgs(ctx, tableBuilder.TableDescription, triggerType, command, connection, transaction);
 

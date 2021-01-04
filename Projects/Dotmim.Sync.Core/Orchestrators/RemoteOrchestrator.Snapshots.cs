@@ -118,8 +118,6 @@ namespace Dotmim.Sync
 
                 directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
-                this.logger.LogDebug(SyncEventsId.GetSnapshot, new { DirectoryName = directoryName });
-
                 // cleansing scope name
                 var directoryScopeName = new string(ctx.ScopeName.Where(char.IsLetterOrDigit).ToArray());
 
@@ -127,11 +125,7 @@ namespace Dotmim.Sync
                 var directoryFullPath = Path.Combine(this.Options.SnapshotsDirectory, directoryScopeName, directoryName);
 
                 // if no snapshot present, just return null value.
-                if (!Directory.Exists(directoryFullPath))
-                {
-                    this.logger.LogDebug(SyncEventsId.DirectoryNotExists, new { DirectoryPath = directoryFullPath });
-                }
-                else
+                if (Directory.Exists(directoryFullPath))
                 {
 
                     // Serialize on disk.
@@ -148,9 +142,7 @@ namespace Dotmim.Sync
 
                     using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
                     {
-                        this.logger.LogDebug(SyncEventsId.LoadSnapshotSummary, new { FileName = summaryFileName });
                         serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
-                        this.logger.LogDebug(SyncEventsId.LoadSnapshotSummary, serverBatchInfo);
                     }
 
                     serverBatchInfo.SanitizedSchema = changesSet;
@@ -179,7 +171,6 @@ namespace Dotmim.Sync
             // create local directory
             if (!Directory.Exists(snapshotDirectory))
             {
-                this.logger.LogDebug(SyncEventsId.CreateDirectory, new { SnapshotDirectory = snapshotDirectory });
                 Directory.CreateDirectory(snapshotDirectory);
             }
 
@@ -191,7 +182,6 @@ namespace Dotmim.Sync
             // create local directory with scope inside
             if (!Directory.Exists(directoryFullPath))
             {
-                this.logger.LogDebug(SyncEventsId.CreateDirectory, new { DirectoryFullPath = directoryFullPath });
                 Directory.CreateDirectory(directoryFullPath);
             }
 
@@ -227,7 +217,6 @@ namespace Dotmim.Sync
 
             if (Directory.Exists(directoryFullPath))
             {
-                this.logger.LogDebug(SyncEventsId.DropDirectory, new { DirectoryFullPath = directoryFullPath });
                 Directory.Delete(directoryFullPath, true);
             }
 
@@ -245,14 +234,14 @@ namespace Dotmim.Sync
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, table, null, true, 0, selectIncrementalChangesCommand);
 
-                // log
-                this.logger.LogDebug(SyncEventsId.CreateSnapshot, new
-                {
-                    SelectChangesCommandText = selectIncrementalChangesCommand.CommandText,
-                    ExcludingScopeId = Guid.Empty,
-                    IsNew = true,
-                    LastTimestamp = 0
-                });
+                //// log
+                //this.logger.LogDebug(SyncEventsId.CreateSnapshot, new
+                //{
+                //    SelectChangesCommandText = selectIncrementalChangesCommand.CommandText,
+                //    ExcludingScopeId = Guid.Empty,
+                //    IsNew = true,
+                //    LastTimestamp = 0
+                //});
 
                 // Get the reader
                 using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -271,9 +260,6 @@ namespace Dotmim.Sync
                         // Add the row to the changes set
                         changesSetTable.Rows.Add(row);
 
-                        // Log trace row
-                        this.logger.LogTrace(SyncEventsId.CreateSnapshot, row);
-
                         var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
                         var finalFieldSize = fieldsSize / 1024d;
 
@@ -289,8 +275,6 @@ namespace Dotmim.Sync
 
                         // add changes to batchinfo
                         await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
-
-                        this.logger.LogDebug(SyncEventsId.CreateBatch, changesSet);
 
                         // increment batch index
                         batchIndex++;
@@ -315,7 +299,6 @@ namespace Dotmim.Sync
             if (changesSet != null && changesSet.HasTables)
             {
                 await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this).ConfigureAwait(false);
-                this.logger.LogDebug(SyncEventsId.CreateBatch, changesSet);
             }
 
             // Check the last index as the last batch
@@ -330,12 +313,9 @@ namespace Dotmim.Sync
 
             using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                this.logger.LogDebug(SyncEventsId.CreateSnapshotSummary, batchInfo);
                 var bytes = await jsonConverter.SerializeAsync(batchInfo).ConfigureAwait(false);
                 f.Write(bytes, 0, bytes.Length);
             }
-
-            this.logger.LogInformation(SyncEventsId.CreateSnapshot, batchInfo);
 
             return batchInfo;
         }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -31,7 +32,7 @@ namespace Dotmim.Sync
         public TableChangesSelected TableChangesSelected { get; }
 
         public override string Message => $"[{Connection.Database}] [{this.TableChangesSelected.TableName}] upserts:{this.TableChangesSelected.Upserts} deletes:{this.TableChangesSelected.Deletes} total:{this.TableChangesSelected.TotalChanges}";
-        public override int EventId => 46;
+        public override int EventId => SyncEventsId.TableChangesSelected.Id;
     }
 
     /// <summary>
@@ -57,7 +58,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] Getting changes [{this.Table.GetFullName()}]";
 
-        public override int EventId => 47;
+        public override int EventId => SyncEventsId.TableChangesSelecting.Id;
     }
 
     /// <summary>
@@ -74,7 +75,7 @@ namespace Dotmim.Sync
         public TableChangesApplied TableChangesApplied { get; set; }
 
         public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] {this.TableChangesApplied.State} applied:{this.TableChangesApplied.Applied} resolved conflicts:{this.TableChangesApplied.ResolvedConflicts}";
-        public override int EventId => 48;
+        public override int EventId => SyncEventsId.TableChangesApplied.Id;
     }
 
     /// <summary>
@@ -105,7 +106,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"{this.Changes.TableName} state:{this.State}";
 
-        public override int EventId => 49;
+        public override int EventId => SyncEventsId.TableChangesApplying.Id;
     }
 
     public static partial class InterceptorsExtensions
@@ -137,5 +138,12 @@ namespace Dotmim.Sync
 
     }
 
+    public static partial class SyncEventsId
+    {
+        public static EventId TableChangesSelecting => CreateEventId(13000, nameof(TableChangesSelecting));
+        public static EventId TableChangesSelected => CreateEventId(13100, nameof(TableChangesSelected));
+        public static EventId TableChangesApplying => CreateEventId(13200, nameof(TableChangesApplying));
+        public static EventId TableChangesApplied => CreateEventId(13300, nameof(TableChangesApplied));
 
+    }
 }

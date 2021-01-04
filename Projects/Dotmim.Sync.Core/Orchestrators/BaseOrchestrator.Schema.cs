@@ -37,8 +37,6 @@ namespace Dotmim.Sync
             if (this.Setup == null || this.Setup.Tables.Count <= 0)
                 throw new MissingTablesException();
 
-            this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
-
             await this.InterceptAsync(new SchemaLoadingArgs(context, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Create the schema
@@ -52,8 +50,6 @@ namespace Dotmim.Sync
 
             foreach (var setupTable in this.Setup.Tables)
             {
-                this.logger.LogDebug(SyncEventsId.GetSchema, setupTable);
-
                 // creating an empty schema table with just table name / schema name.
                 // will be enough to make the exist table verification
                 var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
@@ -67,9 +63,9 @@ namespace Dotmim.Sync
                 // get columns list
                 var lstColumns = await tableBuilder.GetColumnsAsync(connection, transaction).ConfigureAwait(false);
 
-                if (this.logger.IsEnabled(LogLevel.Debug))
-                    foreach (var col in lstColumns)
-                        this.logger.LogDebug(SyncEventsId.GetSchema, col);
+                //if (this.logger.IsEnabled(LogLevel.Debug))
+                //    foreach (var col in lstColumns)
+                //        this.logger.LogDebug(SyncEventsId.GetSchema, col);
 
                 // Validate the column list and get the dmTable configuration object.
                 this.FillSyncTableWithColumns(setupTable, syncTable, lstColumns);

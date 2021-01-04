@@ -367,7 +367,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
                     break;
                 case DbCommandType.UpdateMetadata:
-                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandType = CommandType.Text;
                     command.CommandText = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
                     break;
                 case DbCommandType.InsertTrigger:

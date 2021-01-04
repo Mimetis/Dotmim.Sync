@@ -185,48 +185,49 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
 
+                var schema = await agent.LocalOrchestrator.GetSchemaAsync();
+
                 // Check we have the correct columns replicated
-                using (var c = client.Provider.CreateConnection())
+                using var c = client.Provider.CreateConnection();
+                
+                await c.OpenAsync();
+
+                foreach (var setupTable in FilterSetup.Tables)
                 {
-                    await c.OpenAsync();
+                    var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
 
-                    foreach (var setupTable in FilterSetup.Tables)
+                    var tableBuilder = client.Provider.GetTableBuilder(syncTable, this.FilterSetup);
+
+                    var clientColumns = await tableBuilder.GetColumnsAsync(c, null);
+
+                    // Check we have the same columns count
+                    if (setupTable.Columns.Count == 0)
                     {
-                        //var tableClientManagerFactory = client.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
-                        //var tableClientManager = tableClientManagerFactory.CreateManagerTable(c);
-                        //var clientColumns = await tableClientManager.GetColumnsAsync();
+                        using var serverConnection = this.Server.Provider.CreateConnection();
+                        
+                        serverConnection.Open();
+                        
+                        var tableServerManagerFactory = this.Server.Provider.GetTableBuilder(syncTable, this.FilterSetup);
+                        var serverColumns = await tableServerManagerFactory.GetColumnsAsync(serverConnection, null);
 
-                        //// Check we have the same columns count
-                        //if (setupTable.Columns.Count == 0)
-                        //{
-                        //    using (var serverConnection = this.Server.Provider.CreateConnection())
-                        //    {
-                        //        serverConnection.Open();
-                        //        var tableServerManagerFactory = this.Server.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
-                        //        var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
-                        //        var serverColumns = await tableClientManager.GetColumnsAsync();
+                        serverConnection.Close();
 
-                        //        serverConnection.Close();
+                        Assert.Equal(serverColumns.Count(), clientColumns.Count());
 
-                        //        Assert.Equal(serverColumns.Count(), clientColumns.Count());
-
-                        //        // Check we have the same columns names
-                        //        foreach (var serverColumn in serverColumns)
-                        //            Assert.Contains(clientColumns, (col) => col.ColumnName == serverColumn.ColumnName);
-                        //    }
-                        //}
-                        //else
-                        //{
-                        //    Assert.Equal(setupTable.Columns.Count, clientColumns.Count());
-
-                        //    // Check we have the same columns names
-                        //    foreach (var setupColumn in setupTable.Columns)
-                        //        Assert.Contains(clientColumns, (col) => col.ColumnName == setupColumn);
-                        //}
+                        // Check we have the same columns names
+                        foreach (var serverColumn in serverColumns)
+                            Assert.Contains(clientColumns, (col) => col.ColumnName == serverColumn.ColumnName);
                     }
-                    c.Close();
+                    else
+                    {
+                        Assert.Equal(setupTable.Columns.Count, clientColumns.Count());
 
+                        // Check we have the same columns names
+                        foreach (var setupColumn in setupTable.Columns)
+                            Assert.Contains(clientColumns, (col) => col.ColumnName == setupColumn);
+                    }
                 }
+                c.Close();
             }
         }
 
@@ -559,7 +560,6 @@ namespace Dotmim.Sync.Tests
             }
 
         }
-
 
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients

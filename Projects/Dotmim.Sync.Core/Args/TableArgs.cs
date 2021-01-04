@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{this.Table.SchemaName}] schema created.";
 
-        public override int EventId => 43;
+        public override int EventId => SyncEventsId.SchemaNameCreated.Id;
     }
 
     public class SchemaNameCreatingArgs : ProgressArgs
@@ -35,7 +36,7 @@ namespace Dotmim.Sync
             this.Table = table;
             this.Command = command;
         }
-
+        public override int EventId => SyncEventsId.SchemaNameCreating.Id;
     }
 
     public class TableCreatedArgs : ProgressArgs
@@ -52,7 +53,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] table created.";
 
-        public override int EventId => 43;
+        public override int EventId => SyncEventsId.TableCreated.Id;
     }
 
     public class TableCreatingArgs : ProgressArgs
@@ -71,6 +72,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table creating.";
+        public override int EventId => SyncEventsId.TableCreating.Id;
 
     }
 
@@ -88,7 +90,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table dropped.";
 
-        public override int EventId => 45;
+        public override int EventId => SyncEventsId.TableDropped.Id;
     }
 
     public class TableDroppingArgs : ProgressArgs
@@ -108,6 +110,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table dropping.";
 
+        public override int EventId => SyncEventsId.TableDropping.Id;
 
     }
 
@@ -155,9 +158,16 @@ namespace Dotmim.Sync
         public static void OnTableDropped(this BaseOrchestrator orchestrator, Action<TableDroppedArgs> action)
             => orchestrator.SetInterceptor(action);
 
+    }
 
-
-
+    public static partial class SyncEventsId
+    {
+        public static EventId SchemaNameCreating => CreateEventId(12000, nameof(SchemaNameCreating));
+        public static EventId SchemaNameCreated => CreateEventId(12100, nameof(SchemaNameCreated));
+        public static EventId TableCreating => CreateEventId(12300, nameof(TableCreating));
+        public static EventId TableCreated => CreateEventId(12400, nameof(TableCreated));
+        public static EventId TableDropping => CreateEventId(12500, nameof(TableDropping));
+        public static EventId TableDropped => CreateEventId(12600, nameof(TableDropped));
     }
 
 }

@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] StoredProcedure [{this.StoredProcedureType}] created.";
 
-        public override int EventId => 43;
+        public override int EventId => SyncEventsId.StoredProcedureCreated.Id;
     }
 
     public class StoredProcedureCreatingArgs : ProgressArgs
@@ -37,7 +38,7 @@ namespace Dotmim.Sync
             this.Table = table;
             this.StoredProcedureType = StoredProcedureType;
         }
-
+        public override int EventId => SyncEventsId.StoredProcedureCreating.Id;
     }
 
     public class StoredProcedureDroppedArgs : ProgressArgs
@@ -53,8 +54,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] StoredProcedure [{this.StoredProcedureType}] dropped.";
-
-        public override int EventId => 45;
+        public override int EventId => SyncEventsId.StoredProcedureDropped.Id;
     }
 
     public class StoredProcedureDroppingArgs : ProgressArgs
@@ -71,6 +71,7 @@ namespace Dotmim.Sync
             this.Table = table;
             this.StoredProcedureType = StoredProcedureType;
         }
+        public override int EventId => SyncEventsId.StoredProcedureDropping.Id;
 
     }
 
@@ -104,5 +105,12 @@ namespace Dotmim.Sync
         public static void OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppedArgs> action)
             => orchestrator.SetInterceptor(action);
 
+    }
+    public static partial class SyncEventsId
+    {
+        public static EventId StoredProcedureCreating => CreateEventId(11000, nameof(StoredProcedureCreating));
+        public static EventId StoredProcedureCreated => CreateEventId(11100, nameof(StoredProcedureCreated));
+        public static EventId StoredProcedureDropping => CreateEventId(11200, nameof(StoredProcedureDropping));
+        public static EventId StoredProcedureDropped => CreateEventId(11300, nameof(StoredProcedureDropped));
     }
 }

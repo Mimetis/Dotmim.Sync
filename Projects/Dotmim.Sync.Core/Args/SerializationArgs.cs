@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
@@ -37,7 +38,7 @@ namespace Dotmim.Sync
         /// Directory containing the file, about to be serialized
         /// </summary>
         public string DirectoryPath { get; }
-        public override int EventId => 33;
+        public override int EventId => SyncEventsId.SerializingSet.Id;
     }
 
     /// <summary>
@@ -73,7 +74,7 @@ namespace Dotmim.Sync
         /// </summary>
         public ContainerSet Result { get; set; }
 
-        public override int EventId => 34;
+        public override int EventId => SyncEventsId.DeserializingSet.Id;
     }
 
 
@@ -92,6 +93,12 @@ namespace Dotmim.Sync
         public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Action<DeserializingSetArgs> action)
             => orchestrator.SetInterceptor(action);
 
+
+    }
+    public static partial class SyncEventsId
+    {
+        public static EventId SerializingSet => CreateEventId(8000, nameof(SerializingSet));
+        public static EventId DeserializingSet => CreateEventId(8100, nameof(DeserializingSet));
 
     }
 }

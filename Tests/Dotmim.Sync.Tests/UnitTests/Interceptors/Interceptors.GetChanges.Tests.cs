@@ -116,6 +116,109 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
+        public async Task LocalOrchestrator_GetBacthChanges()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var syncOptions = new SyncOptions
+            {
+                BatchSize = 100
+            };
+
+            var setup = new SyncSetup();
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider, syncOptions, this.Tables, scopeName);
+
+            // Making a first sync, will initialize everything we need
+            var s = await agent.SynchronizeAsync();
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            // Client side : Create a product category and a product
+            // Create a productcategory item
+            // Create a new product on server
+            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
+            {
+                for (int i = 0; i <= 10000; i++)
+                {
+                    var productId = Guid.NewGuid();
+                    var productName = HelperDatabase.GetRandomName();
+                    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                    var productCategoryName = HelperDatabase.GetRandomName();
+                    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                    ctx.Add(pc);
+
+                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                    ctx.Add(product);
+
+                }
+                await ctx.SaveChangesAsync();
+
+            }
+            var onDatabaseSelecting = 0;
+            var onDatabaseSelected = 0;
+            var onSelecting = 0;
+            var onSelected = 0;
+
+            localOrchestrator.OnDatabaseChangesSelecting(dcs =>
+            {
+                onDatabaseSelecting++;
+            });
+
+            localOrchestrator.OnDatabaseChangesSelected(dcs =>
+            {
+                Assert.NotNull(dcs.BatchInfo);
+                Assert.Equal(2, dcs.ChangesSelected.TableChangesSelected.Count);
+                onDatabaseSelected++;
+            });
+
+            localOrchestrator.OnTableChangesSelecting(action =>
+            {
+                Assert.NotNull(action.Command);
+                onSelecting++;
+            });
+
+            localOrchestrator.OnTableChangesSelected(action =>
+            {
+                Assert.NotNull(action.Changes);
+                onSelected++;
+            });
+
+            // Get changes to be populated to the server
+            var changes = await localOrchestrator.GetChangesAsync();
+
+            Assert.Equal(this.Tables.Length, onSelecting);
+            Assert.Equal(55, onSelected);
+            Assert.Equal(1, onDatabaseSelected);
+            Assert.Equal(1, onDatabaseSelecting);
+
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
+        }
+
+
+
+        [Fact]
         public async Task RemoteOrchestrator_GetChanges()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");

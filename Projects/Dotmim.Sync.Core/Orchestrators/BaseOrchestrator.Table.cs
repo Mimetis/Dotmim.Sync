@@ -203,8 +203,6 @@ namespace Dotmim.Sync
 
             var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
 
-            this.logger.LogInformation(SyncEventsId.CreateTable, new { Table = tableBuilder.TableDescription.GetFullName() });
-
             var action = new TableCreatingArgs(ctx, tableBuilder.TableDescription, tableName, command, connection, transaction);
 
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
@@ -229,10 +227,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
-            this.logger.LogInformation(SyncEventsId.CreateSchemaName, new { Table = tableBuilder.TableDescription.GetFullName() });
-
             var action = new SchemaNameCreatingArgs(ctx, tableBuilder.TableDescription, command, connection, transaction);
-
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -255,12 +250,8 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
-            this.logger.LogInformation(SyncEventsId.DropTable, new { Table = tableBuilder.TableDescription.GetFullName() });
-
             var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
-
             var action = new TableDroppingArgs(ctx, tableBuilder.TableDescription, tableName, command, connection, transaction);
-
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)

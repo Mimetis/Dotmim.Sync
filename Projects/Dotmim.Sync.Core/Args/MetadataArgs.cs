@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"tables cleaning count:{Setup.Tables.Count}";
 
-        public override int EventId => 17;
+        public override int EventId => SyncEventsId.MetadataCleaning.Id;
     }
 
     public class MetadataCleanedArgs : ProgressArgs
@@ -38,7 +39,7 @@ namespace Dotmim.Sync
 
         public override string Message => $"Tables cleaned count:{DatabaseMetadatasCleaned.Tables.Count}. Rows cleaned count:{DatabaseMetadatasCleaned.RowsCleanedCount}";
 
-        public override int EventId => 18;
+        public override int EventId => SyncEventsId.MetadataCleaned.Id;
     }
 
 
@@ -55,6 +56,12 @@ namespace Dotmim.Sync
         public static void OnMetadataCleaned(this BaseOrchestrator orchestrator, Action<MetadataCleanedArgs> action)
             => orchestrator.SetInterceptor(action);
 
-
     }
+
+    public static partial class SyncEventsId
+    {
+        public static EventId MetadataCleaning => CreateEventId(3000, nameof(MetadataCleaning));
+        public static EventId MetadataCleaned => CreateEventId(3100, nameof(MetadataCleaned));
+    }
+
 }

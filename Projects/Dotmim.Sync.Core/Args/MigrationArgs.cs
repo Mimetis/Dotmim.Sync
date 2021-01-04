@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
@@ -10,9 +11,9 @@ namespace Dotmim.Sync
     /// <summary>
     /// Object representing a migration about to start
     /// </summary>
-    public class DatabaseMigratingArgs : ProgressArgs
+    public class MigratingArgs : ProgressArgs
     {
-        public DatabaseMigratingArgs(SyncContext context, SyncSet newSchema, SyncSetup oldSetup, SyncSetup newSetup, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+        public MigratingArgs(SyncContext context, SyncSet newSchema, SyncSetup oldSetup, SyncSetup newSetup, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
             this.NewSchema = newSchema;
             this.OldSetup = oldSetup;
@@ -39,15 +40,15 @@ namespace Dotmim.Sync
         /// Gets the new setup to apply
         /// </summary>
         public SyncSetup NewSetup { get; }
-        public override int EventId => 19;
+        public override int EventId => SyncEventsId.DatabaseMigrating.Id;
     }
 
     /// <summary>
     /// Once migrated you have a new setup and schema available
     /// </summary>
-    public class DatabaseMigratedArgs : ProgressArgs
+    public class MigratedArgs : ProgressArgs
     {
-        public DatabaseMigratedArgs(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public MigratedArgs(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
             this.Schema = schema;
             this.Setup = setup;
@@ -67,7 +68,7 @@ namespace Dotmim.Sync
         /// Gets the new setup applied
         /// </summary>
         public SyncSetup Setup { get; }
-        public override int EventId => 20;
+        public override int EventId => SyncEventsId.DatabaseMigrated.Id;
     }
 
 
@@ -76,16 +77,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the orchestrator when migrating a Setup
         /// </summary>
-        public static void OnDatabaseMigrating(this BaseOrchestrator orchestrator, Action<DatabaseMigratingArgs> action)
+        public static void OnMigrating(this BaseOrchestrator orchestrator, Action<MigratingArgs> action)
             => orchestrator.SetInterceptor(action);
 
 
         /// <summary>
         /// Intercept the orchestrator when a Setup has been migrated
         /// </summary>
-        public static void OnDatabaseMigrated(this BaseOrchestrator orchestrator, Action<DatabaseMigratedArgs> action)
+        public static void OnMigrated(this BaseOrchestrator orchestrator, Action<MigratedArgs> action)
             => orchestrator.SetInterceptor(action);
 
+    }
+
+
+    public static partial class SyncEventsId
+    {
+        public static EventId DatabaseMigrating => CreateEventId(4000, nameof(DatabaseMigrating));
+        public static EventId DatabaseMigrated => CreateEventId(4100, nameof(DatabaseMigrated));
     }
 
 }

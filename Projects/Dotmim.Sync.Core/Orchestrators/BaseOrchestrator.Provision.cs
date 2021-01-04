@@ -82,9 +82,7 @@ namespace Dotmim.Sync
             if (schema == null || schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
 
-            await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-            this.logger.LogDebug(SyncEventsId.Provision, new { TablesCount = schema.Tables.Count, ScopeInfoTableName = this.Options.ScopeInfoTableName });
+            await this.InterceptAsync(new ProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
@@ -96,10 +94,7 @@ namespace Dotmim.Sync
             // If we don't have any columns it's most probably because user called method with the Setup only
             // So far we have only tables names, it's enough to get the schema
             if (schema.HasTables && !schema.HasColumns)
-            {
-                this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
                 schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
 
             // Get Scope Builder
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -137,8 +132,6 @@ namespace Dotmim.Sync
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
-
-                this.logger.LogDebug(SyncEventsId.Provision, schemaTable);
 
                 // Check if we need to create a schema there
                 var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -212,7 +205,7 @@ namespace Dotmim.Sync
                 }
             }
 
-            var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
+            var args = new ProvisionedArgs(ctx, provision, schema, connection);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, args);
 
@@ -221,9 +214,7 @@ namespace Dotmim.Sync
 
         internal async Task<bool> InternalDeprovisionAsync(SyncContext ctx, SyncSet schema, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            this.logger.LogInformation(SyncEventsId.Deprovision, new { connection.Database, Provision = provision });
-
-            await this.InterceptAsync(new DatabaseDeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
@@ -249,8 +240,6 @@ namespace Dotmim.Sync
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
-
-                this.logger.LogDebug(SyncEventsId.Deprovision, schemaTable);
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
@@ -331,7 +320,7 @@ namespace Dotmim.Sync
                     await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            var args = new DatabaseDeprovisionedArgs(ctx, provision, schema, connection);
+            var args = new DeprovisionedArgs(ctx, provision, schema, connection);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, args);
 

@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -20,39 +21,62 @@ namespace Dotmim.Sync
             this.ScopeType = scopeType;
             this.ScopeName = scopeName;
         }
-
-        public override int EventId => 45;
+        public override int EventId => SyncEventsId.ScopeTableDropped.Id;
     }
 
-    public class ScopeTableCreatedArgs : ScopeTableDroppedArgs
+    public class ScopeTableCreatedArgs : ProgressArgs
     {
-        public ScopeTableCreatedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
+        public ScopeTableCreatedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
         {
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
         }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public override int EventId => SyncEventsId.ScopeTableCreated.Id;
     }
 
-    public class ScopeTableDroppingArgs : ScopeTableDroppedArgs
+    public class ScopeTableDroppingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
 
         public ScopeTableDroppingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, scopeName, scopeType, connection, transaction)
+            : base(context,  connection, transaction)
         {
             this.Command = command;
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
         }
+        public override int EventId => SyncEventsId.ScopeTableDropping.Id;
+
     }
 
-    public class ScopeTableCreatingArgs : ScopeTableDroppingArgs
+    public class ScopeTableCreatingArgs : ProgressArgs
     {
-        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
         {
+            this.Command = command;
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
         }
+        public override int EventId => SyncEventsId.ScopeTableCreating.Id;
     }
 
-    public class ScopeLoadedArgs<T> : ScopeTableDroppedArgs where T : class
+    public class ScopeLoadedArgs<T> : ProgressArgs where T : class
     {
-        public ScopeLoadedArgs(SyncContext context, string scopeName, DbScopeType scopeType, T scopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public ScopeLoadedArgs(SyncContext context, string scopeName, DbScopeType scopeType, T scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
         {
             this.ScopeInfo = scopeInfo;
         }
@@ -69,33 +93,58 @@ namespace Dotmim.Sync
             }
         }
         public T ScopeInfo { get; }
+        public override int EventId => SyncEventsId.ScopeLoaded.Id;
     }
 
-    public class ScopeLoadingArgs : ScopeTableDroppingArgs
+    public class ScopeLoadingArgs : ProgressArgs
     {
-        public ScopeLoadingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public ScopeLoadingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
         {
+            this.Command = command;
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
         }
+        public override int EventId => SyncEventsId.ScopeLoading.Id;
     }
 
-    public class ScopeSavingArgs : ScopeTableDroppingArgs
+    public class ScopeSavingArgs : ProgressArgs
     {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
 
-        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, command, connection, transaction)
+        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
         {
-            this.ScopeInfo = scopeInfo;
+            this.Command = command;
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
         }
 
         public object ScopeInfo { get; }
+        public override int EventId => SyncEventsId.ScopeSaving.Id;
     }
 
-    public class ScopeSavedArgs : ScopeTableDroppedArgs
+    public class ScopeSavedArgs : ProgressArgs
     {
-        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, scopeName, scopeType, connection, transaction)
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
         {
+            this.ScopeType = scopeType;
             this.ScopeInfo = scopeInfo;
+            this.ScopeName = scopeName;
         }
+
         public object ScopeInfo { get; }
+        public override int EventId => SyncEventsId.ScopeSaved.Id;
     }
 
     public static partial class InterceptorsExtensions
@@ -127,25 +176,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a scope is about to be loaded from client database
         /// </summary>
-        public static void OnScopeLoading(this BaseOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+        public static void OnScopeLoading(this LocalOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is about to be loaded from ServerScope database
         /// </summary>
-        public static void OnServerScopeScopeLoading(this BaseOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+        public static void OnServerScopeLoading(this RemoteOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
-        public static void OnScopeLoaded(this BaseOrchestrator orchestrator, Action<ScopeLoadedArgs<ScopeInfo>> action)
+        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs<ScopeInfo>> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
-        public static void OnServerScopeLoaded(this BaseOrchestrator orchestrator, Action<ScopeLoadedArgs<ServerScopeInfo>> action)
+        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs<ServerScopeInfo>> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -161,6 +210,18 @@ namespace Dotmim.Sync
             => orchestrator.SetInterceptor(action);
 
     }
-
+    public static partial class SyncEventsId
+    {
+        public static EventId ScopeTableCreating => CreateEventId(7000, nameof(ScopeTableCreating));
+        public static EventId ScopeTableCreated => CreateEventId(7100, nameof(ScopeTableCreated));
+        public static EventId ScopeTableDropping => CreateEventId(7200, nameof(ScopeTableDropping));
+        public static EventId ScopeTableDropped => CreateEventId(7300, nameof(ScopeTableDropped));
+        public static EventId ScopeLoading => CreateEventId(7400, nameof(ScopeLoading));
+        public static EventId ScopeLoaded => CreateEventId(7500, nameof(ScopeLoaded));
+        public static EventId ServerScopeScopeLoading => CreateEventId(7600, nameof(ServerScopeScopeLoading));
+        public static EventId ServerScopeScopeLoaded => CreateEventId(7700, nameof(ServerScopeScopeLoaded));
+        public static EventId ScopeSaving => CreateEventId(7800, nameof(ScopeSaving));
+        public static EventId ScopeSaved => CreateEventId(7900, nameof(ScopeSaved));
+    }
 
 }
