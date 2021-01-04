@@ -220,7 +220,7 @@ namespace Dotmim.Sync.Sqlite
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"drop table if exist {this.TableName.Quoted().ToString()}";
+            command.CommandText = $"drop table if exists {this.TableName.Quoted().ToString()}";
 
             return Task.FromResult(command);
         }
@@ -246,7 +246,7 @@ namespace Dotmim.Sync.Sqlite
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"drop table if exist {this.TrackingTableName.Quoted().ToString()}";
+            command.CommandText = $"drop table if exists {this.TrackingTableName.Quoted().ToString()}";
 
             return Task.FromResult(command);
         }
@@ -511,7 +511,7 @@ namespace Dotmim.Sync.Sqlite
             var triggerName = ParserName.Parse(triggerNameString).ToString();
 
             DbCommand dbCommand = connection.CreateCommand();
-            dbCommand.CommandText = $"drop trigger if exist {triggerName}";
+            dbCommand.CommandText = $"drop trigger if exists {triggerName}";
 
             return Task.FromResult(dbCommand);
 

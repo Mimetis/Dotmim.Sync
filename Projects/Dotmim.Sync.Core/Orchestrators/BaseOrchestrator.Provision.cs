@@ -70,7 +70,7 @@ namespace Dotmim.Sync
         /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
         public virtual Task DeprovisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
+        => RunInTransactionAsync(SyncStage.Deprovisioning, (ctx, connection, transaction) =>
         {
             return InternalDeprovisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress);
 
@@ -243,7 +243,14 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
-                    foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
+
+                    var allStoredProcedures = new List<DbStoredProcedureType>();
+                    foreach (var spt in Enum.GetValues(typeof(DbStoredProcedureType)))
+                        allStoredProcedures.Add((DbStoredProcedureType)spt);
+
+                    allStoredProcedures.Reverse();
+
+                    foreach (DbStoredProcedureType storedProcedureType in allStoredProcedures)
                     {
                         // if we are iterating on bulk, but provider do not support it, just loop through and continue
                         if ((storedProcedureType is DbStoredProcedureType.BulkTableType || storedProcedureType is DbStoredProcedureType.BulkUpdateRows || storedProcedureType is DbStoredProcedureType.BulkDeleteRows)
