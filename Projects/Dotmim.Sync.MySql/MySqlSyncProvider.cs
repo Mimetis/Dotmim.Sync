@@ -124,8 +124,7 @@ namespace Dotmim.Sync.MySql
             var tableBuilder = new MyTableSqlBuilder(tableDescription, tableName, trackingName, setup)
             {
                 UseBulkProcedures = this.SupportBulkOperations,
-                UseChangeTracking = this.UseChangeTracking,
-                Filter = tableDescription.GetFilter()
+                UseChangeTracking = this.UseChangeTracking
             };
 
             return tableBuilder;

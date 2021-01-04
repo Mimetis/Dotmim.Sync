@@ -20,7 +20,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public partial class BaseOrchestratorTests
     {
-       
+
         [Fact]
         public async Task BaseOrchestrator_StoredProcedure_ShouldCreate()
         {
@@ -37,26 +37,25 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            setup.StoredProceduresPrefix = "sp_";
-            setup.StoredProceduresSuffix = "_sp";
+            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            {
+                StoredProceduresPrefix = "sp_",
+                StoredProceduresSuffix = "_sp"
+            };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
-            var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
-            
             await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, false);
 
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges));
 
-                var trigIns = await SqlManagementUtils.ProcedureExistsAsync(c, null, storedProcedureSelectChanges);
-                Assert.True(trigIns);
+            // Adding a filter to check if stored procedures "with filters" are also generated
+            setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
 
-                c.Close();
-            }
+            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChangesWithFilters, false);
+
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChangesWithFilters));
+
 
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -81,22 +80,24 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
-                TriggersPrefix = "trg_",
-                TriggersSuffix = "_trg"
+                StoredProceduresPrefix = "sp_",
+                StoredProceduresSuffix = "_sp"
             };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
-            var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert, false);
+            var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
+
+            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, false);
 
             var assertOverWritten = false;
-            localOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
+
+            localOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
             {
-               assertOverWritten = true;
+                assertOverWritten = true;
             }));
 
-            await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert, true);
+            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, true);
 
             Assert.True(assertOverWritten);
 
@@ -122,23 +123,24 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
-                TriggersPrefix = "trg_",
-                TriggersSuffix = "_trg"
+                StoredProceduresPrefix = "sp_",
+                StoredProceduresSuffix = "_sp"
             };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
-            var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert, false);
+            var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
+            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, false);
 
             var assertOverWritten = false;
-            localOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
+
+            localOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
             {
                 assertOverWritten = true;
             }));
 
-            await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert, false);
+            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, true);
 
             Assert.False(assertOverWritten);
 
@@ -163,21 +165,18 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
-                TriggersPrefix = "trg_",
-                TriggersSuffix = "_trg"
+                StoredProceduresPrefix = "sp_",
+                StoredProceduresSuffix = "_sp"
             };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
-            var productTable = setup.Tables["Product", "SalesLT"];
+            var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
-            await localOrchestrator.CreateTriggerAsync(productTable, DbTriggerType.Insert, false);
+            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, false);
 
-            var insertExists = await localOrchestrator.ExistTriggerAsync(productTable, DbTriggerType.Insert);
-            var updateExists = await localOrchestrator.ExistTriggerAsync(productTable, DbTriggerType.Update);
-
-            Assert.True(insertExists);
-            Assert.False(updateExists);
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges));
+            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.UpdateRow));
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -198,48 +197,38 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            setup.TriggersPrefix = "trg_";
-            setup.TriggersSuffix = "_trg";
+            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            {
+                StoredProceduresPrefix = "sp_",
+                StoredProceduresSuffix = "_sp"
+            };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
-            var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
-            var triggerDelete = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_delete_trigger";
+            await localOrchestrator.CreateStoredProceduresAsync(setup.Tables["Product", "SalesLT"]);
 
-            await localOrchestrator.CreateTriggersAsync(setup.Tables["Product", "SalesLT"]);
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.BulkDeleteRows));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.BulkTableType));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.BulkUpdateRows));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.DeleteMetadata));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.DeleteRow));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.Reset));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectInitializedChanges));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectRow));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.UpdateRow));
 
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
+            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChangesWithFilters));
+            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectInitializedChangesWithFilters));
 
-                var trigIns = await SqlManagementUtils.GetTriggerAsync(c, null, triggerInsert, "SalesLT");
-                Assert.Equal(triggerInsert, trigIns.Rows[0]["Name"].ToString());
+            // Adding a filter to check if stored procedures "with filters" are also generated
+            setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
 
-                c.Close();
-            }
+            await localOrchestrator.CreateStoredProceduresAsync(setup.Tables["Product", "SalesLT"], false);
 
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChangesWithFilters));
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectInitializedChangesWithFilters));
 
-                var trig = await SqlManagementUtils.GetTriggerAsync(c, null, triggerUpdate, "SalesLT");
-                Assert.Equal(triggerUpdate, trig.Rows[0]["Name"].ToString());
-
-                c.Close();
-            }
-
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-
-                var trig = await SqlManagementUtils.GetTriggerAsync(c, null, triggerDelete, "SalesLT");
-                Assert.Equal(triggerDelete, trig.Rows[0]["Name"].ToString());
-
-                c.Close();
-            }
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
