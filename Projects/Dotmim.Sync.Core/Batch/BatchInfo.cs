@@ -167,58 +167,6 @@ namespace Dotmim.Sync.Batch
         }
 
         /// <summary>
-        /// Get all parts containing this table
-        /// Could be multiple parts, since the table may be spread across multiples files
-        /// </summary>
-        public IEnumerable<SyncTable> GetTable(string tableName, string schemaName, BaseOrchestrator orchestrator = null)
-        {
-            if (this.SanitizedSchema == null)
-                throw new NullReferenceException("Batch info schema should not be null");
-
-            var tableInfo = new BatchPartTableInfo(tableName, schemaName);
-
-            if (InMemory)
-            {
-                if (this.InMemoryData != null && this.InMemoryData.HasTables)
-                    yield return this.InMemoryData.Tables[tableName, schemaName];
-            }
-            else
-            {
-                foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
-                {
-
-
-
-                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t.EqualsByName(tableInfo)))
-                    {
-                        // TODO : Need to implement IAsyncEnumerable
-                        // Need to use GetAwaiter().GetResult() until we have await in foreach yield
-                        // IAsyncEnumerable is part of .Net Standard 2.1
-                        // But .Net Standard 2.1 is not compatible with .Net Framework 4.8
-                        // So far, we can't use it, until we decide to abandon .Net FX 4.8
-                        // For sure, it will be replaced when .Net 5 will appears ...
-                        batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false)
-                            .GetAwaiter().GetResult();
-
-                        // Get the table from the batchPartInfo
-                        // generate a tmp SyncTable for 
-                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt.EqualsByName(new SyncTable(tableName, schemaName)));
-
-                        if (batchTable != null)
-                        {
-                            yield return batchTable;
-
-                            //// Once read, clear it
-                            //batchPartinInfo.Data.Clear();
-                            //batchPartinInfo.Data = null;
-                        }
-                    }
-                }
-            }
-        }
-
-
-        /// <summary>
         /// Ensure the last batch part (if not in memory) has the correct IsLastBatch flag
         /// </summary>
         public void EnsureLastBatch()

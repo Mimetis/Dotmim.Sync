@@ -240,11 +240,6 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)> ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
-            // TODO : this value is ovewritten in this.ApplyChangesAsync, 10 lines later...
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
             if (serverBatchInfo == null || !await serverBatchInfo.HasDataAsync(this))
                 return (new DatabaseChangesApplied(), clientScopeInfo);
 
@@ -253,8 +248,6 @@ namespace Dotmim.Sync
 
             ctx.SyncStage = SyncStage.SnapshotApplying;
             await this.InterceptAsync(new SnapshotApplyingArgs(ctx), cancellationToken).ConfigureAwait(false);
-
-            var connection = this.Provider.CreateConnection();
 
             if (clientScopeInfo.Schema == null)
                 throw new ArgumentNullException(nameof(clientScopeInfo.Schema));

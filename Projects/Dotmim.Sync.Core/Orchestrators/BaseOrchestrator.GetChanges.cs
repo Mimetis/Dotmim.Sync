@@ -98,64 +98,64 @@ namespace Dotmim.Sync
                     var changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
                     // Get the reader
-                    using (var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false))
+                    using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
+
+                    // memory size total
+                    double rowsMemorySize = 0L;
+
+                    while (dataReader.Read())
                     {
-                        // memory size total
-                        double rowsMemorySize = 0L;
+                        // Create a row from dataReader
+                        var row = CreateSyncRowFromReader(dataReader, changesSetTable);
 
-                        while (dataReader.Read())
+                        // Add the row to the changes set
+                        changesSetTable.Rows.Add(row);
+
+                        // Set the correct state to be applied
+                        if (row.RowState == DataRowState.Deleted)
+                            tableChangesSelected.Deletes++;
+                        else if (row.RowState == DataRowState.Modified)
+                            tableChangesSelected.Upserts++;
+
+                        // calculate row size if in batch mode
+                        if (isBatch)
                         {
-                            // Create a row from dataReader
-                            var row = CreateSyncRowFromReader(dataReader, changesSetTable);
+                            var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
+                            var finalFieldSize = fieldsSize / 1024d;
 
-                            // Add the row to the changes set
-                            changesSetTable.Rows.Add(row);
+                            if (finalFieldSize > message.BatchSize)
+                                throw new RowOverSizedException(finalFieldSize.ToString());
 
-                            // Set the correct state to be applied
-                            if (row.RowState == DataRowState.Deleted)
-                                tableChangesSelected.Deletes++;
-                            else if (row.RowState == DataRowState.Modified)
-                                tableChangesSelected.Upserts++;
+                            // Calculate the new memory size
+                            rowsMemorySize += finalFieldSize;
 
-                            // calculate row size if in batch mode
-                            if (isBatch)
-                            {
-                                var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
-                                var finalFieldSize = fieldsSize / 1024d;
+                            // Next line if we don't reach the batch size yet.
+                            if (rowsMemorySize <= message.BatchSize)
+                                continue;
 
-                                if (finalFieldSize > message.BatchSize)
-                                    throw new RowOverSizedException(finalFieldSize.ToString());
+                            // Check interceptor
+                            var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                            await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
-                                // Calculate the new memory size
-                                rowsMemorySize += finalFieldSize;
+                            // add changes to batchinfo
+                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
 
-                                // Next line if we don't reach the batch size yet.
-                                if (rowsMemorySize <= message.BatchSize)
-                                    continue;
+                            // increment batch index
+                            batchIndex++;
 
-                                // Check interceptor
-                                var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
-                                await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+                            // we know the datas are serialized here, so we can flush  the set
+                            changesSet.Clear();
 
-                                // add changes to batchinfo
-                                await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
+                            // Recreate an empty ContainerSet and a ContainerTable
+                            changesSet = new SyncSet();
 
-                                // increment batch index
-                                batchIndex++;
+                            changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
-                                // we know the datas are serialized here, so we can flush  the set
-                                changesSet.Clear();
-
-                                // Recreate an empty ContainerSet and a ContainerTable
-                                changesSet = new SyncSet();
-
-                                changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
-
-                                // Init the row memory size
-                                rowsMemorySize = 0L;
-                            }
+                            // Init the row memory size
+                            rowsMemorySize = 0L;
                         }
                     }
+
 
                     // We don't report progress if no table changes is empty, to limit verbosity
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
@@ -240,7 +240,7 @@ namespace Dotmim.Sync
 
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
-                
+
                 while (dataReader.Read())
                 {
                     bool isTombstone = false;
