@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -88,6 +89,7 @@ namespace Dotmim.Sync
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
+        [DebuggerStepThrough]
         internal Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
         {
             if (this.interceptors == null)
@@ -288,6 +290,7 @@ namespace Dotmim.Sync
         }
 
 
+        [DebuggerStepThrough]
         internal async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
              CancellationToken cancellationToken = default)
         {

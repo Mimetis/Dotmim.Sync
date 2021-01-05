@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using Dotmim.Sync.MySql.Builders;
 using System;
 using Dotmim.Sync.MySql;
@@ -124,17 +124,16 @@ namespace Dotmim.Sync.MariaDB
             var tableBuilder = new MyTableSqlBuilder(tableDescription, tableName, trackingName, setup)
             {
                 UseBulkProcedures = this.SupportBulkOperations,
-                UseChangeTracking = this.UseChangeTracking,
-                Filter = tableDescription.GetFilter()
+                UseChangeTracking = this.UseChangeTracking
             };
 
             return tableBuilder;
         }
-        public override DbScopeBuilder GetScopeBuilder() => new MySqlScopeBuilder();
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeBuilder(scopeInfoTableName);
 
 
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
-        public override SyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
             var (tableName, trackingName) = GetParsers(tableDescription, setup);
             var adapter = new MySqlSyncAdapter(tableDescription, tableName, trackingName, setup);
@@ -158,5 +157,6 @@ namespace Dotmim.Sync.MariaDB
 
             return (originalTableName, trackingTableName);
         }
+
     }
 }

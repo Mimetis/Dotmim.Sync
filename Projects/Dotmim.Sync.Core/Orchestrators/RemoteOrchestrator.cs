@@ -381,16 +381,6 @@ namespace Dotmim.Sync
               if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
                   throw new InvalidScopeInfoException();
 
-              // Before getting changes, be sure we have a remote schema available
-              var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-              var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-              if (!exists)
-                  throw new MissingRemoteOrchestratorSchemaException();
-
-              var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
               var serverScope = await this.EnsureSchemaAsync(cancellationToken, progress);
 
               // Should we ?

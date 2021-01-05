@@ -267,7 +267,7 @@ namespace Dotmim.Sync
             // We don't want to download everything from server, so change syncType to Normal
             ctx.SyncType = SyncType.Normal;
 
-            var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx);
+            var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx, changesApplied);
             this.ReportProgress(ctx, progress, snapshotAppliedArgs);
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
 

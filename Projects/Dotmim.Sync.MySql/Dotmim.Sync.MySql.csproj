@@ -42,7 +42,7 @@
 
   <ItemGroup>
     <PackageReference Include="MySqlConnector">
-      <Version>0.63.0</Version>
+      <Version>1.2.1</Version>
     </PackageReference>
   </ItemGroup>  
   
