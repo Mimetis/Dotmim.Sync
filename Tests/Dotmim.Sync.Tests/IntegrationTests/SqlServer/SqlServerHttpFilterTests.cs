@@ -83,7 +83,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.Sqlite};
+            {ProviderType.Sql, ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.Sql;
 
@@ -140,7 +140,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             using (var serverDbCtx = new AdventureWorksContext(t))
             {
 
-                var addressesCount =  serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
+                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
                 var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();

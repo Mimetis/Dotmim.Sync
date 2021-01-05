@@ -159,6 +159,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(onCreating);
             Assert.False(onCreated);
 
+            onCreating = false;
+            onCreated = false;
+            onDropping = false;
+            onDropped = false;
+
             isCreated = await localOrchestrator.CreateTableAsync(table, true);
 
             Assert.True(isCreated);
@@ -166,16 +171,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(onDropped);
             Assert.True(onCreating);
             Assert.True(onCreated);
-
-            // Check we have the correct table ovewritten
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-                var cols = await SqlManagementUtils.GetColumnsForTableAsync(c, null, "Product", "SalesLT").ConfigureAwait(false);
-                Assert.Equal(3, cols.Rows.Count);
-                Assert.NotNull(cols.Rows.FirstOrDefault(r => r["name"].ToString() == "internal_id"));
-                c.Close();
-            }
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

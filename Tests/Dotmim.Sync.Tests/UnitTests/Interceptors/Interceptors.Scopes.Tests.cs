@@ -90,14 +90,29 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
 
-            localScopeInfo.Version = "2.0";
-
-            await localOrchestrator.SaveClientScopeAsync(localScopeInfo);
 
             Assert.Equal(1, scopeTableCreating);
             Assert.Equal(1, scopeTableCreated);
             Assert.Equal(1, scopeLoading);
             Assert.Equal(1, scopeLoaded);
+            Assert.Equal(1, scopeSaving);
+            Assert.Equal(1, scopeSaved);
+
+            scopeTableCreating = 0;
+            scopeTableCreated = 0;
+            scopeLoading = 0;
+            scopeLoaded = 0;
+            scopeSaving = 0;
+            scopeSaved = 0;
+
+            localScopeInfo.Version = "2.0";
+
+            await localOrchestrator.SaveClientScopeAsync(localScopeInfo);
+
+            Assert.Equal(0, scopeTableCreating);
+            Assert.Equal(0, scopeTableCreated);
+            Assert.Equal(0, scopeLoading);
+            Assert.Equal(0, scopeLoaded);
             Assert.Equal(1, scopeSaving);
             Assert.Equal(1, scopeSaved);
 
