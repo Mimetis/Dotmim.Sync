@@ -203,7 +203,7 @@ namespace Dotmim.Sync.Web.Server
                 // data to send back, as the response
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
 
-                await httpResponse.Body.WriteAsync(data, 0, data.Length).ConfigureAwait(false);
+                await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
 
             }
             catch (Exception ex)

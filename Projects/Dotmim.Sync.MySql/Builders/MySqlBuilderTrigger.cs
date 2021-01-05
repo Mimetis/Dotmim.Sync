@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System;
 using System.Data;
 using System.Data.Common;

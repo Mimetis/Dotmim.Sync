@@ -26,8 +26,11 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotAppliedArgs : ProgressArgs
     {
-        public SnapshotAppliedArgs(SyncContext context) : base(context, null, null)
+        public DatabaseChangesApplied ChangesApplied { get; set; }
+
+        public SnapshotAppliedArgs(SyncContext context, DatabaseChangesApplied changesApplied) : base(context, null, null)
         {
+            this.ChangesApplied = changesApplied;
         }
 
         public override string Message => $"Snapshot applied.";

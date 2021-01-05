@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,9 +41,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set an Action<T> as interceptor
         /// </summary>
+        [DebuggerStepThrough]
         public void Set(Action<T> run)
         {
-            this.wrapper = run != null ? new Func<T, Task>(t =>
+            this.wrapper = run != null ? (t =>
             {
                 run(t);
                 return Task.CompletedTask;
@@ -53,6 +55,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Run the Action or Func as the Interceptor
         /// </summary>
+        [DebuggerStepThrough]
         public async Task RunAsync(T args, CancellationToken cancellationToken)
         {
             await (this.wrapper == null ? Task.CompletedTask : this.wrapper(args));
