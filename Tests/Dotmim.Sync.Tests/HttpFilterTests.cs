@@ -159,8 +159,7 @@ namespace Dotmim.Sync.Tests
             this.kestrell = new KestrellTestServer(this.WebServerOrchestrator, this.UseFiddler);
 
             // start server and get uri
-            //this.ServiceUri = this.kestrell.Run();
-
+            this.ServiceUri = this.kestrell.Run();
 
             // Get all clients providers
             Clients = new List<(string DatabaseName, ProviderType ProviderType, CoreProvider Provider)>(this.ClientsType.Count);

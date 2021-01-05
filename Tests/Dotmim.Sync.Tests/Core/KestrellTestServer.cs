@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        public async Task<string> Run(ResponseDelegate clientHandler)
+        public string Run()
         {
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
@@ -76,7 +76,6 @@ namespace Dotmim.Sync.Tests
             this.host = this.builder.Build();
             this.host.Start();
             string serviceUrl = $"http://localhost{fiddler}:{this.host.GetPort()}/";
-            await clientHandler(serviceUrl);
 
             return serviceUrl;
         }
@@ -97,65 +96,6 @@ namespace Dotmim.Sync.Tests
         }
 
         internal Task StopAsync() => this.Dispose(true);
-    }
-
-
-    public class KestrellTestServer2 : IDisposable
-    {
-        IWebHostBuilder builder;
-        IWebHost host;
-
-        public KestrellTestServer2(Action<IServiceCollection> configureServices = null)
-        {
-            var hostBuilder = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls("http://127.0.0.1:0/")
-                .ConfigureServices(services =>
-                {
-                    services.AddMemoryCache();
-                    services.AddDistributedMemoryCache();
-                    services.AddSession(options =>
-                    {
-                        // Set a long timeout for easy testing.
-                        options.IdleTimeout = TimeSpan.FromDays(10);
-                        options.Cookie.HttpOnly = true;
-                    });
-
-                    configureServices?.Invoke(services);
-
-                });
-            this.builder = hostBuilder;
-        }
-
-        public async Task Run(RequestDelegate serverHandler, ResponseDelegate clientHandler)
-        {
-            this.builder.Configure(app =>
-            {
-                app.UseSession();
-                app.Run(async context => await serverHandler(context));
-
-            });
-
-            this.host = this.builder.Build();
-            this.host.Start();
-            string serviceUrl = $"http://localhost:{host.GetPort()}/";
-            await clientHandler(serviceUrl);
-        }
-
-        public async void Dispose()
-        {
-            await this.Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual async Task Dispose(bool cleanup)
-        {
-            if (this.host != null)
-            {
-                await this.host.StopAsync();
-                this.host.Dispose();
-            }
-        }
     }
 
     public static class IWebHostPortExtensions
