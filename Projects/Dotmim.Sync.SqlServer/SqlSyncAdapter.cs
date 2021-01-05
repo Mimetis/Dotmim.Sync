@@ -42,8 +42,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlDbType = (SqlDbType)this.sqlMetadata.TryGetOwnerDbType(column.OriginalDbType, dbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
 
-            // TODO : Since we validate length before, is it mandatory here ?
-
+            // Since we validate length before, it's not mandatory here.
+            // let's say.. just in case..
             if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
             {
                 // set value for (MAX) 
@@ -461,7 +461,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     // Using the SqlCommandBuilder.DeriveParameters() method is not working yet, 
                     // because default value is not well done handled on the Dotmim.Sync framework
-                    // TODO: Fix that.
+                    // TODO: Fix SqlCommandBuilder.DeriveParameters
                     //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
 
                     await ((SqlConnection)connection).DeriveParametersAsync((SqlCommand)command, false, (SqlTransaction)transaction).ConfigureAwait(false);

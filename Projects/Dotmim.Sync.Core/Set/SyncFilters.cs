@@ -49,16 +49,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get all filters not marked as Virtual
-        /// </summary>
-        /// <returns></returns>
-        public IEnumerable<SyncFilter> GetColumnFilters()
-        {
-            // TODO : Remove this
-            return this;
-        }
-
-        /// <summary>
         /// Add a new filter 
         /// </summary>
         public void Add(SyncFilter item)

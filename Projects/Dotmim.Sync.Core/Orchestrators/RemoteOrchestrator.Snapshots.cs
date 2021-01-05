@@ -168,6 +168,10 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
+
+            // Call interceptor
+            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, null, connection, transaction), cancellationToken).ConfigureAwait(false);
+
             // create local directory
             if (!Directory.Exists(snapshotDirectory))
             {
@@ -219,14 +223,12 @@ namespace Dotmim.Sync
             {
                 Directory.Delete(directoryFullPath, true);
             }
+            // Create stats object to store changes count
+            var changes = new DatabaseChangesSelected();
 
             foreach (var table in schema.Tables)
             {
                 var syncAdapter = this.Provider.GetSyncAdapter(table, setup);
-
-                // launch interceptor if any
-                // TODO : supply command
-                await this.InterceptAsync(new TableChangesSelectingArgs(context, table, null, connection, transaction), cancellationToken).ConfigureAwait(false);
 
                 // Get Select initialize changes command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, table, true, connection, transaction);
@@ -234,18 +236,18 @@ namespace Dotmim.Sync
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, table, null, true, 0, selectIncrementalChangesCommand);
 
-                //// log
-                //this.logger.LogDebug(SyncEventsId.CreateSnapshot, new
-                //{
-                //    SelectChangesCommandText = selectIncrementalChangesCommand.CommandText,
-                //    ExcludingScopeId = Guid.Empty,
-                //    IsNew = true,
-                //    LastTimestamp = 0
-                //});
+                // launch interceptor if any
+                var args = new TableChangesSelectingArgs(context, table, selectIncrementalChangesCommand, connection, transaction);
+                await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
 
-                // Get the reader
-                using (var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                if (!args.Cancel && args.Command != null)
                 {
+                    // Statistics
+                    var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName);
+
+                    // Get the reader
+                    using var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false);
+
                     // memory size total
                     double rowsMemorySize = 0L;
 
@@ -273,6 +275,10 @@ namespace Dotmim.Sync
                         if (rowsMemorySize <= batchSize)
                             continue;
 
+                        // Check interceptor
+                        var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                        await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
                         // add changes to batchinfo
                         await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
 
@@ -290,11 +296,21 @@ namespace Dotmim.Sync
                         // Init the row memory size
                         rowsMemorySize = 0L;
                     }
+
+                    // We don't report progress if no table changes is empty, to limit verbosity
+                    if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
+                        changes.TableChangesSelected.Add(tableChangesSelected);
+
+                    // even if no rows raise the interceptor
+                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                    await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+                    // only raise report progress if we have something
+                    if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
+                        this.ReportProgress(context, progress, tableChangesSelectedArgs);
+
                 }
-
-                //selectIncrementalChangesCommand.Dispose();
             }
-
 
             if (changesSet != null && changesSet.HasTables)
             {
@@ -305,6 +321,12 @@ namespace Dotmim.Sync
             batchInfo.EnsureLastBatch();
 
             batchInfo.Timestamp = remoteClientTimestamp;
+
+
+            // Raise database changes selected
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, remoteClientTimestamp, batchInfo, changes, connection);
+            this.ReportProgress(context, progress, databaseChangesSelectedArgs);
+            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
             // Serialize on disk.
             var jsonConverter = new JsonConverter<BatchInfo>();
