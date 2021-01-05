@@ -31,6 +31,8 @@ using System.Linq;
 using System.Transactions;
 using System.Threading;
 using MySqlConnector;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
 
 internal class Program
 {
@@ -46,7 +48,62 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SyncHttpThroughKestrellAsync();
+        await TestHelloKestrellAsync();
+
+    }
+
+
+    public static async Task TestHelloKestrellAsync()
+    {
+
+        var hostBuilder = new WebHostBuilder()
+            .UseKestrel()
+            .UseUrls("http://127.0.0.1:0/");
+
+        hostBuilder.Configure(app =>
+        {
+            app.Run(async context => await context.Response.WriteAsync("Hello world"));
+
+        });
+
+        var host = hostBuilder.Build();
+        host.Start();
+        string serviceUrl = $"http://localhost:{host.GetPort()}/";
+
+        var client = new HttpClient();
+        var s = await client.GetAsync(serviceUrl);
+
+        Console.WriteLine(await s.Content.ReadAsStringAsync());
+
+    }
+
+    public static async Task TestWebSendAsync()
+    {
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqliteSyncProvider("testblob2.db");
+
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, new string[] { "Product" });
+
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            await context.Response.WriteAsync("Hello");
+        });
+
+        using var server = new KestrellTestServer(configureServices);
+
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
+        {
+            var client = new HttpClient();
+            var s = await client.GetAsync(serviceUri);
+
+        });
+        await server.Run(serverHandler, clientHandler);
 
     }
 

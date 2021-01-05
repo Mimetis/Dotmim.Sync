@@ -25,6 +25,9 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Hosting;
+using System.Net.Http;
+using Microsoft.AspNetCore.Builder;
 
 namespace Dotmim.Sync.Tests
 {
@@ -146,7 +149,7 @@ namespace Dotmim.Sync.Tests
             this.kestrell = new KestrellTestServer(this.WebServerOrchestrator, this.UseFiddler);
 
             // start server and get uri
-            // this.ServiceUri = this.kestrell.Run();
+            this.ServiceUri = this.kestrell.Run();
 
             // Get all clients providers
             Clients = new List<(string, ProviderType, CoreProvider)>(this.ClientsType.Count);
@@ -184,7 +187,36 @@ namespace Dotmim.Sync.Tests
         }
 
         [Fact, TestPriority(0)]
-        public virtual async Task SchemaIsCreated2()
+        public virtual async Task KestrellAsync()
+        {
+            var hostBuilder = new WebHostBuilder()
+                                .UseKestrel()
+                                .UseUrls("http://127.0.0.1:0/");
+
+            var hellWorldString = "Hello world";
+
+            hostBuilder.Configure(app =>
+            {
+                app.Run(async context => await context.Response.WriteAsync(hellWorldString));
+
+            });
+
+            var host = hostBuilder.Build();
+            host.Start();
+            string serviceUrl = $"http://localhost:{host.GetPort()}/";
+
+            var client = new HttpClient();
+            var s = await client.GetAsync(serviceUrl);
+
+            var hellWorldStringResult = await s.Content.ReadAsStringAsync();
+
+            Assert.Equal(hellWorldString, hellWorldStringResult);
+
+            
+        }
+
+        [Fact, TestPriority(1)]
+        public virtual async Task SchemaIsCreated()
         {
             // create a server db without seed
             await this.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
@@ -210,115 +242,6 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Fact, TestPriority(0)]
-        public virtual async Task SchemaIsCreated3()
-        {
-            // create a server db without seed
-            await this.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
-
-            // create empty client databases
-            foreach (var client in this.Clients)
-                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
-
-
-            // Create a kestrell server
-            var kestrell = new KestrellTestServer(this.WebServerOrchestrator, false);
-
-            // start server and get uri
-            await this.kestrell.Run(async serviceUri =>
-            {
-                // Execute a sync on all clients and check results
-                foreach (var client in Clients)
-                {
-                    var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri));
-
-                    var s = await agent.SynchronizeAsync();
-
-                    Assert.Equal(0, s.TotalChangesDownloaded);
-                    Assert.Equal(0, s.TotalChangesUploaded);
-                }
-
-            });
-
-        }
-
-
-        [Fact, TestPriority(1)]
-        public virtual async Task SchemaIsCreated()
-        {
-            // create a server db without seed
-            await this.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
-
-            // create empty client databases
-            foreach (var client in this.Clients)
-                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            var configureServices = new Action<IServiceCollection>(services =>
-            {
-
-                // get the server provider (and db created) without seed
-                var serverDatabaseName = HelperDatabase.GetRandomName("http_sv_");
-                var serverProvider = this.CreateProvider(this.ServerType, serverDatabaseName);
-
-
-                services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, "dd", new SyncSetup(), new SyncOptions());
-
-                // configure server orchestrator
-                this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
-                // add a SqlSyncProvider acting as the server hub
-                services.AddSyncServer(this.WebServerOrchestrator);
-
-            });
-
-            var serverHandler = new RequestDelegate(async context =>
-            {
-                //var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-                //await webServerManager.HandleRequestAsync(context);
-
-
-                var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-
-                var progress = new SynchronousProgress<ProgressArgs>(pa =>
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
-                    Console.ResetColor();
-                });
-
-                //// override sync type
-                //var orch = webServerManager.GetOrchestrator(context);
-                //orch.OnServerScopeLoaded(sla =>
-                //{
-                //    sla.Context.SyncType = SyncType.Reinitialize;
-                //});
-
-                await webServerManager.HandleRequestAsync(context, default, progress);
-
-            });
-
-            using var server = new KestrellTestServer2(configureServices);
-
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
-            {
-                // Execute a sync on all clients and check results
-                foreach (var client in Clients)
-                {
-                    var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri));
-
-                    var s = await agent.SynchronizeAsync();
-
-                    Assert.Equal(0, s.TotalChangesDownloaded);
-                    Assert.Equal(0, s.TotalChangesUploaded);
-                }
-
-            });
-
-            await server.Run(serverHandler, clientHandler);
-
-        }
 
         [Theory, TestPriority(2)]
         [ClassData(typeof(SyncOptionsData))]
