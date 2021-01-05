@@ -11,7 +11,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -159,7 +159,7 @@ namespace Dotmim.Sync.Tests
             this.kestrell = new KestrellTestServer(this.WebServerOrchestrator, this.UseFiddler);
 
             // start server and get uri
-            this.ServiceUri = this.kestrell.Run();
+            //this.ServiceUri = this.kestrell.Run();
 
 
             // Get all clients providers

@@ -189,9 +189,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(this.Tables);
 
             var onSchemaRead = false;
+            var onSchemaReading = false;
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
+            localOrchestrator.OnSchemaLoading(args =>
+            {
+                onSchemaReading = true;
+            });
 
             localOrchestrator.OnSchemaLoaded(args =>
             {
@@ -214,6 +219,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(SyncStage.SchemaReading, localOrchestrator.GetContext().SyncStage);
             Assert.Equal(17, schema.Tables.Count);
             Assert.True(onSchemaRead);
+            Assert.True(onSchemaReading);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

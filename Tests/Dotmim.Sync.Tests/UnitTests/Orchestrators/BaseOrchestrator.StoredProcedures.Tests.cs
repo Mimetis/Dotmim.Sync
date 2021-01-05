@@ -140,7 +140,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 assertOverWritten = true;
             }));
 
-            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, true);
+            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, false);
 
             Assert.False(assertOverWritten);
 

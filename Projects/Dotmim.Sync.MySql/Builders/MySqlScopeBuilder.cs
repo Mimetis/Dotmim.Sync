@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using System.Data.Common;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql

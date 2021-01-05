@@ -27,10 +27,10 @@ using System.Collections.Generic;
 using Dotmim.Sync.Postgres;
 using Dotmim.Sync.Postgres.Builders;
 using Dotmim.Sync.MySql;
-using MySql.Data.MySqlClient;
 using System.Linq;
 using System.Transactions;
 using System.Threading;
+using MySqlConnector;
 
 internal class Program
 {
@@ -46,7 +46,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeAsync();
+        await SyncHttpThroughKestrellAsync();
 
     }
 
@@ -1703,7 +1703,9 @@ internal class Program
         using (var c = serverProvider.CreateConnection())
         {
             var command = c.CreateCommand();
-            command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('Bikes revolution');";
+            var cat = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+
+            command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('" + cat + "');";
             c.Open();
             command.ExecuteNonQuery();
             c.Close();
