@@ -2024,11 +2024,9 @@ namespace Dotmim.Sync.Tests
                     if (client.ProviderType == ProviderType.MySql)
                     {
                         var cmd = tca.Connection.CreateCommand();
-                        tca.Connection.Open();
                         cmd.CommandText = "SET FOREIGN_KEY_CHECKS = 1;";
                         cmd.Connection = tca.Connection;
                         cmd.Transaction = tca.Transaction;
-                        cmd.ExecuteNonQuery();
                         tca.Connection.Close();
 
                         return;

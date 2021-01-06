@@ -1,5 +1,5 @@
 using Dotmim.Sync.Builders;
-
+using Dotmim.Sync.Manager;
 using Dotmim.Sync.MySql.Builders;
 using MySqlConnector;
 using System;
@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.MySql
 {
-    public class MySqlBuilderTable 
+    public class MySqlBuilderTable
     {
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
@@ -53,7 +53,8 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-        private MySqlCommand BuildTableCommand(DbConnection connection, DbTransaction transaction)
+
+        public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
             string empty = string.Empty;
@@ -164,29 +165,237 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=1;");
 
-            return new MySqlCommand(stringBuilder.ToString(), (MySqlConnection)connection, (MySqlTransaction)transaction);
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = stringBuilder.ToString();
+
+            return Task.FromResult(command);
+
         }
 
-        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = this.BuildTableCommand(connection, transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
+        public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
+        public Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
 
-        public Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction) => Task.CompletedTask;
-
-        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $"drop table if exists {this.tableName.Quoted().ToString()}";
 
-            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var commandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tableName.Unquoted().ToString();
+
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+
+        public async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
+
+            var columns = new List<SyncColumn>();
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandColumn;
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tableName.Unquoted().ToString();
+
+            command.Parameters.Add(parameter);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            var syncTable = new SyncTable(this.tableName.Unquoted().ToString());
+
+            using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+            syncTable.Load(reader);
+
+            var mySqlDbMetadata = new MySqlDbMetadata();
+
+            foreach (var c in syncTable.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
             {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                var typeName = c["data_type"].ToString();
+                var name = c["column_name"].ToString();
+                var isUnsigned = c["column_type"] != DBNull.Value ? ((string)c["column_type"]).Contains("unsigned") : false;
+
+                var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
+
+                // Gets the datastore owner dbType 
+                var datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
+
+                // once we have the datastore type, we can have the managed type
+                var columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
+
+                var sColumn = new SyncColumn(name, columnType);
+                sColumn.OriginalTypeName = typeName;
+                sColumn.Ordinal = Convert.ToInt32(c["ordinal_position"]);
+                sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
+                sColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
+                sColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
+                sColumn.AllowDBNull = (string)c["is_nullable"] == "NO" ? false : true;
+                sColumn.DefaultValue = c["COLUMN_DEFAULT"].ToString();
+
+                var extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
+
+                if (!string.IsNullOrEmpty(extra) && (extra.Contains("auto increment") || extra.Contains("auto_increment")))
+                {
+                    sColumn.IsAutoIncrement = true;
+                    sColumn.AutoIncrementSeed = 1;
+                    sColumn.AutoIncrementStep = 1;
+                }
+
+                sColumn.IsUnsigned = isUnsigned;
+                sColumn.IsUnique = c["column_key"] != DBNull.Value ? ((string)c["column_key"]).ToLowerInvariant().Contains("uni") : false;
+
+                columns.Add(sColumn);
+
             }
+            return columns.ToArray();
+
+            if (!alreadyOpened)
+                connection.Close();
+        }
+
+        public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
+
+            var keys = new SyncTable(tableName.Unquoted().ToString());
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandColumn;
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tableName.Unquoted().ToString();
+
+            command.Parameters.Add(parameter);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                keys.Load(reader);
+            }
+
+            if (!alreadyOpened)
+                connection.Close();
+
+            var lstKeys = new List<SyncColumn>();
+
+            foreach (var key in keys.Rows)
+            {
+                var keyColumn = new SyncColumn((string)key["COLUMN_NAME"], typeof(string));
+                keyColumn.Ordinal = Convert.ToInt32(key["ORDINAL_POSITION"]);
+                lstKeys.Add(keyColumn);
+            }
+
+            return lstKeys;
+
 
         }
 
+        public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var relations = new List<DbRelationDefinition>();
+
+            var commandRelations = @"
+            SELECT
+              ke.CONSTRAINT_NAME as ForeignKey,
+              ke.POSITION_IN_UNIQUE_CONSTRAINT as ForeignKeyOrder,
+              ke.referenced_table_name as ReferenceTableName,
+              ke.REFERENCED_COLUMN_NAME as ReferenceColumnName,
+              ke.table_name TableName,
+              ke.COLUMN_NAME ColumnName
+            FROM
+              information_schema.KEY_COLUMN_USAGE ke
+            WHERE
+              ke.referenced_table_name IS NOT NULL
+              and ke.table_schema = schema()
+              AND ke.table_name = @tableName
+            ORDER BY
+              ke.referenced_table_name;";
+
+            var relationsList = new SyncTable(tableName.Unquoted().ToString());
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandRelations;
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tableName.Unquoted().ToString();
+
+            command.Parameters.Add(parameter);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                relationsList.Load(reader);
+            }
+
+            if (!alreadyOpened)
+                connection.Close();
+
+            if (relationsList != null && relationsList.Rows.Count > 0)
+            {
+                foreach (var fk in relationsList.Rows.GroupBy(row =>
+                    new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
+                {
+                    var relationDefinition = new DbRelationDefinition()
+                    {
+                        ForeignKey = fk.Key.Name,
+                        TableName = fk.Key.TableName,
+                        ReferenceTableName = fk.Key.ReferenceTableName,
+                    };
+
+                    relationDefinition.Columns.AddRange(fk.Select(dmRow =>
+                       new DbRelationColumnDefinition
+                       {
+                           KeyColumnName = (string)dmRow["ColumnName"],
+                           ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
+                           Order = Convert.ToInt32(dmRow["ForeignKeyOrder"])
+                       }));
+
+                    relations.Add(relationDefinition);
+                }
+            }
+
+            return relations.OrderBy(t => t.ForeignKey).ToArray();
+        }
     }
 }

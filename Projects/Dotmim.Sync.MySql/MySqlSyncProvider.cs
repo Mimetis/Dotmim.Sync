@@ -130,7 +130,7 @@ namespace Dotmim.Sync.MySql
             return tableBuilder;
         }
 
-        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeBuilder(scopeInfoTableName);
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
 
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
 

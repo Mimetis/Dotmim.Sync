@@ -177,6 +177,9 @@ namespace Dotmim.Sync
                         if (storedProcedureType is DbStoredProcedureType.BulkTableType)
                             continue;
 
+                        if (!this.Provider.SupportBulkOperations && (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkUpdateRows))
+                            continue;
+
                         var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (exists)

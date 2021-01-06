@@ -32,7 +32,7 @@ namespace Dotmim.Sync.MySql
             this.mySqlDbMetadata = new MySqlDbMetadata();
         }
 
-        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {trackingName.Quoted().ToString()} (");
@@ -77,35 +77,60 @@ namespace Dotmim.Sync.MySql
             }
             stringBuilder.Append("));");
 
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = stringBuilder.ToString();
 
-            using (var command = new MySqlCommand(stringBuilder.ToString(), (MySqlConnection)connection, (MySqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            return Task.FromResult(command);
         }
 
 
-        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
 
-            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return Task.FromResult(command);
         }
 
-        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
             var tableNameString = this.trackingName.Quoted().ToString();
             var oldTableNameString = oldTableName.Quoted().ToString();
 
             var commandText = $"RENAME TABLE {oldTableNameString} TO {tableNameString}; ";
 
-            using (var command = new MySqlCommand(commandText, (MySqlConnection)connection, (MySqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return Task.FromResult(command);
+
         }
+
+        public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = trackingName.Unquoted().ToString();
+
+            command.Parameters.Add(parameter);
+
+
+            return Task.FromResult(command);
+        }
+   
     }
 }

@@ -9,7 +9,7 @@ namespace Dotmim.Sync.Builders
 {
     public abstract class DbScopeBuilder 
     {
-        public ParserName ScopeInfoTableName { get; }
+        public ParserName ScopeInfoTableName { get; protected set; }
 
         public DbScopeBuilder(string scopeInfoTableName) => this.ScopeInfoTableName = ParserName.Parse(scopeInfoTableName);
 
