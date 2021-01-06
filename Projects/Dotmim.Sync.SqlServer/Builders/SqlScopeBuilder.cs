@@ -428,7 +428,6 @@ namespace Dotmim.Sync.SqlServer.Scope
         }
         public Task<DbCommand> GetSaveServerScopeInfoCommandAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
         {
-
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
 
             var commandText = $@"
