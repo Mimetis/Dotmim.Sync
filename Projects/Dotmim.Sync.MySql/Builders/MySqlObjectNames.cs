@@ -36,33 +36,78 @@ namespace Dotmim.Sync.MySql
         internal const string enableConstraintsText = "SET FOREIGN_KEY_CHECKS=1;";
 
 
-        Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
+        Dictionary<DbStoredProcedureType, string> storedProceduresNames = new Dictionary<DbStoredProcedureType, string>();
+        Dictionary<DbTriggerType, string> triggersNames = new Dictionary<DbTriggerType, string>();
+        Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
+        
         private ParserName tableName, trackingName;
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
 
-        public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
+        public void AddCommandName(DbCommandType objectType, string name)
         {
-            if (names.ContainsKey(objectType))
+            if (commandNames.ContainsKey(objectType))
                 throw new Exception("Yous can't add an objectType multiple times");
 
-            names.Add(objectType, (name, isStoredProcedure));
+            commandNames.Add(objectType, name);
         }
-        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, SyncFilter filter = null)
+        public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
-            if (!names.ContainsKey(objectType))
+            if (!commandNames.ContainsKey(objectType))
                 throw new NotSupportedException($"MySql provider does not support the command type {objectType.ToString()}");
 
-
-            (var commandName, var isStoredProc) = names[objectType];
+            var commandName = commandNames[objectType];
 
             // concat filter name
             if (filter != null)
                 commandName = string.Format(commandName, filter.GetFilterName());
 
-            return (commandName, isStoredProc);
+            return commandName;
         }
+
+        public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
+        {
+            if (storedProceduresNames.ContainsKey(objectType))
+                throw new Exception("Yous can't add an objectType multiple times");
+
+            storedProceduresNames.Add(objectType, name);
+        }
+        public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
+        {
+            if (!storedProceduresNames.ContainsKey(storedProcedureType))
+                throw new Exception("Yous should provide a value for all DbCommandName");
+
+            var commandName = storedProceduresNames[storedProcedureType];
+
+            // concat filter name
+            if (filter != null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
+                commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
+        }
+
+        public void AddTriggerName(DbTriggerType objectType, string name)
+        {
+            if (triggersNames.ContainsKey(objectType))
+                throw new Exception("Yous can't add an objectType multiple times");
+
+            triggersNames.Add(objectType, name);
+        }
+        public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
+        {
+            if (!triggersNames.ContainsKey(objectType))
+                throw new Exception("Yous should provide a value for all DbCommandName");
+
+            var commandName = triggersNames[objectType];
+
+            // concat filter name
+            if (filter != null)
+                commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
+        }
+
 
         public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
@@ -84,27 +129,27 @@ namespace Dotmim.Sync.MySql
             var trigPref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
             var trigSuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"), true);
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"), true);
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"), true);
+            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"));
+            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"));
+            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"));
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
-            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}", "{0}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(selectChangesProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}", "{0}"));
 
-            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
-            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}", "{0}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(initializeChangesProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}", "{0}"));
 
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
-            this.AddName(DbCommandType.Reset, string.Format(resetProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetProcName, $"{spPref}{tableName.Unquoted().Normalized().ToString()}{spSuf}"));
 
-            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()), false);
-            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()), false);
+            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()));
+            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Quoted().ToString()));
 
-            this.AddName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand(), false);
-            this.AddName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand(), false);
+            this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
+            this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
         }
 
 

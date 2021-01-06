@@ -163,6 +163,10 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
+        // TODO : Test with provision and deprovision and ensure everything is correctly created/ dropped
+
+
         [Fact, TestPriority(1)]
         public virtual async Task SchemaIsCreated()
         {

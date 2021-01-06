@@ -40,10 +40,8 @@
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTrigger.cs" Link="Builders\MySqlBuilderTrigger.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlDbMetadata.cs" Link="Builders\MySqlDbMetadata.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlObjectNames.cs" Link="Builders\MySqlObjectNames.cs" />
-    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeBuilder.cs" Link="Builders\MySqlScopeBuilder.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeInfoBuilder.cs" Link="Builders\MySqlScopeInfoBuilder.cs" />
-    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlManagerTable.cs" Link="Manager\MySqlManagerTable.cs" />
-    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlTableBuilder.cs" Link="Manager\MySqlTableBuilder.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlTableBuilder.cs" Link="Builders\MySqlTableBuilder.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\MySqlExtensionsMethods.cs" Link="MySqlExtensionsMethods.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\MySqlManagementUtils.cs" Link="MySqlManagementUtils.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.cs" Link="MySqlSyncAdapter.cs" />
@@ -70,7 +68,6 @@
 
   <ItemGroup>
     <Folder Include="Builders\" />
-    <Folder Include="Manager\" />
   </ItemGroup>
   
   
