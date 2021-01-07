@@ -297,6 +297,8 @@ namespace Dotmim.Sync
                         rowsMemorySize = 0L;
                     }
 
+                    dataReader.Close();
+
                     // We don't report progress if no table changes is empty, to limit verbosity
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
                         changes.TableChangesSelected.Add(tableChangesSelected);

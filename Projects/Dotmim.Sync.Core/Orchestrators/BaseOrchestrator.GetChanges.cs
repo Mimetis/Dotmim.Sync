@@ -156,6 +156,7 @@ namespace Dotmim.Sync
                         }
                     }
 
+                    dataReader.Close();
 
                     // We don't report progress if no table changes is empty, to limit verbosity
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
@@ -259,6 +260,8 @@ namespace Dotmim.Sync
                     else
                         tableChangesSelected.Upserts++;
                 }
+
+                dataReader.Close();
 
                 // Check interceptor
                 var changesArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, connection, transaction);

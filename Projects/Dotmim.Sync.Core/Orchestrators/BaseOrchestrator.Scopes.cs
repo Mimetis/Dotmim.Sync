@@ -157,6 +157,8 @@ namespace Dotmim.Sync
                     scopes.Add(scopeInfo);
             }
 
+            reader.Close();
+
             return scopes;
         }
 
@@ -248,6 +250,8 @@ namespace Dotmim.Sync
                 DbScopeType.Client => ReadScopeInfo(reader) as T,
                 _ => throw new NotImplementedException($"Can't get {scopeType} from the reader ")
             };
+
+            reader.Close();
 
             await this.InterceptAsync(new ScopeSavedArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, newScopeInfo, connection, transaction), cancellationToken).ConfigureAwait(false);
 
