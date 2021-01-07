@@ -10,7 +10,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -160,32 +160,28 @@ namespace Dotmim.Sync.Tests
         private async Task CheckProductCategoryRows((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) client, string nameShouldStartWith = null)
         {
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(this.Server))
+            using var ctx = new AdventureWorksContext(this.Server);
+            // get all product categories
+            var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+
+            using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+            // get all product categories
+            var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+
+            // check row count
+            Assert.Equal(serverPC.Count, clientPC.Count);
+
+            foreach (var cpc in clientPC)
             {
-                // get all product categories
-                var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                var spc = serverPC.First(pc => pc.ProductCategoryId == cpc.ProductCategoryId);
 
-                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    // get all product categories
-                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+                // check column value
+                Assert.Equal(spc.ProductCategoryId, cpc.ProductCategoryId);
+                Assert.Equal(spc.Name, cpc.Name);
 
-                    // check row count
-                    Assert.Equal(serverPC.Count, clientPC.Count);
+                if (!string.IsNullOrEmpty(nameShouldStartWith))
+                    Assert.StartsWith(nameShouldStartWith, cpc.Name);
 
-                    foreach (var cpc in clientPC)
-                    {
-                        var spc = serverPC.First(pc => pc.ProductCategoryId == cpc.ProductCategoryId);
-
-                        // check column value
-                        Assert.Equal(spc.ProductCategoryId, cpc.ProductCategoryId);
-                        Assert.Equal(spc.Name, cpc.Name);
-
-                        if (!string.IsNullOrEmpty(nameShouldStartWith))
-                            Assert.StartsWith(nameShouldStartWith, cpc.Name);
-
-                    }
-                }
             }
         }
 

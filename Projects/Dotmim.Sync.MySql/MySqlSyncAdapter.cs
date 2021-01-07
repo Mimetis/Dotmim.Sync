@@ -5,7 +5,7 @@ using System.Linq;
 using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql.Builders;
 using System.Threading.Tasks;
 

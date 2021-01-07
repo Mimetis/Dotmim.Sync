@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Tests;
 using Dotmim.Sync.Tests.Core;
 using Microsoft.Data.Sqlite;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using System;
 using System.Data;
 using Microsoft.Data.SqlClient;
@@ -103,15 +103,13 @@ namespace Dotmim.Sync.Tests
 
             await policy.ExecuteAsync(async () =>
             {
-                using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
-                {
-                    masterConnection.Open();
+                using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+                masterConnection.Open();
 
-                    using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
-                        await cmdDb.ExecuteNonQueryAsync();
+                using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
+                    await cmdDb.ExecuteNonQueryAsync();
 
-                    masterConnection.Close();
-                }
+                masterConnection.Close();
             });
         }
 
@@ -130,21 +128,19 @@ namespace Dotmim.Sync.Tests
 
             await policy.ExecuteAsync(async () =>
             {
-                using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema")))
+                using var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema"));
+                sysConnection.Open();
+
+                if (recreateDb)
                 {
-                    sysConnection.Open();
-
-                    if (recreateDb)
-                    {
-                        using (var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection))
-                            await cmdDrop.ExecuteNonQueryAsync();
-                    }
-
-                    using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
-                        cmdDb.ExecuteNonQuery();
-
-                    sysConnection.Close();
+                    using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    await cmdDrop.ExecuteNonQueryAsync();
                 }
+
+                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                    cmdDb.ExecuteNonQuery();
+
+                sysConnection.Close();
             });
         }
 
@@ -172,15 +168,13 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropMySqlDatabase(string dbName)
         {
-            using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema")))
-            {
-                sysConnection.Open();
+            using var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema"));
+            sysConnection.Open();
 
-                using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
-                    cmdDb.ExecuteNonQuery();
+            using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
+                cmdDb.ExecuteNonQuery();
 
-                sysConnection.Close();
-            }
+            sysConnection.Close();
         }
 
         /// <summary>
@@ -211,23 +205,21 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropSqlDatabase(string dbName)
         {
-            using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
+            using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            try
             {
-                try
-                {
-                    masterConnection.Open();
+                masterConnection.Open();
 
-                    using (var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection))
-                        cmdDb.ExecuteNonQuery();
+                using (var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection))
+                    cmdDb.ExecuteNonQuery();
 
-                    masterConnection.Close();
+                masterConnection.Close();
 
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    throw;
-                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
             }
         }
 
@@ -248,47 +240,39 @@ namespace Dotmim.Sync.Tests
 
         private static async Task ExecuteMySqlScriptAsync(string dbName, string script)
         {
-            using (var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName)))
-            {
-                connection.Open();
+            using var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName));
+            connection.Open();
 
-                using (var cmdDb = new MySqlCommand(script, connection))
-                    await cmdDb.ExecuteNonQueryAsync();
+            using (var cmdDb = new MySqlCommand(script, connection))
+                await cmdDb.ExecuteNonQueryAsync();
 
-                connection.Close();
-            }
+            connection.Close();
         }
         private static async Task ExecuteSqlScriptAsync(string dbName, string script)
         {
-            using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName)))
+            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+            connection.Open();
+
+            //split the script on "GO" commands
+            string[] splitter = new string[] { "\r\nGO\r\n" };
+            string[] commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string commandText in commandTexts)
             {
-                connection.Open();
-
-                //split the script on "GO" commands
-                string[] splitter = new string[] { "\r\nGO\r\n" };
-                string[] commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (string commandText in commandTexts)
-                {
-                    using (var cmdDb = new SqlCommand(commandText, connection))
-                    {
-                        await cmdDb.ExecuteNonQueryAsync();
-                    }
-                }
-                connection.Close();
+                using var cmdDb = new SqlCommand(commandText, connection);
+                await cmdDb.ExecuteNonQueryAsync();
             }
+            connection.Close();
         }
         private static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
-            using (var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName)))
+            using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
+            connection.Open();
+            using (var cmdDb = new SqliteCommand(script, connection))
             {
-                connection.Open();
-                using (var cmdDb = new SqliteCommand(script, connection))
-                {
-                    await cmdDb.ExecuteNonQueryAsync();
-                }
-                connection.Close();
+                await cmdDb.ExecuteNonQueryAsync();
             }
+            connection.Close();
         }
 
         /// <summary>
@@ -326,17 +310,15 @@ namespace Dotmim.Sync.Tests
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
 
-            using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
+            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            connection.Open();
+
+            using (var cmdDb = new SqlCommand(script, connection))
             {
-                connection.Open();
-
-                using (var cmdDb = new SqlCommand(script, connection))
-                {
-                    cmdDb.ExecuteNonQuery();
-                }
-
-                connection.Close();
+                cmdDb.ExecuteNonQuery();
             }
+
+            connection.Close();
         }
 
 

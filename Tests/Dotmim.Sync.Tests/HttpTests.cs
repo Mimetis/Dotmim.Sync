@@ -10,7 +10,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -495,11 +495,9 @@ namespace Dotmim.Sync.Tests
 
                 var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                using (var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    serverDbCtx.Product.Add(product);
-                    await serverDbCtx.SaveChangesAsync();
-                }
+                using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -595,13 +593,11 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check rows are create on client
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
-                    var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-                    Assert.Equal(1, finalAddressesCount);
-                    Assert.Equal(1, finalEmployeeAddressesCount);
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+                var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+                Assert.Equal(1, finalAddressesCount);
+                Assert.Equal(1, finalEmployeeAddressesCount);
 
 
             }
@@ -633,13 +629,11 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row deleted on client values
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
-                    var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-                    Assert.Equal(0, finalAddressesCount);
-                    Assert.Equal(0, finalEmployeeAddressesCount);
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+                var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+                Assert.Equal(0, finalAddressesCount);
+                Assert.Equal(0, finalEmployeeAddressesCount);
             }
         }
 
@@ -670,19 +664,17 @@ namespace Dotmim.Sync.Tests
             // Insert one thousand lines on each client
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                for (var i = 0; i < 2000; i++)
                 {
-                    for (var i = 0; i < 2000; i++)
-                    {
-                        var name = HelperDatabase.GetRandomName();
-                        var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+                    var name = HelperDatabase.GetRandomName();
+                    var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
 
-                        var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+                    var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                        ctx.Product.Add(product);
-                    }
-                    await ctx.SaveChangesAsync();
+                    ctx.Product.Add(product);
                 }
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -745,14 +737,12 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-                    ctx.Add(product);
-                    await ctx.SaveChangesAsync();
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Add(product);
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -811,14 +801,12 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-                    ctx.Add(product);
-                    await ctx.SaveChangesAsync();
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Add(product);
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -907,13 +895,11 @@ namespace Dotmim.Sync.Tests
                 var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
 
-                using (var ms = new MemoryStream(sra.Content))
-                {
-                    var o = await serializer.DeserializeAsync(ms);
+                using var ms = new MemoryStream(sra.Content);
+                var o = await serializer.DeserializeAsync(ms);
 
-                    // check we have rows
-                    Assert.True(o.Changes.HasRows);
-                }
+                // check we have rows
+                Assert.True(o.Changes.HasRows);
             });
 
             // Get response just before response with scope is send back from server
@@ -925,13 +911,11 @@ namespace Dotmim.Sync.Tests
                 if (sra.Content == null)
                     return;
 
-                using (var ms = new MemoryStream(sra.Content))
-                {
-                    var o = await serializer.DeserializeAsync(ms);
+                using var ms = new MemoryStream(sra.Content);
+                var o = await serializer.DeserializeAsync(ms);
 
-                    // check we have a schema
-                    Assert.NotNull(o.ServerScopeInfo.Schema);
-                }
+                // check we have a schema
+                Assert.NotNull(o.ServerScopeInfo.Schema);
             });
 
 
@@ -976,13 +960,11 @@ namespace Dotmim.Sync.Tests
                     var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
                     var serializer = serializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
 
-                    using (var ms = new MemoryStream(sra.Content))
-                    {
-                        var o = await serializer.DeserializeAsync(ms);
+                    using var ms = new MemoryStream(sra.Content);
+                    var o = await serializer.DeserializeAsync(ms);
 
-                        // check we a scope name
-                        Assert.NotNull(o.SyncContext);
-                    }
+                    // check we a scope name
+                    Assert.NotNull(o.SyncContext);
                 });
 
                 var s = await agent.SynchronizeAsync();
@@ -1002,11 +984,9 @@ namespace Dotmim.Sync.Tests
 
                 var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                using (var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    serverDbCtx.Product.Add(product);
-                    await serverDbCtx.SaveChangesAsync();
-                }
+                using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -1025,13 +1005,11 @@ namespace Dotmim.Sync.Tests
                     var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
                     var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
 
-                    using (var ms = new MemoryStream(sra.Content))
-                    {
-                        var o = await serializer.DeserializeAsync(ms);
+                    using var ms = new MemoryStream(sra.Content);
+                    var o = await serializer.DeserializeAsync(ms);
 
-                        // check we have rows
-                        Assert.True(o.Changes.HasRows);
-                    }
+                    // check we have rows
+                    Assert.True(o.Changes.HasRows);
                 });
 
 
@@ -1077,29 +1055,26 @@ namespace Dotmim.Sync.Tests
                 var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
                 var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
 
-                using (var ms = new MemoryStream(sra.Content))
+                using var ms = new MemoryStream(sra.Content);
+                var o = await serializer.DeserializeAsync(ms);
+
+                // check we have rows
+                Assert.True(o.Changes.HasRows);
+
+                // getting a table where we know we have date time
+                var table = o.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
+
+                if (table != null)
                 {
-                    var o = await serializer.DeserializeAsync(ms);
+                    Assert.NotEmpty(table.Rows);
 
-                    // check we have rows
-                    Assert.True(o.Changes.HasRows);
-
-                    // getting a table where we know we have date time
-                    var table = o.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
-
-                    if (table != null)
+                    foreach (var row in table.Rows)
                     {
-                        Assert.NotEmpty(table.Rows);
+                        var dateCell = row[5];
 
-                        foreach (var row in table.Rows)
-                        {
-                            var dateCell = row[5];
-
-                            // check we have an integer here
-                            Assert.IsType<long>(dateCell);
-                        }
+                        // check we have an integer here
+                        Assert.IsType<long>(dateCell);
                     }
-
                 }
             });
 
