@@ -28,6 +28,34 @@ namespace Dotmim.Sync
 
             });
 
+
+        /// <summary>
+        /// Read the schema stored from the orchestrator database, through the provider.
+        /// </summary>
+        /// <returns>Schema containing tables, columns, relations, primary keys</returns>
+        public virtual Task<SyncTable> GetTableSchemaAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
+            {
+                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (schemaTable == null)
+                    throw new MissingTableException(table.GetFullName());
+
+                // Create a temporary SyncSet for attaching to the schemaTable
+                var schema = new SyncSet();
+
+                // Add this table to schema
+                schema.Tables.Add(schemaTable);
+
+                schema.EnsureSchema();
+
+                // copy filters from setup
+                foreach (var filter in this.Setup.Filters)
+                    schema.Filters.Add(filter);
+
+                return schemaTable;
+            });
+
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
