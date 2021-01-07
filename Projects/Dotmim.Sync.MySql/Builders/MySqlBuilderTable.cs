@@ -233,6 +233,8 @@ namespace Dotmim.Sync.MySql
 
             using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
             syncTable.Load(reader);
+            
+            reader.Close();
 
             var mySqlDbMetadata = new MySqlDbMetadata();
 

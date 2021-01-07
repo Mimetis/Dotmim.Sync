@@ -284,6 +284,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                     // Since it will be requested by next request from GetConflict()
                     failedRows.Rows.Add(itemArray, dataRowState);
                 }
+
+                dataReader.Close();
+
             }
             catch (DbException ex)
             {

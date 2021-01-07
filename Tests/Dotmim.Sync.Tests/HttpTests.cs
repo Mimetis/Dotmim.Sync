@@ -28,6 +28,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using System.Net.Http;
 using Microsoft.AspNetCore.Builder;
+using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Dotmim.Sync.Tests
 {
@@ -176,7 +180,11 @@ namespace Dotmim.Sync.Tests
             //    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
             //}
 
-            this.kestrell.Dispose();
+            if (this.kestrell != null)
+            {
+                this.kestrell.Dispose();
+            }
+
 
             this.stopwatch.Stop();
 
@@ -1494,6 +1502,133 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
 
+            }
+        }
+
+
+        [Theory, TestPriority(28)]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task SimpleAuthentication(SyncOptions options)
+        {
+            // stop running kestrell for creating my own one
+            await this.kestrell.StopAsync();
+
+            // create a server db and seed it
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            var hostBuilder = new WebHostBuilder()
+                .UseKestrel()
+                .UseUrls("http://127.0.0.1:0/")
+                .ConfigureServices(services =>
+                {
+                    services.AddMemoryCache();
+                    services.AddDistributedMemoryCache();
+                    services.AddSession(options =>
+                    {
+                        // Set a long timeout for easy testing.
+                        options.IdleTimeout = TimeSpan.FromDays(10);
+                        options.Cookie.HttpOnly = true;
+                    });
+
+                    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // => remove default claims
+
+                    services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                    .AddJwtBearer(options =>
+                    {
+                        options.RequireHttpsMetadata = false;
+                        options.SaveToken = true;
+                        options.TokenValidationParameters = new TokenValidationParameters
+                        {
+                            ValidateIssuer = true,
+                            ValidateAudience = true,
+                            ValidateLifetime = true,
+                            ValidateIssuerSigningKey = true,
+
+                            ValidIssuer = AuthToken.Issuer,
+                            ValidAudience = AuthToken.Audience,
+
+                            ClockSkew = TimeSpan.Zero,
+
+                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AuthToken.SecurityKey))
+                        };
+
+                        options.Events = new JwtBearerEvents
+                        {
+                            OnAuthenticationFailed = context =>
+                            {
+                                Console.WriteLine("OnAuthenticationFailed: " + context.Exception.Message);
+                                return Task.CompletedTask;
+                            },
+                            OnTokenValidated = context =>
+                            {
+                                Console.WriteLine("OnTokenValidated: " + context.SecurityToken);
+                                return Task.CompletedTask;
+                            }
+                        };
+                    });
+
+
+                    // configure server orchestrator
+                    this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+                    // add a SqlSyncProvider acting as the server hub
+                    services.AddSyncServer(this.WebServerOrchestrator);
+
+                });
+
+
+            hostBuilder.Configure(app =>
+            {
+                app.UseSession();
+                app.UseAuthentication();
+
+                app.Run(async context =>
+                {
+
+                    if (context.User.Identity.IsAuthenticated)
+                    {
+                        var dict = new Dictionary<string, string>();
+
+                        context.User.Claims.ToList()
+                           .ForEach(item => dict.Add(item.Type, item.Value));
+
+                        var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+                        await webServerManager.HandleRequestAsync(context);
+                    }
+
+
+                });
+            });
+
+            var host = hostBuilder.Build();
+            host.Start();
+
+            string serviceUrl = $"http://localhost:{host.GetPort()}/";
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                Guid userId = Guid.NewGuid();
+
+                var token = AuthToken.GenerateJwtToken("spertus@microsoft.com", userId.ToString());
+                HttpClient httpClient = new HttpClient();
+                httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUrl, client:httpClient);
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
             }
         }
     }
