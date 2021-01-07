@@ -55,6 +55,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BatchsizeClient", "Batchsiz
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BatchsizeServer", "Batchsize\BatchsizeServer\BatchsizeServer.csproj", "{DC508592-8AEA-448F-9743-AC1BAA8CE6DE}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Interceptors", "Interceptors\Interceptors.csproj", "{0CF648DE-B489-4ECF-ADBE-961CDC34AAE4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -149,6 +151,10 @@ Global
 		{DC508592-8AEA-448F-9743-AC1BAA8CE6DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DC508592-8AEA-448F-9743-AC1BAA8CE6DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DC508592-8AEA-448F-9743-AC1BAA8CE6DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CF648DE-B489-4ECF-ADBE-961CDC34AAE4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CF648DE-B489-4ECF-ADBE-961CDC34AAE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CF648DE-B489-4ECF-ADBE-961CDC34AAE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CF648DE-B489-4ECF-ADBE-961CDC34AAE4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -172,6 +178,7 @@ Global
 		{6627934F-425F-4AC2-8ACF-C61B64AE5E87} = {3334B930-49DF-4984-9730-AA4559C02E1C}
 		{036E9843-B423-4481-9D26-11C5F3DD7C2C} = {6627934F-425F-4AC2-8ACF-C61B64AE5E87}
 		{DC508592-8AEA-448F-9743-AC1BAA8CE6DE} = {6627934F-425F-4AC2-8ACF-C61B64AE5E87}
+		{0CF648DE-B489-4ECF-ADBE-961CDC34AAE4} = {3334B930-49DF-4984-9730-AA4559C02E1C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {FC6BB5E5-6A25-46EF-BAAD-3F5822392673}

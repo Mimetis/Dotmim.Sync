@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Web.Client
         var arrayContent = new ByteArrayContent(data);
 
         // reinit client
-        client.DefaultRequestHeaders.Clear();
+        // client.DefaultRequestHeaders.Clear();
 
         // Create the request message
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString()) { Content = arrayContent };
