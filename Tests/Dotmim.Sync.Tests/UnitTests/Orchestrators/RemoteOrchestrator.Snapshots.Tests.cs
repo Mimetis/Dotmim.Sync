@@ -68,7 +68,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onSnapshotCreating = false;
             var onSnapshotCreated = false;
 
-
             // snapshot directory
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
             var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);

@@ -50,7 +50,7 @@ namespace Spy
             var localOrchestrator = agent.LocalOrchestrator;
 
             // Just before applying something locally, at the database level
-            localOrchestrator.OnDatabaseChangesApplying(args =>
+            localOrchestrator.OnDatabaseChangesApplying(async args =>
             {
                 Console.WriteLine($"--------------------------------------------");
                 Console.WriteLine($"Applying changes to the local database:");
@@ -61,8 +61,12 @@ namespace Spy
 
                 foreach (var table in args.ApplyChanges.Setup.Tables)
                 {
-                    foreach (var tablePart in args.ApplyChanges.Changes.GetTable(table.TableName, table.SchemaName))
-                    {
+                    var enumerableOfTables = args.ApplyChanges.Changes.GetTableAsync(table.TableName, table.SchemaName);
+                    var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
+
+                    while (await enumeratorOfTable.MoveNextAsync())
+                   {
+                        var tablePart = enumeratorOfTable.Current;
                         if (tablePart == null || !tablePart.HasRows)
                             continue;
 
