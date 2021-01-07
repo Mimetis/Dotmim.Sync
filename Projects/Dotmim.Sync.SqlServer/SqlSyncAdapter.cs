@@ -262,28 +262,27 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (transaction != null)
                     cmd.Transaction = transaction;
 
-                using (var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                using var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+                
+                while (dataReader.Read())
                 {
-                    while (dataReader.Read())
+                    //var itemArray = new object[dataReader.FieldCount];
+                    var itemArray = new object[failedRows.Columns.Count];
+                    for (var i = 0; i < dataReader.FieldCount; i++)
                     {
-                        //var itemArray = new object[dataReader.FieldCount];
-                        var itemArray = new object[failedRows.Columns.Count];
-                        for (var i = 0; i < dataReader.FieldCount; i++)
-                        {
-                            var columnValueObject = dataReader.GetValue(i);
-                            var columnName = dataReader.GetName(i);
+                        var columnValueObject = dataReader.GetValue(i);
+                        var columnName = dataReader.GetName(i);
 
-                            var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                        var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
 
-                            var failedColumn = failedRows.Columns[columnName];
-                            var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
-                            itemArray[failedIndexColumn] = columnValue;
-                        }
-
-                        // don't care about row state 
-                        // Since it will be requested by next request from GetConflict()
-                        failedRows.Rows.Add(itemArray, dataRowState);
+                        var failedColumn = failedRows.Columns[columnName];
+                        var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
+                        itemArray[failedIndexColumn] = columnValue;
                     }
+
+                    // don't care about row state 
+                    // Since it will be requested by next request from GetConflict()
+                    failedRows.Rows.Add(itemArray, dataRowState);
                 }
             }
             catch (DbException ex)

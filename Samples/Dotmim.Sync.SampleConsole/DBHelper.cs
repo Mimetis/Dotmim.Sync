@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Tests.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -48,11 +48,9 @@ namespace Dotmim.Sync.SampleConsole
         public static async Task EnsureDatabasesAsync(string databaseName, bool useSeeding = true)
         {
             // Create server database with items
-            using (var dbServer = new AdventureWorksContext(GetDatabaseConnectionString(databaseName), useSeeding))
-            {
-                await dbServer.Database.EnsureDeletedAsync();
-                await dbServer.Database.EnsureCreatedAsync();
-            }
+            using var dbServer = new AdventureWorksContext(GetDatabaseConnectionString(databaseName), useSeeding);
+            await dbServer.Database.EnsureDeletedAsync();
+            await dbServer.Database.EnsureCreatedAsync();
         }
 
         public static async Task DeleteDatabaseAsync(string dbName)

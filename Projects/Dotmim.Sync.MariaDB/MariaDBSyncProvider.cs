@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql.Builders;
 using System;
 using Dotmim.Sync.MySql;

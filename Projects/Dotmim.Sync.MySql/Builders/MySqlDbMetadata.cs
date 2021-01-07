@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 
 
 namespace Dotmim.Sync.MySql.Builders

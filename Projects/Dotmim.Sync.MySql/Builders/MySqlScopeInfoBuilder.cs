@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Newtonsoft.Json;

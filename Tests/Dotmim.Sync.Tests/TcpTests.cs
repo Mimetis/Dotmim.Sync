@@ -10,7 +10,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -205,83 +205,80 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
 
                 // Check we have the correct columns replicated
-                using (var clientConnection = client.Provider.CreateConnection())
+                using var clientConnection = client.Provider.CreateConnection();
+                await clientConnection.OpenAsync();
+
+                foreach (var setupTable in agent.Setup.Tables)
                 {
-                    await clientConnection.OpenAsync();
+                    //var tableClientManagerFactory = client.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
+                    //var tableClientManager = tableClientManagerFactory.CreateManagerTable(clientConnection);
+                    //var clientColumns = await tableClientManager.GetColumnsAsync();
 
-                    foreach (var setupTable in agent.Setup.Tables)
-                    {
-                        //var tableClientManagerFactory = client.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
-                        //var tableClientManager = tableClientManagerFactory.CreateManagerTable(clientConnection);
-                        //var clientColumns = await tableClientManager.GetColumnsAsync();
+                    //using (var serverConnection = this.Server.Provider.CreateConnection())
+                    //{
+                    //    serverConnection.Open();
 
-                        //using (var serverConnection = this.Server.Provider.CreateConnection())
-                        //{
-                        //    serverConnection.Open();
+                    //    var tableServerManagerFactory = this.Server.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
+                    //    var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
+                    //    var serverColumns = await tableServerManager.GetColumnsAsync();
 
-                        //    var tableServerManagerFactory = this.Server.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
-                        //    var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
-                        //    var serverColumns = await tableServerManager.GetColumnsAsync();
+                    //    serverConnection.Close();
 
-                        //    serverConnection.Close();
+                    //    var serverColumnsCount = serverColumns.Count();
+                    //    var clientColumnsCount = clientColumns.Count();
 
-                        //    var serverColumnsCount = serverColumns.Count();
-                        //    var clientColumnsCount = clientColumns.Count();
+                    //    Assert.Equal(serverColumnsCount, clientColumnsCount);
 
-                        //    Assert.Equal(serverColumnsCount, clientColumnsCount);
+                    //    // Check we have the same columns names
+                    //    foreach (var serverColumn in serverColumns)
+                    //    {
+                    //        var clientColumn = clientColumns.FirstOrDefault(c => c.ColumnName == serverColumn.ColumnName);
 
-                        //    // Check we have the same columns names
-                        //    foreach (var serverColumn in serverColumns)
-                        //    {
-                        //        var clientColumn = clientColumns.FirstOrDefault(c => c.ColumnName == serverColumn.ColumnName);
+                    //        Assert.NotNull(clientColumn);
 
-                        //        Assert.NotNull(clientColumn);
+                    //        if (this.ServerType == client.ProviderType && this.ServerType == ProviderType.Sql)
+                    //        {
+                    //            Assert.Equal(serverColumn.DataType, clientColumn.DataType);
+                    //            Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
+                    //            Assert.Equal(serverColumn.IsUnsigned, clientColumn.IsUnsigned);
 
-                        //        if (this.ServerType == client.ProviderType && this.ServerType == ProviderType.Sql)
-                        //        {
-                        //            Assert.Equal(serverColumn.DataType, clientColumn.DataType);
-                        //            Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
-                        //            Assert.Equal(serverColumn.IsUnsigned, clientColumn.IsUnsigned);
+                    //            var maxPrecision = Math.Min(SqlDbMetadata.PRECISION_MAX, serverColumn.Precision);
+                    //            var maxScale = Math.Min(SqlDbMetadata.SCALE_MAX, serverColumn.Scale);
 
-                        //            var maxPrecision = Math.Min(SqlDbMetadata.PRECISION_MAX, serverColumn.Precision);
-                        //            var maxScale = Math.Min(SqlDbMetadata.SCALE_MAX, serverColumn.Scale);
+                    //            // dont assert max length since numeric reset this value
+                    //            //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);
 
-                        //            // dont assert max length since numeric reset this value
-                        //            //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);
+                    //            Assert.Equal(maxPrecision, clientColumn.Precision);
+                    //            Assert.Equal(serverColumn.PrecisionSpecified, clientColumn.PrecisionSpecified);
+                    //            Assert.Equal(maxScale, clientColumn.Scale);
+                    //            Assert.Equal(serverColumn.ScaleSpecified, clientColumn.ScaleSpecified);
 
-                        //            Assert.Equal(maxPrecision, clientColumn.Precision);
-                        //            Assert.Equal(serverColumn.PrecisionSpecified, clientColumn.PrecisionSpecified);
-                        //            Assert.Equal(maxScale, clientColumn.Scale);
-                        //            Assert.Equal(serverColumn.ScaleSpecified, clientColumn.ScaleSpecified);
+                    //            Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
+                    //            Assert.Equal(serverColumn.OriginalDbType, clientColumn.OriginalDbType);
 
-                        //            Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
-                        //            Assert.Equal(serverColumn.OriginalDbType, clientColumn.OriginalDbType);
+                    //            // We don't replicate unique indexes
+                    //            //Assert.Equal(serverColumn.IsUnique, clientColumn.IsUnique);
 
-                        //            // We don't replicate unique indexes
-                        //            //Assert.Equal(serverColumn.IsUnique, clientColumn.IsUnique);
+                    //            Assert.Equal(serverColumn.AutoIncrementSeed, clientColumn.AutoIncrementSeed);
+                    //            Assert.Equal(serverColumn.AutoIncrementStep, clientColumn.AutoIncrementStep);
+                    //            Assert.Equal(serverColumn.IsAutoIncrement, clientColumn.IsAutoIncrement);
 
-                        //            Assert.Equal(serverColumn.AutoIncrementSeed, clientColumn.AutoIncrementSeed);
-                        //            Assert.Equal(serverColumn.AutoIncrementStep, clientColumn.AutoIncrementStep);
-                        //            Assert.Equal(serverColumn.IsAutoIncrement, clientColumn.IsAutoIncrement);
+                    //            //Assert.Equal(serverColumn.OriginalTypeName, clientColumn.OriginalTypeName);
 
-                        //            //Assert.Equal(serverColumn.OriginalTypeName, clientColumn.OriginalTypeName);
+                    //            //Assert.Equal(serverColumn.IsCompute, clientColumn.IsCompute);
 
-                        //            //Assert.Equal(serverColumn.IsCompute, clientColumn.IsCompute);
+                    //            Assert.Equal(serverColumn.IsReadOnly, clientColumn.IsReadOnly);
+                    //            Assert.Equal(serverColumn.DbType, clientColumn.DbType);
+                    //            Assert.Equal(serverColumn.Ordinal, clientColumn.Ordinal);
+                    //            Assert.Equal(serverColumn.AllowDBNull, clientColumn.AllowDBNull);
+                    //        }
 
-                        //            Assert.Equal(serverColumn.IsReadOnly, clientColumn.IsReadOnly);
-                        //            Assert.Equal(serverColumn.DbType, clientColumn.DbType);
-                        //            Assert.Equal(serverColumn.Ordinal, clientColumn.Ordinal);
-                        //            Assert.Equal(serverColumn.AllowDBNull, clientColumn.AllowDBNull);
-                        //        }
+                    //        Assert.Equal(serverColumn.ColumnName, clientColumn.ColumnName);
 
-                        //        Assert.Equal(serverColumn.ColumnName, clientColumn.ColumnName);
-
-                        //    }
-                        //}
-                    }
-                    clientConnection.Close();
-
+                    //    }
+                    //}
                 }
+                clientConnection.Close();
 
             }
         }
@@ -716,11 +713,9 @@ namespace Dotmim.Sync.Tests
 
                 var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                using (var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    serverDbCtx.Product.Add(product);
-                    await serverDbCtx.SaveChangesAsync();
-                }
+                using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -834,14 +829,12 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-                    ctx.Add(product);
-                    await ctx.SaveChangesAsync();
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Add(product);
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -874,14 +867,12 @@ namespace Dotmim.Sync.Tests
                 var productCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                    {
-                        var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
-                        Assert.Equal(productRowCount, pCount);
+                    using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                    var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
+                    Assert.Equal(productRowCount, pCount);
 
-                        var pcCount = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
-                        Assert.Equal(productCategoryCount, pcCount);
-                    }
+                    var pcCount = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
+                    Assert.Equal(productCategoryCount, pcCount);
                 }
             }
         }
@@ -949,12 +940,10 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row updated values
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
-                    Assert.Equal(cityName, cliAddress.City);
-                    Assert.Equal(addressLine, cliAddress.AddressLine1);
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                Assert.Equal(cityName, cliAddress.City);
+                Assert.Equal(addressLine, cliAddress.AddressLine1);
             }
         }
 
@@ -1036,23 +1025,21 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                    using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                    // get all addresses
+                    var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+
+                    // check row count
+                    Assert.Equal(serverAddresses.Count, clientAddresses.Count);
+
+                    foreach (var clientAddress in clientAddresses)
                     {
-                        // get all addresses
-                        var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+                        var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
 
-                        // check row count
-                        Assert.Equal(serverAddresses.Count, clientAddresses.Count);
-
-                        foreach (var clientAddress in clientAddresses)
-                        {
-                            var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
-
-                            // check column value
-                            Assert.Equal(serverAddress.StateProvince, clientAddress.StateProvince);
-                            Assert.Equal(serverAddress.AddressLine1, clientAddress.AddressLine1);
-                            Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
-                        }
+                        // check column value
+                        Assert.Equal(serverAddress.StateProvince, clientAddress.StateProvince);
+                        Assert.Equal(serverAddress.AddressLine1, clientAddress.AddressLine1);
+                        Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
                     }
                 }
             }
@@ -1132,21 +1119,19 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                    using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                    // get all addresses
+                    var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+
+                    // check row count
+                    Assert.Equal(serverAddresses.Count, clientAddresses.Count);
+
+                    foreach (var clientAddress in clientAddresses)
                     {
-                        // get all addresses
-                        var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+                        var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
 
-                        // check row count
-                        Assert.Equal(serverAddresses.Count, clientAddresses.Count);
-
-                        foreach (var clientAddress in clientAddresses)
-                        {
-                            var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
-
-                            // check column value
-                            Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
-                        }
+                        // check column value
+                        Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
                     }
                 }
             }
@@ -1204,11 +1189,9 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row updated values
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
-                    Assert.Null(cliAddress.AddressLine2);
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                Assert.Null(cliAddress.AddressLine2);
             }
 
 
@@ -1235,11 +1218,9 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row updated values
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
-                    Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
             }
 
         }
@@ -1317,13 +1298,11 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check rows are create on client
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
-                    var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-                    Assert.Equal(1, finalAddressesCount);
-                    Assert.Equal(1, finalEmployeeAddressesCount);
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+                var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+                Assert.Equal(1, finalAddressesCount);
+                Assert.Equal(1, finalEmployeeAddressesCount);
 
 
             }
@@ -1355,13 +1334,11 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row deleted on client values
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
-                    var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-                    Assert.Equal(0, finalAddressesCount);
-                    Assert.Equal(0, finalEmployeeAddressesCount);
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
+                var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
+                Assert.Equal(0, finalAddressesCount);
+                Assert.Equal(0, finalEmployeeAddressesCount);
             }
         }
 
@@ -1586,16 +1563,14 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-                    ctx.Add(product);
-                    var priceList = new PriceList { PriceListId = Guid.NewGuid(), Description = HelperDatabase.GetRandomName() };
-                    ctx.Add(priceList);
-                    await ctx.SaveChangesAsync();
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Add(product);
+                var priceList = new PriceList { PriceListId = Guid.NewGuid(), Description = HelperDatabase.GetRandomName() };
+                ctx.Add(priceList);
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -1697,17 +1672,15 @@ namespace Dotmim.Sync.Tests
                 var priceListCount = await ctx.PricesList.AsNoTracking().CountAsync();
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                    {
-                        var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
-                        Assert.Equal(productRowCount, pCount);
+                    using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                    var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
+                    Assert.Equal(productRowCount, pCount);
 
-                        var pcCount = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
-                        Assert.Equal(productCategoryCount, pcCount);
+                    var pcCount = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
+                    Assert.Equal(productCategoryCount, pcCount);
 
-                        var plCount = await cliCtx.PricesList.AsNoTracking().CountAsync();
-                        Assert.Equal(priceListCount, plCount);
-                    }
+                    var plCount = await cliCtx.PricesList.AsNoTracking().CountAsync();
+                    Assert.Equal(priceListCount, plCount);
                 }
             }
         }
@@ -2105,14 +2078,12 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-                    ctx.Add(product);
-                    await ctx.SaveChangesAsync();
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Add(product);
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -2169,14 +2140,12 @@ namespace Dotmim.Sync.Tests
                 var productName = HelperDatabase.GetRandomName();
                 var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-                    ctx.Add(product);
-                    await ctx.SaveChangesAsync();
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Add(product);
+                await ctx.SaveChangesAsync();
             }
 
             // Sync all clients
@@ -2237,72 +2206,70 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Insert one employee, address, employeeaddress
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+
+                ctx.Database.OpenConnection();
+
+                // Insert an employee
+                var employee = new Employee
                 {
+                    EmployeeId = index,
+                    FirstName = "John",
+                    LastName = "Doe"
+                };
 
-                    ctx.Database.OpenConnection();
+                ctx.Add(employee);
 
-                    // Insert an employee
-                    var employee = new Employee
-                    {
-                        EmployeeId = index,
-                        FirstName = "John",
-                        LastName = "Doe"
-                    };
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
 
-                    ctx.Add(employee);
+                await ctx.SaveChangesAsync();
 
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
 
-                    await ctx.SaveChangesAsync();
+                // Insert a new address for employee 
+                var city = "Paris " + HelperDatabase.GetRandomName();
+                var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
+                var stateProvince = "Ile de France";
+                var countryRegion = "France";
+                var postalCode = "75001";
 
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+                var address = new Address
+                {
+                    AddressId = index,
+                    AddressLine1 = addressline1,
+                    City = city,
+                    StateProvince = stateProvince,
+                    CountryRegion = countryRegion,
+                    PostalCode = postalCode
 
-                    // Insert a new address for employee 
-                    var city = "Paris " + HelperDatabase.GetRandomName();
-                    var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
-                    var stateProvince = "Ile de France";
-                    var countryRegion = "France";
-                    var postalCode = "75001";
+                };
 
-                    var address = new Address
-                    {
-                        AddressId = index,
-                        AddressLine1 = addressline1,
-                        City = city,
-                        StateProvince = stateProvince,
-                        CountryRegion = countryRegion,
-                        PostalCode = postalCode
+                ctx.Add(address);
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
 
-                    };
+                await ctx.SaveChangesAsync();
 
-                    ctx.Add(address);
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
-
-                    await ctx.SaveChangesAsync();
-
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
 
 
-                    var employeeAddress = new EmployeeAddress
-                    {
-                        EmployeeId = employee.EmployeeId,
-                        AddressId = address.AddressId,
-                        AddressType = "CLIENT"
-                    };
+                var employeeAddress = new EmployeeAddress
+                {
+                    EmployeeId = employee.EmployeeId,
+                    AddressId = address.AddressId,
+                    AddressType = "CLIENT"
+                };
 
-                    ctx.EmployeeAddress.Add(employeeAddress);
-                    await ctx.SaveChangesAsync();
+                ctx.EmployeeAddress.Add(employeeAddress);
+                await ctx.SaveChangesAsync();
 
 
-                    ctx.Database.CloseConnection();
+                ctx.Database.CloseConnection();
 
-                    index++;
-                }
+                index++;
 
 
             }
@@ -2415,23 +2382,20 @@ namespace Dotmim.Sync.Tests
             }
             foreach (var client in Clients)
             {
-                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    // get all product categories
-                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
-                    Assert.Single(clientPC);
+                using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                // get all product categories
+                var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+                Assert.Single(clientPC);
 
-                    // get all employees
-                    var employees = await cliCtx.Employee.AsNoTracking().ToListAsync();
-                    Assert.Single(employees);
-                    // get all employees address
-                    var employeesAddresses = await cliCtx.EmployeeAddress.AsNoTracking().ToListAsync();
-                    Assert.Single(employeesAddresses);
-                    // get all addresses
-                    var addresses = await cliCtx.Address.AsNoTracking().ToListAsync();
-                    Assert.Single(addresses);
-
-                }
+                // get all employees
+                var employees = await cliCtx.Employee.AsNoTracking().ToListAsync();
+                Assert.Single(employees);
+                // get all employees address
+                var employeesAddresses = await cliCtx.EmployeeAddress.AsNoTracking().ToListAsync();
+                Assert.Single(employeesAddresses);
+                // get all addresses
+                var addresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+                Assert.Single(addresses);
             }
         }
 
@@ -2474,72 +2438,70 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Insert one employee, address, employeeaddress
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+
+                ctx.Database.OpenConnection();
+
+                // Insert an employee
+                var employee = new Employee
                 {
+                    EmployeeId = index,
+                    FirstName = "John",
+                    LastName = "Doe"
+                };
 
-                    ctx.Database.OpenConnection();
+                ctx.Add(employee);
 
-                    // Insert an employee
-                    var employee = new Employee
-                    {
-                        EmployeeId = index,
-                        FirstName = "John",
-                        LastName = "Doe"
-                    };
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
 
-                    ctx.Add(employee);
+                await ctx.SaveChangesAsync();
 
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
 
-                    await ctx.SaveChangesAsync();
+                // Insert a new address for employee 
+                var city = "Paris " + HelperDatabase.GetRandomName();
+                var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
+                var stateProvince = "Ile de France";
+                var countryRegion = "France";
+                var postalCode = "75001";
 
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+                var address = new Address
+                {
+                    AddressId = index,
+                    AddressLine1 = addressline1,
+                    City = city,
+                    StateProvince = stateProvince,
+                    CountryRegion = countryRegion,
+                    PostalCode = postalCode
 
-                    // Insert a new address for employee 
-                    var city = "Paris " + HelperDatabase.GetRandomName();
-                    var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
-                    var stateProvince = "Ile de France";
-                    var countryRegion = "France";
-                    var postalCode = "75001";
+                };
 
-                    var address = new Address
-                    {
-                        AddressId = index,
-                        AddressLine1 = addressline1,
-                        City = city,
-                        StateProvince = stateProvince,
-                        CountryRegion = countryRegion,
-                        PostalCode = postalCode
+                ctx.Add(address);
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
 
-                    };
+                await ctx.SaveChangesAsync();
 
-                    ctx.Add(address);
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
-
-                    await ctx.SaveChangesAsync();
-
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
 
 
-                    var employeeAddress = new EmployeeAddress
-                    {
-                        EmployeeId = employee.EmployeeId,
-                        AddressId = address.AddressId,
-                        AddressType = "CLIENT"
-                    };
+                var employeeAddress = new EmployeeAddress
+                {
+                    EmployeeId = employee.EmployeeId,
+                    AddressId = address.AddressId,
+                    AddressType = "CLIENT"
+                };
 
-                    ctx.EmployeeAddress.Add(employeeAddress);
-                    await ctx.SaveChangesAsync();
+                ctx.EmployeeAddress.Add(employeeAddress);
+                await ctx.SaveChangesAsync();
 
 
-                    ctx.Database.CloseConnection();
+                ctx.Database.CloseConnection();
 
-                    index++;
-                }
+                index++;
 
 
             }
@@ -2653,23 +2615,20 @@ namespace Dotmim.Sync.Tests
             }
             foreach (var client in Clients)
             {
-                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    // get all product categories
-                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
-                    Assert.Single(clientPC);
+                using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                // get all product categories
+                var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+                Assert.Single(clientPC);
 
-                    // get all employees
-                    var employees = await cliCtx.Employee.AsNoTracking().ToListAsync();
-                    Assert.Equal(2, employees.Count);
-                    // get all employees address
-                    var employeesAddresses = await cliCtx.EmployeeAddress.AsNoTracking().ToListAsync();
-                    Assert.Equal(2, employeesAddresses.Count);
-                    // get all addresses
-                    var addresses = await cliCtx.Address.AsNoTracking().ToListAsync();
-                    Assert.Equal(2, addresses.Count);
-
-                }
+                // get all employees
+                var employees = await cliCtx.Employee.AsNoTracking().ToListAsync();
+                Assert.Equal(2, employees.Count);
+                // get all employees address
+                var employeesAddresses = await cliCtx.EmployeeAddress.AsNoTracking().ToListAsync();
+                Assert.Equal(2, employeesAddresses.Count);
+                // get all addresses
+                var addresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+                Assert.Equal(2, addresses.Count);
             }
         }
 
@@ -2697,14 +2656,12 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Insert product category on each client
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var productCategoryId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-                    var productCategoryNameClient = HelperDatabase.GetRandomName("CLI_");
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var productCategoryId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                var productCategoryNameClient = HelperDatabase.GetRandomName("CLI_");
 
-                    ctx.Add(new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryNameClient });
-                    await ctx.SaveChangesAsync();
-                }
+                ctx.Add(new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryNameClient });
+                await ctx.SaveChangesAsync();
 
             }
 
@@ -2730,12 +2687,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Then delete all product category items
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    foreach (var pc in ctx.ProductCategory)
-                        ctx.ProductCategory.Remove(pc);
-                    await ctx.SaveChangesAsync();
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                foreach (var pc in ctx.ProductCategory)
+                    ctx.ProductCategory.Remove(pc);
+                await ctx.SaveChangesAsync();
             }
 
             var cpt = 0; // first client won't have any conflicts, but others will upload their deleted rows that are ALREADY deleted
@@ -2764,14 +2719,12 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
-                    using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                    {
-                        // get all product categories
-                        var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
+                    using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                    // get all product categories
+                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
 
-                        // check row count
-                        Assert.Equal(0, clientPC);
-                    }
+                    // check row count
+                    Assert.Equal(0, clientPC);
                 }
             }
         }
@@ -2871,15 +2824,11 @@ namespace Dotmim.Sync.Tests
                 // Create an encryptor to perform the stream transform.
                 var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
 
-                using (var csDecrypt = new CryptoStream(dsa.FileStream, decryptor, CryptoStreamMode.Read))
-                {
-                    using (var swDecrypt = new StreamReader(csDecrypt))
-                    {
-                        //Read all data to the ContainerSet
-                        var str = swDecrypt.ReadToEnd();
-                        dsa.Result = JsonConvert.DeserializeObject<ContainerSet>(str);
-                    }
-                }
+                using var csDecrypt = new CryptoStream(dsa.FileStream, decryptor, CryptoStreamMode.Read);
+                using var swDecrypt = new StreamReader(csDecrypt);
+                //Read all data to the ContainerSet
+                var str = swDecrypt.ReadToEnd();
+                dsa.Result = JsonConvert.DeserializeObject<ContainerSet>(str);
             });
 
 
@@ -2888,19 +2837,15 @@ namespace Dotmim.Sync.Tests
                 // Create an encryptor to perform the stream transform.
                 var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
 
-                using (var msEncrypt = new MemoryStream())
+                using var msEncrypt = new MemoryStream();
+                using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+                using (var swEncrypt = new StreamWriter(csEncrypt))
                 {
-                    using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (var swEncrypt = new StreamWriter(csEncrypt))
-                        {
-                            //Write all data to the stream.
-                            var strSet = JsonConvert.SerializeObject(ssa.Set);
-                            swEncrypt.Write(strSet);
-                        }
-                        ssa.Result = msEncrypt.ToArray();
-                    }
+                    //Write all data to the stream.
+                    var strSet = JsonConvert.SerializeObject(ssa.Set);
+                    swEncrypt.Write(strSet);
                 }
+                ssa.Result = msEncrypt.ToArray();
 
             });
 
@@ -3094,72 +3039,70 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Insert one employee, address, employeeaddress
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+
+                ctx.Database.OpenConnection();
+
+                // Insert an employee
+                var employee = new Employee
                 {
+                    EmployeeId = index,
+                    FirstName = "John",
+                    LastName = "Doe"
+                };
 
-                    ctx.Database.OpenConnection();
+                ctx.Add(employee);
 
-                    // Insert an employee
-                    var employee = new Employee
-                    {
-                        EmployeeId = index,
-                        FirstName = "John",
-                        LastName = "Doe"
-                    };
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
 
-                    ctx.Add(employee);
+                await ctx.SaveChangesAsync();
 
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee ON;");
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
 
-                    await ctx.SaveChangesAsync();
+                // Insert a new address for employee 
+                var city = "Paris " + HelperDatabase.GetRandomName();
+                var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
+                var stateProvince = "Ile de France";
+                var countryRegion = "France";
+                var postalCode = "75001";
 
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Employee OFF");
+                var address = new Address
+                {
+                    AddressId = index,
+                    AddressLine1 = addressline1,
+                    City = city,
+                    StateProvince = stateProvince,
+                    CountryRegion = countryRegion,
+                    PostalCode = postalCode
 
-                    // Insert a new address for employee 
-                    var city = "Paris " + HelperDatabase.GetRandomName();
-                    var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
-                    var stateProvince = "Ile de France";
-                    var countryRegion = "France";
-                    var postalCode = "75001";
+                };
 
-                    var address = new Address
-                    {
-                        AddressId = index,
-                        AddressLine1 = addressline1,
-                        City = city,
-                        StateProvince = stateProvince,
-                        CountryRegion = countryRegion,
-                        PostalCode = postalCode
+                ctx.Add(address);
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
 
-                    };
+                await ctx.SaveChangesAsync();
 
-                    ctx.Add(address);
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address ON;");
-
-                    await ctx.SaveChangesAsync();
-
-                    if (client.ProviderType == ProviderType.Sql)
-                        ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
+                if (client.ProviderType == ProviderType.Sql)
+                    ctx.Database.ExecuteSqlRaw("SET IDENTITY_INSERT Address OFF");
 
 
-                    var employeeAddress = new EmployeeAddress
-                    {
-                        EmployeeId = employee.EmployeeId,
-                        AddressId = address.AddressId,
-                        AddressType = "CLIENT"
-                    };
+                var employeeAddress = new EmployeeAddress
+                {
+                    EmployeeId = employee.EmployeeId,
+                    AddressId = address.AddressId,
+                    AddressType = "CLIENT"
+                };
 
-                    ctx.EmployeeAddress.Add(employeeAddress);
-                    await ctx.SaveChangesAsync();
+                ctx.EmployeeAddress.Add(employeeAddress);
+                await ctx.SaveChangesAsync();
 
 
-                    ctx.Database.CloseConnection();
+                ctx.Database.CloseConnection();
 
-                    index++;
-                }
+                index++;
 
 
             }
@@ -3287,25 +3230,22 @@ namespace Dotmim.Sync.Tests
             }
             foreach (var client in Clients)
             {
-                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    // get all product categories
-                    var clientPC = cliCtx.ProductCategory.AsNoTracking().Count();
-                    Assert.Equal(productCategoriesCount + 1, clientPC);
+                using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                // get all product categories
+                var clientPC = cliCtx.ProductCategory.AsNoTracking().Count();
+                Assert.Equal(productCategoriesCount + 1, clientPC);
 
-                    // get all employees
-                    var employees = cliCtx.Employee.AsNoTracking().Count();
-                    Assert.Equal(employeesCount + 1, employees);
+                // get all employees
+                var employees = cliCtx.Employee.AsNoTracking().Count();
+                Assert.Equal(employeesCount + 1, employees);
 
-                    // get all employees address
-                    var employeesAddresses = cliCtx.EmployeeAddress.AsNoTracking().Count();
-                    Assert.Equal(employeesAddressesCount + 1, employeesAddresses);
+                // get all employees address
+                var employeesAddresses = cliCtx.EmployeeAddress.AsNoTracking().Count();
+                Assert.Equal(employeesAddressesCount + 1, employeesAddresses);
 
-                    // get all addresses
-                    var addresses = cliCtx.Address.AsNoTracking().Count();
-                    Assert.Equal(addressesCount + 1, addresses);
-
-                }
+                // get all addresses
+                var addresses = cliCtx.Address.AsNoTracking().Count();
+                Assert.Equal(addressesCount + 1, addresses);
             }
         }
 
