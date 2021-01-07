@@ -10,7 +10,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -386,21 +386,19 @@ namespace Dotmim.Sync.Tests
                     Freight = 22.0087M,
                     TotalDue = 6530.35M + 70.4279M + 22.0087M
                 };
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var productId = ctx.Product.First().ProductId;
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var productId = ctx.Product.First().ProductId;
 
-                    var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
-                    var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
-                    var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+                var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+                var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+                var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
 
-                    soh.SalesOrderDetail.Add(sod1);
-                    soh.SalesOrderDetail.Add(sod2);
-                    soh.SalesOrderDetail.Add(sod3);
+                soh.SalesOrderDetail.Add(sod1);
+                soh.SalesOrderDetail.Add(sod2);
+                soh.SalesOrderDetail.Add(sod3);
 
-                    ctx.SalesOrderHeader.Add(soh);
-                    await ctx.SaveChangesAsync();
-                }
+                ctx.SalesOrderHeader.Add(soh);
+                await ctx.SaveChangesAsync();
 
             }
 
@@ -490,22 +488,20 @@ namespace Dotmim.Sync.Tests
                     TotalDue = 6530.35M + 70.4279M + 22.0087M
                 };
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
 
-                    var productId = ctx.Product.First().ProductId;
+                var productId = ctx.Product.First().ProductId;
 
-                    var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
-                    var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
-                    var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+                var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+                var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+                var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
 
-                    soh.SalesOrderDetail.Add(sod1);
-                    soh.SalesOrderDetail.Add(sod2);
-                    soh.SalesOrderDetail.Add(sod3);
+                soh.SalesOrderDetail.Add(sod1);
+                soh.SalesOrderDetail.Add(sod2);
+                soh.SalesOrderDetail.Add(sod3);
 
-                    ctx.SalesOrderHeader.Add(soh);
-                    await ctx.SaveChangesAsync();
-                }
+                ctx.SalesOrderHeader.Add(soh);
+                await ctx.SaveChangesAsync();
 
             }
             foreach (var client in Clients)
@@ -538,13 +534,10 @@ namespace Dotmim.Sync.Tests
             // Now sync again to be sure all clients have all lines
             foreach (var client in Clients)
             {
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    ctx.SalesOrderDetail.RemoveRange(ctx.SalesOrderDetail.ToList());
-                    ctx.SalesOrderHeader.RemoveRange(ctx.SalesOrderHeader.ToList());
-                    await ctx.SaveChangesAsync();
-
-                }
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                ctx.SalesOrderDetail.RemoveRange(ctx.SalesOrderDetail.ToList());
+                ctx.SalesOrderHeader.RemoveRange(ctx.SalesOrderHeader.ToList());
+                await ctx.SaveChangesAsync();
             }
 
             // now sync

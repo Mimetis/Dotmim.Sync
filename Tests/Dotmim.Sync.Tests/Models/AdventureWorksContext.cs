@@ -2,7 +2,7 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -55,9 +55,9 @@ namespace Dotmim.Sync.Tests.Models
                         break;
                     case ProviderType.MySql:
                         if (this.Connection != null)
-                            optionsBuilder.UseMySql(this.Connection, ServerVersion.AutoDetect(this.Connection as MySqlConnection), options => options.EnableRetryOnFailure(5));
+                            optionsBuilder.UseMySql(this.Connection, options => options.EnableRetryOnFailure(5));
                         else
-                            optionsBuilder.UseMySql(this.ConnectionString, ServerVersion.FromString("8.0.21"), options => options.EnableRetryOnFailure(5));
+                            optionsBuilder.UseMySql(this.ConnectionString,  options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.Sqlite:
                         if (this.Connection != null)

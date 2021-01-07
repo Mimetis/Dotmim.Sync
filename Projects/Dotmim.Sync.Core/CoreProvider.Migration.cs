@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Migrate from a setup to another setup
         /// </summary>
-        public virtual async Task<SyncContext> MigrationAsync(SyncContext context, SyncSet schema, SyncSetup oldSetup, SyncSetup newSetup, bool includeTable,
+        public virtual Task<SyncContext> MigrationAsync(SyncContext context, SyncSet schema, SyncSetup oldSetup, SyncSetup newSetup, bool includeTable,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -116,7 +116,7 @@ namespace Dotmim.Sync
                     //await tableBuilder.CreateTriggerAsync(DbTriggerType.Update, true, connection, transaction);
                 }
             }
-            return context;
+            return Task.FromResult(context);
         }
 
 

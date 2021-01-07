@@ -1,7 +1,7 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.MySql.Builders;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -240,7 +240,7 @@ namespace Dotmim.Sync.MySql
             {
                 var typeName = c["data_type"].ToString();
                 var name = c["column_name"].ToString();
-                var isUnsigned = c["column_type"] != DBNull.Value ? ((string)c["column_type"]).Contains("unsigned") : false;
+                var isUnsigned = c["column_type"] != DBNull.Value && ((string)c["column_type"]).Contains("unsigned");
 
                 var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
 
@@ -256,7 +256,7 @@ namespace Dotmim.Sync.MySql
                 sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
                 sColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
                 sColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
-                sColumn.AllowDBNull = (string)c["is_nullable"] == "NO" ? false : true;
+                sColumn.AllowDBNull = (string)c["is_nullable"] != "NO";
                 sColumn.DefaultValue = c["COLUMN_DEFAULT"].ToString();
 
                 var extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
@@ -269,15 +269,16 @@ namespace Dotmim.Sync.MySql
                 }
 
                 sColumn.IsUnsigned = isUnsigned;
-                sColumn.IsUnique = c["column_key"] != DBNull.Value ? ((string)c["column_key"]).ToLowerInvariant().Contains("uni") : false;
+                sColumn.IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).ToLowerInvariant().Contains("uni");
 
                 columns.Add(sColumn);
 
             }
-            return columns.ToArray();
-
             if (!alreadyOpened)
                 connection.Close();
+
+            return columns.ToArray();
+
         }
 
         public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)

@@ -30,7 +30,7 @@ using Dotmim.Sync.MySql;
 using System.Linq;
 using System.Transactions;
 using System.Threading;
-using MySqlConnector;
+using MySql.Data.MySqlClient;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 
@@ -292,38 +292,37 @@ internal class Program
             await webServerManager.HandleRequestAsync(context, default, progress);
         });
 
-        using (var server = new KestrellTestServer(configureServices))
+        using var server = new KestrellTestServer(configureServices);
+        
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            do
             {
-                do
+                Console.Clear();
+                Console.WriteLine("Web sync start");
+                try
                 {
-                    Console.Clear();
-                    Console.WriteLine("Web sync start");
-                    try
-                    {
-                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri));
-                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
-                        var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                        Console.WriteLine(s);
-                    }
-                    catch (SyncException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                    }
+                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri));
+                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                    var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
 
 
-                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
-            });
-            await server.Run(serverHandler, clientHandler);
-        }
+        });
+        await server.Run(serverHandler, clientHandler);
 
     }
 
@@ -531,20 +530,18 @@ internal class Program
                         ",[F3] text NULL COLLATE NOCASE" +
                         ", PRIMARY KEY([ID]))";
 
-            using (SqliteConnection dBase = new SqliteConnection(builder.ConnectionString))
+            using SqliteConnection dBase = new SqliteConnection(builder.ConnectionString);
+            try
             {
-                try
-                {
-                    dBase.Open();
-                    SqliteCommand cmd = new SqliteCommand(sql, dBase);
-                    cmd.ExecuteNonQuery();
-                    dBase.Close();
-                    Console.WriteLine("Database created: " + fileName);
-                }
-                catch (SqliteException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
+                dBase.Open();
+                SqliteCommand cmd = new SqliteCommand(sql, dBase);
+                cmd.ExecuteNonQuery();
+                dBase.Close();
+                Console.WriteLine("Database created: " + fileName);
+            }
+            catch (SqliteException ex)
+            {
+                Console.WriteLine(ex.Message);
             }
         }
 
@@ -561,22 +558,20 @@ internal class Program
 
         string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
 
-        using (var mySqlConnection = new MySqlConnection(sysBuilder.ConnectionString))
+        using var mySqlConnection = new MySqlConnection(sysBuilder.ConnectionString);
+        try
         {
-            try
-            {
-                var cmd = new MySqlCommand(sqlDB, mySqlConnection);
+            var cmd = new MySqlCommand(sqlDB, mySqlConnection);
 
-                mySqlConnection.Open();
-                cmd.ExecuteNonQuery();
-                mySqlConnection.Close();
+            mySqlConnection.Open();
+            cmd.ExecuteNonQuery();
+            mySqlConnection.Close();
 
-                Console.WriteLine("Database created: " + databaseName);
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            Console.WriteLine("Database created: " + databaseName);
+        }
+        catch (SqliteException ex)
+        {
+            Console.WriteLine(ex.Message);
         }
     }
     private static void CreateMySqlTable(string databaseName, string tableName)
@@ -597,22 +592,20 @@ internal class Program
             ",`F3` longtext NULL" +
             ", PRIMARY KEY(`ID`))";
 
-        using (var mySqlConnection = new MySqlConnection(builder.ConnectionString))
+        using var mySqlConnection = new MySqlConnection(builder.ConnectionString);
+        try
         {
-            try
-            {
-                var cmd = new MySqlCommand(sql, mySqlConnection);
+            var cmd = new MySqlCommand(sql, mySqlConnection);
 
-                mySqlConnection.Open();
-                cmd.ExecuteNonQuery();
-                mySqlConnection.Close();
+            mySqlConnection.Open();
+            cmd.ExecuteNonQuery();
+            mySqlConnection.Close();
 
-                Console.WriteLine("Table created.");
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            Console.WriteLine("Table created.");
+        }
+        catch (SqliteException ex)
+        {
+            Console.WriteLine(ex.Message);
         }
 
     }
@@ -629,23 +622,21 @@ internal class Program
 
         string sql = $"INSERT INTO `{tableName}` (ID,F1,F2,F3) VALUES (@ID, 2, '2st2tem', '1111111')";
 
-        using (MySqlConnection dBase = new MySqlConnection(builder.ConnectionString))
+        using MySqlConnection dBase = new MySqlConnection(builder.ConnectionString);
+        try
         {
-            try
-            {
-                MySqlCommand cmd = new MySqlCommand(sql, dBase);
-                var parameter = new MySqlParameter("@ID", Guid.NewGuid());
-                cmd.Parameters.Add(parameter);
+            MySqlCommand cmd = new MySqlCommand(sql, dBase);
+            var parameter = new MySqlParameter("@ID", Guid.NewGuid());
+            cmd.Parameters.Add(parameter);
 
-                dBase.Open();
-                cmd.ExecuteNonQuery();
-                dBase.Close();
-                Console.WriteLine("Record added into table " + tableName);
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            dBase.Open();
+            cmd.ExecuteNonQuery();
+            dBase.Close();
+            Console.WriteLine("Record added into table " + tableName);
+        }
+        catch (SqliteException ex)
+        {
+            Console.WriteLine(ex.Message);
         }
     }
     private static void AddSqliteRecord(string fileName, string tableName)
@@ -656,24 +647,22 @@ internal class Program
 
         string sql = $"INSERT INTO [{tableName}] (ID,F1,F2,F3) VALUES ( @ID, 1, '1stItem', '1111111')";
 
-        using (SqliteConnection dBase = new SqliteConnection(builder.ConnectionString))
+        using SqliteConnection dBase = new SqliteConnection(builder.ConnectionString);
+        try
         {
-            try
-            {
-                SqliteCommand cmd = new SqliteCommand(sql, dBase);
-                var parameter = new SqliteParameter("@ID", Guid.NewGuid());
-                cmd.Parameters.Add(parameter);
+            SqliteCommand cmd = new SqliteCommand(sql, dBase);
+            var parameter = new SqliteParameter("@ID", Guid.NewGuid());
+            cmd.Parameters.Add(parameter);
 
 
-                dBase.Open();
-                cmd.ExecuteNonQuery();
-                dBase.Close();
-                Console.WriteLine("Record added into table " + tableName);
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            dBase.Open();
+            cmd.ExecuteNonQuery();
+            dBase.Close();
+            Console.WriteLine("Record added into table " + tableName);
+        }
+        catch (SqliteException ex)
+        {
+            Console.WriteLine(ex.Message);
         }
     }
 
@@ -817,20 +806,17 @@ internal class Program
 
         try
         {
-            using (var command = new NpgsqlCommand("fn_upsert_scope_info_json", connection))
-            {
-                command.Parameters.Add(p);
-                command.CommandType = CommandType.StoredProcedure;
+            using var command = new NpgsqlCommand("fn_upsert_scope_info_json", connection);
+            command.Parameters.Add(p);
+            command.CommandType = CommandType.StoredProcedure;
 
-                await connection.OpenAsync().ConfigureAwait(false);
+            await connection.OpenAsync().ConfigureAwait(false);
 
-                await command.ExecuteNonQueryAsync();
-
+            await command.ExecuteNonQueryAsync();
 
 
-                connection.Close();
 
-            }
+            connection.Close();
         }
         catch (Exception)
         {
@@ -857,24 +843,21 @@ internal class Program
 
         var connection = new NpgsqlConnection(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
 
-        using (var command = new NpgsqlCommand(commandText, connection))
+        using var command = new NpgsqlCommand(commandText, connection);
+        command.Parameters.AddWithValue("@tableName", tableNameString);
+        command.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+        await connection.OpenAsync().ConfigureAwait(false);
+
+        using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
         {
-            command.Parameters.AddWithValue("@tableName", tableNameString);
-            command.Parameters.AddWithValue("@schemaName", schemaNameString);
-
-            await connection.OpenAsync().ConfigureAwait(false);
-
-            using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    Console.WriteLine(reader["table_schema"].ToString() + "." + reader["table_name"].ToString());
-                }
+                Console.WriteLine(reader["table_schema"].ToString() + "." + reader["table_name"].ToString());
             }
-
-            connection.Close();
-
         }
+
+        connection.Close();
     }
 
 
@@ -1154,35 +1137,33 @@ internal class Program
         var commandText = "Update ProductCategory Set Name=@Name Where ProductCategoryId=@Id; " +
                           "Select * from ProductCategory Where ProductCategoryId=@Id;";
 
-        using (DbCommand command = clientConnection.CreateCommand())
+        using DbCommand command = clientConnection.CreateCommand();
+        command.Connection = clientConnection;
+        command.CommandText = commandText;
+        var p = command.CreateParameter();
+        p.ParameterName = "@Id";
+        p.DbType = DbType.String;
+        p.Value = "FTNLBJ";
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.ParameterName = "@Name";
+        p.DbType = DbType.String;
+        p.Value = "Awesome Bike";
+        command.Parameters.Add(p);
+
+        clientConnection.Open();
+
+        using (var reader = command.ExecuteReader())
         {
-            command.Connection = clientConnection;
-            command.CommandText = commandText;
-            var p = command.CreateParameter();
-            p.ParameterName = "@Id";
-            p.DbType = DbType.String;
-            p.Value = "FTNLBJ";
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@Name";
-            p.DbType = DbType.String;
-            p.Value = "Awesome Bike";
-            command.Parameters.Add(p);
-
-            clientConnection.Open();
-
-            using (var reader = command.ExecuteReader())
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    var name = reader["Name"];
-                    Console.WriteLine(name);
-                }
+                var name = reader["Name"];
+                Console.WriteLine(name);
             }
-
-            clientConnection.Close();
         }
+
+        clientConnection.Close();
 
     }
     private static async Task TestDeleteWithoutBulkAsync()
@@ -1246,70 +1227,62 @@ internal class Program
 
     private static async Task AddNewColumnToAddressAsync(DbConnection c)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "ALTER TABLE dbo.Address ADD CreatedDate datetime NULL;";
-            c.Open();
-            await command.ExecuteNonQueryAsync();
-            c.Close();
-        }
+        using var command = c.CreateCommand();
+        command.CommandText = "ALTER TABLE dbo.Address ADD CreatedDate datetime NULL;";
+        c.Open();
+        await command.ExecuteNonQueryAsync();
+        c.Close();
     }
     private static int InsertOneProductCategoryId(IDbConnection c, string updatedName)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
-            var p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.Value = updatedName;
-            p.ParameterName = "@Name";
-            command.Parameters.Add(p);
+        using var command = c.CreateCommand();
+        command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
+        var p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.Value = updatedName;
+        p.ParameterName = "@Name";
+        command.Parameters.Add(p);
 
-            c.Open();
-            var id = command.ExecuteScalar();
-            c.Close();
+        c.Open();
+        var id = command.ExecuteScalar();
+        c.Close();
 
-            return Convert.ToInt32(id);
-        }
+        return Convert.ToInt32(id);
     }
     private static void UpdateOneProductCategoryId(IDbConnection c, int productCategoryId, string updatedName)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "Update ProductCategory Set Name = @Name Where ProductCategoryId = @Id";
-            var p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.Value = updatedName;
-            p.ParameterName = "@Name";
-            command.Parameters.Add(p);
+        using var command = c.CreateCommand();
+        command.CommandText = "Update ProductCategory Set Name = @Name Where ProductCategoryId = @Id";
+        var p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.Value = updatedName;
+        p.ParameterName = "@Name";
+        command.Parameters.Add(p);
 
-            p = command.CreateParameter();
-            p.DbType = DbType.Int32;
-            p.Value = productCategoryId;
-            p.ParameterName = "@Id";
-            command.Parameters.Add(p);
+        p = command.CreateParameter();
+        p.DbType = DbType.Int32;
+        p.Value = productCategoryId;
+        p.ParameterName = "@Id";
+        command.Parameters.Add(p);
 
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-        }
+        c.Open();
+        command.ExecuteNonQuery();
+        c.Close();
     }
     private static void DeleteOneLine(DbConnection c, int productCategoryId)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "Delete from ProductCategory Where ProductCategoryId = @Id";
+        using var command = c.CreateCommand();
+        command.CommandText = "Delete from ProductCategory Where ProductCategoryId = @Id";
 
-            var p = command.CreateParameter();
-            p.DbType = DbType.Int32;
-            p.Value = productCategoryId;
-            p.ParameterName = "@Id";
-            command.Parameters.Add(p);
+        var p = command.CreateParameter();
+        p.DbType = DbType.Int32;
+        p.Value = productCategoryId;
+        p.ParameterName = "@Id";
+        command.Parameters.Add(p);
 
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-        }
+        c.Open();
+        command.ExecuteNonQuery();
+        c.Close();
     }
 
     private static async Task CreateSnapshotAsync()
@@ -1818,16 +1791,15 @@ internal class Program
             await webServerManager.HandleRequestAsync(context, default, progress);
         });
 
-        using (var server = new KestrellTestServer(configureServices))
+        using var server = new KestrellTestServer(configureServices);
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            do
             {
-                do
+                Console.Clear();
+                Console.WriteLine("Web sync start");
+                try
                 {
-                    Console.Clear();
-                    Console.WriteLine("Web sync start");
-                    try
-                    {
                         //var localSetup = new SyncSetup()
                         //{
                         //    StoredProceduresPrefix = "cli",
@@ -1838,27 +1810,26 @@ internal class Program
                         //    TriggersSuffix = ""
                         //};
                         var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, "dd");
-                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
-                        var s = await agent.SynchronizeAsync(progress);
-                        Console.WriteLine(s);
-                    }
-                    catch (SyncException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                    }
+                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                    var s = await agent.SynchronizeAsync(progress);
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
 
 
-                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
-            });
-            await server.Run(serverHandler, clientHandler);
-        }
+        });
+        await server.Run(serverHandler, clientHandler);
 
     }
 
