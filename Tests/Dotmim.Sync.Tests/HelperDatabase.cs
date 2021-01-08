@@ -283,8 +283,9 @@ namespace Dotmim.Sync.Tests
             switch (providerType)
             {
                 case ProviderType.MySql:
-                case ProviderType.MariaDB:
                     return ExecuteMySqlScriptAsync(dbName, script);
+                case ProviderType.MariaDB:
+                    return ExecuteMariaDBScriptAsync(dbName, script);
                 case ProviderType.Sqlite:
                     return ExecuteSqliteScriptAsync(dbName, script);
                 case ProviderType.Sql:
@@ -293,6 +294,16 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        private static async Task ExecuteMariaDBScriptAsync(string dbName, string script)
+        {
+            using var connection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString(dbName));
+            connection.Open();
+
+            using (var cmdDb = new MySqlCommand(script, connection))
+                await cmdDb.ExecuteNonQueryAsync();
+
+            connection.Close();
+        }
         private static async Task ExecuteMySqlScriptAsync(string dbName, string script)
         {
             using var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName));
