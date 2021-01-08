@@ -43,28 +43,6 @@ namespace Dotmim.Sync.Tests
         {
         }
 
-        /// <summary>
-        /// Drop all databases used for the tests
-        /// </summary>
-        public void Dispose()
-        {
-            //HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
-
-            //foreach (var client in Clients)
-            //{
-            //    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
-            //}
-
-            this.kestrell.Dispose();
-
-            this.stopwatch.Stop();
-
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-            Debug.WriteLine(str);
-
-        }
-
         [Fact, TestPriority(1)]
         public virtual async Task SchemaIsCreated()
         {
@@ -849,16 +827,8 @@ namespace Dotmim.Sync.Tests
                 // Just before sending changes, get changes sent
                 webClientOrchestrator.OnSendingChanges(async sra =>
                 {
-                    var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
-                    var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
-
-                    using (var ms = new MemoryStream(sra.Content))
-                    {
-                        var o = await serializer.DeserializeAsync(ms);
-
-                        // check we have rows
-                        Assert.True(o.Changes.HasRows);
-                    }
+                    // check we have rows
+                    Assert.True(sra.Request.Changes.HasRows);
                 });
 
 
@@ -1342,6 +1312,38 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
 
             }
+        }
+
+        [Fact, TestPriority(28)]
+        public async Task WithBatchingEnabled_WhenSessionIsLostDuringApplyChanges_ChangesAreNotLost()
+        {
+            // Arrange
+            var options = new SyncOptions { BatchSize = 100 };
+
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
 
             // insert 1000 new products so batching is used
             var rowsToSend = 1000;
@@ -1350,7 +1352,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 var products = Enumerable.Range(1, rowsToSend).Select(i =>
-                    new Product {ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{client.ProviderType}"});
+                    new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{client.ProviderType}" });
 
                 using (var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
@@ -1416,7 +1418,7 @@ namespace Dotmim.Sync.Tests
                 var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
 
                 var s2 = await agent2.SynchronizeAsync();
-                
+
                 Assert.Equal(rowsToSend, s2.TotalChangesUploaded);
                 Assert.Equal(rowsToSend * clientCount, s2.TotalChangesDownloaded);
                 Assert.Equal(0, s2.TotalResolvedConflicts);
