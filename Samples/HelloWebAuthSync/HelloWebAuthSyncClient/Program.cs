@@ -38,7 +38,7 @@ namespace HelloWebSyncClient
             // Getting a JWT token
             // This sample is NOT SECURE at all
             // You should get a Jwt Token from an identity provider like Azure, Google, AWS or other.
-            var token = GenerateJwtToken("spertus@microsoft.com", "1");
+            var token = GenerateJwtToken("spertus@microsoft.com", "SPERTUS01");
             HttpClient httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 

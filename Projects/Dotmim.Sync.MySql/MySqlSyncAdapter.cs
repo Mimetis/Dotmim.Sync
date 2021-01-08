@@ -335,7 +335,7 @@ namespace Dotmim.Sync.MySql
                         throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
                     // Get column name and type
-                    var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
 #if MARIADB
                     var sqlDbType = (SqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
