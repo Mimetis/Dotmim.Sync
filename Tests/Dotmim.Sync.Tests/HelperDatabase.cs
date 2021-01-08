@@ -59,6 +59,9 @@ namespace Dotmim.Sync.Tests
                 case ProviderType.MySql:
                     con = Setup.GetMySqlDatabaseConnectionString(dbName);
                     break;
+                case ProviderType.MariaDB:
+                    con = Setup.GetMariaDBDatabaseConnectionString(dbName);
+                    break;
                 case ProviderType.Sqlite:
                     con = GetSqliteDatabaseConnectionString(dbName);
                     break;
@@ -79,6 +82,8 @@ namespace Dotmim.Sync.Tests
                     return CreateSqlServerDatabaseAsync(dbName, recreateDb);
                 case ProviderType.MySql:
                     return CreateMySqlDatabaseAsync(dbName, recreateDb);
+                case ProviderType.MariaDB:
+                    return CreateMariaDBDatabaseAsync(dbName, recreateDb);
                 case ProviderType.Sqlite:
                     return Task.CompletedTask;
             }
@@ -145,6 +150,37 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
+        /// Create a new MySql Server database
+        /// </summary>
+        private static async Task CreateMariaDBDatabaseAsync(string dbName, bool recreateDb = true)
+        {
+            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
+            {
+                Console.WriteLine($"Creating MariaDB database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                return Task.CompletedTask;
+            });
+
+            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+
+            await policy.ExecuteAsync(async () =>
+            {
+                using var sysConnection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString("information_schema"));
+                sysConnection.Open();
+
+                if (recreateDb)
+                {
+                    using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    await cmdDrop.ExecuteNonQueryAsync();
+                }
+
+                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                    cmdDb.ExecuteNonQuery();
+
+                sysConnection.Close();
+            });
+        }
+
+        /// <summary>
         /// Drop a database, depending the Provider type
         /// </summary>
         public static void DropDatabase(ProviderType providerType, string dbName)
@@ -156,6 +192,9 @@ namespace Dotmim.Sync.Tests
                     break;
                 case ProviderType.MySql:
                     DropMySqlDatabase(dbName);
+                    break;
+                case ProviderType.MariaDB:
+                    DropMariaDBDatabase(dbName);
                     break;
                 case ProviderType.Sqlite:
                     DropSqliteDatabase(dbName);
@@ -169,6 +208,21 @@ namespace Dotmim.Sync.Tests
         private static void DropMySqlDatabase(string dbName)
         {
             using var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema"));
+            sysConnection.Open();
+
+            using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
+                cmdDb.ExecuteNonQuery();
+
+            sysConnection.Close();
+        }
+
+
+        /// <summary>
+        /// Drop a MariaDB database
+        /// </summary>
+        private static void DropMariaDBDatabase(string dbName)
+        {
+            using var sysConnection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString("information_schema"));
             sysConnection.Open();
 
             using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
@@ -229,6 +283,7 @@ namespace Dotmim.Sync.Tests
             switch (providerType)
             {
                 case ProviderType.MySql:
+                case ProviderType.MariaDB:
                     return ExecuteMySqlScriptAsync(dbName, script);
                 case ProviderType.Sqlite:
                     return ExecuteSqliteScriptAsync(dbName, script);

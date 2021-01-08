@@ -32,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+    <ProjectReference Include="..\..\Projects\Dotmim.Sync.MariaDB\Dotmim.Sync.MariaDB.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
     <ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer.ChangeTracking\Dotmim.Sync.SqlServer.ChangeTracking.csproj" />

@@ -70,6 +70,27 @@ namespace Dotmim.Sync.Tests
             return cn;
         }
 
+
+        /// <summary>
+        /// Returns the database connection string for MySql
+        /// </summary>
+        internal static string GetMariaDBDatabaseConnectionString(string dbName)
+        {
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MariaDBConnection"], dbName);
+
+            var builder = new MySqlConnectionStringBuilder(cstring);
+
+            if (IsOnAzureDev)
+            {
+                builder.Port = 3308;
+                builder.UserID = "root";
+                builder.Password = "Password12!";
+            }
+
+            var cn = builder.ToString();
+            return cn;
+        }
+
         /// <summary>
         /// Gets if the tests are running on AppVeyor
         /// </summary>
