@@ -1961,7 +1961,7 @@ namespace Dotmim.Sync.Tests
                     if (client.ProviderType == ProviderType.Sqlite)
                         return;
 
-                    if (client.ProviderType == ProviderType.MySql)
+                    if (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
                     {
                         var cmd = tca.Connection.CreateCommand();
                         cmd.CommandText = "SET FOREIGN_KEY_CHECKS = 0;";
@@ -1994,7 +1994,7 @@ namespace Dotmim.Sync.Tests
                         return;
 
 
-                    if (client.ProviderType == ProviderType.MySql)
+                    if (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
                     {
                         var cmd = tca.Connection.CreateCommand();
                         cmd.CommandText = "SET FOREIGN_KEY_CHECKS = 1;";
