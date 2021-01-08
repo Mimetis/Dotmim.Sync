@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB, ProviderType.Sqlite};
+            { ProviderType.MariaDB, ProviderType.Sql, ProviderType.Sqlite};
 
 
         public override ProviderType ServerType => ProviderType.MariaDB;
