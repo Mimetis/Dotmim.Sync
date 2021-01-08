@@ -2881,7 +2881,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryName = HelperDatabase.GetRandomName();
                 var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                     ctx.Add(pc);
@@ -2946,7 +2946,7 @@ namespace Dotmim.Sync.Tests
                 var productCategoryName = HelperDatabase.GetRandomName();
                 var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
-                using (var ctx = new AdventureWorksContext(client))
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
                     var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                     ctx.Add(pc);
