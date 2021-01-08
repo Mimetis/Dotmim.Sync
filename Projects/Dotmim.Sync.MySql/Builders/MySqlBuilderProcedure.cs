@@ -47,7 +47,7 @@ namespace Dotmim.Sync.MySql
         {
             var mySqlDbMetadata = new MySqlDbMetadata();
 
-            var parameterName = ParserName.Parse(column).Unquoted().Normalized().ToString();
+            var parameterName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
 
             var sqlParameter = new MySqlParameter
             {
@@ -119,7 +119,6 @@ namespace Dotmim.Sync.MySql
         private string CreateProcedureCommandText(MySqlCommand cmd, string procName)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"drop procedure if exists {procName};");
             stringBuilder.Append("create procedure ");
             stringBuilder.Append(procName);
             stringBuilder.Append(" (");
@@ -190,14 +189,14 @@ namespace Dotmim.Sync.MySql
 
             var quotedProcedureName = this.mySqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
 
-            var procedureName = ParserName.Parse(quotedProcedureName).ToString();
+            var procedureName = ParserName.Parse(quotedProcedureName, "`").ToString();
 
             var command = connection.CreateCommand();
 
             command.CommandText = @"select count(*) from information_schema.ROUTINES
                                         where ROUTINE_TYPE = 'PROCEDURE'
                                         and ROUTINE_SCHEMA = schema()
-                                        and ROUTINE_NAME = @procName";
+                                        and ROUTINE_NAME = @procName limit 1";
 
 
             if (transaction != null)
@@ -217,7 +216,7 @@ namespace Dotmim.Sync.MySql
                 return Task.FromResult<DbCommand>(null);
 
             var quotedProcedureName = this.mySqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
-            var commandText = $"drop procedure if exists {quotedProcedureName}";
+            var commandText = $"drop procedure {quotedProcedureName}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;

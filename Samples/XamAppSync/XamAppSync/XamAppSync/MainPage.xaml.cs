@@ -23,8 +23,6 @@ namespace XamAppSync
         {
             try
             {
-
-
                 // Use this when you want to use sqlite on ios
                 SQLitePCL.Batteries_V2.Init();
 

@@ -221,7 +221,7 @@ namespace Dotmim.Sync.MySql
             var comma = "";
             foreach (var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
             {
-                var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
+                var pkeyColumnName = ParserName.Parse(pkeyColumn, "`").Quoted().ToString();
 
                 str1.Append($"{comma}{pkeyColumnName}");
                 str2.Append($"{comma}`base`.{pkeyColumnName}");
