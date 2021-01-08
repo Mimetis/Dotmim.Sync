@@ -50,16 +50,8 @@ namespace HelloWebSyncServer
                         options.SaveToken = true;
                         options.TokenValidationParameters = new TokenValidationParameters
                         {
-                            ValidateIssuer = true,
-                            ValidateAudience = true,
-                            ValidateLifetime = true,
-                            ValidateIssuerSigningKey = true,
-
                             ValidIssuer = "Dotmim.Sync.Bearer",
                             ValidAudience = "Dotmim.Sync.Bearer",
-
-                            ClockSkew = TimeSpan.Zero,
-
                             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SOME_RANDOM_KEY_DO_NOT_SHARE"))
                         };
 
@@ -88,6 +80,7 @@ namespace HelloWebSyncServer
             // [Required]: Add a SqlSyncProvider acting as the server hub.
             services.AddSyncServer<SqlSyncProvider>(connectionString, tables);
         }
+
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

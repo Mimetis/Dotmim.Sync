@@ -219,7 +219,7 @@ namespace Dotmim.Sync.MySql
             if (transaction != null)
                 command.Transaction = transaction;
 
-            command.CommandText = $"DROP TABLE IF EXISTS `{tableName}`";
+            command.CommandText = $"DROP TABLE `{tableName}`";
 
             return Task.FromResult(command);
         }

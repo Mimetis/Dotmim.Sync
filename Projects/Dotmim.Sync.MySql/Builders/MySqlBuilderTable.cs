@@ -61,7 +61,7 @@ namespace Dotmim.Sync.MySql
 
             stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {this.tableName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.tableName.Quoted().ToString()} (");
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.MySql
 
         public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"drop table if exists {this.tableName.Quoted().ToString()}";
+            var commandText = $"drop table {this.tableName.Quoted().ToString()}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;

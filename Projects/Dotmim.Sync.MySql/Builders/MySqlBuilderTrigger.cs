@@ -37,7 +37,6 @@ namespace Dotmim.Sync.MySql
             var triggerName = this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete);
             
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {triggerName};");
             createTrigger.AppendLine($"CREATE TRIGGER {triggerName} AFTER DELETE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine();
@@ -105,7 +104,6 @@ namespace Dotmim.Sync.MySql
             var insTriggerName = string.Format(this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert), tableName.Unquoted().Normalized().ToString());
 
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {insTriggerName}; ");
             createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine();
@@ -172,7 +170,6 @@ namespace Dotmim.Sync.MySql
         {
             var updTriggerName = string.Format(this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Update), tableName.Unquoted().Normalized().ToString());
             StringBuilder createTrigger = new StringBuilder();
-            createTrigger.AppendLine($"DROP TRIGGER IF EXISTS {updTriggerName};");
             createTrigger.AppendLine($"CREATE TRIGGER {updTriggerName} AFTER UPDATE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
             createTrigger.AppendLine();
@@ -288,7 +285,7 @@ namespace Dotmim.Sync.MySql
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = "select count(*) from information_schema.TRIGGERS where trigger_name = @triggerName AND trigger_schema = schema()";
+            command.CommandText = "select count(*) from information_schema.TRIGGERS where trigger_name = @triggerName AND trigger_schema = schema() limit 1";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@triggerName";

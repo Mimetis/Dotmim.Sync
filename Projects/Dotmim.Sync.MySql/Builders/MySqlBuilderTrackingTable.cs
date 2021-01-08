@@ -35,7 +35,7 @@ namespace Dotmim.Sync.MySql
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
@@ -88,7 +88,7 @@ namespace Dotmim.Sync.MySql
 
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"drop table if exists {trackingName.Quoted().ToString()}";
+            var commandText = $"drop table {trackingName.Quoted().ToString()}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
