@@ -501,10 +501,13 @@ namespace Dotmim.Sync.Web.Server
             // FIRST STEP : receive client changes
             // ------------------------------------------------------------
 
+            // ensure that the blientBatchInfo is still available in the session - it **must** only be null when the batchIndex is 0!!
+            if (sessionCache.ClientBatchInfo == null && httpMessage.BatchIndex != 0)
+                throw new SyncException("Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.");
+
             // We are receiving changes from client
             // BatchInfo containing all BatchPartInfo objects
             // Retrieve batchinfo instance if exists
-
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
                 sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
@@ -562,7 +565,7 @@ namespace Dotmim.Sync.Web.Server
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (sessionCache.ServerBatchInfo == null)
-                throw new ArgumentNullException("batchInfo stored in session can't be null if request more batch part info.");
+                throw new SyncException("Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.");
 
             return GetChangesResponseAsync(httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
