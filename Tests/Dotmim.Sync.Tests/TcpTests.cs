@@ -141,12 +141,12 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            //HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
-            //foreach (var client in Clients)
-            //{
-            //    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
-            //}
+            foreach (var client in Clients)
+            {
+                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+            }
 
             this.stopwatch.Stop();
 
