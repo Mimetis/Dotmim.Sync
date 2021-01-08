@@ -19,167 +19,20 @@ using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public abstract class HttpTests : IClassFixture<HelperProvider>, IDisposable
+    public abstract class HttpTests : HttpTestsBase
     {
-        private Stopwatch stopwatch;
-
-        /// <summary>
-        /// Gets the sync tables involved in the tests
-        /// </summary>
-        public abstract string[] Tables { get; }
-
-        /// <summary>
-        /// Gets the clients type we want to tests
-        /// </summary>
-        public abstract List<ProviderType> ClientsType { get; }
-
-        /// <summary>
-        /// Gets the server type we want to test
-        /// </summary>
-        public abstract ProviderType ServerType { get; }
-
-        /// <summary>
-        /// Gets if fiddler is in use
-        /// </summary>
-        public abstract bool UseFiddler { get; }
-
-        /// <summary>
-        /// Service Uri provided by kestrell when starts
-        /// </summary>
-        public string ServiceUri { get; private set; }
-
-        /// <summary>
-        /// Gets the Web Server Orchestrator used for the tests
-        /// </summary>
-        public WebServerOrchestrator WebServerOrchestrator { get; }
-
-        /// <summary>
-        /// Get the server rows count
-        /// </summary>
-        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t);
-
-        /// <summary>
-        /// Create a provider
-        /// </summary>
-        public abstract CoreProvider CreateProvider(ProviderType providerType, string dbName);
-
-        /// <summary>
-        /// Create database, seed it, with or without schema
-        /// </summary>
-        public abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
-            ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false);
-
-
-        /// <summary>
-        /// Create an empty database
-        /// </summary>
-        public abstract Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true);
-
-
-        // abstract fixture used to run the tests
-        protected readonly HelperProvider fixture;
-
-        // Current test running
-        private ITest test;
-        private KestrellTestServer kestrell;
-
-
-        /// <summary>
-        /// Gets the remote orchestrator and its database name
-        /// </summary>
-        public (string DatabaseName, ProviderType ProviderType, CoreProvider Provider) Server { get; private set; }
-
-        /// <summary>
-        /// Gets the dictionary of all local orchestrators with database name as key
-        /// </summary>
-        public List<(string DatabaseName, ProviderType ProviderType, CoreProvider Provider)> Clients { get; set; }
-
-        /// <summary>
-        /// Gets a bool indicating if we should generate the schema for tables
-        /// </summary>
-        public bool UseFallbackSchema => ServerType == ProviderType.Sql;
-
-        /// <summary>
-        /// ctor
-        /// </summary>
-        public HttpTests(HelperProvider fixture, ITestOutputHelper output)
+        protected HttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
-
-            // Getting the test running
-            var type = output.GetType();
-            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.test = (ITest)testMember.GetValue(output);
-
-            this.stopwatch = Stopwatch.StartNew();
-
-            this.fixture = fixture;
-
-            // Since we are creating a lot of databases
-            // each database will have its own pool
-            // Droping database will not clear the pool associated
-            // So clear the pools on every start of a new test
-            SqlConnection.ClearAllPools();
-            MySqlConnection.ClearAllPools();
-
-            // get the server provider (and db created) without seed
-            var serverDatabaseName = HelperDatabase.GetRandomName("http_sv_");
-
-            var serverProvider = this.CreateProvider(this.ServerType, serverDatabaseName);
-
-            // create web remote orchestrator
-            this.WebServerOrchestrator = new WebServerOrchestrator(serverProvider, new SyncOptions(), new WebServerOptions(), new SyncSetup());
-
-            // public property
-            this.Server = (serverDatabaseName, this.ServerType, serverProvider);
-
-            // Create a kestrell server
-            this.kestrell = new KestrellTestServer(this.WebServerOrchestrator, this.UseFiddler);
-
-            // start server and get uri
-            this.ServiceUri = this.kestrell.Run();
-
-            // Get all clients providers
-            Clients = new List<(string, ProviderType, CoreProvider)>(this.ClientsType.Count);
-
-            // Generate Client database
-            foreach (var clientType in this.ClientsType)
-            {
-                var dbCliName = HelperDatabase.GetRandomName("http_cli_");
-                var localProvider = this.CreateProvider(clientType, dbCliName);
-                this.Clients.Add((dbCliName, clientType, localProvider));
-            }
-
-        }
-
-        /// <summary>
-        /// Drop all databases used for the tests
-        /// </summary>
-        public void Dispose()
-        {
-            //HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
-
-            //foreach (var client in Clients)
-            //{
-            //    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
-            //}
-
-            this.kestrell.Dispose();
-
-            this.stopwatch.Stop();
-
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-            Debug.WriteLine(str);
-
         }
 
         [Fact, TestPriority(1)]
@@ -803,8 +656,7 @@ namespace Dotmim.Sync.Tests
 
 
         }
-
-
+        
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
@@ -843,8 +695,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal("HttpConverterNotConfiguredException", exception.TypeName);
             }
         }
-
-
+        
         /// <summary>
         /// Check web interceptors are working correctly
         /// </summary>
@@ -912,7 +763,6 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
         }
-
 
         /// <summary>
         /// Check web interceptors are working correctly
@@ -988,16 +838,8 @@ namespace Dotmim.Sync.Tests
                 // Just before sending changes, get changes sent
                 webClientOrchestrator.OnSendingChanges(async sra =>
                 {
-                    var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
-                    var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
-
-                    using (var ms = new MemoryStream(sra.Content))
-                    {
-                        var o = await serializer.DeserializeAsync(ms);
-
-                        // check we have rows
-                        Assert.True(o.Changes.HasRows);
-                    }
+                    // check we have rows
+                    Assert.True(sra.Request.Changes.HasRows);
                 });
 
 
@@ -1011,8 +853,7 @@ namespace Dotmim.Sync.Tests
             }
 
         }
-
-
+        
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
@@ -1081,7 +922,6 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
         }
-
 
 
         /// <summary>
@@ -1486,6 +1326,241 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
 
             }
+        }
+
+        [Fact, TestPriority(28)]
+        public async Task WithBatchingEnabled_WhenSessionIsLostDuringApplyChanges_ChangesAreNotLost()
+        {
+            // Arrange
+            var options = new SyncOptions {BatchSize = 100};
+
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // insert 1000 new products so batching is used
+            var rowsToSend = 1000;
+            var productNumber = "12345";
+
+            foreach (var client in Clients)
+            {
+                var products = Enumerable.Range(1, rowsToSend).Select(i =>
+                    new Product {ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{client.ProviderType}"});
+
+                using (var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    clientDbCtx.Product.AddRange(products);
+                    await clientDbCtx.SaveChangesAsync();
+                }
+            }
+
+            // for each client, fake that the sync session is interrupted
+            var clientCount = 0;
+            foreach (var client in Clients)
+            {
+                int batchIndex = 0;
+
+                var orch = new WebClientOrchestrator(this.ServiceUri);
+                var agent = new SyncAgent(client.Provider, orch, options);
+                // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
+                orch.OnSendingChanges(x =>
+                {
+                    if (batchIndex == 1)
+                    {
+                        var sessionId = x.Request.SyncContext.SessionId.ToString();
+                        if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
+                            Assert.True(false, "sessionid was wrong. please fix this test!!");
+                        // simulate a session loss (e.g. IIS application pool recycle)
+                        this.WebServerOrchestrator.Cache.Remove(sessionId);
+                    }
+
+                    batchIndex++;
+
+                });
+
+                SyncException exception = null;
+
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+
+                    // Query number of **actually** transmitted rows!
+                    Assert.Equal(rowsToSend, s.TotalChangesUploaded);
+                    Assert.Equal(0, s.TotalChangesDownloaded);
+                    Assert.Equal(0, s.TotalResolvedConflicts);
+
+                    using (var serverDbCtx = new AdventureWorksContext(this.Server))
+                    {
+                        var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                        Assert.Equal(rowsToSend, serverCount);
+                    }
+
+                }
+                catch (SyncException x)
+                {
+                    exception = x;
+                }
+
+                // Assert
+                Assert.NotNull(exception); //"exception required!"
+                Assert.Equal(
+                    "{\"m\":\"Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.\"}",
+                    exception.Message);
+
+                // Act 2: Ensure client can recover
+                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s2 = await agent2.SynchronizeAsync();
+                
+                Assert.Equal(rowsToSend, s2.TotalChangesUploaded);
+                Assert.Equal(rowsToSend * clientCount, s2.TotalChangesDownloaded);
+                Assert.Equal(0, s2.TotalResolvedConflicts);
+
+                clientCount++;
+
+                using (var serverDbCtx = new AdventureWorksContext(this.Server))
+                {
+                    var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                    Assert.Equal(rowsToSend * clientCount, serverCount);
+                }
+
+            }
+
+        }
+
+        [Fact, TestPriority(29)]
+        public async Task WithBatchingEnabled_WhenSessionIsLostDuringGetChanges_ChangesAreNotLost()
+        {
+            // Arrange
+            var options = new SyncOptions {BatchSize = 100};
+
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // insert 1000 new products so batching is used
+            var rowsToReceive = 1000;
+            var productNumber = "12345";
+
+            var products = Enumerable.Range(1, rowsToReceive).Select(i =>
+                new Product {ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}"});
+
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                serverDbCtx.Product.AddRange(products);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // for each client, fake that the sync session is interrupted
+            foreach (var client in Clients)
+            {
+                int batchIndex = 0;
+
+                var orch = new WebClientOrchestrator(this.ServiceUri);
+                var agent = new SyncAgent(client.Provider, orch, options);
+                // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
+                orch.OnSendingGetMoreChanges(x =>
+                {
+                    if (batchIndex == 1)
+                    {
+                        var sessionId = x.Request.SyncContext.SessionId.ToString();
+                        if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
+                            Assert.True(false, "sessionid was wrong. please fix this test!!");
+                        // simulate a session loss (e.g. IIS application pool recycle)
+                        this.WebServerOrchestrator.Cache.Remove(sessionId);
+                    }
+
+                    batchIndex++;
+
+                });
+
+                SyncException exception = null;
+
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+
+                    // Query number of **actually** transmitted rows!
+                    Assert.Equal(0, s.TotalChangesUploaded);
+                    Assert.Equal(rowsToReceive, s.TotalChangesDownloaded);
+                    Assert.Equal(0, s.TotalResolvedConflicts);
+
+                    using (var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                    {
+                        var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                        Assert.Equal(rowsToReceive, serverCount);
+                    }
+
+                }
+                catch (SyncException x)
+                {
+                    exception = x;
+                }
+
+                // Assert
+                Assert.NotNull(exception); //"exception required!"
+                Assert.Equal(
+                    "{\"m\":\"Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.\"}",
+                    exception.Message);
+
+                // Act 2: Ensure client can recover
+                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+
+                var s2 = await agent2.SynchronizeAsync();
+
+                Assert.Equal(0, s2.TotalChangesUploaded);
+                Assert.Equal(rowsToReceive, s2.TotalChangesDownloaded);
+                Assert.Equal(0, s2.TotalResolvedConflicts);
+
+                using (var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                    Assert.Equal(rowsToReceive, serverCount);
+                }
+            }
+
         }
     }
 }

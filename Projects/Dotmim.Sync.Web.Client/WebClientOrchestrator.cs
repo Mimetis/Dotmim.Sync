@@ -300,11 +300,11 @@ namespace Dotmim.Sync.Web.Client
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
 
+                await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(changesToSend), cancellationToken).ConfigureAwait(false);
+
                 // serialize message
                 var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
                 var binaryData = await serializer.SerializeAsync(changesToSend);
-
-                await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData), cancellationToken).ConfigureAwait(false);
 
                 httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
                     (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, ctx.SessionId, scope.Name,
@@ -331,11 +331,11 @@ namespace Dotmim.Sync.Web.Client
                     changesToSend.IsLastBatch = bpi.IsLastBatch;
                     changesToSend.BatchIndex = bpi.Index;
 
+                    await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(changesToSend), cancellationToken).ConfigureAwait(false);
+
                     // serialize message
                     var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
                     var binaryData = await serializer.SerializeAsync(changesToSend);
-
-                    await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData), cancellationToken).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>
                         (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChanges, ctx.SessionId, scope.Name,
@@ -410,11 +410,11 @@ namespace Dotmim.Sync.Web.Client
                     // Create the message enveloppe
                     var httpMessage = new HttpMessageGetMoreChangesRequest(ctx, requestBatchIndex);
 
+                    await this.InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(httpMessage), cancellationToken).ConfigureAwait(false);
+
                     // serialize message
                     var serializer = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                     var binaryData = await serializer.SerializeAsync(httpMessage);
-
-                    await this.InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData), cancellationToken).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
                                this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetMoreChanges, ctx.SessionId, scope.Name,
@@ -515,7 +515,7 @@ namespace Dotmim.Sync.Web.Client
                     var serializer2 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                     var binaryData2 = await serializer2.SerializeAsync(httpMessage);
 
-                    await this.InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData), cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(httpMessage), cancellationToken).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
                                this.HttpClient, this.ServiceUri, binaryData2, HttpStep.GetMoreChanges, ctx.SessionId, this.ScopeName,
@@ -573,7 +573,7 @@ namespace Dotmim.Sync.Web.Client
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
             var binaryData = await serializer.SerializeAsync(changesToSend);
 
-            await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(changesToSend), cancellationToken).ConfigureAwait(false);
 
 
             // response
@@ -633,7 +633,7 @@ namespace Dotmim.Sync.Web.Client
                     var serializer2 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                     var binaryData2 = await serializer2.SerializeAsync(httpMessage);
 
-                    await this.InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(binaryData), cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new HttpMessageGetMoreChangesRequestArgs(httpMessage), cancellationToken).ConfigureAwait(false);
 
                     httpMessageContent = await this.httpRequestHandler.ProcessRequestAsync<HttpMessageSendChangesResponse>(
                                this.HttpClient, this.ServiceUri, binaryData2, HttpStep.GetMoreChanges, ctx.SessionId, this.ScopeName,
@@ -697,7 +697,7 @@ namespace Dotmim.Sync.Web.Client
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
             var binaryData = await serializer.SerializeAsync(changesToSend);
 
-            await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(binaryData), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new HttpMessageSendChangesRequestArgs(changesToSend), cancellationToken).ConfigureAwait(false);
 
 
             // response
