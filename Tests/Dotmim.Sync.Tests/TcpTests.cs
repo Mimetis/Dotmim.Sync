@@ -2000,7 +2000,7 @@ namespace Dotmim.Sync.Tests
                         cmd.CommandText = "SET FOREIGN_KEY_CHECKS = 1;";
                         cmd.Connection = tca.Connection;
                         cmd.Transaction = tca.Transaction;
-                        tca.Connection.Close();
+                        cmd.ExecuteNonQuery();
 
                         return;
                     }

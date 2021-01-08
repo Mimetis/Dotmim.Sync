@@ -54,6 +54,7 @@ namespace Dotmim.Sync.Tests.Models
                             optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.MySql:
+                    case ProviderType.MariaDB:
                         if (this.Connection != null)
                             optionsBuilder.UseMySql(this.Connection, options => options.EnableRetryOnFailure(5));
                         else
@@ -119,7 +120,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.PostalCode)
@@ -173,7 +174,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
 
@@ -222,7 +223,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Rowguid)
@@ -253,7 +254,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Rowguid)
@@ -291,7 +292,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Rowguid)
@@ -356,7 +357,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
 
@@ -423,7 +424,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Name)
@@ -471,7 +472,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.Name)
@@ -510,7 +511,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.ProductId)
@@ -569,7 +570,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Freight).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.Freight).HasDefaultValueSql("0");
 
                 entity.Property(e => e.ModifiedDate)
@@ -577,7 +578,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.OnlineOrderFlag)
@@ -586,7 +587,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.OnlineOrderFlag).HasDefaultValueSql("((1))");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.OnlineOrderFlag).HasDefaultValueSql("1");
 
                 entity.Property(e => e.OrderDate)
@@ -594,7 +595,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.OrderDate).HasDefaultValueSql("(getdate())");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.OrderDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
 
                 entity.Property(e => e.PurchaseOrderNumber)
@@ -612,7 +613,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.SalesOrderNumber).HasDefaultValueSql("(('SO-XXXX'))");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.SalesOrderNumber).HasDefaultValueSql("'SO-XXXX'");
 
 
@@ -626,7 +627,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Status).HasDefaultValueSql("((1))");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.Status).HasDefaultValueSql("1");
 
                 if (this.ProviderType == ProviderType.Sql)
@@ -634,7 +635,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.SubTotal).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.SubTotal).HasDefaultValueSql("0");
 
                 if (this.ProviderType == ProviderType.Sql)
@@ -642,7 +643,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.TaxAmt).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.TaxAmt).HasDefaultValueSql("0");
 
                 if (this.ProviderType == ProviderType.Sql)
@@ -650,7 +651,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.TotalDue).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.TotalDue).HasDefaultValueSql("0");
 
                 entity.HasOne(d => d.BillToAddress)
@@ -677,7 +678,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 // since mysql ef provider does not support Object as type in a property
                 // just ignore it for this provider
-                if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.Sqlite)
+                if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Sqlite)
                     entity.Ignore(e => e.Value);
                 else
                     entity.Property(e => e.Value).HasColumnType("sql_variant");

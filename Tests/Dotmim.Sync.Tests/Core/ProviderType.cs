@@ -10,6 +10,7 @@ namespace Dotmim.Sync.Tests.Core
         Sql = 0x1,
         MySql = 0x2,
         Sqlite = 0x40,
+        MariaDB = 0x80,
 
     }
 
