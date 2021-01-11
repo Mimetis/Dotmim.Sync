@@ -37,10 +37,25 @@ namespace Dotmim.Sync
             var migrationResults = migration.Compare();
 
             // Deprovision
-            // Generate a fake SyncSet since we don't need complete table schema
             foreach (var migrationTable in migrationResults.Tables)
             {
-                var tableBuilder = this.Provider.GetTableBuilder(new SyncTable(migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName), oldSetup);
+                // using a fake SyncTable based on oldSetup, since we don't need columns, but we need to have the filters
+                var schemaTable = new SyncTable(migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName);
+
+                // Create a temporary SyncSet for attaching to the schemaTable
+                var tmpSchema = new SyncSet();
+
+                // Add this table to schema
+                tmpSchema.Tables.Add(schemaTable);
+
+                tmpSchema.EnsureSchema();
+
+                // copy filters from old setup
+                foreach (var filter in oldSetup.Filters)
+                    tmpSchema.Filters.Add(filter);
+
+                // using a fake Synctable, since we don't need columns to deprovision
+                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, oldSetup);
 
                 // Deprovision stored procedures
                 if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
@@ -48,18 +63,9 @@ namespace Dotmim.Sync
 
                 // Deprovision triggers
                 if (migrationTable.Triggers == MigrationAction.Drop || migrationTable.Triggers == MigrationAction.CreateOrRecreate)
-                {
-                    var listTriggerType = Enum.GetValues(typeof(DbTriggerType));
+                    await InternalDropTriggersAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    foreach (DbTriggerType triggerType in listTriggerType)
-                    {
-                        var exists = await InternalExistsTriggerAsync(context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                        if (!exists)
-                            continue;
-                        await InternalDropTriggerAsync(context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-                }
-
+                // Tracking table
                 if (migrationTable.TrackingTable == MigrationAction.Drop || migrationTable.TrackingTable == MigrationAction.CreateOrRecreate)
                 {
                     var exists = await InternalExistsTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -68,6 +74,7 @@ namespace Dotmim.Sync
                         await InternalDropTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
+                // Table
                 if (includeTable && (migrationTable.Table == MigrationAction.Drop || migrationTable.Table == MigrationAction.CreateOrRecreate))
                 {
                     var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -127,32 +134,20 @@ namespace Dotmim.Sync
 
                 // Re provision stored procedures
                 if (migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
-                {
                     await InternalCreateStoredProceduresAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
 
                 // Re provision triggers
                 if (migrationTable.Triggers == MigrationAction.CreateOrRecreate)
-                {
-                    var listTriggerType = Enum.GetValues(typeof(DbTriggerType));
-
-                    foreach (DbTriggerType triggerType in listTriggerType)
-                    {
-                        var exists = await InternalExistsTriggerAsync(context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Drop trigger if already exists
-                        if (exists)
-                            await InternalDropTriggerAsync(context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        var shouldCreate = !exists;
-
-                        if (!shouldCreate)
-                            continue;
-
-                        await InternalCreateTriggerAsync(context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-                }
+                    await InternalCreateTriggersAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
+
+
+            // Now call the ProvisionAsync() to provision new tables
+            var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+            // Provision everything
+            schema = await InternalProvisionAsync(context, false, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
 
             // InterceptAsync Migrated
             var args = new MigratedArgs(context, schema, this.Setup);

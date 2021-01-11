@@ -5,9 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dotmim.Sync.MySql" Version="0.5.8-beta-0460" />
-    <PackageReference Include="Dotmim.Sync.SqlServer" Version="0.5.8-beta-0460" />
-    <PackageReference Include="Dotmim.Sync.Web.Server" Version="0.5.8-beta-0460" />
+    <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
+    <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
   </ItemGroup>
 
 

@@ -21,8 +21,8 @@ namespace Dotmim.Sync
         /// Provision the orchestrator database based on the orchestrator Setup, and the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.ProvisionAsync(new SyncSet(this.Setup), provision, cancellationToken, progress);
+        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => this.ProvisionAsync(new SyncSet(this.Setup), provision, overwrite, cancellationToken, progress);
 
         /// <summary>
         /// Provision the orchestrator database based on the schema argument, and the provision enumeration
@@ -30,7 +30,7 @@ namespace Dotmim.Sync
         /// <param name="schema">Schema to be applied to the database managed by the orchestrator, through the provider.</param>
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
         /// <returns>Full schema with table and columns properties</returns>
-        public virtual Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
             {
                 // Check incompatibility with the flags
@@ -39,7 +39,7 @@ namespace Dotmim.Sync
                 else if (!(this is LocalOrchestrator) && provision.HasFlag(SyncProvision.ClientScope))
                     throw new InvalidProvisionForRemoteOrchestratorException();
 
-                schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(ctx, overwrite, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return schema;
 
@@ -54,7 +54,23 @@ namespace Dotmim.Sync
             var setup = new SyncSetup();
             setup.Tables.Add(table);
 
-            return this.DeprovisionAsync(new SyncSet(setup), provision, cancellationToken, progress);
+            // using a fake SyncTable based on oldSetup, since we don't need columns, but we need to have the filters
+            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+
+            // Create a temporary SyncSet for attaching to the schemaTable
+            var tmpSchema = new SyncSet();
+
+            // Add this table to schema
+            tmpSchema.Tables.Add(schemaTable);
+
+            tmpSchema.EnsureSchema();
+
+            // copy filters from old setup
+            foreach (var filter in this.Setup.Filters)
+                tmpSchema.Filters.Add(filter);
+
+
+            return this.DeprovisionAsync(tmpSchema, provision, cancellationToken, progress);
         }
 
         /// <summary>
@@ -62,7 +78,22 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
         public virtual Task DeprovisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.DeprovisionAsync(new SyncSet(this.Setup), provision, cancellationToken, progress);
+        {
+            // Create a temporary SyncSet for attaching to the schemaTable
+            var tmpSchema = new SyncSet();
+
+            // Add this table to schema
+            foreach (var table in this.Setup.Tables)
+                tmpSchema.Tables.Add(new SyncTable(table.TableName, table.SchemaName));
+
+            tmpSchema.EnsureSchema();
+
+            // copy filters from old setup
+            foreach (var filter in this.Setup.Filters)
+                tmpSchema.Filters.Add(filter);
+
+            return this.DeprovisionAsync(tmpSchema, provision, cancellationToken, progress);
+        }
 
         /// <summary>
         /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
@@ -76,7 +107,7 @@ namespace Dotmim.Sync
 
         }, cancellationToken);
 
-        internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, SyncSet schema, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // If schema does not have any table, raise an exception
             if (schema == null || schema.Tables == null || !schema.HasTables)
@@ -156,56 +187,11 @@ namespace Dotmim.Sync
                 }
 
                 if (provision.HasFlag(SyncProvision.Triggers))
-                {
-                    foreach (DbTriggerType triggerType in Enum.GetValues(typeof(DbTriggerType)))
-                    {
-                        var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Drop trigger if already exists
-                        if (exists)
-                            await InternalDropTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await InternalCreateTriggerAsync(ctx,  tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-                }
-
+                    await this.InternalCreateTriggersAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
-                {
-                    // First , delete all the stored procedures, except the Bulk Type, since we can delete them before deleting the attached stored procedures
-                    foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
-                    {
-                        if (storedProcedureType is DbStoredProcedureType.BulkTableType)
-                            continue;
+                    await this.InternalCreateStoredProceduresAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        if (!this.Provider.SupportBulkOperations && (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkUpdateRows))
-                            continue;
-
-                        var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        if (exists)
-                            await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-
-
-                    // Then delete bulk type if exists and provider supports them
-                    if (this.Provider.SupportBulkOperations)
-                    {
-                        var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, DbStoredProcedureType.BulkTableType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                        if (exists)
-                            await InternalDropStoredProcedureAsync(ctx, tableBuilder, DbStoredProcedureType.BulkTableType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-
-                    // Then create everything again
-                    foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
-                    {
-                        // if we are iterating on bulk, but provider do not support it, just loop through and continue
-                        if ((storedProcedureType is DbStoredProcedureType.BulkTableType || storedProcedureType is DbStoredProcedureType.BulkUpdateRows || storedProcedureType is DbStoredProcedureType.BulkDeleteRows)
-                            && !this.Provider.SupportBulkOperations)
-                            continue;
-
-                        await InternalCreateStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-                }
             }
 
             var args = new ProvisionedArgs(ctx, provision, schema, connection);

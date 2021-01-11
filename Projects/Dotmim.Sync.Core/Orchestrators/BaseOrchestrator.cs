@@ -77,12 +77,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
+        [DebuggerStepThrough]
         internal void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
             this.interceptors.GetInterceptor<T>().Set(interceptorAction);
 
         /// <summary>
         /// Set a collection of interceptors
         /// </summary>
+        [DebuggerStepThrough]
         internal void On(Interceptors interceptors) => this.interceptors = interceptors;
 
         /// <summary>
@@ -112,16 +114,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Affect an interceptor
         /// </summary>
+        [DebuggerStepThrough]
         internal void SetInterceptor<T>(Action<T> action) where T : ProgressArgs => this.On(action);
 
         /// <summary>
         /// Gets a boolean returning true if an interceptor of type T, exists
         /// </summary>
+        [DebuggerStepThrough]
         internal bool ContainsInterceptor<T>() where T : ProgressArgs => this.interceptors.Contains<T>();
 
         /// <summary>
         /// Try to report progress
         /// </summary>
+        [DebuggerStepThrough]
         internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             // Check logger, because we make some reflection here
@@ -153,6 +158,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Open a connection
         /// </summary>
+        [DebuggerStepThrough]
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
             this.logger.LogDebug(SyncEventsId.ConnectionOpen, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
@@ -181,6 +187,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Close a connection
         /// </summary>
+        [DebuggerStepThrough]
         internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
             if (connection != null && connection.State == ConnectionState.Closed)
@@ -202,6 +209,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Encapsulates an error in a SyncException, let provider enrich the error if needed, then throw again
         /// </summary>
+        [DebuggerStepThrough]
         internal void RaiseError(Exception exception)
         {
             var syncException = new SyncException(exception, this.GetContext().SyncStage);
@@ -223,6 +231,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the current context
         /// </summary>
+        [DebuggerStepThrough]
         public virtual SyncContext GetContext()
         {
             if (this.syncContext != null)

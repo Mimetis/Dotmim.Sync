@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,6 +11,7 @@ namespace Dotmim.Sync
     {
         private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
 
+        [DebuggerStepThrough]
         public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
         {
             InterceptorWrapper<T> interceptor = null;
