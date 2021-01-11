@@ -76,28 +76,14 @@ namespace Dotmim.Sync
                 // 1) Get Schema from remote provider
                 schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Launch InterceptAsync on Migrating
-                await this.InterceptAsync(new MigratingArgs(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
-
                 // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
-                await this.Provider.MigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // Now call the ProvisionAsync() to provision new tables
-                var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-                // Provision everything
-                schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalMigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 serverScopeInfo.Setup = this.Setup;
                 serverScopeInfo.Schema = schema;
 
                 // Write scopes locally
                 await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // InterceptAsync Migrated
-                var args2 = new MigratedArgs(ctx, schema, this.Setup, connection, transaction);
-                await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args2);
             }
 
             var scopeArgs = new ScopeLoadedArgs<ServerScopeInfo>(ctx, this.ScopeName, DbScopeType.Server, serverScopeInfo, connection, transaction);

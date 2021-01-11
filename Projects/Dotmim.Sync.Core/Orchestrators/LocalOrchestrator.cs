@@ -296,16 +296,8 @@ namespace Dotmim.Sync
             if (schema == null || schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
 
-            SyncProvision provision = SyncProvision.None;
-
             // Migrate the db structure
             await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // Now call the ProvisionAsync() to provision new tables
-            provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-            await this.InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
 
             // Get Scope Builder
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);

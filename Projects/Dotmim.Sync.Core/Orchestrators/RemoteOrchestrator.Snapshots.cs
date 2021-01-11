@@ -42,7 +42,7 @@ namespace Dotmim.Sync
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
             // Provision everything
-            schema = await InternalProvisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            schema = await InternalProvisionAsync(ctx, false, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // 3) Getting the most accurate timestamp
             var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);

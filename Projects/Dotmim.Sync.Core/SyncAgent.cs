@@ -424,7 +424,7 @@ namespace Dotmim.Sync
 
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, cancellationToken, progress).ConfigureAwait(false);
+                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, cancellationToken, progress).ConfigureAwait(false);
 
                     // Set schema for agent, just to let the opportunity to user to use it.
                     this.Schema = serverScopeInfo.Schema;

@@ -28,7 +28,6 @@ using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
-using System.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -825,7 +824,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Just before sending changes, get changes sent
-                webClientOrchestrator.OnSendingChanges(async sra =>
+                webClientOrchestrator.OnSendingChanges(sra =>
                 {
                     // check we have rows
                     Assert.True(sra.Request.Changes.HasRows);

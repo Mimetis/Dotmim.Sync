@@ -193,7 +193,7 @@ namespace Dotmim.Sync.Tests
 
                 // Check we have the correct columns replicated
                 using var c = client.Provider.CreateConnection();
-                
+
                 await c.OpenAsync();
 
                 foreach (var setupTable in FilterSetup.Tables)
@@ -208,9 +208,9 @@ namespace Dotmim.Sync.Tests
                     if (setupTable.Columns.Count == 0)
                     {
                         using var serverConnection = this.Server.Provider.CreateConnection();
-                        
+
                         serverConnection.Open();
-                        
+
                         var tableServerManagerFactory = this.Server.Provider.GetTableBuilder(syncTable, this.FilterSetup);
                         var serverColumns = await tableServerManagerFactory.GetColumnsAsync(serverConnection, null);
 
@@ -834,6 +834,333 @@ namespace Dotmim.Sync.Tests
 
 
             }
+        }
+
+
+        /// <summary>
+        /// </summary>
+        [Fact, TestPriority(9)]
+        public async Task Using_ExistingClientDatabase_Filter_With_NotSyncedColumn()
+        {
+
+            var setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases WITH schema, and WITHOUT seeding
+            foreach (var client in this.Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+            }
+
+
+            var filter = new SetupFilter("Customer");
+            filter.AddParameter("EmployeeID", DbType.Int32, true);
+            filter.AddCustomWhere("EmployeeID = @EmployeeID or @EmployeeID is null");
+
+            setup.Filters.Add(filter);
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+
+            }
+        }
+
+        /// <summary>
+        /// </summary>
+        [Fact, TestPriority(10)]
+        public async Task Migration_Adding_Table()
+        {
+
+            var setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+            // Adding a new table
+            setup.Tables.Add("Employee");
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+        }
+
+
+
+        /// <summary>
+        /// </summary>
+        [Fact, TestPriority(11)]
+        public async Task Migration_Modifying_Table()
+        {
+
+            var setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+            // Adding a new column to Customer
+            setup.Tables["Customer"].Columns.Add("EmailAddress");
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+        }
+
+
+        /// <summary>
+        /// </summary>
+        [Fact, TestPriority(12)]
+        public async Task Migration_Removing_Table()
+        {
+            var setup = new SyncSetup(new string[] { "Customer", "Employee" });
+
+            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+
+            // Adding a new column to Customer
+            setup.Tables.Remove(setup.Tables["Customer"]);
+            setup.Filters.Clear();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                Assert.Equal(3, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+        }
+
+
+        /// <summary>
+        /// </summary>
+        [Fact, TestPriority(13)]
+        public async Task Deprovision_Should_Remove_Filtered_StoredProcedures()
+        {
+            var setup = new SyncSetup(new string[] { "Customer", "Employee" });
+
+            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
+
+                await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers);
+
+                foreach (var setupTable in setup.Tables)
+                {
+                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Delete));
+                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
+                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
+
+                    if (client.ProviderType == ProviderType.Sql)
+                    {
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectRow));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.UpdateRow));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                    }
+                }
+
+            }
+        }
+
+
+
+        /// <summary>
+        /// </summary>
+        [Fact, TestPriority(11)]
+        public async Task Migration_Rename_TrackingTable()
+        {
+
+            var setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+            // Modifying pref and sufix
+            setup.StoredProceduresPrefix = "sp__";
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
         }
 
 
