@@ -1,4 +1,4 @@
-using Dotmim.Sync.MySql;
+using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -34,7 +34,6 @@ namespace XamAppServer
 
             // [Required]: Get a connection string to your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
-            // var connectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
             // [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
@@ -42,8 +41,6 @@ namespace XamAppServer
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
             services.AddSyncServer<SqlSyncProvider>(connectionString, tables);
-            //services.AddSyncServer<MySqlSyncProvider>(connectionString, tables);
-
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

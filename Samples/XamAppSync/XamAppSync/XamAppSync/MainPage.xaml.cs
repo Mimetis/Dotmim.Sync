@@ -30,16 +30,20 @@ namespace XamAppSync
                 var serverOrchestrator = new WebClientOrchestrator("http://10.0.2.2:50886/api/sync");
 
                 // Path the local sqlite database
-                string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "client_sync.db");
+                string dbPath = Path.Combine(Xamarin.Essentials.FileSystem.AppDataDirectory, "SqliteDatabase.db3");
+
+                var clientOptions = new SyncOptions { BatchSize = 3000 };
 
                 // Sqlite Client provider
                 var clientProvider = new SqliteSyncProvider(dbPath);
 
                 // Creating an agent that will handle all the process
-                var agent = new SyncAgent(clientProvider, serverOrchestrator);
+                var agent = new SyncAgent(clientProvider, serverOrchestrator, clientOptions);
+
+                var progress = new Progress<ProgressArgs>(args => lblProgress.Text = $"{args.Context.SyncStage}:{args.Message}");
 
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync();
+                var s1 = await agent.SynchronizeAsync(progress);
 
                 // See results
                 lblResult.Text = s1.ToString();
