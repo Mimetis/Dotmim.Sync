@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -211,11 +212,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnConnectionOpen(this BaseOrchestrator orchestrator, Action<ConnectionOpenedArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action whenever a connection is opened
+        /// </summary>
+        public static void OnConnectionOpen(this BaseOrchestrator orchestrator, Func<ConnectionOpenedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Occurs when trying to reconnect to a database
         /// </summary>
         public static void OnReConnect(this BaseOrchestrator orchestrator, Action<ReConnectArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Occurs when trying to reconnect to a database
+        /// </summary>
+        public static void OnReConnect(this BaseOrchestrator orchestrator, Func<ReConnectArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -223,11 +234,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTransactionOpen(this BaseOrchestrator orchestrator, Action<TransactionOpenedArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action whenever a transaction is opened
+        /// </summary>
+        public static void OnTransactionOpen(this BaseOrchestrator orchestrator, Func<TransactionOpenedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action whenever a connection is closed
         /// </summary>
         public static void OnConnectionClose(this BaseOrchestrator orchestrator, Action<ConnectionClosedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action whenever a connection is closed
+        /// </summary>
+        public static void OnConnectionClose(this BaseOrchestrator orchestrator, Func<ConnectionClosedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -235,11 +256,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTransactionCommit(this BaseOrchestrator orchestrator, Action<TransactionCommitArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action whenever a transaction is commit
+        /// </summary>
+        public static void OnTransactionCommit(this BaseOrchestrator orchestrator, Func<TransactionCommitArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when session begin is called
         /// </summary>
         public static void OnSessionBegin(this BaseOrchestrator orchestrator, Action<SessionBeginArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when session begin is called
+        /// </summary>
+        public static void OnSessionBegin(this BaseOrchestrator orchestrator, Func<SessionBeginArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -247,11 +278,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnSessionEnd(this BaseOrchestrator orchestrator, Action<SessionEndArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when session end is called
+        /// </summary>
+        public static void OnSessionEnd(this BaseOrchestrator orchestrator, Func<SessionEndArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an apply change is failing
         /// </summary>
         public static void OnApplyChangesFailed(this BaseOrchestrator orchestrator, Action<ApplyChangesFailedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when an apply change is failing
+        /// </summary>
+        public static void OnApplyChangesFailed(this BaseOrchestrator orchestrator, Func<ApplyChangesFailedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -29,7 +30,7 @@ namespace Dotmim.Sync
         public SyncTable Table { get; }
         public DbStoredProcedureType StoredProcedureType { get; }
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         public StoredProcedureCreatingArgs(SyncContext context, SyncTable table, DbStoredProcedureType StoredProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
@@ -62,7 +63,7 @@ namespace Dotmim.Sync
         public SyncTable Table { get; }
         public DbStoredProcedureType StoredProcedureType { get; }
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         public StoredProcedureDroppingArgs(SyncContext context, SyncTable table, DbStoredProcedureType StoredProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
@@ -86,11 +87,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a Stored Procedure is creating
+        /// </summary>
+        public static void OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a Stored Procedure is created
         /// </summary>
         public static void OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a Stored Procedure is created
+        /// </summary>
+        public static void OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -98,11 +109,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a Stored Procedure is dropping
+        /// </summary>
+        public static void OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a Stored Procedure is dropped
         /// </summary>
         public static void OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a Stored Procedure is dropped
+        /// </summary>
+        public static void OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }

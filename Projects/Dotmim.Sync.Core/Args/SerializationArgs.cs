@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -86,11 +87,15 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnSerializingSet(this BaseOrchestrator orchestrator, Action<SerializingSetArgs> action)
             => orchestrator.SetInterceptor(action);
+        public static void OnSerializingSet(this BaseOrchestrator orchestrator, Func<SerializingSetArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Occurs just after loading a serialized set from disk
         /// </summary>
         public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Action<DeserializingSetArgs> action)
+            => orchestrator.SetInterceptor(action);
+        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Func<DeserializingSetArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
 

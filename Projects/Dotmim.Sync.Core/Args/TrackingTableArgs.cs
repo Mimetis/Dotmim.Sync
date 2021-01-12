@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -29,7 +30,7 @@ namespace Dotmim.Sync
         public SyncTable Table { get; }
         public ParserName TrackingTableName { get; }
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         public TrackingTableCreatingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
@@ -63,7 +64,7 @@ namespace Dotmim.Sync
     public class TrackingTableDroppingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
         public SyncTable Table { get; }
         public ParserName TrackingTableName { get; }
 
@@ -100,7 +101,7 @@ namespace Dotmim.Sync
         public SyncTable Table { get; }
         public ParserName TrackingTableName { get; }
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
         public ParserName OldTrackingTableName { get; set; }
 
         public TrackingTableRenamingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, ParserName oldTrackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
@@ -127,11 +128,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTrackingTableCreating(this BaseOrchestrator orchestrator, Action<TrackingTableCreatingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableCreating(this BaseOrchestrator orchestrator, Func<TrackingTableCreatingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a tracking table is creating
         /// </summary>
         public static void OnTrackingTableCreated(this BaseOrchestrator orchestrator, Action<TrackingTableCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableCreated(this BaseOrchestrator orchestrator, Func<TrackingTableCreatedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -139,11 +150,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTrackingTableDropping(this BaseOrchestrator orchestrator, Action<TrackingTableDroppingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a tracking table is dropping
+        /// </summary>
+        public static void OnTrackingTableDropping(this BaseOrchestrator orchestrator, Func<TrackingTableDroppingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a tracking table is dropped
         /// </summary>
         public static void OnTrackingTableDropped(this BaseOrchestrator orchestrator, Action<TrackingTableDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a tracking table is dropped
+        /// </summary>
+        public static void OnTrackingTableDropped(this BaseOrchestrator orchestrator, Func<TrackingTableDroppedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -151,11 +172,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTrackingTableRenaming(this BaseOrchestrator orchestrator, Action<TrackingTableRenamingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableRenaming(this BaseOrchestrator orchestrator, Func<TrackingTableRenamingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a tracking table is creating
         /// </summary>
         public static void OnTrackingTableRenamed(this BaseOrchestrator orchestrator, Action<TrackingTableRenamedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a tracking table is creating
+        /// </summary>
+        public static void OnTrackingTableRenamed(this BaseOrchestrator orchestrator, Func<TrackingTableRenamedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }

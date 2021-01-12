@@ -54,11 +54,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnSchemaLoaded(this BaseOrchestrator orchestrator, Action<SchemaLoadedArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when schema is loaded
+        /// </summary>
+        public static void OnSchemaLoaded(this BaseOrchestrator orchestrator, Func<SchemaLoadedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when schema is loading
         /// </summary>
         public static void OnSchemaLoading(this BaseOrchestrator orchestrator, Action<SchemaLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when schema is loading
+        /// </summary>
+        public static void OnSchemaLoading(this BaseOrchestrator orchestrator, Func<SchemaLoadingArgs, Task> action)
             => orchestrator.SetInterceptor(action);
     }
     public static partial class SyncEventsId

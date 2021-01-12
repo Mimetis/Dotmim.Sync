@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -27,7 +28,7 @@ namespace Dotmim.Sync
     public class TriggerCreatingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
         public SyncTable Table { get; }
         public DbTriggerType TriggerType { get; }
 
@@ -66,7 +67,7 @@ namespace Dotmim.Sync
         public DbTriggerType TriggerType { get; }
 
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         public TriggerDroppingArgs(SyncContext context, SyncTable table, DbTriggerType triggerType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
@@ -90,11 +91,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTriggerCreating(this BaseOrchestrator orchestrator, Action<TriggerCreatingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a trigger is creating
+        /// </summary>
+        public static void OnTriggerCreating(this BaseOrchestrator orchestrator, Func<TriggerCreatingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a trigger is created
         /// </summary>
         public static void OnTriggerCreated(this BaseOrchestrator orchestrator, Action<TriggerCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a trigger is created
+        /// </summary>
+        public static void OnTriggerCreated(this BaseOrchestrator orchestrator, Func<TriggerCreatedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -102,11 +113,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTriggerDropping(this BaseOrchestrator orchestrator, Action<TriggerDroppingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a trigger is dropping
+        /// </summary>
+        public static void OnTriggerDropping(this BaseOrchestrator orchestrator, Func<TriggerDroppingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a trigger is dropped
         /// </summary>
         public static void OnTriggerDropped(this BaseOrchestrator orchestrator, Action<TriggerDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when a trigger is dropped
+        /// </summary>
+        public static void OnTriggerDropped(this BaseOrchestrator orchestrator, Func<TriggerDroppedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }
