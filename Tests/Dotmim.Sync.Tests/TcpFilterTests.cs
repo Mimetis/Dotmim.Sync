@@ -1223,11 +1223,11 @@ namespace Dotmim.Sync.Tests
             // Trying to Hack the Reinitialize Thing
             foreach (var client in Clients)
             {
-                // create agent with filtered tables and parameter
+                // create an agent 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
 
-                // When trying to get changes from the server, just replace the command with the Initialize command
-                // and get ALL the rows from the migrated table
+                // ON SERVER : When trying to get changes from the server, just replace the command with the Initialize command
+                // and get ALL the rows for the migrated new table
                 agent.RemoteOrchestrator.OnTableChangesSelecting(tcs =>
                 {
                     if (tcs.Table.TableName != "Employee")
@@ -1241,7 +1241,7 @@ namespace Dotmim.Sync.Tests
                     tcs.Command = command;
                 });
 
-                // Forcing Reset of the table to be sure no conflicts will be raised
+                // ON CLIENT : Forcing Reset of the table to be sure no conflicts will be raised
                 // And all rows will be re-applied 
                 agent.LocalOrchestrator.OnTableChangesApplying(async tca =>
                 {
