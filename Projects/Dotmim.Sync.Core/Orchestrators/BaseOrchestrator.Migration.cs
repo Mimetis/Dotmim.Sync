@@ -154,9 +154,8 @@ namespace Dotmim.Sync
             // Provision everything
             schema = await InternalProvisionAsync(context, false, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-
             // InterceptAsync Migrated
-            var args = new MigratedArgs(context, schema, this.Setup);
+            var args = new MigratedArgs(context, schema, this.Setup, migrationResults);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(context, progress, args);
 

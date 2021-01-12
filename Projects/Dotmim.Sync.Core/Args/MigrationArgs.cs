@@ -48,10 +48,11 @@ namespace Dotmim.Sync
     /// </summary>
     public class MigratedArgs : ProgressArgs
     {
-        public MigratedArgs(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public MigratedArgs(SyncContext context, SyncSet schema, SyncSetup setup, MigrationResults migration, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
             this.Schema = schema;
             this.Setup = setup;
+            this.Migration = migration;
         }
 
         /// <summary>
@@ -68,6 +69,12 @@ namespace Dotmim.Sync
         /// Gets the new setup applied
         /// </summary>
         public SyncSetup Setup { get; }
+
+        /// <summary>
+        /// Gets the Migration results
+        /// </summary>
+        public MigrationResults Migration { get; }
+
         public override int EventId => SyncEventsId.DatabaseMigrated.Id;
     }
 
