@@ -20,6 +20,7 @@ namespace Dotmim.Sync.MySql
         {
             this.mySqlDbMetadata = new MySqlDbMetadata();
             this.mySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup);
+
         }
 
         public override bool IsPrimaryKeyViolation(Exception Error) => false;
@@ -197,6 +198,11 @@ namespace Dotmim.Sync.MySql
             }
 
             p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
             p.ParameterName = "sync_force_write";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
@@ -204,11 +210,6 @@ namespace Dotmim.Sync.MySql
             p = command.CreateParameter();
             p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "sync_scope_id";
-            p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -235,6 +236,11 @@ namespace Dotmim.Sync.MySql
             }
 
             p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
             p.ParameterName = "sync_force_write";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
@@ -242,11 +248,6 @@ namespace Dotmim.Sync.MySql
             p = command.CreateParameter();
             p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "sync_scope_id";
-            p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();

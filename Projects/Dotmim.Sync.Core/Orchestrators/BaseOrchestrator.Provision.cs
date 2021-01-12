@@ -232,8 +232,8 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
-
                     var allStoredProcedures = new List<DbStoredProcedureType>();
+
                     foreach (var spt in Enum.GetValues(typeof(DbStoredProcedureType)))
                         allStoredProcedures.Add((DbStoredProcedureType)spt);
 
@@ -252,6 +252,10 @@ namespace Dotmim.Sync
                         if (exists)
                             await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
+
+                    // Removing cached commands
+                    var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, this.Setup);
+                    syncAdapter.RemoveCommands();
                 }
 
                 if (provision.HasFlag(SyncProvision.Triggers))

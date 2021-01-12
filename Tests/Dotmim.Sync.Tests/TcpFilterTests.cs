@@ -980,18 +980,39 @@ namespace Dotmim.Sync.Tests
             // Adding a new column to Customer
             setup.Tables["Customer"].Columns.Add("EmailAddress");
 
+
+
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+
+                if (Server.ProviderType == ProviderType.MySql || Server.ProviderType == ProviderType.MariaDB)
+                {
+                    agent.RemoteOrchestrator.OnConnectionOpen(coa =>
+                    {
+                        // tracking https://github.com/mysql-net/MySqlConnector/issues/924
+                        MySqlConnection.ClearPool(coa.Connection as MySqlConnection);
+                    });
+                }
+
+                if (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
+                {
+                    agent.LocalOrchestrator.OnConnectionOpen(coa =>
+                    {
+                        // tracking https://github.com/mysql-net/MySqlConnector/issues/924
+                        MySqlConnection.ClearPool(coa.Connection as MySqlConnection);
+                    });
+                }
+
+                // create agent with filtered tables and parameter
                 agent.Parameters.Add("EmployeeID", 1);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
-
+         
         }
 
 
@@ -1113,7 +1134,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(11)]
+        [Fact, TestPriority(14)]
         public async Task Migration_Rename_TrackingTable()
         {
 
