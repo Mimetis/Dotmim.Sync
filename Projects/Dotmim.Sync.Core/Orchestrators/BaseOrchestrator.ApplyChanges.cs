@@ -112,7 +112,7 @@ namespace Dotmim.Sync
                 var tableDescription = schema.Tables[schema.Tables.Count - i - 1];
 
                 // get executioning adapter
-                var syncAdapter = this.Provider.GetSyncAdapter(tableDescription, setup);
+                var syncAdapter = this.GetSyncAdapter(tableDescription, setup);
 
                 // reset table
                 await syncAdapter.ResetTableAsync(connection, transaction);
@@ -142,7 +142,7 @@ namespace Dotmim.Sync
                 return;
 
             // get executioning adapter
-            var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, message.Setup);
+            var syncAdapter = this.GetSyncAdapter(schemaTable, message.Setup);
             syncAdapter.ApplyType = applyType;
 
             var hasChanges = await message.Changes.HasDataAsync(this);
@@ -454,7 +454,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal Task DisableConstraintsAsync(SyncContext context, SyncTable table, SyncSetup setup, DbConnection connection, DbTransaction transaction = null)
         {
-            var syncAdapter = this.Provider.GetSyncAdapter(table, setup);
+            var syncAdapter = this.GetSyncAdapter(table, setup);
 
             // disable constraints
             return syncAdapter.DisableConstraintsAsync(connection, transaction);
@@ -468,7 +468,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal Task EnableConstraintsAsync(SyncContext context, SyncTable table, SyncSetup setup, DbConnection connection, DbTransaction transaction)
         {
-            var syncAdapter = this.Provider.GetSyncAdapter(table, setup);
+            var syncAdapter = this.GetSyncAdapter(table, setup);
 
             // enable table
             return syncAdapter.EnableConstraintsAsync(connection, transaction);

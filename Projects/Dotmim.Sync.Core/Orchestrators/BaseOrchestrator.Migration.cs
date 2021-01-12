@@ -55,7 +55,7 @@ namespace Dotmim.Sync
                     tmpSchema.Filters.Add(filter);
 
                 // using a fake Synctable, since we don't need columns to deprovision
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, oldSetup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, oldSetup);
 
                 // Deprovision stored procedures
                 if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
@@ -63,7 +63,7 @@ namespace Dotmim.Sync
                     await InternalDropStoredProceduresAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Removing cached commands
-                    var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, oldSetup);
+                    var syncAdapter = this.GetSyncAdapter(schemaTable, oldSetup);
                     syncAdapter.RemoveCommands();
                 }
 
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
                 if (syncTable == null)
                     continue;
 
-                var tableBuilder = this.Provider.GetTableBuilder(syncTable, newSetup);
+                var tableBuilder = this.GetTableBuilder(syncTable, newSetup);
 
                 // Re provision table
                 if (migrationTable.Table == MigrationAction.CreateOrRecreate && includeTable)

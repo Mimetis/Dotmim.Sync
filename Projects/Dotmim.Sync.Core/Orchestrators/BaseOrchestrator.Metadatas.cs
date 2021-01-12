@@ -52,7 +52,7 @@ namespace Dotmim.Sync
             foreach (var syncTable in schema.Tables)
             {
                 // Create sync adapter
-                var syncAdapter = this.Provider.GetSyncAdapter(syncTable, setup);
+                var syncAdapter = this.GetSyncAdapter(syncTable, setup);
 
                 // Delete metadatas
                 var rowsCleanedCount = await syncAdapter.DeleteMetadatasAsync(timestampLimit, connection, transaction).ConfigureAwait(false);

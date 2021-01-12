@@ -3249,5 +3249,38 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+        [Theory, TestPriority(43)]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task Command_IsPrepared_ShouldBe_Called(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options,
+                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+
+                s = await agent.SynchronizeAsync();
+
+                s = await agent.SynchronizeAsync();
+            }
+        }
+
+
     }
 }

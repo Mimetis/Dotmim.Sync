@@ -48,18 +48,14 @@ namespace Dotmim.Sync
 
             public static byte[] Create(byte[] data)
             {
-                using (var stream = new MemoryStream(data))
-                {
-                    return Create(stream);
-                }
+                using var stream = new MemoryStream(data);
+                return Create(stream);
             }
 
             public static byte[] Create(Stream stream)
             {
-                using (var sha256 = System.Security.Cryptography.SHA256.Create())
-                {
-                    return sha256.ComputeHash(stream);
-                }
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                return sha256.ComputeHash(stream);
             }
         }
     }

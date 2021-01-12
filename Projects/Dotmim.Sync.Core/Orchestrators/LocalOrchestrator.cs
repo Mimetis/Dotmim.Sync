@@ -332,7 +332,7 @@ namespace Dotmim.Sync
             // Update untracked rows
             foreach (var table in schema.Tables)
             {
-                var syncAdapter = this.Provider.GetSyncAdapter(table, this.Setup);
+                var syncAdapter = this.GetSyncAdapter(table, this.Setup);
                 await syncAdapter.UpdateUntrackedRowsAsync(connection, transaction).ConfigureAwait(false);
             }
 
