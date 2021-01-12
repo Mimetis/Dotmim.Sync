@@ -9,6 +9,7 @@ using System.Runtime.Serialization;
 using System.Linq;
 using Dotmim.Sync.Batch;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -100,12 +101,22 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
             => orchestrator.SetInterceptor(func);
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
 
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
         public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
+            => orchestrator.SetInterceptor(func);
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Func<DatabaseChangesAppliedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
 
@@ -114,11 +125,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectingArgs> func)
             => orchestrator.SetInterceptor(func);
+        /// <summary>
+        /// Occurs when changes are going to be queried on the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectingArgs, Task> func)
+            => orchestrator.SetInterceptor(func);
 
         /// <summary>
         /// Occurs when changes have been retrieved from the local database
         /// </summary>
         public static void OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectedArgs> func)
+            => orchestrator.SetInterceptor(func);
+        /// <summary>
+        /// Occurs when changes have been retrieved from the local database
+        /// </summary>
+        public static void OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectedArgs, Task> func)
             => orchestrator.SetInterceptor(func);
 
     }

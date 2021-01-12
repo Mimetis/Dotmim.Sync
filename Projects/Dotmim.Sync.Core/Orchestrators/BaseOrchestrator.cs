@@ -91,6 +91,13 @@ namespace Dotmim.Sync
             this.interceptors.GetInterceptor<T>().Set(interceptorAction);
 
         /// <summary>
+        /// Set an interceptor to get info on the current sync process
+        /// </summary>
+        [DebuggerStepThrough]
+        internal void On<T>(Func<T, Task> interceptorAction) where T : ProgressArgs =>
+            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
+
+        /// <summary>
         /// Set a collection of interceptors
         /// </summary>
         [DebuggerStepThrough]
@@ -101,10 +108,10 @@ namespace Dotmim.Sync
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
         [DebuggerStepThrough]
-        internal Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
+        internal async Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
         {
             if (this.interceptors == null)
-                return Task.CompletedTask;
+                return;
 
             var interceptor = this.interceptors.GetInterceptor<T>();
 
@@ -117,7 +124,7 @@ namespace Dotmim.Sync
                 this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
             }
 
-            return interceptor.RunAsync(args, cancellationToken);
+            await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -125,6 +132,7 @@ namespace Dotmim.Sync
         /// </summary>
         [DebuggerStepThrough]
         internal void SetInterceptor<T>(Action<T> action) where T : ProgressArgs => this.On(action);
+        internal void SetInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.On(action);
 
         /// <summary>
         /// Gets a boolean returning true if an interceptor of type T, exists

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -42,7 +43,7 @@ namespace Dotmim.Sync
     {
 
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         public TableChangesSelectingArgs(SyncContext context, SyncTable schemaTable, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
@@ -84,7 +85,7 @@ namespace Dotmim.Sync
     public class TableChangesApplyingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         public TableChangesApplyingArgs(SyncContext context, SyncTable changes, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
@@ -116,6 +117,11 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
 
         /// <summary>
@@ -123,17 +129,32 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
         public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Func<TableChangesApplyingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
         public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// </summary>
+        public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Func<TableChangesAppliedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }

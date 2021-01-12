@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -10,7 +11,7 @@ namespace Dotmim.Sync
     public class LocalTimestampLoadingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         public LocalTimestampLoadingArgs(SyncContext context, DbCommand command, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
@@ -35,10 +36,19 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnLocalTimestampLoading(this BaseOrchestrator orchestrator, Action<LocalTimestampLoadingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a database is reading a timestamp
+        /// </summary>
+        public static void OnLocalTimestampLoading(this BaseOrchestrator orchestrator, Func<LocalTimestampLoadingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// Intercept the provider action when a database has read a timestamp
         /// </summary>
         public static void OnLocalTimestampLoaded(this BaseOrchestrator orchestrator, Action<LocalTimestampLoadedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// Intercept the provider action when a database has read a timestamp
+        /// </summary>
+        public static void OnLocalTimestampLoaded(this BaseOrchestrator orchestrator, Func<LocalTimestampLoadedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }
