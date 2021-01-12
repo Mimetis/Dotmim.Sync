@@ -110,8 +110,17 @@ namespace Dotmim.Sync
             var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
+            {
                 syncRowCountParam.Direction = ParameterDirection.Output;
+                syncRowCountParam.Value = DBNull.Value;
+            }
         }
+
+
+        /// <summary>
+        /// Remove a Command from internal shared dictionary
+        /// </summary>
+        internal void RemoveCommands() => this.commands.Clear();
 
         /// <summary>
         /// Get the command from provider, check connection is opened, affect connection and transaction
@@ -150,7 +159,7 @@ namespace Dotmim.Sync
             await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 
             // Testing The Prepare() performance increase
-            command.Prepare();
+            //command.Prepare();
 
             // Adding this command as prepared
             lazyCommand.Value.IsPrepared = true;
@@ -353,7 +362,7 @@ namespace Dotmim.Sync
                         if (row.Table == null)
                             throw new ArgumentException("Schema table is not present in the row");
 
-                        // Set the parameters value from row
+                        // Set the parameters value from row 
                         this.SetColumnParametersValues(command, row);
 
                         // Set the special parameters for update

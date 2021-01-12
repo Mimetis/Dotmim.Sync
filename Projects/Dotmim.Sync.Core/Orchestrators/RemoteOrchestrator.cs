@@ -134,7 +134,7 @@ namespace Dotmim.Sync
             schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Migrate the db structure
-            await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 

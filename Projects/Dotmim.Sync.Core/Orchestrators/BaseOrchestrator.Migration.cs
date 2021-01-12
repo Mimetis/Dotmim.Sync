@@ -59,7 +59,13 @@ namespace Dotmim.Sync
 
                 // Deprovision stored procedures
                 if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
+                {
                     await InternalDropStoredProceduresAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Removing cached commands
+                    var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, oldSetup);
+                    syncAdapter.RemoveCommands();
+                }
 
                 // Deprovision triggers
                 if (migrationTable.Triggers == MigrationAction.Drop || migrationTable.Triggers == MigrationAction.CreateOrRecreate)
