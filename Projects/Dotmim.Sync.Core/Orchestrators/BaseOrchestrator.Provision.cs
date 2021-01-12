@@ -162,7 +162,7 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 // Check if we need to create a schema there
                 var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -228,7 +228,7 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
@@ -254,7 +254,7 @@ namespace Dotmim.Sync
                     }
 
                     // Removing cached commands
-                    var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, this.Setup);
+                    var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
                     syncAdapter.RemoveCommands();
                 }
 
@@ -284,7 +284,7 @@ namespace Dotmim.Sync
             {
                 foreach (var schemaTable in schemaTables.Reverse())
                 {
-                    var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                     var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

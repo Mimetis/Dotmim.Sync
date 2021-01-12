@@ -27,7 +27,7 @@ namespace Dotmim.Sync
             var hasBeenCreated = false;
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(syncTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
 
             var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -69,7 +69,7 @@ namespace Dotmim.Sync
             {
                 foreach (var schemaTable in schemaTables.Reverse())
                 {
-                    var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
                     var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     
                     if (exists)
@@ -80,7 +80,7 @@ namespace Dotmim.Sync
             foreach (var schemaTable in schema.Tables)
             {
                 // Get table builder
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -121,7 +121,7 @@ namespace Dotmim.Sync
             var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
             var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -146,7 +146,7 @@ namespace Dotmim.Sync
                 throw new MissingTableException(table.GetFullName());
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
             var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -173,7 +173,7 @@ namespace Dotmim.Sync
             foreach (var schemaTable in schemaTables.Reverse())
             {
                 // Get table builder
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

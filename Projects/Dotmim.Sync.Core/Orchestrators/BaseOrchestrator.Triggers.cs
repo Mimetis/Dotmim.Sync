@@ -36,7 +36,7 @@ namespace Dotmim.Sync
                     throw new MissingTableException(table.GetFullName());
 
                 // Get table builder
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -73,7 +73,7 @@ namespace Dotmim.Sync
                     throw new MissingTableException(table.GetFullName());
 
                 // Get table builder
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 var r = await this.InternalCreateTriggersAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -92,7 +92,7 @@ namespace Dotmim.Sync
             var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
             var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -114,7 +114,7 @@ namespace Dotmim.Sync
             var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
             var existsAndCanBeDeleted = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -136,7 +136,7 @@ namespace Dotmim.Sync
             var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
             return this.InternalDropTriggersAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress);
 

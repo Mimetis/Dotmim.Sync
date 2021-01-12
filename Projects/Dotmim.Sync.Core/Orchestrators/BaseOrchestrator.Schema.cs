@@ -110,7 +110,7 @@ namespace Dotmim.Sync
             // ensure table is compliante with name / schema with provider
             var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction);
 
-            var tableBuilder = this.Provider.GetTableBuilder(syncTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
 
             var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

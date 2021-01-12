@@ -46,7 +46,7 @@ namespace Dotmim.Sync
                 schema.Filters.Add(filter);
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
             var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -82,7 +82,7 @@ namespace Dotmim.Sync
                  throw new MissingTableException(table.GetFullName());
 
             // Get table builder
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
              var r = await InternalCreateStoredProceduresAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -113,7 +113,7 @@ namespace Dotmim.Sync
             foreach (var filter in this.Setup.Filters)
                 schema.Filters.Add(filter);
 
-            var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
             var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -147,7 +147,7 @@ namespace Dotmim.Sync
                     schema.Filters.Add(filter);
 
 
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 var existsAndCanBeDeleted = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -155,7 +155,7 @@ namespace Dotmim.Sync
                     hasBeenDropped = await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Removing cached commands
-                var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, this.Setup);
+                var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
                 syncAdapter.RemoveCommands();
 
                 return hasBeenDropped;
@@ -187,13 +187,13 @@ namespace Dotmim.Sync
                     schema.Filters.Add(filter);
 
                 // using a fake SyncTable based on SetupTable, since we don't need columns
-                var tableBuilder = this.Provider.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 // check bulk before
                 hasDroppedAtLeastOneStoredProcedure = await InternalDropStoredProceduresAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Removing cached commands
-                var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, this.Setup);
+                var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
                 syncAdapter.RemoveCommands();
 
                 return hasDroppedAtLeastOneStoredProcedure;
