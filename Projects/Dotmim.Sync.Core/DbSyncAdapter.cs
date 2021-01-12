@@ -159,7 +159,7 @@ namespace Dotmim.Sync
             await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 
             // Testing The Prepare() performance increase
-            //command.Prepare();
+            command.Prepare();
 
             // Adding this command as prepared
             lazyCommand.Value.IsPrepared = true;

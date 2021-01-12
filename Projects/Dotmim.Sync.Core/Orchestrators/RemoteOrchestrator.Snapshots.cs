@@ -228,10 +228,8 @@ namespace Dotmim.Sync
 
             foreach (var table in schema.Tables)
             {
-                var syncAdapter = this.Provider.GetSyncAdapter(table, setup);
-
                 // Get Select initialize changes command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, table, true, connection, transaction);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, setup, true, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, table, null, true, 0, selectIncrementalChangesCommand);

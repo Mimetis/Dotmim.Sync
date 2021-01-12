@@ -4,6 +4,7 @@ using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -22,6 +23,14 @@ namespace Dotmim.Sync
         private Interceptors interceptors = new Interceptors();
         internal SyncContext syncContext;
         internal ILogger logger;
+
+        // Internal table builder cache
+        private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
+            = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
+
+        // Internal sync adapter cache
+        private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
+            = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -221,6 +230,56 @@ namespace Dotmim.Sync
             this.logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 
             throw syncException;
+        }
+
+        /// <summary>
+        /// Get the provider sync adapter
+        /// </summary>
+        internal DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        {
+            var p = this.Provider.GetParsers(tableDescription, setup);
+
+            var s = JsonConvert.SerializeObject(setup);
+            var data = Encoding.UTF8.GetBytes(s);
+            var hash = HashAlgorithm.SHA256.Create(data);
+            var hashString = Convert.ToBase64String(hash);
+
+            // Create the key
+            var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+
+            // Get a lazy command instance
+            var lazySyncAdapter = syncAdapters.GetOrAdd(commandKey,
+                k => new Lazy<DbSyncAdapter>(() => this.Provider.GetSyncAdapter(tableDescription, setup)));
+
+            // Get the concrete instance
+            var syncAdapter = lazySyncAdapter.Value;
+
+            return syncAdapter;
+        }
+
+        /// <summary>
+        /// Get the provider table builder
+        /// </summary>
+        internal DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var p = this.Provider.GetParsers(tableDescription, setup);
+
+            var s = JsonConvert.SerializeObject(setup);
+            var data = Encoding.UTF8.GetBytes(s);
+            var hash = HashAlgorithm.SHA256.Create(data);
+            var hashString = Convert.ToBase64String(hash);
+
+            // Create the key
+            var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+
+            // Get a lazy command instance
+            var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey, 
+                k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
+
+            // Get the concrete instance
+            var tableBuilder = lazyTableBuilder.Value;
+
+            return tableBuilder;
         }
 
         /// <summary>

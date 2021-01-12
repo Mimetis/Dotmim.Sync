@@ -77,10 +77,8 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
                     continue;
 
-                var syncAdapter = this.Provider.GetSyncAdapter(syncTable, message.Setup);
-
                 // Get Command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
@@ -221,10 +219,8 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
                     continue;
 
-                var syncAdapter = this.Provider.GetSyncAdapter(syncTable, message.Setup);
-
                 // Get Command
-                var command = await this.GetSelectChangesCommandAsync(context, syncAdapter, syncTable, message.IsNew, connection, transaction);
+                var command = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, command);
@@ -304,12 +300,14 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        internal async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
+        internal async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, SyncTable syncTable, SyncSetup setup, bool isNew, DbConnection connection, DbTransaction transaction)
         {
             DbCommand command;
             DbCommandType dbCommandType;
 
             SyncFilter tableFilter = null;
+
+            var syncAdapter = this.GetSyncAdapter(syncTable, setup);
 
             // Check if we have parameters specified
 
