@@ -70,6 +70,15 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Gets a value indicating if the table should be migrated
+        /// </summary>
+        public bool ShouldMigrate => this.TrackingTable != MigrationAction.None ||
+                                        this.Triggers != MigrationAction.None ||
+                                        this.StoredProcedures != MigrationAction.None ||
+                                        this.Table != MigrationAction.None;
+
+
+        /// <summary>
         /// Gets or Sets a boolean indicating that this table should be recreated
         /// </summary>
         public MigrationAction Table { get; set; }
@@ -133,7 +142,20 @@ namespace Dotmim.Sync
                 migrationSetup.Tables.Add(migrationDeletedSetupTable);
             }
 
-            // For all new tables, a classic ensure schema will be enough
+            // Search for new tables
+            var newTables = newSetup.Tables.Where(newdt => oldSetup.Tables[newdt.TableName, newdt.SchemaName] == null);
+
+            // We found some tables present in the new setup, but not in the old setup
+            foreach (var newTable in newTables)
+            {
+                var migrationAddedSetupTable = new MigrationSetupTable(newTable);
+                migrationAddedSetupTable.StoredProcedures = MigrationAction.CreateOrRecreate;
+                migrationAddedSetupTable.TrackingTable = MigrationAction.CreateOrRecreate;
+                migrationAddedSetupTable.Triggers = MigrationAction.CreateOrRecreate;
+                migrationAddedSetupTable.Table = MigrationAction.CreateOrRecreate;
+
+                migrationSetup.Tables.Add(migrationAddedSetupTable);
+            }
 
             // Compare existing tables
             foreach (var newTable in newSetup.Tables)
@@ -164,7 +186,9 @@ namespace Dotmim.Sync
                     migrationSetupTable.TrackingTable = migrationSetup.AllTrackingTables;
                     migrationSetupTable.Triggers = migrationSetup.AllTriggers;
                 }
-                migrationSetup.Tables.Add(migrationSetupTable);
+
+                if (migrationSetupTable.ShouldMigrate)
+                    migrationSetup.Tables.Add(migrationSetupTable);
             }
             return migrationSetup;
 
