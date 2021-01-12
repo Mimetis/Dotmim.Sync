@@ -843,6 +843,11 @@ namespace Dotmim.Sync.Tests
         public async Task Using_ExistingClientDatabase_Filter_With_NotSyncedColumn()
         {
 
+            if (this.Server.ProviderType != ProviderType.Sql)
+                return;
+
+            var clients = this.Clients.Where(c => c.ProviderType == ProviderType.Sql || c.ProviderType == ProviderType.Sqlite);
+
             var setup = new SyncSetup(new string[] { "Customer" });
 
             // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
@@ -852,11 +857,8 @@ namespace Dotmim.Sync.Tests
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases WITH schema, and WITHOUT seeding
-            foreach (var client in this.Clients)
+            foreach (var client in clients)
             {
-                if (client.ProviderType != ProviderType.Sql)
-                    continue;
-
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
             }
@@ -872,11 +874,8 @@ namespace Dotmim.Sync.Tests
             var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
-            foreach (var client in Clients)
+            foreach (var client in clients)
             {
-                if (client.ProviderType != ProviderType.Sql)
-                    continue;
-
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
                 agent.Parameters.Add("EmployeeID", 1);
