@@ -3,6 +3,7 @@ using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -54,11 +55,15 @@ namespace Dotmim.Sync
     public static partial class InterceptorsExtensions
     {
 
-
         /// <summary>
         /// Intercept the provider action when a database is out dated
         /// </summary>
         public static void OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a database is out dated
+        /// </summary>
+        public static void OnOutdated(this BaseOrchestrator orchestrator, Func<OutdatedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }

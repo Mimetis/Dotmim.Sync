@@ -939,8 +939,6 @@ namespace Dotmim.Sync.Tests
 
         }
 
-
-
         /// <summary>
         /// </summary>
         [Fact, TestPriority(11)]
@@ -1182,6 +1180,89 @@ namespace Dotmim.Sync.Tests
             }
 
         }
+
+
+        /// <summary>
+        /// </summary>
+        [Fact, TestPriority(15)]
+        public async Task Migration_Adding_Table_AndReinitialize_TableOnly()
+        {
+
+            var setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+            // Adding a new table
+            setup.Tables.Add("Employee");
+
+            // Trying to Hack the Reinitialize Thing
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+
+                // When trying to get changes from the server, just replace the command with the Initialize command
+                // and get ALL the rows from the migrated table
+                agent.RemoteOrchestrator.OnTableChangesSelecting(tcs =>
+                {
+                    if (tcs.Table.TableName != "Employee")
+                        return;
+
+                    var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
+                    var command = adapter.GetCommand(DbCommandType.SelectInitializedChanges);
+                    command.Connection = tcs.Connection;
+                    command.Transaction = tcs.Transaction;
+
+                    tcs.Command = command;
+                });
+
+                // Forcing Reset of the table to be sure no conflicts will be raised
+                // And all rows will be re-applied 
+                agent.LocalOrchestrator.OnTableChangesApplying(async tca =>
+                {
+                    if (tca.Changes.TableName != "Employee")
+                        return;
+
+                    var adapter = agent.LocalOrchestrator.GetSyncAdapter(tca.Changes, setup);
+                    await adapter.ResetTableAsync(tca.Connection, tca.Transaction);
+                });
+
+
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(3, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+        }
+
+
 
 
     }

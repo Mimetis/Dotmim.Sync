@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -40,7 +41,7 @@ namespace Dotmim.Sync
     public class ScopeTableDroppingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
 
@@ -58,7 +59,7 @@ namespace Dotmim.Sync
     public class ScopeTableCreatingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
         public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
@@ -99,8 +100,8 @@ namespace Dotmim.Sync
     public class ScopeLoadingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
-        public DbScopeType ScopeType { get; }
+        public DbCommand Command { get; set; }
+        public DbScopeType ScopeType { get; set; }
         public string ScopeName { get; }
         public ScopeLoadingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, connection, transaction)
@@ -115,7 +116,7 @@ namespace Dotmim.Sync
     public class ScopeSavingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
 
@@ -154,11 +155,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnScopeTableCreating(this BaseOrchestrator orchestrator, Action<ScopeTableCreatingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is creating
+        /// </summary>
+        public static void OnScopeTableCreating(this BaseOrchestrator orchestrator, Func<ScopeTableCreatingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope table is created
         /// </summary>
         public static void OnScopeTableCreated(this BaseOrchestrator orchestrator, Action<ScopeTableCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is created
+        /// </summary>
+        public static void OnScopeTableCreated(this BaseOrchestrator orchestrator, Func<ScopeTableCreatedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -166,11 +177,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnScopeTableDropping(this BaseOrchestrator orchestrator, Action<ScopeTableDroppingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropping
+        /// </summary>
+        public static void OnScopeTableDropping(this BaseOrchestrator orchestrator, Func<ScopeTableDroppingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope table is dropped
         /// </summary>
         public static void OnScopeTableDropped(this BaseOrchestrator orchestrator, Action<ScopeTableDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropped
+        /// </summary>
+        public static void OnScopeTableDropped(this BaseOrchestrator orchestrator, Func<ScopeTableDroppedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -178,11 +199,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnScopeLoading(this LocalOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this LocalOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is about to be loaded from ServerScope database
         /// </summary>
         public static void OnServerScopeLoading(this RemoteOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from ServerScope database
+        /// </summary>
+        public static void OnServerScopeLoading(this RemoteOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -190,11 +221,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs<ScopeInfo>> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Func<ScopeLoadedArgs<ScopeInfo>, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
         public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs<ServerScopeInfo>> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from Server database
+        /// </summary>
+        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Func<ScopeLoadedArgs<ServerScopeInfo>, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -202,11 +243,21 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnScopeSaving(this BaseOrchestrator orchestrator, Action<ScopeSavingArgs> action)
             => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is saving
+        /// </summary>
+        public static void OnScopeSaving(this BaseOrchestrator orchestrator, Func<ScopeSavingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is saved
         /// </summary>
         public static void OnScopeSaved(this BaseOrchestrator orchestrator, Action<ScopeSavedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is saved
+        /// </summary>
+        public static void OnScopeSaved(this BaseOrchestrator orchestrator, Func<ScopeSavedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }
