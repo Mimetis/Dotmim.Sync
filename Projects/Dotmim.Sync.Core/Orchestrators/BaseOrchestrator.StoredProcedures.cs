@@ -154,6 +154,10 @@ namespace Dotmim.Sync
                 if (existsAndCanBeDeleted)
                     hasBeenDropped = await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                // Removing cached commands
+                var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, this.Setup);
+                syncAdapter.RemoveCommands();
+
                 return hasBeenDropped;
 
             }, cancellationToken);
@@ -187,6 +191,10 @@ namespace Dotmim.Sync
 
                 // check bulk before
                 hasDroppedAtLeastOneStoredProcedure = await InternalDropStoredProceduresAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // Removing cached commands
+                var syncAdapter = this.Provider.GetSyncAdapter(schemaTable, this.Setup);
+                syncAdapter.RemoveCommands();
 
                 return hasDroppedAtLeastOneStoredProcedure;
 
@@ -242,6 +250,7 @@ namespace Dotmim.Sync
                 return false;
 
             await action.Command.ExecuteNonQueryAsync();
+
             await this.InterceptAsync(new StoredProcedureDroppedArgs(ctx, tableBuilder.TableDescription, storedProcedureType, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             return true;

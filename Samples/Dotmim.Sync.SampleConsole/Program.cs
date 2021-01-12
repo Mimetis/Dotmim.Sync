@@ -33,6 +33,7 @@ using System.Threading;
 using MySql.Data.MySqlClient;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
+using System.Text;
 
 internal class Program
 {
@@ -48,7 +49,8 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await TestHelloKestrellAsync();
+        await SynchronizeThenChangeSetupAsync();
+        // BugExecutingProcedureMySql();
 
     }
 
@@ -237,8 +239,8 @@ internal class Program
                     var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new CustomMessagePackSerializerFactory());
                     var agent = new SyncAgent(clientProvider, webClientOrchestrator);
 
-                        // Launch the sync process
-                        if (!agent.Parameters.Contains("CompanyName"))
+                    // Launch the sync process
+                    if (!agent.Parameters.Contains("CompanyName"))
                         agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
                     var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
@@ -293,7 +295,7 @@ internal class Program
         });
 
         using var server = new KestrellTestServer(configureServices);
-        
+
         var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
             do
@@ -473,8 +475,8 @@ internal class Program
         CreateSqliteDatabaseAndTable("Scenario01", "Customer");
 
         // Create MySql database and table
-        CreateMySqlDatabase("Scenario01");
-        CreateMySqlTable("Scenario01", "Customer");
+        CreateMySqlDatabase("Scenario01", null);
+        CreateMySqlTable("Scenario01", "Customer", null);
 
         // Add one mysql record
         AddMySqlRecord("Scenario01", "Customer");
@@ -496,6 +498,20 @@ internal class Program
         await TestSyncAsync("Scenario01", "Scenario01", "Customer", true);
     }
 
+    private static void CreateMySqlTable(string databaseName, string tableName, MySqlConnection mySqlConnection)
+    {
+
+        string sql = $"DROP TABLE IF EXISTS `{tableName}`; " +
+            $" CREATE TABLE `F` (" +
+            $" `ID` char(36) NOT NULL " +
+            $",`F1` int NULL" +
+            $",`F2` longtext NOT NULL" +
+            $",`F3` longtext NULL" +
+            $", PRIMARY KEY(`ID`))";
+
+        var cmd = new MySqlCommand(sql, mySqlConnection);
+        cmd.ExecuteNonQuery();
+    }
     private static void CreateSqliteDatabaseAndTable(string fileName, string tableName)
     {
 
@@ -546,69 +562,179 @@ internal class Program
         }
 
     }
-    private static void CreateMySqlDatabase(string databaseName)
+
+
+    private static MySqlConnection GetMyConnection(string databaseName = null)
     {
-
-        var sysBuilder = new MySqlConnectionStringBuilder();
-
-        sysBuilder.Database = "sys";
-        sysBuilder.Port = 3307;
-        sysBuilder.UserID = "root";
-        sysBuilder.Password = "Password12!";
-
-        string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
-
-        using var mySqlConnection = new MySqlConnection(sysBuilder.ConnectionString);
-        try
-        {
-            var cmd = new MySqlCommand(sqlDB, mySqlConnection);
-
-            mySqlConnection.Open();
-            cmd.ExecuteNonQuery();
-            mySqlConnection.Close();
-
-            Console.WriteLine("Database created: " + databaseName);
-        }
-        catch (SqliteException ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-    }
-    private static void CreateMySqlTable(string databaseName, string tableName)
-    {
-
         var builder = new MySqlConnectionStringBuilder();
 
-        builder.Database = databaseName;
+        if (!string.IsNullOrEmpty(databaseName))
+            builder.Database = databaseName;
+
         builder.Port = 3307;
         builder.UserID = "root";
         builder.Password = "Password12!";
 
+        var mySqlConnection = new MySqlConnection(builder.ConnectionString);
+        return mySqlConnection;
 
-        string sql = $"CREATE TABLE `{tableName}` (" +
-            " `ID` char(36) NOT NULL " +
-            ",`F1` int NULL" +
-            ",`F2` longtext NOT NULL" +
-            ",`F3` longtext NULL" +
-            ", PRIMARY KEY(`ID`))";
+    }
 
-        using var mySqlConnection = new MySqlConnection(builder.ConnectionString);
-        try
+    private static void BugExecutingProcedureMySql()
+    {
+        var databaseName = "test";
+
+        // creating database
+        using (var connection = GetMyConnection())
         {
-            var cmd = new MySqlCommand(sql, mySqlConnection);
-
-            mySqlConnection.Open();
-            cmd.ExecuteNonQuery();
-            mySqlConnection.Close();
-
-            Console.WriteLine("Table created.");
+            connection.Open();
+            CreateMySqlDatabase(databaseName, connection);
+            connection.Close();
         }
-        catch (SqliteException ex)
+
+        // creating 1st version of table and stored proc (then call it)
+        using (var connection = GetMyConnection(databaseName))
         {
-            Console.WriteLine(ex.Message);
+            connection.Open();
+
+            CreateMySqlTable(databaseName, connection);
+            CreateMySqlProcedure(databaseName, connection);
+            // call 1st version of my stored procedure
+            InsertMySqlRecord(connection);
+
+            connection.Close();
+        }
+
+        // creating 2nd version of table and stored proc (then call it)
+        using (var connection = GetMyConnection(databaseName))
+        {
+            connection.Open();
+            // Adding one column to table
+            AlterMySqlTable(databaseName, connection);
+            // Creating 2nd version of my stored procedure
+            CreateMySqlProcedure2(databaseName, connection);
+            // FAIL: Trying to call this new stored procedure
+            InsertMySqlRecord2(connection);
+
+            connection.Close();
         }
 
     }
+
+    // Creating my database
+    private static void CreateMySqlDatabase(string databaseName, MySqlConnection mySqlConnection)
+    {
+        string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
+        var cmd = new MySqlCommand(sqlDB, mySqlConnection);
+        cmd.ExecuteNonQuery();
+
+    }
+
+    // Creating my table
+    private static void CreateMySqlTable(string databaseName, MySqlConnection mySqlConnection)
+    {
+
+        string sql = $"DROP TABLE IF EXISTS `F`; " +
+            $" CREATE TABLE `F` (" +
+            $" `ID` char(36) NOT NULL " +
+            $",`F1` int NULL" +
+            $",`F2` longtext NOT NULL" +
+            $",`F3` longtext NULL" +
+            $", PRIMARY KEY(`ID`))";
+
+        var cmd = new MySqlCommand(sql, mySqlConnection);
+        cmd.ExecuteNonQuery();
+    }
+
+    // Adding new column to my table
+    private static void AlterMySqlTable(string databaseName, MySqlConnection mySqlConnection)
+    {
+        var cmd = new MySqlCommand($"ALTER TABLE `F` ADD `F4` longtext NULL;", mySqlConnection);
+        cmd.ExecuteNonQuery();
+    }
+
+    // Creating 1st version of the stored procedure
+    private static void CreateMySqlProcedure(string databaseName, MySqlConnection mySqlConnection)
+    {
+        var procedure = new StringBuilder();
+        procedure.AppendLine($"DROP PROCEDURE IF EXISTS `insert`;");
+        procedure.AppendLine($"CREATE PROCEDURE `insert` (");
+        procedure.AppendLine($" in_ID char(36)");
+        procedure.AppendLine($",in_F1 int");
+        procedure.AppendLine($",in_F2 longtext");
+        procedure.AppendLine($",in_F3 longtext)");
+        procedure.AppendLine($"BEGIN");
+        procedure.AppendLine($"  INSERT INTO `F` (");
+        procedure.AppendLine($"  `ID`, `F1`, `F2`, `F3`) ");
+        procedure.AppendLine($"VALUES (");
+        procedure.AppendLine($"  in_ID, in_F1, in_F2, in_F3);");
+        procedure.AppendLine($"END;");
+
+        var cmd = new MySqlCommand(procedure.ToString(), mySqlConnection);
+
+        cmd.ExecuteNonQuery();
+    }
+
+    // Creating 2nd version of the stored procedure
+    private static void CreateMySqlProcedure2(string databaseName, MySqlConnection mySqlConnection)
+    {
+        var procedure = new StringBuilder();
+        procedure.AppendLine($"DROP PROCEDURE IF EXISTS `insert`;");
+        procedure.AppendLine($"CREATE PROCEDURE `insert` (");
+        procedure.AppendLine($" in_ID char(36)");
+        procedure.AppendLine($",in_F1 int");
+        procedure.AppendLine($",in_F2 longtext");
+        procedure.AppendLine($",in_F3 longtext");
+        procedure.AppendLine($",in_F4 longtext)");
+        procedure.AppendLine($"BEGIN");
+        procedure.AppendLine($"  INSERT INTO `F` (");
+        procedure.AppendLine($"  `ID`, `F1`, `F2`, `F3`, `F4`) ");
+        procedure.AppendLine($"VALUES (");
+        procedure.AppendLine($"  in_ID, in_F1, in_F2, in_F3, in_F4);");
+        procedure.AppendLine($"END;");
+
+        var cmd = new MySqlCommand(procedure.ToString(), mySqlConnection);
+
+        cmd.ExecuteNonQuery();
+    }
+
+    // Executing 1st version of the stored procedure
+    private static void InsertMySqlRecord(MySqlConnection mySqlConnection)
+    {
+        var cmd = new MySqlCommand
+        {
+            CommandText = "`insert`",
+            CommandType = CommandType.StoredProcedure,
+            Connection = mySqlConnection
+        };
+
+        cmd.Parameters.AddWithValue("in_ID", Guid.NewGuid().ToString());
+        cmd.Parameters.AddWithValue("in_F1", 1);
+        cmd.Parameters.AddWithValue("in_F2", "Hello");
+        cmd.Parameters.AddWithValue("in_F3", "world");
+
+        cmd.ExecuteNonQuery();
+    }
+
+    // Executing 2nd version of the stored procedure
+    private static void InsertMySqlRecord2(MySqlConnection mySqlConnection)
+    {
+        var cmd = new MySqlCommand
+        {
+            CommandText = "`insert`",
+            CommandType = CommandType.StoredProcedure,
+            Connection = mySqlConnection
+        };
+
+        cmd.Parameters.AddWithValue("in_ID", Guid.NewGuid().ToString());
+        cmd.Parameters.AddWithValue("in_F1", 1);
+        cmd.Parameters.AddWithValue("in_F2", "Hello");
+        cmd.Parameters.AddWithValue("in_F3", "world");
+        cmd.Parameters.AddWithValue("in_F4", "again !");
+
+        cmd.ExecuteNonQuery();
+    }
+
 
     private static void AddMySqlRecord(string databaseName, string tableName)
     {
@@ -1348,7 +1474,7 @@ internal class Program
         //    agent.Parameters.Add("postal", "NULL");
 
 
-        
+
         do
         {
             Console.Clear();
@@ -1710,7 +1836,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
- 
+
     public static async Task SyncHttpThroughKestrellAsync()
     {
         // server provider
@@ -1800,16 +1926,16 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
-                        //var localSetup = new SyncSetup()
-                        //{
-                        //    StoredProceduresPrefix = "cli",
-                        //    StoredProceduresSuffix = "",
-                        //    TrackingTablesPrefix = "cli",
-                        //    TrackingTablesSuffix = "",
-                        //    TriggersPrefix = "cli",
-                        //    TriggersSuffix = ""
-                        //};
-                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, "dd");
+                    //var localSetup = new SyncSetup()
+                    //{
+                    //    StoredProceduresPrefix = "cli",
+                    //    StoredProceduresSuffix = "",
+                    //    TrackingTablesPrefix = "cli",
+                    //    TrackingTablesSuffix = "",
+                    //    TriggersPrefix = "cli",
+                    //    TriggersSuffix = ""
+                    //};
+                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, "dd");
                     var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
                     var s = await agent.SynchronizeAsync(progress);
                     Console.WriteLine(s);
@@ -1978,16 +2104,17 @@ internal class Program
 
     }
 
-
-    private static async Task SynchronizeThenChangeSetupAsync()
+    private static async Task SynchronizeThenChangeSetupAsync2()
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("client.db");
 
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail", "BuildVersion" });
+        var setup = new SyncSetup(new string[] { "Customer" });
+        setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName", "EmailAddress" });
+
         // Add pref suf
         setup.StoredProceduresPrefix = "s";
         setup.StoredProceduresSuffix = "";
@@ -2012,51 +2139,67 @@ internal class Program
             Console.ResetColor();
         });
 
+        agent.AddRemoteProgress(remoteProgress);
+        var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+
+        Console.WriteLine(s1);
+
+    }
+
+    private static async Task SynchronizeThenChangeSetupAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("client.db");
+
+        var setup = new SyncSetup(new string[] { "Customer" });
+        setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
+
+        // Add pref suf
+        setup.StoredProceduresPrefix = "s";
+        setup.StoredProceduresSuffix = "";
+        setup.TrackingTablesPrefix = "t";
+        setup.TrackingTablesSuffix = "";
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
 
         agent.AddRemoteProgress(remoteProgress);
         var s1 = await agent.SynchronizeAsync(progress);
 
         Console.WriteLine(s1);
 
-        // Change setup
-        setup.StoredProceduresPrefix = "dms";
-        setup.TrackingTablesPrefix = "dms";
-        setup.TriggersPrefix = "dms";
-        setup.Tables.Clear();
-        setup.Tables.Add("Product");
+        // Adding a new column to Customer
+        setup.Tables["Customer"].Columns.Add("EmailAddress");
 
-        //// Get scope_server
-        //var scope_server = await agent.RemoteOrchestrator.GetServerScopeAsync();
-        //var oldSetup = scope_server.Setup;
+        // fake old setup
+        var oldSetup = new SyncSetup(new string[] { "Customer" });
+        oldSetup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
 
-        //var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
+        await agent.RemoteOrchestrator.MigrationAsync(oldSetup);
+        var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
 
-        //await agent.RemoteOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
-        //await agent.LocalOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                //if (!agent.Parameters.Contains("CompanyName"))
-                //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
-
-                var r1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-
-                // Write results
-                Console.WriteLine(r1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+        await agent.LocalOrchestrator.MigrationAsync(oldSetup, newSchema);
 
 
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+        //var r1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
 
         Console.WriteLine("End");
     }
