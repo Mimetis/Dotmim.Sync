@@ -553,6 +553,16 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache.ClientChangesApplied = clientChangesApplied;
             }
 
+            // delete the folder (not the BatchPartInfo, because we have a reference on it)
+            var cleanFolder = this.Options.CleanFolder;
+
+            if (cleanFolder)
+                cleanFolder = await this.InternalCanCleanFolderAsync(ctx, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
+
+            if (cleanFolder)
+                sessionCache.ClientBatchInfo.TryRemoveDirectory();
+
+
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(ctx, remoteClientTimestamp, serverBatchInfo, clientChangesApplied, serverChangesSelected, 0);
 
@@ -576,12 +586,12 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
-        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
+        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
             // 1) Create the http message content response
-            var changesResponse = new HttpMessageSendChangesResponse(syncContext);
+            var changesResponse = new HttpMessageSendChangesResponse(context);
             changesResponse.ServerChangesSelected = serverChangesSelected;
             changesResponse.ClientChangesApplied = clientChangesApplied;
             changesResponse.ServerStep = HttpStep.GetMoreChanges;
@@ -628,19 +638,13 @@ namespace Dotmim.Sync.Web.Server
             if (batchPartInfo.IsLastBatch)
             {
                 // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                if (this.Options.CleanFolder)
-                {
-                    var shouldDeleteFolder = true;
-                    if (!string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                    {
-                        var dirInfo = new DirectoryInfo(serverBatchInfo.DirectoryRoot);
-                        var snapInfo = new DirectoryInfo(this.Options.SnapshotsDirectory);
-                        shouldDeleteFolder = dirInfo.FullName != snapInfo.FullName;
-                    }
+                var cleanFolder = this.Options.CleanFolder;
 
-                    if (shouldDeleteFolder)
-                        serverBatchInfo.TryRemoveDirectory();
-                }
+                if (cleanFolder)
+                    cleanFolder = await this.InternalCanCleanFolderAsync(context, serverBatchInfo, default).ConfigureAwait(false);
+
+                if (cleanFolder)
+                    serverBatchInfo.TryRemoveDirectory();
             }
 
             return changesResponse;

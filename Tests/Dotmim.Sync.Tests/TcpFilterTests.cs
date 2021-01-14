@@ -571,16 +571,15 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            // snapshot directory
-            var snapshotDirctory = HelperDatabase.GetRandomName();
-            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
             // ----------------------------------
             // Setting correct options for sync agent to be able to reach snapshot
             // ----------------------------------
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
             var options = new SyncOptions
             {
                 SnapshotsDirectory = directory,
-                BatchSize = 3000
+                BatchSize = 200
             };
 
             // ----------------------------------
@@ -588,7 +587,6 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
             await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
-
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -617,12 +615,17 @@ namespace Dotmim.Sync.Tests
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
-
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
+                var snapshotApplying = 0;
+                var snapshotApplied = 0;
+
+                agent.LocalOrchestrator.OnSnapshotApplying(saa => snapshotApplying++);
+                agent.LocalOrchestrator.OnSnapshotApplied(saa => snapshotApplied++);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -631,10 +634,11 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(1, snapshotApplying);
+                Assert.Equal(1, snapshotApplied);
             }
         }
-
-
 
         /// <summary>
         /// Insert rows on server, and ensure DISTINCT is applied correctly 
@@ -727,15 +731,13 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(8)]
-        public async Task Using_ExistingClientDatabase_ProvisionDeprovision()
+        [Theory, TestPriority(8)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Using_ExistingClientDatabase_ProvisionDeprovision(SyncOptions options)
         {
             // create empty client databases
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            // options
-            var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -839,8 +841,9 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(9)]
-        public async Task Using_ExistingClientDatabase_Filter_With_NotSyncedColumn()
+        [Theory, TestPriority(9)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Using_ExistingClientDatabase_Filter_With_NotSyncedColumn(SyncOptions options)
         {
 
             if (this.Server.ProviderType != ProviderType.Sql)
@@ -870,9 +873,6 @@ namespace Dotmim.Sync.Tests
 
             setup.Filters.Add(filter);
 
-            // options
-            var options = new SyncOptions();
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in clients)
             {
@@ -889,8 +889,9 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(10)]
-        public async Task Migration_Adding_Table()
+        [Theory, TestPriority(10)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Migration_Adding_Table(SyncOptions options)
         {
 
             var setup = new SyncSetup(new string[] { "Customer" });
@@ -906,9 +907,6 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             setup.Filters.Add("Customer", "EmployeeID");
-
-            // options
-            var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -941,8 +939,9 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(11)]
-        public async Task Migration_Modifying_Table()
+        [Theory, TestPriority(11)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Migration_Modifying_Table(SyncOptions options)
         {
 
             var setup = new SyncSetup(new string[] { "Customer" });
@@ -958,9 +957,6 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             setup.Filters.Add("Customer", "EmployeeID");
-
-            // options
-            var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1009,14 +1005,15 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
-         
+
         }
 
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(12)]
-        public async Task Migration_Removing_Table()
+        [Theory, TestPriority(12)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Migration_Removing_Table(SyncOptions options)
         {
             var setup = new SyncSetup(new string[] { "Customer", "Employee" });
 
@@ -1031,9 +1028,6 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             setup.Filters.Add("Customer", "EmployeeID");
-
-            // options
-            var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1047,7 +1041,6 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 
-
             // Adding a new column to Customer
             setup.Tables.Remove(setup.Tables["Customer"]);
             setup.Filters.Clear();
@@ -1058,9 +1051,9 @@ namespace Dotmim.Sync.Tests
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(3, s.ChangesAppliedOnClient.TotalAppliedChanges);
+                Assert.Equal(0, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 
         }
@@ -1068,8 +1061,9 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(13)]
-        public async Task Deprovision_Should_Remove_Filtered_StoredProcedures()
+        [Theory, TestPriority(13)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Deprovision_Should_Remove_Filtered_StoredProcedures(SyncOptions options)
         {
             var setup = new SyncSetup(new string[] { "Customer", "Employee" });
 
@@ -1084,9 +1078,6 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             setup.Filters.Add("Customer", "EmployeeID");
-
-            // options
-            var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1131,8 +1122,9 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(14)]
-        public async Task Migration_Rename_TrackingTable()
+        [Theory, TestPriority(14)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Migration_Rename_TrackingTable(SyncOptions options)
         {
 
             var setup = new SyncSetup(new string[] { "Customer" });
@@ -1148,9 +1140,6 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             setup.Filters.Add("Customer", "EmployeeID");
-
-            // options
-            var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1184,11 +1173,11 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(15)]
-        public async Task Migration_Adding_Table_AndReinitialize_TableOnly()
+        [Theory, TestPriority(15)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Migration_Adding_Table_AndReinitialize_TableOnly(SyncOptions options)
         {
-
-            var setup = new SyncSetup(new string[] { "Customer" });
+            var setup = new SyncSetup(new string[] { "[Customer]" });
 
             // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
             setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
@@ -1201,9 +1190,6 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             setup.Filters.Add("Customer", "EmployeeID");
-
-            // options
-            var options = new SyncOptions();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1230,26 +1216,63 @@ namespace Dotmim.Sync.Tests
                 // and get ALL the rows for the migrated new table
                 agent.RemoteOrchestrator.OnTableChangesSelecting(tcs =>
                 {
-                    if (tcs.Table.TableName != "Employee")
+                    if (tcs.Context.AdditionalProperties == null || tcs.Context.AdditionalProperties.Count <= 0)
                         return;
 
-                    var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
-                    var command = adapter.GetCommand(DbCommandType.SelectInitializedChanges);
-                    command.Connection = tcs.Connection;
-                    command.Transaction = tcs.Transaction;
+                    if (tcs.Context.AdditionalProperties.ContainsKey(tcs.Table.GetFullName()))
+                    {
+                        var addProp = tcs.Context.AdditionalProperties[tcs.Table.GetFullName()];
+                        if (addProp == "Reinitialize")
+                        {
+                            var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
+                            var command = adapter.GetCommand(DbCommandType.SelectInitializedChanges);
+                            command.Connection = tcs.Connection;
+                            command.Transaction = tcs.Transaction;
 
-                    tcs.Command = command;
+                            tcs.Command = command;
+                        }
+                    }
+                });
+
+                // On client
+                agent.LocalOrchestrator.OnMigrated(ma =>
+                {
+                    // migrateTables are empty if not migration tables has been done.
+                    var migratedTables = ma.Migration.Tables;
+
+                    foreach (var migratedTable in migratedTables)
+                    {
+                        var tableName = migratedTable.SetupTable.GetFullName();
+
+                        if (migratedTable.Table == MigrationAction.Create)
+                        {
+                            if (ma.Context.AdditionalProperties == null)
+                                ma.Context.AdditionalProperties = new Dictionary<string, string>();
+
+                            ma.Context.AdditionalProperties.Add(tableName, "Reinitialize");
+                        }
+                    }
                 });
 
                 // ON CLIENT : Forcing Reset of the table to be sure no conflicts will be raised
                 // And all rows will be re-applied 
                 agent.LocalOrchestrator.OnTableChangesApplying(async tca =>
                 {
-                    if (tca.Changes.TableName != "Employee")
+                    if (tca.Context.AdditionalProperties == null || tca.Context.AdditionalProperties.Count <= 0)
                         return;
 
-                    var adapter = agent.LocalOrchestrator.GetSyncAdapter(tca.Changes, setup);
-                    await adapter.ResetTableAsync(tca.Connection, tca.Transaction);
+                    if (tca.State != DataRowState.Modified)
+                        return;
+
+                    if (tca.Context.AdditionalProperties.ContainsKey(tca.Table.GetFullName()))
+                    {
+                        var addProp = tca.Context.AdditionalProperties[tca.Table.GetFullName()];
+                        if (addProp == "Reinitialize")
+                        {
+                            var adapter = agent.LocalOrchestrator.GetSyncAdapter(tca.Table, setup);
+                            await adapter.ResetTableAsync(tca.Connection, tca.Transaction);
+                        }
+                    }
                 });
 
 
@@ -1258,12 +1281,99 @@ namespace Dotmim.Sync.Tests
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(3, s.ChangesAppliedOnClient.TotalAppliedChanges);
+
+
+                s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+
             }
+
+
 
         }
 
 
+        /// <summary>
+        /// Insert one row in two tables on server, should be correctly sync on all clients
+        /// </summary>
+        [Fact, TestPriority(16)]
+        public async Task Snapshot_ShouldNot_Delete_Folders()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // ----------------------------------
+            // Setting correct options for sync agent to be able to reach snapshot
+            // ----------------------------------
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 200
+            };
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
+
+            // getting snapshot directory names
+            var (rootDirectory, nameDirectory) = await remoteOrchestrator.GetSnapshotDirectoryAsync(this.FilterParameters).ConfigureAwait(false);
+
+            Assert.False(Directory.Exists(rootDirectory));
+            Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+            
+            Assert.True(Directory.Exists(rootDirectory));
+            Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+
+
+            // ----------------------------------
+            // Add rows on server AFTER snapshot
+            // ----------------------------------
+            // Create a new address & customer address on server
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var newAddress = new Address { AddressLine1 = addressLine1 };
+
+                serverDbCtx.Address.Add(newAddress);
+                await serverDbCtx.SaveChangesAsync();
+
+                var newCustomerAddress = new CustomerAddress
+                {
+                    AddressId = newAddress.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "OTH"
+                };
+
+                serverDbCtx.CustomerAddress.Add(newCustomerAddress);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.True(Directory.Exists(rootDirectory));
+                Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+            }
+
+        }
 
     }
 }

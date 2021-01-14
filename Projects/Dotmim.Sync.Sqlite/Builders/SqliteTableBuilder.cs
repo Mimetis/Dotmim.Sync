@@ -306,7 +306,7 @@ namespace Dotmim.Sync.Sqlite
         private DbCommand CreateInsertTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
             var insTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Insert), TableName.Unquoted().ToString());
-            
+
             StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {TableName.Quoted().ToString()} ");
             createTrigger.AppendLine();
 
@@ -521,7 +521,7 @@ namespace Dotmim.Sync.Sqlite
         {
             var columns = new List<SyncColumn>();
             // Get the columns definition
-            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction, 
+            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction,
                                                                                   this.TableName.Unquoted().ToString());
             var sqlDbMetadata = new SqliteDbMetadata();
 
@@ -556,7 +556,7 @@ namespace Dotmim.Sync.Sqlite
         {
 
             var relations = new List<DbRelationDefinition>();
-            var relationsTable = await SqliteManagementUtils.GetRelationsForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction, 
+            var relationsTable = await SqliteManagementUtils.GetRelationsForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction,
                                                                                        this.TableName.Unquoted().ToString());
 
             if (relationsTable != null && relationsTable.Rows.Count > 0)
@@ -594,7 +594,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
-            var keys = await SqliteManagementUtils.GetPrimaryKeysForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction, 
+            var keys = await SqliteManagementUtils.GetPrimaryKeysForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction,
                 this.TableName.Unquoted().ToString());
 
             var lstKeys = new List<SyncColumn>();
@@ -609,5 +609,82 @@ namespace Dotmim.Sync.Sqlite
             return lstKeys;
 
         }
+
+        public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"SELECT count(*) FROM pragma_table_info('{this.TableName.Unquoted().ToString()}') WHERE name=@columnName;"; ;
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@columnName";
+            parameter.Value = columnName;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+
+        public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var stringBuilder = new StringBuilder($"ALTER TABLE {this.TableName.Quoted().ToString()} ADD COLUMN");
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            var column = this.TableDescription.Columns[columnName];
+            var columnNameString = ParserName.Parse(column).Quoted().ToString();
+
+            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+            var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
+            var columnType = $"{columnTypeString} {columnPrecisionString}";
+
+            // check case
+            string casesensitive = "";
+            if (this.sqliteDbMetadata.IsTextType(column.GetDbType()))
+            {
+                casesensitive = SyncGlobalization.IsCaseSensitive() ? "" : "COLLATE NOCASE";
+
+                //check if it's a primary key, then, even if it's case sensitive, we turn on case insensitive
+                if (SyncGlobalization.IsCaseSensitive())
+                {
+                    if (this.TableDescription.PrimaryKeys.Contains(column.ColumnName))
+                        casesensitive = "COLLATE NOCASE";
+                }
+            }
+
+            var identity = string.Empty;
+
+            if (column.IsAutoIncrement)
+            {
+                var (step, seed) = column.GetAutoIncrementSeedAndStep();
+                if (seed > 1 || step > 1)
+                    throw new NotSupportedException("can't establish a seed / step in Sqlite autoinc value");
+
+                //identity = $"AUTOINCREMENT";
+                // Actually no need to set AutoIncrement, if we insert a null value
+                identity = "";
+            }
+            var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
+
+            // if auto inc, don't specify NOT NULL option, since we need to insert a null value to make it auto inc.
+            if (column.IsAutoIncrement)
+                nullString = "";
+            // if it's a readonly column, it could be a computed column, so we need to allow null
+            else if (column.IsReadOnly)
+                nullString = "NULL";
+
+            stringBuilder.AppendLine($" {columnNameString} {columnType} {identity} {nullString} {casesensitive};");
+
+
+            command.CommandText = stringBuilder.ToString();
+
+            return Task.FromResult(command);
+
+        }
+
+        public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => throw new NotImplementedException();
     }
 }

@@ -207,6 +207,88 @@ namespace Dotmim.Sync.MySql
             return Task.FromResult(command);
         }
 
+
+
+        public Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            var stringBuilder = new StringBuilder($"ALTER TABLE {this.tableName.Quoted().ToString()}  ");
+
+            var column = this.tableDescription.Columns[columnName];
+            var columnNameString = ParserName.Parse(columnName, "`").Quoted().ToString();
+
+#if MARIADB
+            var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+            var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+#elif MYSQL
+            var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+#endif
+
+
+            var columnType = $"{stringType} {stringPrecision}";
+
+            var identity = string.Empty;
+
+            if (column.IsAutoIncrement)
+            {
+                var s = column.GetAutoIncrementSeedAndStep();
+                if (s.Seed > 1 || s.Step > 1)
+                    throw new NotSupportedException("can't establish a seed / step in MySql autoinc value");
+
+                identity = $"AUTO_INCREMENT";
+            }
+            var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
+
+            // if we have a readonly column, we may have a computed one, so we need to allow null
+            if (column.IsReadOnly)
+                nullString = "NULL";
+
+            stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString};");
+
+            command.CommandText = stringBuilder.ToString();
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"ALTER TABLE {tableName.Quoted().ToString()}  {columnName};";
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var tbl = tableName.ToString();
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"select count(*) from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_name = @columnName;";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tbl;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@columnName";
+            parameter.Value = columnName;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+
+
         public async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
@@ -233,7 +315,7 @@ namespace Dotmim.Sync.MySql
 
             using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
             syncTable.Load(reader);
-            
+
             reader.Close();
 
             var mySqlDbMetadata = new MySqlDbMetadata();
