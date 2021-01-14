@@ -185,6 +185,72 @@ namespace Dotmim.Sync
 
         }, cancellationToken);
 
+
+        /// <summary>
+        /// Internal add column routine
+        /// </summary>
+        internal async Task<bool> InternalAddColumnAsync(SyncContext ctx, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            if (tableBuilder.TableDescription.Columns.Count <= 0)
+                throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+
+            if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+
+            var command = await tableBuilder.GetAddColumnCommandAsync(addedColumnName, connection, transaction).ConfigureAwait(false);
+
+            if (command == null)
+                return false;
+
+            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
+
+            var action = new ColumnCreatingArgs(ctx, addedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction);
+
+            await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
+
+            if (action.Cancel || action.Command == null)
+                return false;
+
+            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            await this.InterceptAsync(new ColumnCreatedArgs(ctx, addedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+
+
+        /// <summary>
+        /// Internal add column routine
+        /// </summary>
+        internal async Task<bool> InternalDropColumnAsync(SyncContext ctx, string droppedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            if (tableBuilder.TableDescription.Columns.Count <= 0)
+                throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+
+            if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+
+            var command = await tableBuilder.GetDropColumnCommandAsync(droppedColumnName, connection, transaction).ConfigureAwait(false);
+
+            if (command == null)
+                return false;
+
+            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, this.Setup);
+
+            var action = new ColumnDroppingArgs(ctx, droppedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction);
+
+            await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
+
+            if (action.Cancel || action.Command == null)
+                return false;
+
+            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            await this.InterceptAsync(new ColumnDroppedArgs(ctx, droppedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+
         /// <summary>
         /// Internal create table routine
         /// </summary>
@@ -301,6 +367,25 @@ namespace Dotmim.Sync
             return exists;
 
         }
+        
+        /// <summary>
+        /// Internal exists column procedure routine
+        /// </summary>
+        internal async Task<bool> InternalExistsColumnAsync(SyncContext ctx, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            // Get exists command
+            var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName,connection, transaction).ConfigureAwait(false);
+
+            if (existsCommand == null)
+                return false;
+
+            var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+            var exists = Convert.ToInt32(existsResultObject) > 0;
+            return exists;
+
+        }
+
+
 
     }
 }

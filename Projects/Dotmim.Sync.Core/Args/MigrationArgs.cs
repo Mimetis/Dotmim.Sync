@@ -13,11 +13,12 @@ namespace Dotmim.Sync
     /// </summary>
     public class MigratingArgs : ProgressArgs
     {
-        public MigratingArgs(SyncContext context, SyncSet newSchema, SyncSetup oldSetup, SyncSetup newSetup, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+        public MigratingArgs(SyncContext context, SyncSet newSchema, SyncSetup oldSetup, SyncSetup newSetup, MigrationResults migrationResults, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
             this.NewSchema = newSchema;
             this.OldSetup = oldSetup;
             this.NewSetup = newSetup;
+            this.MigrationResults = migrationResults;
         }
 
 
@@ -40,6 +41,8 @@ namespace Dotmim.Sync
         /// Gets the new setup to apply
         /// </summary>
         public SyncSetup NewSetup { get; }
+        public MigrationResults MigrationResults { get; }
+
         public override int EventId => SyncEventsId.DatabaseMigrating.Id;
     }
 
@@ -91,7 +94,6 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnMigrating(this BaseOrchestrator orchestrator, Func<MigratingArgs, Task> action)
             => orchestrator.SetInterceptor(action);
-
 
         /// <summary>
         /// Intercept the orchestrator when a Setup has been migrated

@@ -10,10 +10,13 @@ namespace Dotmim.Sync
     public enum MigrationAction
     {
         None,
-        CreateOrRecreate,
+        Alter,
+        Create,
         Drop,
-        Rename
+        Rename,
     }
+
+
 
     public class MigrationResults
     {
@@ -42,6 +45,7 @@ namespace Dotmim.Sync
 
     public class MigrationSetupTable
     {
+        private MigrationAction table;
 
         public MigrationSetupTable(SetupTable table)
         {
@@ -81,7 +85,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets a boolean indicating that this table should be recreated
         /// </summary>
-        public MigrationAction Table { get; set; }
+        public MigrationAction Table
+        {
+            get => table;
+            set
+            {
+                if (value == MigrationAction.Drop)
+                    throw new MigrationTableDropNotAllowedException();
+
+                table = value;
+            }
+        }
 
     }
 
@@ -109,11 +123,11 @@ namespace Dotmim.Sync
 
             // if we change the prefix / suffix, we should recreate all stored procedures
             if (!string.Equals(newSetup.StoredProceduresPrefix, oldSetup.StoredProceduresPrefix, sc) || !string.Equals(newSetup.StoredProceduresSuffix, oldSetup.StoredProceduresSuffix, sc))
-                migrationSetup.AllStoredProcedures = MigrationAction.CreateOrRecreate;
+                migrationSetup.AllStoredProcedures = MigrationAction.Create;
 
             // if we change the prefix / suffix, we should recreate all triggers
             if (!string.Equals(newSetup.TriggersPrefix, oldSetup.TriggersPrefix, sc) || !string.Equals(newSetup.TriggersSuffix, oldSetup.TriggersSuffix, sc))
-                migrationSetup.AllTriggers = MigrationAction.CreateOrRecreate;
+                migrationSetup.AllTriggers = MigrationAction.Create;
 
             // If we change tracking tables prefix and suffix, we should:
             // - RENAME the tracking tables (and keep the rows)
@@ -121,8 +135,8 @@ namespace Dotmim.Sync
             // - RECREATE the triggers
             if (!string.Equals(newSetup.TrackingTablesPrefix, oldSetup.TrackingTablesPrefix, sc) || !string.Equals(newSetup.TrackingTablesSuffix, oldSetup.TrackingTablesSuffix, sc))
             {
-                migrationSetup.AllStoredProcedures = MigrationAction.CreateOrRecreate;
-                migrationSetup.AllTriggers = MigrationAction.CreateOrRecreate;
+                migrationSetup.AllStoredProcedures = MigrationAction.Create;
+                migrationSetup.AllTriggers = MigrationAction.Create;
                 migrationSetup.AllTrackingTables = MigrationAction.Rename;
             }
 
@@ -133,11 +147,13 @@ namespace Dotmim.Sync
             // So, we are removing all the sync elements from the table, but we do not remote the table itself
             foreach (var deletedTable in deletedTables)
             {
-                var migrationDeletedSetupTable = new MigrationSetupTable(deletedTable);
-                migrationDeletedSetupTable.StoredProcedures = MigrationAction.Drop;
-                migrationDeletedSetupTable.TrackingTable = MigrationAction.Drop;
-                migrationDeletedSetupTable.Triggers = MigrationAction.Drop;
-                migrationDeletedSetupTable.Table = MigrationAction.Drop;
+                var migrationDeletedSetupTable = new MigrationSetupTable(deletedTable)
+                {
+                    StoredProcedures = MigrationAction.Drop,
+                    TrackingTable = MigrationAction.Drop,
+                    Triggers = MigrationAction.Drop,
+                    Table = MigrationAction.None
+                };
 
                 migrationSetup.Tables.Add(migrationDeletedSetupTable);
             }
@@ -148,11 +164,13 @@ namespace Dotmim.Sync
             // We found some tables present in the new setup, but not in the old setup
             foreach (var newTable in newTables)
             {
-                var migrationAddedSetupTable = new MigrationSetupTable(newTable);
-                migrationAddedSetupTable.StoredProcedures = MigrationAction.CreateOrRecreate;
-                migrationAddedSetupTable.TrackingTable = MigrationAction.CreateOrRecreate;
-                migrationAddedSetupTable.Triggers = MigrationAction.CreateOrRecreate;
-                migrationAddedSetupTable.Table = MigrationAction.CreateOrRecreate;
+                var migrationAddedSetupTable = new MigrationSetupTable(newTable)
+                {
+                    StoredProcedures = MigrationAction.Create,
+                    TrackingTable = MigrationAction.Create,
+                    Triggers = MigrationAction.Create,
+                    Table = MigrationAction.Create
+                };
 
                 migrationSetup.Tables.Add(migrationAddedSetupTable);
             }
@@ -175,16 +193,17 @@ namespace Dotmim.Sync
                 // Then compare all columns
                 if (oldTable.Columns.Count != newTable.Columns.Count || !oldTable.Columns.All(item1 => newTable.Columns.Any(item2 => string.Equals(item1, item2, sc))))
                 {
-                    migrationSetupTable.StoredProcedures = MigrationAction.CreateOrRecreate;
-                    migrationSetupTable.TrackingTable = MigrationAction.CreateOrRecreate;
-                    migrationSetupTable.Triggers = MigrationAction.CreateOrRecreate;
-                    migrationSetupTable.Table = MigrationAction.CreateOrRecreate;
+                    migrationSetupTable.StoredProcedures = MigrationAction.Create;
+                    migrationSetupTable.TrackingTable = MigrationAction.None;
+                    migrationSetupTable.Triggers = MigrationAction.Create;
+                    migrationSetupTable.Table = MigrationAction.Alter;
                 }
                 else
                 {
                     migrationSetupTable.StoredProcedures = migrationSetup.AllStoredProcedures;
                     migrationSetupTable.TrackingTable = migrationSetup.AllTrackingTables;
                     migrationSetupTable.Triggers = migrationSetup.AllTriggers;
+                    migrationSetupTable.Table = MigrationAction.None;
                 }
 
                 if (migrationSetupTable.ShouldMigrate)

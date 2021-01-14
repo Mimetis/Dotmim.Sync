@@ -193,11 +193,11 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId SchemaNameCreating => CreateEventId(12000, nameof(SchemaNameCreating));
-        public static EventId SchemaNameCreated => CreateEventId(12100, nameof(SchemaNameCreated));
-        public static EventId TableCreating => CreateEventId(12300, nameof(TableCreating));
-        public static EventId TableCreated => CreateEventId(12400, nameof(TableCreated));
-        public static EventId TableDropping => CreateEventId(12500, nameof(TableDropping));
-        public static EventId TableDropped => CreateEventId(12600, nameof(TableDropped));
+        public static EventId SchemaNameCreated => CreateEventId(12050, nameof(SchemaNameCreated));
+        public static EventId TableCreating => CreateEventId(12100, nameof(TableCreating));
+        public static EventId TableCreated => CreateEventId(12150, nameof(TableCreated));
+        public static EventId TableDropping => CreateEventId(12200, nameof(TableDropping));
+        public static EventId TableDropped => CreateEventId(12250, nameof(TableDropped));
     }
 
 }

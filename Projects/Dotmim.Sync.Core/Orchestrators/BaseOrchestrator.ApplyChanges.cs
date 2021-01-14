@@ -77,16 +77,9 @@ namespace Dotmim.Sync
 
             // Before cleaning, check if we are not applying changes from a snapshotdirectory
             var cleanFolder = message.CleanFolder;
-            if (cleanFolder && !String.IsNullOrEmpty(this.Options.SnapshotsDirectory) && !String.IsNullOrEmpty(message.Changes.DirectoryRoot))
-            {
-                var snapshotDirectory = new DirectoryInfo(Path.Combine(this.Options.SnapshotsDirectory, context.ScopeName)).FullName;
-                var messageBatchInfoDirectory = new DirectoryInfo(message.Changes.DirectoryRoot).FullName;
 
-                // If we are getting batches from a snapshot folder, do not delete it
-                if (snapshotDirectory.Equals(messageBatchInfoDirectory, SyncGlobalization.DataSourceStringComparison))
-                    cleanFolder = false;
-
-            }
+            if (cleanFolder)
+                cleanFolder = await this.InternalCanCleanFolderAsync(context, message.Changes, cancellationToken, progress).ConfigureAwait(false);
 
             // clear the changes because we don't need them anymore
             message.Changes.Clear(cleanFolder);
@@ -150,6 +143,15 @@ namespace Dotmim.Sync
             // Each table in the messages contains scope columns. Don't forget it
             if (hasChanges)
             {
+                // launch interceptor if any
+                var args = new TableChangesApplyingArgs(context, schemaTable, applyType, connection, transaction);
+                await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+
+                if (args.Cancel)
+                    return;
+
+                TableChangesApplied tableChangesApplied = null;
+
                 var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, this);
                 var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
 
@@ -180,24 +182,16 @@ namespace Dotmim.Sync
                     changesSet.Tables.Add(schemaChangesTable);
                     schemaChangesTable.Rows.AddRange(filteredRows.ToList());
 
-                    //if (this.logger.IsEnabled(LogLevel.Trace))
-                    //    foreach (var row in schemaChangesTable.Rows)
-                    //        this.logger.LogTrace(SyncEventsId.ApplyChanges, row);
-
-                    // Launch any interceptor if available
-                    //await this.InterceptAsync(new TableChangesApplyingArgs(context, schemaChangesTable, applyType, connection, transaction), cancellationToken).ConfigureAwait(false);
-
                     // Getting interceptor and passed it to syncadapter
                     // could be done in a better way, bit for now it's fine
-                    var iTableChangesApplying = this.interceptors.GetInterceptor<TableChangesApplyingArgs>();
-
+                    var iTableChangesBatchApplying = this.interceptors.GetInterceptor<TableChangesBatchApplyingArgs>();
 
                     int rowsApplied = 0;
 
                     if (message.UseBulkOperations && this.Provider.SupportBulkOperations)
-                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync(context, message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, iTableChangesApplying, connection, transaction, cancellationToken);
+                        rowsApplied = await syncAdapter.ApplyBulkChangesAsync(context, message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, iTableChangesBatchApplying, connection, transaction, cancellationToken);
                     else
-                        rowsApplied = await syncAdapter.ApplyChangesAsync(context, message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, iTableChangesApplying, connection, transaction, cancellationToken);
+                        rowsApplied = await syncAdapter.ApplyChangesAsync(context, message.LocalScopeId, message.SenderScopeId, schemaChangesTable, message.LastTimestamp, conflicts, iTableChangesBatchApplying, connection, transaction, cancellationToken);
 
                     // resolving conflicts
                     var (rowsAppliedCount, conflictsResolvedCount, syncErrorsCount) =
@@ -212,7 +206,7 @@ namespace Dotmim.Sync
                     // We may have multiple batch files, so we can have multipe sync tables with the same name
                     // We can say that a syncTable may be contained in several files
                     // That's why we should get an applied changes instance if already exists from a previous batch file
-                    var existAppliedChanges = changesApplied.TableChangesApplied.FirstOrDefault(tca =>
+                    tableChangesApplied = changesApplied.TableChangesApplied.FirstOrDefault(tca =>
                     {
                         var sc = SyncGlobalization.DataSourceStringComparison;
 
@@ -224,9 +218,9 @@ namespace Dotmim.Sync
                                tca.State == applyType;
                     });
 
-                    if (existAppliedChanges == null)
+                    if (tableChangesApplied == null)
                     {
-                        existAppliedChanges = new TableChangesApplied
+                        tableChangesApplied = new TableChangesApplied
                         {
                             TableName = schemaTable.TableName,
                             SchemaName = schemaTable.SchemaName,
@@ -235,16 +229,31 @@ namespace Dotmim.Sync
                             Failed = changedFailed,
                             State = applyType
                         };
-                        changesApplied.TableChangesApplied.Add(existAppliedChanges);
+                        changesApplied.TableChangesApplied.Add(tableChangesApplied);
                     }
                     else
                     {
-                        existAppliedChanges.Applied += rowsApplied;
-                        existAppliedChanges.ResolvedConflicts += conflictsResolvedCount;
-                        existAppliedChanges.Failed += changedFailed;
+                        tableChangesApplied.Applied += rowsApplied;
+                        tableChangesApplied.ResolvedConflicts += conflictsResolvedCount;
+                        tableChangesApplied.Failed += changedFailed;
                     }
 
-                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, existAppliedChanges, connection, transaction);
+                    var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
+
+                    // Report the batch changes applied
+                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                    if (tableChangesBatchAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
+                    {
+                        await this.InterceptAsync(tableChangesBatchAppliedArgs, cancellationToken).ConfigureAwait(false);
+                        this.ReportProgress(context, progress, tableChangesBatchAppliedArgs, connection, transaction);
+                    }
+                }
+
+                // Report the overall changes applied for the current table
+                if (tableChangesApplied != null)
+                {
+
+                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
 
                     // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                     if (tableChangesAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
@@ -253,6 +262,7 @@ namespace Dotmim.Sync
                         this.ReportProgress(context, progress, tableChangesAppliedArgs, connection, transaction);
                     }
                 }
+
             }
         }
 

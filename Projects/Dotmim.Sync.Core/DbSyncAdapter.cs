@@ -240,7 +240,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         internal async Task<int> ApplyBulkChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp,
-                                                     List<SyncConflict> conflicts, InterceptorWrapper<TableChangesApplyingArgs> iTableChangesApplying, 
+                                                     List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying, 
                                                      DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
             var dbCommandType = this.ApplyType switch
@@ -253,10 +253,10 @@ namespace Dotmim.Sync
             DbCommand command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
 
             // Launch any interceptor if available
-            if (iTableChangesApplying != null)
+            if (iTableChangesBatchApplying != null)
             {
-                var action = new TableChangesApplyingArgs(context, changesTable, this.ApplyType, command, connection, transaction);
-                await iTableChangesApplying.RunAsync(action, cancellationToken);
+                var action = new TableChangesBatchApplyingArgs(context, changesTable, this.ApplyType, command, connection, transaction);
+                await iTableChangesBatchApplying.RunAsync(action, cancellationToken);
 
                 if (action.Cancel || action.Command == null)
                     return 0;
@@ -322,7 +322,7 @@ namespace Dotmim.Sync
         /// <param name="changes">Changes</param>
         /// <returns>every lines not updated / deleted in the destination data source</returns>
         internal async Task<int> ApplyChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, 
-                                                   List<SyncConflict> conflicts, InterceptorWrapper<TableChangesApplyingArgs> iTableChangesApplying, 
+                                                   List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying, 
                                                    DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
 
@@ -336,10 +336,10 @@ namespace Dotmim.Sync
             var command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
 
             // Launch any interceptor if available
-            if (iTableChangesApplying != null)
+            if (iTableChangesBatchApplying != null)
             {
-                var action = new TableChangesApplyingArgs(context, changesTable, this.ApplyType, command, connection, transaction);
-                await iTableChangesApplying.RunAsync(action, cancellationToken);
+                var action = new TableChangesBatchApplyingArgs(context, changesTable, this.ApplyType, command, connection, transaction);
+                await iTableChangesBatchApplying.RunAsync(action, cancellationToken);
 
                 if (action.Cancel || action.Command == null)
                     return 0;

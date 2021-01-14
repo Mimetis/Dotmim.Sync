@@ -292,6 +292,17 @@ namespace Dotmim.Sync
         public MissingColumnsException() : base(message) { }
     }
 
+
+    /// <summary>
+    /// During a migration, droping a table is not allowed
+    /// </summary>
+    public class MigrationTableDropNotAllowedException : Exception
+    {
+        const string message = "During a migration, droping a table is not allowed";
+
+        public MigrationTableDropNotAllowedException() : base(message) { }
+    }
+
     /// <summary>
     /// Metadata exception.
     /// </summary>

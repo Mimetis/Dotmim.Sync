@@ -50,8 +50,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // 4) Create the snapshot
-            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, connection, transaction, this.Options.SnapshotsDirectory,
-                    this.Options.BatchSize, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
             var snapshotCreated = new SnapshotCreatedArgs(ctx, batchInfo, connection);
             await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
@@ -59,9 +58,9 @@ namespace Dotmim.Sync
 
 
             return batchInfo;
-        },  cancellationToken);
+        }, cancellationToken);
 
-        
+
         /// <summary>
         /// Get a snapshot
         /// </summary>
@@ -99,53 +98,34 @@ namespace Dotmim.Sync
                 // the batch decision comes from batchsize from client
                 // TODO : Get a snapshot based on scope name
 
-                var sb = new StringBuilder();
-                var underscore = "";
+                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress).ConfigureAwait(false);
 
-                if (ctx.Parameters != null)
+                if (!string.IsNullOrEmpty(rootDirectory))
                 {
-                    foreach (var p in ctx.Parameters.OrderBy(p => p.Name))
+                    var directoryFullPath = Path.Combine(rootDirectory, nameDirectory);
+
+                    // if no snapshot present, just return null value.
+                    if (Directory.Exists(directoryFullPath))
                     {
-                        var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
-                        var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
+                        // Serialize on disk.
+                        var jsonConverter = new JsonConverter<BatchInfo>();
 
-                        sb.Append($"{underscore}{cleanName}_{cleanValue}");
-                        underscore = "_";
+                        var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
+
+                        // Create the schema changeset
+                        var changesSet = new SyncSet();
+
+                        // Create a Schema set without readonly columns, attached to memory changes
+                        foreach (var table in schema.Tables)
+                            DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+
+                        using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
+                        {
+                            serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                        }
+
+                        serverBatchInfo.SanitizedSchema = changesSet;
                     }
-                }
-
-                var directoryName = sb.ToString();
-
-                directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
-
-                // cleansing scope name
-                var directoryScopeName = new string(ctx.ScopeName.Where(char.IsLetterOrDigit).ToArray());
-
-                // Get full path
-                var directoryFullPath = Path.Combine(this.Options.SnapshotsDirectory, directoryScopeName, directoryName);
-
-                // if no snapshot present, just return null value.
-                if (Directory.Exists(directoryFullPath))
-                {
-
-                    // Serialize on disk.
-                    var jsonConverter = new Serialization.JsonConverter<BatchInfo>();
-
-                    var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
-
-                    // Create the schema changeset
-                    var changesSet = new SyncSet();
-
-                    // Create a Schema set without readonly columns, attached to memory changes
-                    foreach (var table in schema.Tables)
-                        DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
-
-                    using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
-                    {
-                        serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
-                    }
-
-                    serverBatchInfo.SanitizedSchema = changesSet;
                 }
             }
             catch (Exception ex)
@@ -160,11 +140,12 @@ namespace Dotmim.Sync
         }
 
 
+
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
-                             DbConnection connection, DbTransaction transaction, string snapshotDirectory, int batchSize, long remoteClientTimestamp,
+        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema,
+                             DbConnection connection, DbTransaction transaction, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -173,21 +154,19 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, null, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // create local directory
-            if (!Directory.Exists(snapshotDirectory))
+            if (!Directory.Exists(this.Options.SnapshotsDirectory))
             {
-                Directory.CreateDirectory(snapshotDirectory);
+                Directory.CreateDirectory(this.Options.SnapshotsDirectory);
             }
 
-            // cleansing scope name
-            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+            var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
-            var directoryFullPath = Path.Combine(snapshotDirectory, directoryScopeName);
+            if (string.IsNullOrEmpty(rootDirectory))
+                return null;
 
             // create local directory with scope inside
-            if (!Directory.Exists(directoryFullPath))
-            {
-                Directory.CreateDirectory(directoryFullPath);
-            }
+            if (!Directory.Exists(rootDirectory))
+                Directory.CreateDirectory(rootDirectory);
 
             // numbers of batch files generated
             var batchIndex = 0;
@@ -195,41 +174,23 @@ namespace Dotmim.Sync
             // create the in memory changes set
             var changesSet = new SyncSet();
 
-            var sb = new StringBuilder();
-            var underscore = "";
-
-            if (context.Parameters != null)
-            {
-                foreach (var p in context.Parameters.OrderBy(p => p.Name))
-                {
-                    var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
-                    var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
-
-                    sb.Append($"{underscore}{cleanName}_{cleanValue}");
-                    underscore = "_";
-                }
-            }
-
-            var directoryName = sb.ToString();
-            directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
             // batchinfo generate a schema clone with scope columns if needed
-            var batchInfo = new BatchInfo(false, schema, directoryFullPath, directoryName);
+            var batchInfo = new BatchInfo(false, schema, rootDirectory, nameDirectory);
 
             // Delete directory if already exists
-            directoryFullPath = Path.Combine(directoryFullPath, directoryName);
+            var directoryFullPath = Path.Combine(rootDirectory, nameDirectory);
 
             if (Directory.Exists(directoryFullPath))
-            {
                 Directory.Delete(directoryFullPath, true);
-            }
+
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
 
             foreach (var table in schema.Tables)
             {
                 // Get Select initialize changes command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, setup, true, connection, transaction);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, this.Setup, true, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, table, null, true, 0, selectIncrementalChangesCommand);
@@ -263,14 +224,14 @@ namespace Dotmim.Sync
                         var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
                         var finalFieldSize = fieldsSize / 1024d;
 
-                        if (finalFieldSize > batchSize)
+                        if (finalFieldSize > this.Options.BatchSize)
                             throw new RowOverSizedException(finalFieldSize.ToString());
 
                         // Calculate the new memory size
                         rowsMemorySize += finalFieldSize;
 
                         // Next line if we don't reach the batch size yet.
-                        if (rowsMemorySize <= batchSize)
+                        if (rowsMemorySize <= this.Options.BatchSize)
                             continue;
 
                         // Check interceptor
