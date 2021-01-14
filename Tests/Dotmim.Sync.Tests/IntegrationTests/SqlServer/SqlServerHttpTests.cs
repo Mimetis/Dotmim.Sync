@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            {ProviderType.Sql, ProviderType.MySql, ProviderType.Sqlite};
+            {ProviderType.Sql , ProviderType.MySql , ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.Sql;
 
@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override bool UseFiddler => false;
+        public override bool UseFiddler => true;
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {

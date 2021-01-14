@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -415,5 +416,84 @@ namespace Dotmim.Sync
             return default;
         }
 
+
+
+        /// <summary>
+        /// Get a snapshot root directory name and folder directory name
+        /// </summary>
+        public virtual Task<(string DirectoryRoot, string DirectoryName)>
+            GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            // check parameters
+            // If context has no parameters specified, and user specifies a parameter collection we switch them
+            if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
+                ctx.Parameters = syncParameters;
+
+            return this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress);
+        }
+
+
+        /// <summary>
+        /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
+        /// </summary>
+        internal virtual async Task<bool> InternalCanCleanFolderAsync(SyncContext context, BatchInfo batchInfo,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            if (batchInfo.InMemory)
+                return false;
+
+            var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
+
+            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync();
+
+            if (string.IsNullOrEmpty(snapshotRootDirectory))
+                return true;
+
+            var snapInfo = Path.Combine(snapshotRootDirectory, snapshotNameDirectory);
+            var snapshotDirectoryFullPath = new DirectoryInfo(snapInfo);
+
+            var canCleanFolder = batchInfoDirectoryFullPath.FullName != snapshotDirectoryFullPath.FullName;
+
+            return canCleanFolder;
+        }
+
+
+        internal virtual Task<(string DirectoryRoot, string DirectoryName)> InternalGetSnapshotDirectoryAsync(SyncContext context,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
+                return Task.FromResult<(string, string)>((default, default));
+
+            // cleansing scope name
+            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+
+            var directoryFullPath = Path.Combine(this.Options.SnapshotsDirectory, directoryScopeName);
+
+            var sb = new StringBuilder();
+            var underscore = "";
+
+            if (context.Parameters != null)
+            {
+                foreach (var p in context.Parameters.OrderBy(p => p.Name))
+                {
+                    var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
+                    var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
+
+                    sb.Append($"{underscore}{cleanName}_{cleanValue}");
+                    underscore = "_";
+                }
+            }
+
+            var directoryName = sb.ToString();
+            directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
+
+            return Task.FromResult((directoryFullPath, directoryName));
+
+        }
     }
 }

@@ -357,5 +357,96 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return Task.FromResult(command);
         }
+
+        public Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            var stringBuilder = new StringBuilder($"ALTER TABLE {tableName.Schema().Quoted().ToString()} WITH NOCHECK ");
+
+            var column = this.tableDescription.Columns[columnName];
+            var columnNameString = ParserName.Parse(column).Quoted().ToString();
+
+            var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var columnType = $"{columnTypeString} {columnPrecisionString}";
+            var identity = string.Empty;
+
+            if (column.IsAutoIncrement)
+            {
+                var s = column.GetAutoIncrementSeedAndStep();
+                identity = $"IDENTITY({s.Seed},{s.Step})";
+            }
+            var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
+
+            // if we have a computed column, we should allow null
+            if (column.IsReadOnly)
+                nullString = "NULL";
+
+            string defaultValue = string.Empty;
+            if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
+            {
+                if (!string.IsNullOrEmpty(column.DefaultValue))
+                {
+                    defaultValue = "DEFAULT " + column.DefaultValue;
+                }
+            }
+
+            stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
+
+            command.CommandText = stringBuilder.ToString();
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} WITH NOCHECK DROP COLUMN {columnName};";
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var tbl = tableName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"IF EXISTS (" +
+                $"SELECT col.* " +
+                $"FROM sys.columns as col " +
+                $"JOIN sys.tables as t on t.object_id = col.object_id " +
+                $"JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName and col.name=@columnName) SELECT 1 ELSE SELECT 0;";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tbl;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = schema;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@columnName";
+            parameter.Value = columnName;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+
     }
+
+
 }

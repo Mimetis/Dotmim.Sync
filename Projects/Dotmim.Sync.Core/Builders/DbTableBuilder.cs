@@ -61,6 +61,9 @@ namespace Dotmim.Sync.Builders
         public abstract Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction);
         public abstract Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction);
         public abstract Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction);
+        public abstract Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction);
+        public abstract Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction);
+        public abstract Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction);
 
         public abstract Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction);
         public abstract Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction);

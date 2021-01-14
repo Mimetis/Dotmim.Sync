@@ -23,20 +23,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Migrate from a setup to another setup
         /// </summary>
-        internal async Task<SyncContext> InternalMigrationAsync(SyncContext context, SyncSet schema, SyncSetup oldSetup, SyncSetup newSetup, bool includeTable,
+        internal async Task<SyncContext> InternalMigrationAsync(SyncContext context, SyncSet schema, SyncSetup oldSetup, SyncSetup newSetup,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            // Launch InterceptAsync on Migrating
-            await this.InterceptAsync(new MigratingArgs(context, schema, oldSetup, newSetup, connection, transaction), cancellationToken).ConfigureAwait(false);
-
             // Create a new migration
             var migration = new Migration(newSetup, oldSetup);
 
             // get comparision results
             var migrationResults = migration.Compare();
 
-            // Deprovision
+            // Launch InterceptAsync on Migrating
+            await this.InterceptAsync(new MigratingArgs(context, schema, oldSetup, newSetup, migrationResults, connection, transaction), cancellationToken).ConfigureAwait(false);
+
+            // Deprovision triggers stored procedures and tracking table if required
             foreach (var migrationTable in migrationResults.Tables)
             {
                 // using a fake SyncTable based on oldSetup, since we don't need columns, but we need to have the filters
@@ -58,21 +58,15 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, oldSetup);
 
                 // Deprovision stored procedures
-                if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
-                {
+                if (migrationTable.StoredProcedures == MigrationAction.Drop || migrationTable.StoredProcedures == MigrationAction.Create)
                     await InternalDropStoredProceduresAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Removing cached commands
-                    var syncAdapter = this.GetSyncAdapter(schemaTable, oldSetup);
-                    syncAdapter.RemoveCommands();
-                }
-
                 // Deprovision triggers
-                if (migrationTable.Triggers == MigrationAction.Drop || migrationTable.Triggers == MigrationAction.CreateOrRecreate)
+                if (migrationTable.Triggers == MigrationAction.Drop || migrationTable.Triggers == MigrationAction.Create)
                     await InternalDropTriggersAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Tracking table
-                if (migrationTable.TrackingTable == MigrationAction.Drop || migrationTable.TrackingTable == MigrationAction.CreateOrRecreate)
+                // Deprovision tracking table
+                if (migrationTable.TrackingTable == MigrationAction.Drop || migrationTable.TrackingTable == MigrationAction.Create)
                 {
                     var exists = await InternalExistsTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -80,56 +74,73 @@ namespace Dotmim.Sync
                         await InternalDropTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                // Table
-                if (includeTable && (migrationTable.Table == MigrationAction.Drop || migrationTable.Table == MigrationAction.CreateOrRecreate))
-                {
-                    var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    if (exists)
-                        await InternalDropTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                }
+                // Removing cached commands
+                var syncAdapter = this.GetSyncAdapter(schemaTable, oldSetup);
+                syncAdapter.RemoveCommands();
 
             }
 
-            // Provision
-            // need the real SyncSet since we need columns definition
+            // Provision table (create or alter), tracking tables, stored procedures and triggers
+            // Need the real SyncSet since we need columns definition
             foreach (var migrationTable in migrationResults.Tables)
             {
                 var syncTable = schema.Tables[migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName];
+                var oldTable = oldSetup.Tables[migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName];
 
-                // a table that we drop of the setup
                 if (syncTable == null)
                     continue;
 
                 var tableBuilder = this.GetTableBuilder(syncTable, newSetup);
 
                 // Re provision table
-                if (migrationTable.Table == MigrationAction.CreateOrRecreate && includeTable)
+                if (migrationTable.Table == MigrationAction.Create)
+                {
+                    // Check if we need to create a schema there
+                    var schemaExists = await InternalExistsSchemaAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (!schemaExists)
+                        await InternalCreateSchemaAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (!exists)
+                        await InternalCreateTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
+
+                // Re provision table
+                if (migrationTable.Table == MigrationAction.Alter)
                 {
                     var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    if (exists)
-                        await InternalDropTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    if (!exists)
+                    {
+                        await InternalCreateTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+                    else if (oldTable != null)
+                    {
+                        //get new columns to add
+                        var newColumns = syncTable.Columns.Where(c => !oldTable.Columns.Any(oldC => string.Equals(oldC, c.ColumnName, SyncGlobalization.DataSourceStringComparison)));
 
-                    await InternalCreateTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
+                        if (newColumns != null)
+                        {
+                            foreach (var newColumn in newColumns)
+                            {
+                                var columnExist = await InternalExistsColumnAsync(context, newColumn.ColumnName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                if (!columnExist)
+                                    await InternalAddColumnAsync(context, newColumn.ColumnName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            }
+                        }
+                    }
                 }
 
                 // Re provision tracking table
-                if (migrationTable.TrackingTable == MigrationAction.Rename)
+                if (migrationTable.TrackingTable == MigrationAction.Rename && oldTable != null)
                 {
-                    var oldTable = oldSetup.Tables[migrationTable.SetupTable.TableName, migrationTable.SetupTable.SchemaName];
+                    var (_, oldTableName) = this.Provider.GetParsers(new SyncTable(oldTable.TableName, oldTable.SchemaName), oldSetup);
 
-                    if (oldTable != null)
-                    {
-                        var (_, oldTableName) = this.Provider.GetParsers(new SyncTable(oldTable.TableName, oldTable.SchemaName), oldSetup);
-
-                        await InternalRenameTrackingTableAsync(context, oldTableName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-
+                    await InternalRenameTrackingTableAsync(context, oldTableName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
-                else if (migrationTable.TrackingTable == MigrationAction.CreateOrRecreate)
+                else if (migrationTable.TrackingTable == MigrationAction.Create)
                 {
                     var exists = await InternalExistsTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     if (exists)
@@ -139,20 +150,13 @@ namespace Dotmim.Sync
                 }
 
                 // Re provision stored procedures
-                if (migrationTable.StoredProcedures == MigrationAction.CreateOrRecreate)
+                if (migrationTable.StoredProcedures == MigrationAction.Create)
                     await InternalCreateStoredProceduresAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Re provision triggers
-                if (migrationTable.Triggers == MigrationAction.CreateOrRecreate)
+                if (migrationTable.Triggers == MigrationAction.Create)
                     await InternalCreateTriggersAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
-
-
-            // Now call the ProvisionAsync() to provision new tables
-            var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-            // Provision everything
-            schema = await InternalProvisionAsync(context, false, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // InterceptAsync Migrated
             var args = new MigratedArgs(context, schema, this.Setup, migrationResults);

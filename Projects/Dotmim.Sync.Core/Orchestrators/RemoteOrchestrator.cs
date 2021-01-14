@@ -105,7 +105,7 @@ namespace Dotmim.Sync
                     schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
-                    await this.InternalMigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, false, connection, transaction, cancellationToken, progress);
+                    await this.InternalMigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction, cancellationToken, progress);
 
                     serverScopeInfo.Setup = this.Setup;
                     serverScopeInfo.Schema = schema;
@@ -134,7 +134,7 @@ namespace Dotmim.Sync
             schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Migrate the db structure
-            await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
 

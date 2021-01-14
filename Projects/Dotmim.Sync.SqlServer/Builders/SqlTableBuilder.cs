@@ -38,6 +38,15 @@ namespace Dotmim.Sync.SqlServer.Builders
         public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetDropTableCommandAsync(connection, transaction);
 
+        public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetExistsColumnCommandAsync(columnName, connection, transaction);
+        public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetAddColumnCommandAsync(columnName, connection, transaction);
+        public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetDropColumnCommandAsync(columnName, connection, transaction);
+
+
+
         public override Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetColumnsAsync(connection, transaction);
         public override Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)

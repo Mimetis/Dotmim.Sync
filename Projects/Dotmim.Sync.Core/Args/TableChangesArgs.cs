@@ -63,11 +63,11 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
-    /// Event args raised to get Changes applied on a provider
+    /// Event args raised when a batch changes is applied on a datasource
     /// </summary>
-    public class TableChangesAppliedArgs : ProgressArgs
+    public class TableChangesBatchAppliedArgs : ProgressArgs
     {
-        public TableChangesAppliedArgs(SyncContext context, TableChangesApplied tableChangesApplied, DbConnection connection, DbTransaction transaction)
+        public TableChangesBatchAppliedArgs(SyncContext context, TableChangesApplied tableChangesApplied, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.TableChangesApplied = tableChangesApplied;
@@ -75,19 +75,19 @@ namespace Dotmim.Sync
 
         public TableChangesApplied TableChangesApplied { get; set; }
 
-        public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] {this.TableChangesApplied.State} applied:{this.TableChangesApplied.Applied} resolved conflicts:{this.TableChangesApplied.ResolvedConflicts}";
+        public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] {this.TableChangesApplied.State} batch applied:{this.TableChangesApplied.Applied} resolved conflicts:{this.TableChangesApplied.ResolvedConflicts}";
         public override int EventId => SyncEventsId.TableChangesApplied.Id;
     }
 
     /// <summary>
-    /// Event args before Changes are applied on a provider
+    /// Event args before a batch changes is going to be applied on a datasource
     /// </summary>
-    public class TableChangesApplyingArgs : ProgressArgs
+    public class TableChangesBatchApplyingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; set; }
 
-        public TableChangesApplyingArgs(SyncContext context, SyncTable changes, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
+        public TableChangesBatchApplyingArgs(SyncContext context, SyncTable changes, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.State = state;
@@ -110,6 +110,54 @@ namespace Dotmim.Sync
         public override int EventId => SyncEventsId.TableChangesApplying.Id;
     }
 
+    /// <summary>
+    /// Event args raised when all changes for a table have been applied on a datasource
+    /// </summary>
+    public class TableChangesAppliedArgs : ProgressArgs
+    {
+        public TableChangesAppliedArgs(SyncContext context, TableChangesApplied tableChangesApplied, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.TableChangesApplied = tableChangesApplied;
+        }
+
+        public TableChangesApplied TableChangesApplied { get; set; }
+
+        public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] {this.TableChangesApplied.State} applied:{this.TableChangesApplied.Applied} resolved conflicts:{this.TableChangesApplied.ResolvedConflicts}";
+        public override int EventId => SyncEventsId.TableChangesApplied.Id;
+    }
+
+
+    /// <summary>
+    /// Event args before a table changes is going to be applied on a datasource
+    /// </summary>
+    public class TableChangesApplyingArgs : ProgressArgs
+    {
+        public bool Cancel { get; set; } = false;
+
+        public TableChangesApplyingArgs(SyncContext context, SyncTable schemaTable, DataRowState state, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.Table = schemaTable;
+            this.State = state;
+        }
+
+        /// <summary>
+        /// Gets the RowState of the applied rows
+        /// </summary>
+        public DataRowState State { get; }
+
+        /// <summary>
+        /// Gets the changes to be applied into the database
+        /// </summary>
+        public SyncTable Table { get; }
+
+        public override string Message => $"Applying changes to {this.Table.GetFullName()}.";
+
+        public override int EventId => SyncEventsId.TableChangesApplying.Id;
+    }
+
+
     public static partial class InterceptorsExtensions
     {
         /// <summary>
@@ -123,7 +171,6 @@ namespace Dotmim.Sync
         public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
-
         /// <summary>
         /// Intercept the provider action when changes are selected on each table defined in the configuration schema
         /// </summary>
@@ -136,23 +183,45 @@ namespace Dotmim.Sync
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// Intercept the provider action when a table starts to apply changes
         /// </summary>
         public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
             => orchestrator.SetInterceptor(action);
         /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// Intercept the provider action when a table starts to apply changes
         /// </summary>
         public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Func<TableChangesApplyingArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// Intercept the provider action when a batch changes is going to be applied on a table
+        /// </summary>
+        public static void OnTableChangesBatchApplying(this BaseOrchestrator orchestrator, Action<TableChangesBatchApplyingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a batch changes is going to be applied on a table
+        /// </summary>
+        public static void OnTableChangesBatchApplying(this BaseOrchestrator orchestrator, Func<TableChangesBatchApplyingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a batch changes is applied on a datasource table
+        /// </summary>
+        public static void OnTableChangesBatchApplied(this BaseOrchestrator orchestrator, Action<TableChangesBatchAppliedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a batch changes is applied on a datasource table
+        /// </summary>
+        public static void OnTableChangesBatchApplied(this BaseOrchestrator orchestrator, Func<TableChangesBatchAppliedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a all changes have been applied on a datasource table
         /// </summary>
         public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
             => orchestrator.SetInterceptor(action);
         /// <summary>
-        /// Intercept the provider action when changes are applied on each table defined in the configuration schema
+        /// Intercept the provider action when a all changes have been applied on a datasource table
         /// </summary>
         public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Func<TableChangesAppliedArgs, Task> action)
             => orchestrator.SetInterceptor(action);

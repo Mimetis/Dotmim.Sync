@@ -74,5 +74,11 @@ namespace Dotmim.Sync.MySql
             => this.sqlBuilderTrigger.GetCreateTriggerCommandAsync(triggerType, connection, transaction);
         public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTrigger.GetDropTriggerCommandAsync(triggerType, connection, transaction);
+        public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetExistsColumnCommandAsync(columnName, connection, transaction);
+        public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetAddColumnCommandAsync(columnName, connection, transaction);
+        public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => this.sqlBuilderTable.GetDropColumnCommandAsync(columnName, connection, transaction);
     }
 }
