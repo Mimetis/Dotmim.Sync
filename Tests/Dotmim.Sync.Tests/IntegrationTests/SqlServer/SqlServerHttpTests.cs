@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override bool UseFiddler => true;
+        public override bool UseFiddler => false;
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
