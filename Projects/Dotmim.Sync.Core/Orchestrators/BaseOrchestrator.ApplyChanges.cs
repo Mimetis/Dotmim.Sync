@@ -252,15 +252,11 @@ namespace Dotmim.Sync
                 // Report the overall changes applied for the current table
                 if (tableChangesApplied != null)
                 {
-
                     var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
 
                     // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                     if (tableChangesAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
-                    {
                         await this.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
-                        this.ReportProgress(context, progress, tableChangesAppliedArgs, connection, transaction);
-                    }
                 }
 
             }

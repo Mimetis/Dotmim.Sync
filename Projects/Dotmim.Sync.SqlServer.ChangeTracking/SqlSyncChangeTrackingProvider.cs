@@ -40,18 +40,14 @@ namespace Dotmim.Sync.SqlServer
                 if (!string.IsNullOrEmpty(providerType))
                     return providerType;
 
-                Type type = typeof(SqlSyncProvider);
-                providerType = $"{type.Name}, {type.ToString()}";
+                Type type = typeof(SqlSyncChangeTrackingProvider);
+                providerType = $"{type.Name}, {type}";
 
                 return providerType;
             }
 
         }
 
-        /// <summary>
-        /// this provider supports change tracking(
-        /// </summary>
-        public override bool UseChangeTracking => true;
 
         /// <summary>
         /// Sql server support bulk operations through Table Value parameter
@@ -71,15 +67,12 @@ namespace Dotmim.Sync.SqlServer
         {
             var (tableName, trackingName) = GetParsers(tableDescription, setup);
 
-            var tableBuilder = new SqlChangeTrackingBuilder(tableDescription, tableName, trackingName, setup)
-            {
-                UseBulkProcedures = this.SupportBulkOperations,
-                UseChangeTracking = this.UseChangeTracking
-            };
+            var tableBuilder = new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingName, setup);
 
             return tableBuilder;
         }
 
+        public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
 
 
     }

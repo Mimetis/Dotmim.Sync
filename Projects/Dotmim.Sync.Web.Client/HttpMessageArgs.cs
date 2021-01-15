@@ -1,5 +1,8 @@
 ﻿namespace Dotmim.Sync.Web.Client
 {
+
+    // TODO : Add interceptors and SyncEventsId
+
     public class HttpMessageSendChangesResponseArgs : ProgressArgs
     {
         public HttpMessageSendChangesResponseArgs(byte[] content) : base(null, null, null)

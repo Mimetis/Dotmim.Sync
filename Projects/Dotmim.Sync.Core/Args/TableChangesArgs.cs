@@ -32,7 +32,7 @@ namespace Dotmim.Sync
         /// </summary>
         public TableChangesSelected TableChangesSelected { get; }
 
-        public override string Message => $"[{Connection.Database}] [{this.TableChangesSelected.TableName}] upserts:{this.TableChangesSelected.Upserts} deletes:{this.TableChangesSelected.Deletes} total:{this.TableChangesSelected.TotalChanges}";
+        public override string Message => $"[{Connection.Database}] [{this.TableChangesSelected.TableName}] [Total] Upserts:{this.TableChangesSelected.Upserts}. Deletes:{this.TableChangesSelected.Deletes}. Total:{this.TableChangesSelected.TotalChanges}.";
         public override int EventId => SyncEventsId.TableChangesSelected.Id;
     }
 
@@ -57,7 +57,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable Table { get; }
 
-        public override string Message => $"[{Connection.Database}] Getting changes [{this.Table.GetFullName()}]";
+        public override string Message => $"[{Connection.Database}] Getting Changes [{this.Table.GetFullName()}].";
 
         public override int EventId => SyncEventsId.TableChangesSelecting.Id;
     }
@@ -75,7 +75,10 @@ namespace Dotmim.Sync
 
         public TableChangesApplied TableChangesApplied { get; set; }
 
-        public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] {this.TableChangesApplied.State} batch applied:{this.TableChangesApplied.Applied} resolved conflicts:{this.TableChangesApplied.ResolvedConflicts}";
+        public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] [{this.TableChangesApplied.State}] " + 
+                                          $"Applied:{this.TableChangesApplied.Applied}. " + 
+                                          $"Conflicts:{this.TableChangesApplied.ResolvedConflicts}.";
+
         public override int EventId => SyncEventsId.TableChangesApplied.Id;
     }
 
@@ -105,7 +108,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable Changes { get; }
 
-        public override string Message => $"{this.Changes.TableName} state:{this.State}";
+        public override string Message => $"[{Connection.Database}] Applying [{this.Changes.TableName}] Batch. State:{this.State}.";
 
         public override int EventId => SyncEventsId.TableChangesApplying.Id;
     }
@@ -123,7 +126,7 @@ namespace Dotmim.Sync
 
         public TableChangesApplied TableChangesApplied { get; set; }
 
-        public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] {this.TableChangesApplied.State} applied:{this.TableChangesApplied.Applied} resolved conflicts:{this.TableChangesApplied.ResolvedConflicts}";
+        public override string Message => $"[{Connection.Database}] [{this.TableChangesApplied.TableName}] Changes {this.TableChangesApplied.State} Applied:{this.TableChangesApplied.Applied}. Resolved Conflicts:{this.TableChangesApplied.ResolvedConflicts}.";
         public override int EventId => SyncEventsId.TableChangesApplied.Id;
     }
 
@@ -152,7 +155,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable Table { get; }
 
-        public override string Message => $"Applying changes to {this.Table.GetFullName()}.";
+        public override string Message => $"[{Connection.Database}] Applying Changes To {this.Table.GetFullName()}.";
 
         public override int EventId => SyncEventsId.TableChangesApplying.Id;
     }

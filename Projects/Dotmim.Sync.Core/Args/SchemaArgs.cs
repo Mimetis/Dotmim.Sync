@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// Gets the Setup to be load.
         /// </summary>
         public SyncSetup Setup { get; }
-        public override string Message => $"synced tables count: {this.Setup.Tables.Count}";
+        public override string Message => $"[{Connection.Database}] Loading Schema For {this.Setup.Tables.Count} Tables.";
 
         public override int EventId => SyncEventsId.SchemaLoading.Id;
     }
@@ -38,7 +38,7 @@ namespace Dotmim.Sync
         /// Gets the schema loaded.
         /// </summary>
         public SyncSet Schema { get; }
-        public override string Message => $"synced tables count: {this.Schema.Tables.Count}";
+        public override string Message => $"[{Connection.Database}] Schema Loaded For {this.Schema.Tables.Count} Tables.";
 
         public override int EventId => SyncEventsId.SchemaLoaded.Id;
     }

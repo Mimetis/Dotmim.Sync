@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets message about migration
         /// </summary>
-        public override string Message => $"[{Connection.Database}] applying migration...";
+        public override string Message => $"[{Connection.Database}] Applying Migration.";
 
         /// <summary>
         /// Gets the schema used to apply migration
@@ -61,7 +61,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets message about migration
         /// </summary>
-        public override string Message => $"Migrated. Setup tables count:{Setup.Tables.Count}.";
+        public override string Message => $"[{Connection.Database}] Migrated. Tables:{Setup.Tables.Count}.";
 
         /// <summary>
         /// Gets the schema currently used

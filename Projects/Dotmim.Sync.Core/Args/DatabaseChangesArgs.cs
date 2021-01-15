@@ -25,7 +25,7 @@ namespace Dotmim.Sync
             this.ChangesRequest = changesRequest;
         }
 
-        public override string Message => $"[{Connection.Database}] getting changes ...";
+        public override string Message => $"[{Connection.Database}] Getting Changes.";
 
         public MessageGetChangesBatch ChangesRequest { get; }
         public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
@@ -44,7 +44,7 @@ namespace Dotmim.Sync
             this.ChangesSelected = changesSelected;
         }
 
-        public override string Message => $"[{Connection.Database}] upserts:{this.ChangesSelected.TotalChangesSelectedUpdates} deletes:{this.ChangesSelected.TotalChangesSelectedDeletes} total:{this.ChangesSelected.TotalChangesSelected}";
+        public override string Message => $"[{Connection.Database}] [Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}";
 
         public long Timestamp { get; }
 
@@ -67,7 +67,7 @@ namespace Dotmim.Sync
             this.ApplyChanges = applyChanges;
         }
 
-        public override string Message => $"[{Connection.Database}] applying changes...";
+        public override string Message => $"[{Connection.Database}] Applying Changes.";
 
         /// <summary>
         /// All parameters that will be used to apply changes
@@ -89,7 +89,7 @@ namespace Dotmim.Sync
 
         public DatabaseChangesApplied ChangesApplied { get; set; }
 
-        public override string Message => $"[{Connection.Database}] applied:{ChangesApplied.TotalAppliedChanges} resolved conflicts:{ChangesApplied.TotalResolvedConflicts}";
+        public override string Message => $"[{Connection.Database}] [Total] Applied:{ChangesApplied.TotalAppliedChanges}. Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
 
         public override int EventId => SyncEventsId.DatabaseChangesApplied.Id;
     }

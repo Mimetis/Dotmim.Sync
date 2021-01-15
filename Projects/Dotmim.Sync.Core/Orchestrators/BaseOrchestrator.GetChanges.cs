@@ -182,9 +182,12 @@ namespace Dotmim.Sync
             batchInfo.EnsureLastBatch();
 
             // Raise database changes selected
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changes, connection);
-            this.ReportProgress(context, progress, databaseChangesSelectedArgs);
-            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+            if (changes.TotalChangesSelected > 0 || changes.TotalChangesSelectedDeletes > 0 || changes.TotalChangesSelectedUpdates > 0)
+            {
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changes, connection);
+                this.ReportProgress(context, progress, databaseChangesSelectedArgs);
+                await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+            }
 
             return (context, batchInfo, changes);
 

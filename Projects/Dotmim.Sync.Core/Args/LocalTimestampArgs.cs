@@ -17,6 +17,9 @@ namespace Dotmim.Sync
         {
             this.Command = command;
         }
+
+        public override string Message => $"[{Connection.Database}] Getting Local Timestamp.";
+
         public override int EventId => SyncEventsId.LocalTimestampLoading.Id;
     }
     public class LocalTimestampLoadedArgs : ProgressArgs
@@ -26,6 +29,7 @@ namespace Dotmim.Sync
             this.LocalTimestamp = localTimestamp;
         }
 
+        public override string Message => $"[{Connection.Database}] Local Timestamp Loaded:{LocalTimestamp}.";
         public long LocalTimestamp { get; }
         public override int EventId => SyncEventsId.LocalTimestampLoaded.Id;
     }

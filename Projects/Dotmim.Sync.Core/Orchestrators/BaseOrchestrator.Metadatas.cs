@@ -71,10 +71,7 @@ namespace Dotmim.Sync
 
             }
 
-            var args = new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection);
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(context, progress, args);
-
+            await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection), cancellationToken).ConfigureAwait(false);
             return databaseMetadatasCleaned;
         }
 

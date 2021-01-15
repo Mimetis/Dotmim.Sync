@@ -40,6 +40,9 @@ namespace Dotmim.Sync
         /// </summary>
         public string DirectoryPath { get; }
         public override int EventId => SyncEventsId.SerializingSet.Id;
+
+        public override string Message => $"[{Connection.Database}] Serializing Set.";
+
     }
 
     /// <summary>
@@ -69,6 +72,7 @@ namespace Dotmim.Sync
         /// </summary>
         public string DirectoryPath { get; }
 
+        public override string Message => $"[{Connection.Database}] Deserializing Set.";
 
         /// <summary>
         /// Gets or Sets the container set result, after having deserialized the FileStream. If the Result property is Null, Dotmim.Sync will deserialized the stream using a simple Json converter

@@ -19,13 +19,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             
             if (!exists)
                 throw new MissingDatabaseException(connection.Database);
-
-            // Check if we are using change tracking and it's enabled on the source
-            var isChangeTrackingEnabled = await SqlManagementUtils.IsChangeTrackingEnabledAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
-
-            if (this.UseChangeTracking && !isChangeTrackingEnabled)
-                throw new MissingChangeTrackingException(connection.Database);
-
         }
 
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)

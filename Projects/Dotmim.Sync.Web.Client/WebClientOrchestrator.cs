@@ -134,10 +134,6 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public override async Task<SyncSet> GetSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
@@ -147,11 +143,8 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public override Task<bool> IsOutDated(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            return base.IsOutDated(clientScopeInfo, serverScopeInfo, cancellationToken, progress);
-        }
-
+        public override Task<bool> IsOutDated(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) 
+            => base.IsOutDated(clientScopeInfo, serverScopeInfo, cancellationToken, progress);
 
         /// <summary>
         /// Get server scope from server, by sending an http request to the server 
@@ -252,9 +245,6 @@ namespace Dotmim.Sync.Web.Client
 
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
-
-            //// create the in memory changes set
-            //var changesSet = new SyncSet();
 
             // is it something that could happens ?
             if (scope.Schema == null)

@@ -13,9 +13,9 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public class FancyCoreProvider : CoreProvider
     {
-        public override DbMetadata Metadata { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override DbMetadata GetMetadata() => throw new NotImplementedException();
 
-        public override string ProviderTypeName => "Fancy";
+        public override string GetProviderTypeName() => "Fancy";
 
         public override bool SupportBulkOperations => throw new NotImplementedException();
 
