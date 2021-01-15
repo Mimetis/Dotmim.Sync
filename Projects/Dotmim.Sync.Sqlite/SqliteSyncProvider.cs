@@ -13,27 +13,19 @@ namespace Dotmim.Sync.Sqlite
     public class SqliteSyncProvider : CoreProvider
     {
 
-       
+
         private string filePath;
         private DbMetadata dbMetadata;
         private static String providerType;
 
-        public override DbMetadata Metadata
+        public override DbMetadata GetMetadata()
         {
-            get
-            {
-                if (dbMetadata == null)
-                    dbMetadata = new SqliteDbMetadata();
+            if (dbMetadata == null)
+                dbMetadata = new SqliteDbMetadata();
 
-                return dbMetadata;
-            }
-            set
-            {
-                dbMetadata = value;
-
-            }
+            return dbMetadata;
         }
-     
+
 
         /// <summary>
         /// Sqlite does not support Bulk operations
@@ -47,7 +39,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public override bool CanBeServerProvider => false;
 
-        public override string ProviderTypeName => ProviderType;
+        public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType
         {
@@ -65,29 +57,6 @@ namespace Dotmim.Sync.Sqlite
         }
         public SqliteSyncProvider() : base()
         {
-        }
-
-        /// <summary>
-        /// Override Options for settings special PRAGMA stuff
-        /// </summary>
-        public override SyncOptions Options
-        {
-            get
-            {
-                return base.Options;
-            }
-            set
-            {
-                base.Options = value;
-
-                // Affect options
-                var builder = new SqliteConnectionStringBuilder(this.ConnectionString)
-                {
-                    // overriding connectionstring
-                    ForeignKeys = !this.Options.DisableConstraintsOnApplyChanges
-                };
-                this.ConnectionString = builder.ToString();
-            }
         }
 
         public SqliteSyncProvider(string filePath) : this()
@@ -125,7 +94,6 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
-
         public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder) : this()
         {
             if (String.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
@@ -151,31 +119,35 @@ namespace Dotmim.Sync.Sqlite
                 return;
 
             syncException.Number = sqliteException.SqliteErrorCode;
-            
+
 
             return;
         }
 
-
         public override DbConnection CreateConnection()
         {
+            // Affect options
+            var builder = new SqliteConnectionStringBuilder(this.ConnectionString);
+
+            if (!builder.ForeignKeys.HasValue)
+            {
+                builder.ForeignKeys = !this.Orchestrator.Options.DisableConstraintsOnApplyChanges;
+                this.ConnectionString = builder.ToString();
+            }
+
             var sqliteConnection = new SqliteConnection(this.ConnectionString);
+
             return sqliteConnection;
         }
 
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqliteScopeBuilder(scopeInfoTableName);
-
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
         {
             var (tableName, trackingName) = GetParsers(tableDescription, setup);
 
 
-            var tableBuilder = new SqliteTableBuilder(tableDescription, tableName, trackingName, setup)
-            {
-                UseBulkProcedures = this.SupportBulkOperations,
-                UseChangeTracking = this.UseChangeTracking
-            };
+            var tableBuilder = new SqliteTableBuilder(tableDescription, tableName, trackingName, setup);
 
             return tableBuilder;
         }

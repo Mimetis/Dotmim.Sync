@@ -46,7 +46,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the options used by this local orchestrator
         /// </summary>
-        public virtual SyncOptions Options { get; set; }
+        public virtual SyncOptions Options { get; internal set; }
 
         /// <summary>
         /// Gets the Setup used by this local orchestrator
@@ -80,7 +80,6 @@ namespace Dotmim.Sync
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             this.Provider.Orchestrator = this;
-            this.Provider.Options = options;
             this.logger = options.Logger;
         }
 

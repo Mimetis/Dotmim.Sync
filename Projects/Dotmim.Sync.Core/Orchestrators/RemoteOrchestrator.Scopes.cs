@@ -86,9 +86,6 @@ namespace Dotmim.Sync
                 await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            var scopeArgs = new ScopeLoadedArgs<ServerScopeInfo>(ctx, this.ScopeName, DbScopeType.Server, serverScopeInfo, connection, transaction);
-            this.ReportProgress(ctx, progress, scopeArgs);
-
             return serverScopeInfo;
 
         }, cancellationToken);

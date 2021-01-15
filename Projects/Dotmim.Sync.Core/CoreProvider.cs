@@ -35,20 +35,10 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual void OnConnectionClosed(DbConnection connection) { }
 
-
-        /// <summary>
-        /// Gets or Sets options used during the sync
-        /// </summary>
-        [JsonIgnore]
-        [IgnoreDataMember]
-        public virtual SyncOptions Options { get; set; }
-
-
         /// <summary>
         /// Create a new instance of the implemented Connection provider
         /// </summary>
         public abstract DbConnection CreateConnection();
-
 
         /// <summary>
         /// Get Database Builder which can create object at the database level
@@ -75,12 +65,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets the metadata resolver (validating the columns definition from the data store)
         /// </summary>
-        public abstract DbMetadata Metadata { get; set; }
+        public abstract DbMetadata GetMetadata();
 
         /// <summary>
         /// Get the provider type name
         /// </summary>
-        public abstract string ProviderTypeName { get; }
+        public abstract string GetProviderTypeName();
 
         /// <summary>
         /// Gets or sets the connection string used by the implemented provider
@@ -91,11 +81,6 @@ namespace Dotmim.Sync
         /// Gets a boolean indicating if the provider can use bulk operations
         /// </summary>
         public abstract bool SupportBulkOperations { get; }
-
-        /// <summary>
-        /// Gets a boolean indicating if the provider can use change tracking
-        /// </summary>
-        public virtual bool UseChangeTracking { get; } = false;
 
         /// <summary>
         /// Gets a boolean indicating if the provider can be a server side provider
@@ -111,7 +96,6 @@ namespace Dotmim.Sync
         /// Let a chance to provider to enrich SyncExecption
         /// </summary>
         public virtual void EnsureSyncException(SyncException syncException) { }
-
 
         /// <summary>
         /// Let's a chance to retry on error if connection has been refused.

@@ -20,7 +20,7 @@ namespace Dotmim.Sync
             this.Table = table;
         }
 
-        public override string Message => $"[{Connection.Database}] [{this.Table.SchemaName}] schema created.";
+        public override string Message => $"[{Connection.Database}] [{this.Table.SchemaName}] Schema Created.";
 
         public override int EventId => SyncEventsId.SchemaNameCreated.Id;
     }
@@ -52,7 +52,7 @@ namespace Dotmim.Sync
             this.Table = table;
         }
 
-        public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] table created.";
+        public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] Table Created.";
 
         public override int EventId => SyncEventsId.TableCreated.Id;
     }
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
             this.Command = command;
         }
 
-        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table creating.";
+        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] Table Creating.";
         public override int EventId => SyncEventsId.TableCreating.Id;
 
     }
@@ -89,7 +89,7 @@ namespace Dotmim.Sync
             this.Table = table;
         }
 
-        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table dropped.";
+        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] Table Dropped.";
 
         public override int EventId => SyncEventsId.TableDropped.Id;
     }
@@ -109,7 +109,7 @@ namespace Dotmim.Sync
             this.Table = table;
         }
 
-        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] table dropping.";
+        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] Table Dropping.";
 
         public override int EventId => SyncEventsId.TableDropping.Id;
 

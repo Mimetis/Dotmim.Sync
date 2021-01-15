@@ -26,7 +26,7 @@ namespace Dotmim.Sync.SqlServer
             this.ConnectionString = builder.ConnectionString;
         }
 
-        public override string ProviderTypeName => ProviderType;
+        public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType
         {
@@ -40,28 +40,17 @@ namespace Dotmim.Sync.SqlServer
 
                 return providerType;
             }
-
         }
-
-
 
         /// <summary>
         /// Gets or sets the Metadata object which parse Sql server types
         /// </summary>
-        public override DbMetadata Metadata
+        public override DbMetadata GetMetadata()
         {
-            get
-            {
-                if (dbMetadata == null)
-                    dbMetadata = new SqlDbMetadata();
+            if (dbMetadata == null)
+                dbMetadata = new SqlDbMetadata();
 
-                return dbMetadata;
-            }
-            set
-            {
-                dbMetadata = value;
-
-            }
+            return dbMetadata;
         }
 
         /// <summary>
@@ -125,7 +114,7 @@ namespace Dotmim.Sync.SqlServer
 
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlScopeBuilder(scopeInfoTableName);
-        
+
         /// <summary>
         /// Get the table builder. Table builder builds table, stored procedures and triggers
         /// </summary>
@@ -133,11 +122,7 @@ namespace Dotmim.Sync.SqlServer
         {
             var (tableName, trackingName) = GetParsers(tableDescription, setup);
 
-            var tableBuilder = new SqlTableBuilder(tableDescription, tableName, trackingName, setup)
-            {
-                UseBulkProcedures = this.SupportBulkOperations,
-                UseChangeTracking = this.UseChangeTracking
-            };
+            var tableBuilder = new SqlTableBuilder(tableDescription, tableName, trackingName, setup);
 
             return tableBuilder;
         }
@@ -148,16 +133,7 @@ namespace Dotmim.Sync.SqlServer
             var adapter = new SqlSyncAdapter(tableDescription, tableName, trackingName, setup);
             return adapter;
         }
-        public override DbBuilder GetDatabaseBuilder()
-        {
-            var tableBuilder = new SqlBuilder()
-            {
-                UseBulkProcedures = this.SupportBulkOperations,
-                UseChangeTracking = this.UseChangeTracking
-            };
-
-            return tableBuilder;
-        }
+        public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
 
     }
 }

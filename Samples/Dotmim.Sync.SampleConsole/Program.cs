@@ -49,7 +49,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        await SynchronizeThenChangeSetupAsync();
+        await SyncHttpThroughKestrellAsync();
         // BugExecutingProcedureMySql();
 
     }
@@ -115,7 +115,7 @@ internal class Program
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("dedee.db");
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
         var options = new SyncOptions();
         // Creating an agent that will handle all the process
@@ -128,6 +128,15 @@ internal class Program
             Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
             Console.ResetColor();
         });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        agent.AddRemoteProgress(remoteProgress);
 
         do
         {
@@ -1768,72 +1777,64 @@ internal class Program
         // ----------------------------------
         // snapshot directory
         var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
-        var options = new SyncOptions { BatchSize = 500, SnapshotsDirectory = snapshotDirectory };
+        var options = new SyncOptions { BatchSize = 100, SnapshotsDirectory = snapshotDirectory };
 
-
-
-        // ----------------------------------
-        // Insert a value after snapshot created
-        // ----------------------------------
-        using (var c = serverProvider.CreateConnection())
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
-            var command = c.CreateCommand();
-            var cat = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+            Console.ResetColor();
+        });
 
-            command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('" + cat + "');";
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-        }
+        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+            Console.ResetColor();
+        });
+
+        var localProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            // ----------------------------------
-            // Web Server side
-            // ----------------------------------
-            var setup = new SyncSetup(new string[] { "ProductCategory", "Product" })
-            {
-                StoredProceduresPrefix = "s",
-                StoredProceduresSuffix = "",
-                TrackingTablesPrefix = "t",
-                TrackingTablesSuffix = "",
-                TriggersPrefix = "",
-                TriggersSuffix = "t"
-            };
-
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, "dd", setup, options);
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, allTables, options);
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = ConsoleColor.Gray;
             Console.WriteLine($"Creating snapshot");
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, "dd");
-            remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
-            Console.WriteLine($"Done.");
-            Console.ResetColor();
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
+
+            remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
+
+            // ----------------------------------
+            // Insert a value after snapshot created
+            // ----------------------------------
+            using (var c = serverProvider.CreateConnection())
+            {
+                var command = c.CreateCommand();
+                var cat = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+
+                command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('" + cat + "');";
+                c.Open();
+                command.ExecuteNonQuery();
+                c.Close();
+            }
+
+
 
         });
 
         var serverHandler = new RequestDelegate(async context =>
         {
             var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-
-            var progress = new SynchronousProgress<ProgressArgs>(pa =>
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
-                Console.ResetColor();
-            });
-
-            //// override sync type
-            //var orch = webServerManager.GetOrchestrator(context);
-            //orch.OnServerScopeLoaded(sla =>
-            //{
-            //    sla.Context.SyncType = SyncType.Reinitialize;
-            //});
-
-            await webServerManager.HandleRequestAsync(context, default, progress);
+            await webServerManager.HandleRequestAsync(context, default, remoteProgress);
         });
 
         using var server = new KestrellTestServer(configureServices);
@@ -1841,22 +1842,11 @@ internal class Program
         {
             do
             {
-                Console.Clear();
                 Console.WriteLine("Web sync start");
                 try
                 {
-                    //var localSetup = new SyncSetup()
-                    //{
-                    //    StoredProceduresPrefix = "cli",
-                    //    StoredProceduresSuffix = "",
-                    //    TrackingTablesPrefix = "cli",
-                    //    TrackingTablesSuffix = "",
-                    //    TriggersPrefix = "cli",
-                    //    TriggersSuffix = ""
-                    //};
-                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, "dd");
-                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
-                    var s = await agent.SynchronizeAsync(progress);
+                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
+                    var s = await agent.SynchronizeAsync(localProgress);
                     Console.WriteLine(s);
                 }
                 catch (SyncException e)
