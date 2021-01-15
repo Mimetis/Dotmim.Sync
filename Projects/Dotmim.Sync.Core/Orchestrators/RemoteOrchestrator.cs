@@ -32,7 +32,7 @@ namespace Dotmim.Sync
            : base(provider, options, setup, scopeName)
         {
             if (!this.Provider.CanBeServerProvider)
-                throw new UnsupportedServerProviderException(this.Provider.ProviderTypeName);
+                throw new UnsupportedServerProviderException(this.Provider.GetProviderTypeName());
         }
 
         /// <summary>
@@ -285,9 +285,6 @@ namespace Dotmim.Sync
                 // Event progress & interceptor
                 await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                var tableChangesSelectedArgs = new DatabaseChangesSelectedArgs(ctx, remoteClientTimestamp, serverBatchInfo, serverChangesSelected, connection, transaction);
-                this.ReportProgress(ctx, progress, tableChangesSelectedArgs);
-                await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -447,9 +444,7 @@ namespace Dotmim.Sync
 
               await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-              var args = new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, connection);
-              await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-              this.ReportProgress(ctx, progress, args);
+              await this.InterceptAsync(new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, connection), cancellationToken).ConfigureAwait(false);
 
               return databaseMetadatasCleaned;
 

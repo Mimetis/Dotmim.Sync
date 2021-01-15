@@ -138,7 +138,7 @@ namespace Dotmim.Sync
         /// </summary>
         private void FillSyncTableWithColumns(SetupTable setupTable, SyncTable schemaTable, IEnumerable<SyncColumn> columns)
         {
-            schemaTable.OriginalProvider = this.Provider.ProviderTypeName;
+            schemaTable.OriginalProvider = this.Provider.GetProviderTypeName();
             schemaTable.SyncDirection = setupTable.SyncDirection;
 
             var ordinal = 0;
@@ -182,8 +182,8 @@ namespace Dotmim.Sync
             foreach (var column in lstColumns.OrderBy(c => c.Ordinal))
             {
                 // First of all validate if the column is currently supported
-                if (!this.Provider.Metadata.IsValid(column))
-                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.Provider.ProviderTypeName);
+                if (!this.Provider.GetMetadata().IsValid(column))
+                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
                 if (columnNameLower == "sync_scope_name"
@@ -200,37 +200,37 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_scope_name"
                     || columnNameLower == "sync_scope_name"
                     )
-                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.Provider.ProviderTypeName);
+                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
                 // Validate max length
-                column.MaxLength = this.Provider.Metadata.ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                column.MaxLength = this.Provider.GetMetadata().ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SqliteDbType, NpgsqlDbType & so on ...)
-                var datastoreDbType = this.Provider.Metadata.ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                var datastoreDbType = this.Provider.GetMetadata().ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // once we have the datastore type, we can have the managed type
-                var columnType = this.Provider.Metadata.ValidateType(datastoreDbType);
+                var columnType = this.Provider.GetMetadata().ValidateType(datastoreDbType);
 
                 // and the DbType
-                column.DbType = (int)this.Provider.Metadata.ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                column.DbType = (int)this.Provider.GetMetadata().ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
                 // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
                 // Sqlite does not have it's own type, so it's DbType too
                 column.OriginalDbType = datastoreDbType.ToString();
 
                 // Validate if column should be readonly
-                column.IsReadOnly = this.Provider.Metadata.ValidateIsReadonly(column);
+                column.IsReadOnly = this.Provider.GetMetadata().ValidateIsReadonly(column);
 
                 // set position ordinal
                 column.Ordinal = ordinal;
                 ordinal++;
 
                 // Validate the precision and scale properties
-                if (this.Provider.Metadata.IsNumericType(column.OriginalTypeName))
+                if (this.Provider.GetMetadata().IsNumericType(column.OriginalTypeName))
                 {
-                    if (this.Provider.Metadata.SupportScale(column.OriginalTypeName))
+                    if (this.Provider.GetMetadata().SupportScale(column.OriginalTypeName))
                     {
-                        var (p, s) = this.Provider.Metadata.ValidatePrecisionAndScale(column);
+                        var (p, s) = this.Provider.GetMetadata().ValidatePrecisionAndScale(column);
                         column.Precision = p;
                         column.PrecisionSpecified = true;
                         column.Scale = s;
@@ -238,7 +238,7 @@ namespace Dotmim.Sync
                     }
                     else
                     {
-                        column.Precision = this.Provider.Metadata.ValidatePrecision(column);
+                        column.Precision = this.Provider.GetMetadata().ValidatePrecision(column);
                         column.PrecisionSpecified = true;
                         column.ScaleSpecified = false;
                     }

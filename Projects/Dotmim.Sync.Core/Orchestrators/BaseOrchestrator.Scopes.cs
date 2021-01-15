@@ -204,8 +204,6 @@ namespace Dotmim.Sync
 
                 var scopeLoadedArgs = new ScopeLoadedArgs<ScopeInfo>(ctx, scopeName, scopeType, scopeInfo, connection, transaction);
                 await this.InterceptAsync(scopeLoadedArgs, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, scopeLoadedArgs);
-
             }
             else
             {
@@ -216,11 +214,9 @@ namespace Dotmim.Sync
 
                 var scopeLoadedArgs = new ScopeLoadedArgs<ServerScopeInfo>(ctx, scopeName, scopeType, scopeInfo, connection, transaction);
                 await this.InterceptAsync(scopeLoadedArgs, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, scopeLoadedArgs);
             }
 
             return localScope;
-
         }
 
         /// <summary>

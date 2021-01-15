@@ -221,6 +221,12 @@ namespace Dotmim.Sync
                         // Add the row to the changes set
                         changesSetTable.Rows.Add(row);
 
+                        // Set the correct state to be applied
+                        if (row.RowState == DataRowState.Deleted)
+                            tableChangesSelected.Deletes++;
+                        else if (row.RowState == DataRowState.Modified)
+                            tableChangesSelected.Upserts++;
+
                         var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
                         var finalFieldSize = fieldsSize / 1024d;
 
@@ -284,11 +290,6 @@ namespace Dotmim.Sync
             batchInfo.Timestamp = remoteClientTimestamp;
 
 
-            // Raise database changes selected
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, remoteClientTimestamp, batchInfo, changes, connection);
-            this.ReportProgress(context, progress, databaseChangesSelectedArgs);
-            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-
             // Serialize on disk.
             var jsonConverter = new JsonConverter<BatchInfo>();
 
@@ -300,6 +301,14 @@ namespace Dotmim.Sync
                 f.Write(bytes, 0, bytes.Length);
             }
 
+            // Raise database changes selected
+            if (changes.TotalChangesSelected > 0 || changes.TotalChangesSelectedDeletes > 0 || changes.TotalChangesSelectedUpdates > 0)
+            {
+                // Raise database changes selected
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, remoteClientTimestamp, batchInfo, changes, connection);
+                this.ReportProgress(context, progress, databaseChangesSelectedArgs);
+                await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+            }
             return batchInfo;
         }
 

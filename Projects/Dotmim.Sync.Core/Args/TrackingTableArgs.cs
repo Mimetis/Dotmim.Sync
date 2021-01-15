@@ -56,7 +56,7 @@ namespace Dotmim.Sync
             this.TrackingTableName = trackingTableName;
         }
 
-        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table dropped.";
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] Tracking Table Dropped.";
 
         public override int EventId => SyncEventsId.TrackingTableDropped.Id;
     }
@@ -75,6 +75,7 @@ namespace Dotmim.Sync
             this.TrackingTableName = trackingTableName;
             this.Command = command;
         }
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] Tracking Table Dropping.";
         public override int EventId => SyncEventsId.TrackingTableDropping.Id;
 
     }
@@ -91,7 +92,7 @@ namespace Dotmim.Sync
             this.OldTrackingTableName = oldTrackingTableName;
         }
 
-        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table renamed.";
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] Tracking Table Renamed.";
 
         public override int EventId => SyncEventsId.TrackingTableRenamed.Id;
     }
@@ -113,7 +114,7 @@ namespace Dotmim.Sync
             this.OldTrackingTableName = oldTrackingTableName;
 
         }
-        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] tracking table renaming.";
+        public override string Message => $"[{Connection.Database}] [{this.TrackingTableName}] Tracking Table Renaming.";
         public override int EventId => SyncEventsId.TrackingTableRenaming.Id;
 
     }

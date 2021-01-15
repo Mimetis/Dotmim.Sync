@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// </summary>
         public OutdatedAction Action { get; set; } = OutdatedAction.Rollback;
 
-        public override string Message => $"";
+        public override string Message => $"[{Connection.Database}] Database Out Dated. Last Client Sync Endpoint {ClientScopeInfo.LastServerSyncTimestamp} < Last Server Cleanup Metadatas {ServerScopeInfo.LastCleanupTimestamp}.";
 
         /// <summary>
         /// Gets the client scope info used to check if the client is outdated

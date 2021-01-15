@@ -341,13 +341,6 @@ namespace Dotmim.Sync
             var startTime = DateTime.UtcNow;
             var completeTime = DateTime.UtcNow;
 
-            // for view purpose, if needed
-            if (this.LocalOrchestrator?.Provider != null)
-                this.LocalOrchestrator.Provider.Options = this.Options;
-
-            if (this.RemoteOrchestrator?.Provider != null)
-                this.RemoteOrchestrator.Provider.Options = this.Options;
-
             // Create a logger
             var logger = this.Options.Logger ?? new SyncLogger().AddDebug();
 

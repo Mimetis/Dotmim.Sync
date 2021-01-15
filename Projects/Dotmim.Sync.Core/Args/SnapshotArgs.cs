@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"Applying snapshot.";
+        public override string Message => $"[{Connection.Database}] Applying Snapshot.";
         public override int EventId => SyncEventsId.SnapshotApplying.Id;
     }
 
@@ -34,7 +34,7 @@ namespace Dotmim.Sync
             this.ChangesApplied = changesApplied;
         }
 
-        public override string Message => $"Snapshot applied.";
+        public override string Message => $"[Snapshot] [Total] Applied:{ChangesApplied.TotalAppliedChanges}. Resolved Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
         public override int EventId => SyncEventsId.SnapshotApplied.Id;
     }
 
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
         /// </summary>
         public long Timestamp { get; }
 
-        public override string Message => $"Creating snapshot.";
+        public override string Message => $"[{Connection.Database}] Creating Snapshot.";
         public override int EventId => SyncEventsId.SnapshotCreating.Id;
     }
 
@@ -87,7 +87,7 @@ namespace Dotmim.Sync
             this.BatchInfo = batchInfo;
         }
 
-        public override string Message => $"Created snapshot.";
+        public override string Message => $"[{Connection.Database}] Snapshot Created [{BatchInfo.GetDirectoryFullPath()}].";
 
         /// <summary>
         /// Gets the batch info summarizing the snapshot created
