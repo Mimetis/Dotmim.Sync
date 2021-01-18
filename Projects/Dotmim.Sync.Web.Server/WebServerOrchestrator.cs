@@ -382,15 +382,18 @@ namespace Dotmim.Sync.Web.Server
             var changes = await base.GetEstimatedChangesCountAsync(httpMessage.Scope, cancellationToken, progress);
 
 
-            var changesResponse = new HttpMessageSendChangesResponse(syncContext);
-            changesResponse.ServerChangesSelected = changes.ServerChangesSelected;
-            changesResponse.ClientChangesApplied = new DatabaseChangesApplied();
-            changesResponse.ServerStep = HttpStep.GetMoreChanges;
-            changesResponse.ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy;
-            changesResponse.Changes = new ContainerSet();
-            changesResponse.BatchIndex = 0;
-            changesResponse.IsLastBatch = true;
-            changesResponse.RemoteClientTimestamp = changes.RemoteClientTimestamp;
+            var changesResponse = new HttpMessageSendChangesResponse(syncContext)
+            {
+                ServerChangesSelected = changes.ServerChangesSelected,
+                ClientChangesApplied = new DatabaseChangesApplied(),
+                ServerStep = HttpStep.GetMoreChanges,
+                ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
+                Changes = new ContainerSet(),
+                BatchIndex = 0,
+                BatchCount = 0,
+                IsLastBatch = true,
+                RemoteClientTimestamp = changes.RemoteClientTimestamp
+            };
 
             // Get the firt response to send back to client
             return changesResponse;
@@ -427,12 +430,15 @@ namespace Dotmim.Sync.Web.Server
             // if no snapshot, return empty response
             if (snap.ServerBatchInfo == null)
             {
-                var changesResponse = new HttpMessageSendChangesResponse(ctx);
-                changesResponse.ServerStep = HttpStep.GetSnapshot;
-                changesResponse.BatchIndex = 0;
-                changesResponse.IsLastBatch = true;
-                changesResponse.RemoteClientTimestamp = 0;
-                changesResponse.Changes = null;
+                var changesResponse = new HttpMessageSendChangesResponse(ctx)
+                {
+                    ServerStep = HttpStep.GetSnapshot,
+                    BatchIndex = 0,
+                    BatchCount = 0,
+                    IsLastBatch = true,
+                    RemoteClientTimestamp = 0,
+                    Changes = null
+                };
                 return changesResponse;
             }
 
@@ -569,11 +575,13 @@ namespace Dotmim.Sync.Web.Server
         {
 
             // 1) Create the http message content response
-            var changesResponse = new HttpMessageSendChangesResponse(context);
-            changesResponse.ServerChangesSelected = serverChangesSelected;
-            changesResponse.ClientChangesApplied = clientChangesApplied;
-            changesResponse.ServerStep = HttpStep.GetMoreChanges;
-            changesResponse.ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy;
+            var changesResponse = new HttpMessageSendChangesResponse(context)
+            {
+                ServerChangesSelected = serverChangesSelected,
+                ClientChangesApplied = clientChangesApplied,
+                ServerStep = HttpStep.GetMoreChanges,
+                ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy
+            };
 
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
@@ -583,6 +591,7 @@ namespace Dotmim.Sync.Web.Server
 
                 changesResponse.Changes = serverBatchInfo.InMemoryData == null ? new ContainerSet() : serverBatchInfo.InMemoryData.GetContainerSet();
                 changesResponse.BatchIndex = 0;
+                changesResponse.BatchCount = serverBatchInfo.InMemoryData == null ? 0 : serverBatchInfo.BatchPartsInfo == null ? 0 : serverBatchInfo.BatchPartsInfo.Count;
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
                 return changesResponse;
@@ -608,6 +617,7 @@ namespace Dotmim.Sync.Web.Server
             changesResponse.Changes = batchPartInfo.Data.GetContainerSet();
 
             changesResponse.BatchIndex = batchIndexRequested;
+            changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo.Count;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
             changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
             changesResponse.ServerStep = batchPartInfo.IsLastBatch ? HttpStep.GetMoreChanges : HttpStep.GetChangesInProgress;

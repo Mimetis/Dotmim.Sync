@@ -290,6 +290,7 @@ namespace Dotmim.Sync.Web.Client
                 changesToSend.Changes = containerSet;
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
+                changesToSend.BatchCount = clientBatchInfo.InMemoryData == null ? 0 : clientBatchInfo.BatchPartsInfo == null ? 0 : clientBatchInfo.BatchPartsInfo.Count;
 
                 var args2 = new HttpSendingChangesArgs(changesToSend, this.GetServiceHost());
                 await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
@@ -325,6 +326,7 @@ namespace Dotmim.Sync.Web.Client
                     changesToSend.Changes = bpi.Data.GetContainerSet();
                     changesToSend.IsLastBatch = bpi.IsLastBatch;
                     changesToSend.BatchIndex = bpi.Index;
+                    changesToSend.BatchCount = clientBatchInfo.BatchPartsInfo.Count;
 
                     var args2 = new HttpSendingChangesArgs(changesToSend, this.GetServiceHost());
                     await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
@@ -475,7 +477,8 @@ namespace Dotmim.Sync.Web.Client
             {
                 Changes = null,
                 IsLastBatch = true,
-                BatchIndex = 0
+                BatchIndex = 0,
+                BatchCount = 0
             };
 
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
@@ -587,7 +590,8 @@ namespace Dotmim.Sync.Web.Client
             {
                 Changes = null,
                 IsLastBatch = true,
-                BatchIndex = 0
+                BatchIndex = 0,
+                BatchCount = 0
             };
 
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
@@ -713,7 +717,8 @@ namespace Dotmim.Sync.Web.Client
             {
                 Changes = null,
                 IsLastBatch = true,
-                BatchIndex = 0
+                BatchIndex = 0,
+                BatchCount = 0
             };
 
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
