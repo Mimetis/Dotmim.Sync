@@ -481,7 +481,7 @@ namespace Dotmim.Sync.Web.Server
 
             // ensure that the blientBatchInfo is still available in the session - it **must** only be null when the batchIndex is 0!!
             if (sessionCache.ClientBatchInfo == null && httpMessage.BatchIndex != 0)
-                throw new SyncException("Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.");
+                throw new HttpSessionLostException();
 
             // We are receiving changes from client
             // BatchInfo containing all BatchPartInfo objects
@@ -553,7 +553,7 @@ namespace Dotmim.Sync.Web.Server
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (sessionCache.ServerBatchInfo == null)
-                throw new SyncException("Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.");
+                throw new HttpSessionLostException();
 
             return GetChangesResponseAsync(httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
