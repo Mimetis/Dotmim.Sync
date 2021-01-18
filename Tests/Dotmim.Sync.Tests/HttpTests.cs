@@ -652,7 +652,7 @@ namespace Dotmim.Sync.Tests
 
 
         }
-        
+
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
@@ -691,7 +691,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal("HttpConverterNotConfiguredException", exception.TypeName);
             }
         }
-        
+
         /// <summary>
         /// Check web interceptors are working correctly
         /// </summary>
@@ -818,7 +818,7 @@ namespace Dotmim.Sync.Tests
             }
 
         }
-        
+
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
@@ -1348,7 +1348,7 @@ namespace Dotmim.Sync.Tests
 
                         if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
                             Assert.True(false, "sessionid was wrong. please fix this test!!");
-                        
+
                         // simulate a session loss (e.g. IIS application pool recycle)
                         this.WebServerOrchestrator.Cache.Remove(sessionId);
                     }
@@ -1357,34 +1357,11 @@ namespace Dotmim.Sync.Tests
 
                 });
 
-                SyncException exception = null;
-
-                try
-                {
-                    var s = await agent.SynchronizeAsync();
-
-                    // Query number of **actually** transmitted rows!
-                    Assert.Equal(rowsToSend, s.TotalChangesUploaded);
-                    Assert.Equal(0, s.TotalChangesDownloaded);
-                    Assert.Equal(0, s.TotalResolvedConflicts);
-
-                    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-                    {
-                        var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
-                        Assert.Equal(rowsToSend, serverCount);
-                    }
-
-                }
-                catch (SyncException x)
-                {
-                    exception = x;
-                }
+                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
 
                 // Assert
-                Assert.NotNull(exception); //"exception required!"
-                Assert.Equal(
-                    "{\"m\":\"Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.\"}",
-                    exception.Message);
+                Assert.NotNull(ex); //"exception required!"
+                Assert.Equal("HttpSessionLostException", ex.TypeName);
 
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
@@ -1397,11 +1374,9 @@ namespace Dotmim.Sync.Tests
 
                 clientCount++;
 
-                using (var serverDbCtx = new AdventureWorksContext(this.Server))
-                {
-                    var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
-                    Assert.Equal(rowsToSend * clientCount, serverCount);
-                }
+                using var serverDbCtx = new AdventureWorksContext(this.Server);
+                var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                Assert.Equal(rowsToSend * clientCount, serverCount);
 
             }
 
@@ -1411,7 +1386,7 @@ namespace Dotmim.Sync.Tests
         public async Task WithBatchingEnabled_WhenSessionIsLostDuringGetChanges_ChangesAreNotLost()
         {
             // Arrange
-            var options = new SyncOptions {BatchSize = 100};
+            var options = new SyncOptions { BatchSize = 100 };
 
             // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
@@ -1443,7 +1418,7 @@ namespace Dotmim.Sync.Tests
             var productNumber = "12345";
 
             var products = Enumerable.Range(1, rowsToReceive).Select(i =>
-                new Product {ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}"});
+                new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}" });
 
             using (var serverDbCtx = new AdventureWorksContext(this.Server))
             {
@@ -1459,13 +1434,15 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnHttpSendingChanges(x =>
+                orch.OnHttpGettingChanges(x =>
                 {
                     if (batchIndex == 1)
                     {
-                        var sessionId = x.Request.SyncContext.SessionId.ToString();
+                        var sessionId = x.Response.SyncContext.SessionId.ToString();
+
                         if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
                             Assert.True(false, "sessionid was wrong. please fix this test!!");
+
                         // simulate a session loss (e.g. IIS application pool recycle)
                         this.WebServerOrchestrator.Cache.Remove(sessionId);
                     }
@@ -1474,34 +1451,12 @@ namespace Dotmim.Sync.Tests
 
                 });
 
-                SyncException exception = null;
-
-                try
-                {
-                    var s = await agent.SynchronizeAsync();
-
-                    // Query number of **actually** transmitted rows!
-                    Assert.Equal(0, s.TotalChangesUploaded);
-                    Assert.Equal(rowsToReceive, s.TotalChangesDownloaded);
-                    Assert.Equal(0, s.TotalResolvedConflicts);
-
-                    using (var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                    {
-                        var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
-                        Assert.Equal(rowsToReceive, serverCount);
-                    }
-
-                }
-                catch (SyncException x)
-                {
-                    exception = x;
-                }
+                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
 
                 // Assert
-                Assert.NotNull(exception); //"exception required!"
-                Assert.Equal(
-                    "{\"m\":\"Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.\"}",
-                    exception.Message);
+                Assert.NotNull(ex); //"exception required!"
+                Assert.Equal("HttpSessionLostException", ex.TypeName);
+
 
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
@@ -1512,11 +1467,9 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsToReceive, s2.TotalChangesDownloaded);
                 Assert.Equal(0, s2.TotalResolvedConflicts);
 
-                using (var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
-                    Assert.Equal(rowsToReceive, serverCount);
-                }
+                using var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                Assert.Equal(rowsToReceive, serverCount);
             }
 
         }
