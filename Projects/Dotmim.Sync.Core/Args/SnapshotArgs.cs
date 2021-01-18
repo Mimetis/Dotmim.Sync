@@ -147,9 +147,9 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId SnapshotCreating => CreateEventId(10000, nameof(SnapshotCreating));
-        public static EventId SnapshotCreated => CreateEventId(10100, nameof(SnapshotCreated));
-        public static EventId SnapshotApplying => CreateEventId(10200, nameof(SnapshotApplying));
-        public static EventId SnapshotApplied => CreateEventId(10300, nameof(SnapshotApplied));
+        public static EventId SnapshotCreated => CreateEventId(10050, nameof(SnapshotCreated));
+        public static EventId SnapshotApplying => CreateEventId(10100, nameof(SnapshotApplying));
+        public static EventId SnapshotApplied => CreateEventId(10150, nameof(SnapshotApplied));
 
     }
 }

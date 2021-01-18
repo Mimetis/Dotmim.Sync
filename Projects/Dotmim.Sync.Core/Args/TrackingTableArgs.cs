@@ -195,11 +195,11 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId TrackingTableCreating => CreateEventId(14000, nameof(TrackingTableCreating));
-        public static EventId TrackingTableCreated => CreateEventId(14100, nameof(TrackingTableCreated));
-        public static EventId TrackingTableDropping => CreateEventId(14200, nameof(TrackingTableDropping));
-        public static EventId TrackingTableDropped => CreateEventId(14300, nameof(TrackingTableDropped));
-        public static EventId TrackingTableRenaming => CreateEventId(14400, nameof(TrackingTableRenaming));
-        public static EventId TrackingTableRenamed => CreateEventId(14500, nameof(TrackingTableRenamed));
+        public static EventId TrackingTableCreated => CreateEventId(14050, nameof(TrackingTableCreated));
+        public static EventId TrackingTableDropping => CreateEventId(14100, nameof(TrackingTableDropping));
+        public static EventId TrackingTableDropped => CreateEventId(14150, nameof(TrackingTableDropped));
+        public static EventId TrackingTableRenaming => CreateEventId(14200, nameof(TrackingTableRenaming));
+        public static EventId TrackingTableRenamed => CreateEventId(14250, nameof(TrackingTableRenamed));
 
     }
 }

@@ -74,7 +74,7 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId SchemaLoading => CreateEventId(6000, nameof(SchemaLoading));
-        public static EventId SchemaLoaded => CreateEventId(6100, nameof(SchemaLoaded));
+        public static EventId SchemaLoaded => CreateEventId(6050, nameof(SchemaLoaded));
 
     }
 }

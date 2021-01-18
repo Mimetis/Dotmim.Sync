@@ -132,8 +132,8 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId StoredProcedureCreating => CreateEventId(11000, nameof(StoredProcedureCreating));
-        public static EventId StoredProcedureCreated => CreateEventId(11100, nameof(StoredProcedureCreated));
-        public static EventId StoredProcedureDropping => CreateEventId(11200, nameof(StoredProcedureDropping));
-        public static EventId StoredProcedureDropped => CreateEventId(11300, nameof(StoredProcedureDropped));
+        public static EventId StoredProcedureCreated => CreateEventId(11050, nameof(StoredProcedureCreated));
+        public static EventId StoredProcedureDropping => CreateEventId(11100, nameof(StoredProcedureDropping));
+        public static EventId StoredProcedureDropped => CreateEventId(11150, nameof(StoredProcedureDropped));
     }
 }

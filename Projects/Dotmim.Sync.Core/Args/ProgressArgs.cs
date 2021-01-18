@@ -8,7 +8,6 @@ namespace Dotmim.Sync
 {
     public class ProgressArgs
     {
-
         /// <summary>
         /// Current connection used 
         /// </summary>
@@ -61,7 +60,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the event id, used for logging purpose
         /// </summary>
-        public virtual int EventId { get; } = 99;
+        public virtual int EventId { get; } = 1;
 
     }
 }

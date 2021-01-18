@@ -135,9 +135,9 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId TriggerCreating => CreateEventId(15000, nameof(TriggerCreating));
-        public static EventId TriggerCreated => CreateEventId(15100, nameof(TriggerCreated));
-        public static EventId TriggerDropping => CreateEventId(15200, nameof(TriggerDropping));
-        public static EventId TriggerDropped => CreateEventId(15300, nameof(TriggerDropped));
+        public static EventId TriggerCreated => CreateEventId(15050, nameof(TriggerCreated));
+        public static EventId TriggerDropping => CreateEventId(15100, nameof(TriggerDropping));
+        public static EventId TriggerDropped => CreateEventId(15150, nameof(TriggerDropped));
 
     }
 }

@@ -60,7 +60,7 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId LocalTimestampLoading => CreateEventId(2000, nameof(LocalTimestampLoading));
-        public static EventId LocalTimestampLoaded => CreateEventId(2100, nameof(LocalTimestampLoaded));
+        public static EventId LocalTimestampLoaded => CreateEventId(2050, nameof(LocalTimestampLoaded));
     }
 
 }

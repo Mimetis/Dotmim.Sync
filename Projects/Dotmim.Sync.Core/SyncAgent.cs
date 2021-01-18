@@ -20,7 +20,6 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncAgent : IDisposable
     {
-        private IProgress<ProgressArgs> remoteProgress = null;
         private bool syncInProgress;
 
         /// <summary>
@@ -69,12 +68,6 @@ namespace Dotmim.Sync
         /// Set interceptors on the LocalOrchestrator
         /// </summary>
         public void SetInterceptors(Interceptors interceptors) => this.LocalOrchestrator.On(interceptors);
-
-        /// <summary>
-        /// If you want to see remote progress as well (only available RemoteOrchestrator)
-        /// </summary>
-        /// <param name="remoteProgress"></param>
-        public void AddRemoteProgress(IProgress<ProgressArgs> remoteProgress) => this.remoteProgress = remoteProgress;
 
 
         /// <summary>
@@ -401,7 +394,7 @@ namespace Dotmim.Sync
                     // if schema already exists on server, then the server setup will be compared with this one
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, remoteProgress);
+                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, progress);
                     clientScopeInfo.Schema = serverScopeInfo.Schema;
                     clientScopeInfo.Setup = serverScopeInfo.Setup;
                     clientScopeInfo.Version = serverScopeInfo.Version;
@@ -427,7 +420,7 @@ namespace Dotmim.Sync
                     // on remote orchestrator get scope info as well
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(cancellationToken, remoteProgress);
+                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(cancellationToken, progress);
 
                     // compare local setup options with setup provided on SyncAgent constructor (check if pref / suf have changed)
                     var hasSameOptions = clientScopeInfo.Setup.HasSameOptions(this.Setup);
@@ -447,7 +440,7 @@ namespace Dotmim.Sync
                     else
                     {
                         // Get full schema from server
-                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, remoteProgress);
+                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, progress);
 
                         // Set the correct schema
                         this.Schema = serverScopeInfo.Schema;
@@ -500,7 +493,7 @@ namespace Dotmim.Sync
                 if (fromScratch)
                 {
                     // Get snapshot files
-                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(this.Schema, cancellationToken, remoteProgress);
+                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(this.Schema, cancellationToken, progress);
 
                     // Apply snapshot
                     if (serverSnapshotChanges.ServerBatchInfo != null)
@@ -510,7 +503,7 @@ namespace Dotmim.Sync
                     }
                 }
 
-                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, remoteProgress);
+                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

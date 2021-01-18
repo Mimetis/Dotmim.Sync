@@ -713,34 +713,17 @@ namespace Dotmim.Sync.Tests
             this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
             // Get response just before response with changes is send back from server
-            this.WebServerOrchestrator.OnSendingChanges(async sra =>
+            this.WebServerOrchestrator.OnHttpSendingChanges(sra =>
             {
-                var byteArray = sra.Content;
-
-                var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
-                var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
-
-                using var ms = new MemoryStream(sra.Content);
-                var o = await serializer.DeserializeAsync(ms);
-
                 // check we have rows
-                Assert.True(o.Changes.HasRows);
+                Assert.True(sra.Request.Changes.HasRows);
             });
 
             // Get response just before response with scope is send back from server
-            this.WebServerOrchestrator.OnSendingScopes(async sra =>
+            this.WebServerOrchestrator.OnHttpGettingScope(sra =>
             {
-                var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
-                var serializer = serializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>();
-
-                if (sra.Content == null)
-                    return;
-
-                using var ms = new MemoryStream(sra.Content);
-                var o = await serializer.DeserializeAsync(ms);
-
                 // check we have a schema
-                Assert.NotNull(o.ServerScopeInfo.Schema);
+                Assert.NotNull(sra.Response.ServerScopeInfo.Schema);
             });
 
 
@@ -779,16 +762,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, wenClientOrchestrator, options);
 
                 // Interceptor on sending scopes
-                wenClientOrchestrator.OnSendingScopes(async sra =>
+                wenClientOrchestrator.OnHttpGettingScope(sra =>
                 {
-                    var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
-                    var serializer = serializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
-
-                    using var ms = new MemoryStream(sra.Content);
-                    var o = await serializer.DeserializeAsync(ms);
-
                     // check we a scope name
-                    Assert.NotNull(o.SyncContext);
+                    Assert.NotNull(sra.Response.SyncContext);
                 });
 
                 var s = await agent.SynchronizeAsync();
@@ -797,7 +774,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                wenClientOrchestrator.OnSendingScopes(null);
+                wenClientOrchestrator.OnHttpGettingScope(null);
             }
 
             // Insert one line on each client
@@ -824,7 +801,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Just before sending changes, get changes sent
-                webClientOrchestrator.OnSendingChanges(sra =>
+                webClientOrchestrator.OnHttpSendingChanges(sra =>
                 {
                     // check we have rows
                     Assert.True(sra.Request.Changes.HasRows);
@@ -837,7 +814,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                webClientOrchestrator.OnSendingChanges(null);
+                webClientOrchestrator.OnHttpSendingChanges(null);
             }
 
         }
@@ -867,19 +844,13 @@ namespace Dotmim.Sync.Tests
 
             // Get response just before response sent back from server
             // Assert if datetime are correctly converted to long
-            this.WebServerOrchestrator.OnSendingChanges(async sra =>
+            this.WebServerOrchestrator.OnHttpSendingChanges(sra =>
             {
-                var serializerFactory = this.WebServerOrchestrator.WebServerOptions.Serializers["json"];
-                var serializer = serializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
-
-                using var ms = new MemoryStream(sra.Content);
-                var o = await serializer.DeserializeAsync(ms);
-
                 // check we have rows
-                Assert.True(o.Changes.HasRows);
+                Assert.True(sra.Request.Changes.HasRows);
 
                 // getting a table where we know we have date time
-                var table = o.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
+                var table = sra.Request.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
 
                 if (table != null)
                 {
@@ -1369,13 +1340,15 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnSendingChanges(x =>
+                orch.OnHttpSendingChanges(x =>
                 {
                     if (batchIndex == 1)
                     {
                         var sessionId = x.Request.SyncContext.SessionId.ToString();
+
                         if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
                             Assert.True(false, "sessionid was wrong. please fix this test!!");
+                        
                         // simulate a session loss (e.g. IIS application pool recycle)
                         this.WebServerOrchestrator.Cache.Remove(sessionId);
                     }
@@ -1486,7 +1459,7 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnSendingGetMoreChanges(x =>
+                orch.OnHttpSendingChanges(x =>
                 {
                     if (batchIndex == 1)
                     {

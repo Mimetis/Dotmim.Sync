@@ -50,7 +50,7 @@ internal class Program
     {
 
         await SyncHttpThroughKestrellAsync();
-        // BugExecutingProcedureMySql();
+        //await SynchronizeAsync();
 
     }
 
@@ -128,15 +128,6 @@ internal class Program
             Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
             Console.ResetColor();
         });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        agent.AddRemoteProgress(remoteProgress);
 
         do
         {
@@ -378,14 +369,6 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-        agent.AddRemoteProgress(remoteProgress);
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -1450,17 +1433,6 @@ internal class Program
             Console.ResetColor();
         });
 
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        // Spying what's going on the server side
-        agentProducts.AddRemoteProgress(remoteProgress);
-        agentCustomers.AddRemoteProgress(remoteProgress);
-
 
         do
         {
@@ -1777,7 +1749,8 @@ internal class Program
         // ----------------------------------
         // snapshot directory
         var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
-        var options = new SyncOptions { BatchSize = 100, SnapshotsDirectory = snapshotDirectory };
+        //var options = new SyncOptions { BatchSize = 100, SnapshotsDirectory = snapshotDirectory };
+        var options = new SyncOptions { BatchSize = 100};
 
         var remoteProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
@@ -1807,25 +1780,25 @@ internal class Program
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            Console.ForegroundColor = ConsoleColor.Gray;
-            Console.WriteLine($"Creating snapshot");
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
+            //Console.ForegroundColor = ConsoleColor.Gray;
+            //Console.WriteLine($"Creating snapshot");
+            //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
 
-            remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
+            //remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
 
-            // ----------------------------------
-            // Insert a value after snapshot created
-            // ----------------------------------
-            using (var c = serverProvider.CreateConnection())
-            {
-                var command = c.CreateCommand();
-                var cat = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            //// ----------------------------------
+            //// Insert a value after snapshot created
+            //// ----------------------------------
+            //using (var c = serverProvider.CreateConnection())
+            //{
+            //    var command = c.CreateCommand();
+            //    var cat = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
 
-                command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('" + cat + "');";
-                c.Open();
-                command.ExecuteNonQuery();
-                c.Close();
-            }
+            //    command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('" + cat + "');";
+            //    c.Open();
+            //    command.ExecuteNonQuery();
+            //    c.Close();
+            //}
 
 
 
@@ -2041,14 +2014,6 @@ internal class Program
             Console.ResetColor();
         });
 
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        agent.AddRemoteProgress(remoteProgress);
         var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
 
         Console.WriteLine(s1);
@@ -2083,14 +2048,6 @@ internal class Program
             Console.ResetColor();
         });
 
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        agent.AddRemoteProgress(remoteProgress);
         var s1 = await agent.SynchronizeAsync(progress);
 
         Console.WriteLine(s1);

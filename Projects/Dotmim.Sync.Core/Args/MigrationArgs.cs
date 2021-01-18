@@ -112,7 +112,7 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId DatabaseMigrating => CreateEventId(4000, nameof(DatabaseMigrating));
-        public static EventId DatabaseMigrated => CreateEventId(4100, nameof(DatabaseMigrated));
+        public static EventId DatabaseMigrated => CreateEventId(4050, nameof(DatabaseMigrated));
     }
 
 }
