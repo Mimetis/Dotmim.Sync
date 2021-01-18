@@ -471,6 +471,17 @@ namespace Dotmim.Sync
         public HttpScopeNameInvalidException(string scopeName) : base(string.Format(message, scopeName)) { }
     }
 
+    /// <summary>
+    /// Occurs when a session is lost during a sync session
+    /// </summary>
+    public class HttpSessionLostException : Exception
+    {
+        const string message = "Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.";
+
+        public HttpSessionLostException() : base(message) { }
+    }
+
+
 
     /// <summary>
     /// Occurs when a parameter has been already added in a filter parameter list

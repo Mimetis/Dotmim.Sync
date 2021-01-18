@@ -1807,7 +1807,7 @@ internal class Program
         var serverHandler = new RequestDelegate(async context =>
         {
             var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-            await webServerManager.HandleRequestAsync(context, default, remoteProgress);
+            await webServerManager.HandleRequestAsync(context);
         });
 
         using var server = new KestrellTestServer(configureServices);
