@@ -121,9 +121,9 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId Provisioning => CreateEventId(5000, nameof(Provisioning));
-        public static EventId Provisioned => CreateEventId(5100, nameof(Provisioned));
-        public static EventId Deprovisioning => CreateEventId(5200, nameof(Deprovisioning));
-        public static EventId Deprovisioned => CreateEventId(5300, nameof(Deprovisioned));
+        public static EventId Provisioned => CreateEventId(5050, nameof(Provisioned));
+        public static EventId Deprovisioning => CreateEventId(5100, nameof(Deprovisioning));
+        public static EventId Deprovisioned => CreateEventId(5150, nameof(Deprovisioned));
     }
 
 

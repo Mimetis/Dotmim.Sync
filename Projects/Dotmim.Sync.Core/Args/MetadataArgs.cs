@@ -70,7 +70,7 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId MetadataCleaning => CreateEventId(3000, nameof(MetadataCleaning));
-        public static EventId MetadataCleaned => CreateEventId(3100, nameof(MetadataCleaned));
+        public static EventId MetadataCleaned => CreateEventId(3050, nameof(MetadataCleaned));
     }
 
 }

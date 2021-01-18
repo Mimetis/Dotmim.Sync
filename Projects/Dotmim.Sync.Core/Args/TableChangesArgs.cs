@@ -234,9 +234,9 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId TableChangesSelecting => CreateEventId(13000, nameof(TableChangesSelecting));
-        public static EventId TableChangesSelected => CreateEventId(13100, nameof(TableChangesSelected));
-        public static EventId TableChangesApplying => CreateEventId(13200, nameof(TableChangesApplying));
-        public static EventId TableChangesApplied => CreateEventId(13300, nameof(TableChangesApplied));
+        public static EventId TableChangesSelected => CreateEventId(13050, nameof(TableChangesSelected));
+        public static EventId TableChangesApplying => CreateEventId(13100, nameof(TableChangesApplying));
+        public static EventId TableChangesApplied => CreateEventId(13150, nameof(TableChangesApplied));
 
     }
 }

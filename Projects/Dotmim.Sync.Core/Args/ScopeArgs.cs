@@ -272,15 +272,15 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId ScopeTableCreating => CreateEventId(7000, nameof(ScopeTableCreating));
-        public static EventId ScopeTableCreated => CreateEventId(7100, nameof(ScopeTableCreated));
-        public static EventId ScopeTableDropping => CreateEventId(7200, nameof(ScopeTableDropping));
-        public static EventId ScopeTableDropped => CreateEventId(7300, nameof(ScopeTableDropped));
-        public static EventId ScopeLoading => CreateEventId(7400, nameof(ScopeLoading));
-        public static EventId ScopeLoaded => CreateEventId(7500, nameof(ScopeLoaded));
-        public static EventId ServerScopeScopeLoading => CreateEventId(7600, nameof(ServerScopeScopeLoading));
-        public static EventId ServerScopeScopeLoaded => CreateEventId(7700, nameof(ServerScopeScopeLoaded));
-        public static EventId ScopeSaving => CreateEventId(7800, nameof(ScopeSaving));
-        public static EventId ScopeSaved => CreateEventId(7900, nameof(ScopeSaved));
+        public static EventId ScopeTableCreated => CreateEventId(7050, nameof(ScopeTableCreated));
+        public static EventId ScopeTableDropping => CreateEventId(7100, nameof(ScopeTableDropping));
+        public static EventId ScopeTableDropped => CreateEventId(7150, nameof(ScopeTableDropped));
+        public static EventId ScopeLoading => CreateEventId(7200, nameof(ScopeLoading));
+        public static EventId ScopeLoaded => CreateEventId(7250, nameof(ScopeLoaded));
+        public static EventId ServerScopeScopeLoading => CreateEventId(7300, nameof(ServerScopeScopeLoading));
+        public static EventId ServerScopeScopeLoaded => CreateEventId(7350, nameof(ServerScopeScopeLoaded));
+        public static EventId ScopeSaving => CreateEventId(7400, nameof(ScopeSaving));
+        public static EventId ScopeSaved => CreateEventId(7450, nameof(ScopeSaved));
     }
 
 }

@@ -300,12 +300,13 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId ConnectionOpen => CreateEventId(9000, nameof(ConnectionOpen));
-        public static EventId ReConnect => CreateEventId(9100, nameof(ReConnect));
-        public static EventId TransactionOpen => CreateEventId(9200, nameof(TransactionOpen));
-        public static EventId ConnectionClose => CreateEventId(9300, nameof(ConnectionClose));
-        public static EventId TransactionCommit => CreateEventId(9400, nameof(TransactionCommit));
-        public static EventId SessionBegin => CreateEventId(9500, nameof(SessionBegin));
-        public static EventId SessionEnd => CreateEventId(9600, nameof(SessionEnd));
-        public static EventId ApplyChangesFailed => CreateEventId(9700, nameof(ApplyChangesFailed));
+        public static EventId ConnectionClose => CreateEventId(9050, nameof(ConnectionClose));
+        public static EventId ReConnect => CreateEventId(9010, nameof(ReConnect));
+        public static EventId TransactionOpen => CreateEventId(9100, nameof(TransactionOpen));
+        public static EventId TransactionCommit => CreateEventId(9150, nameof(TransactionCommit));
+
+        public static EventId SessionBegin => CreateEventId(100, nameof(SessionBegin));
+        public static EventId SessionEnd => CreateEventId(200, nameof(SessionEnd));
+        public static EventId ApplyChangesFailed => CreateEventId(300, nameof(ApplyChangesFailed));
     }
 }
