@@ -16,7 +16,16 @@ namespace Dotmim.Sync
             this.Host = host;
         }
 
-        public override string Message => $"[{this.Host}] Getting Changes. Index:{this.Response.BatchIndex}. Rows:{this.Response.Changes.RowsCount()}";
+        public override string Message
+        {
+            get
+            {
+                if (this.Response.BatchCount == 0 && this.Response.BatchIndex == 0)
+                    return $"[{this.Host}] Getting All Changes. Rows:{this.Response.Changes.RowsCount()}";
+                else
+                    return $"[{this.Host}] Getting Batch Changes. ({this.Response.BatchIndex + 1}/{this.Response.BatchCount}). Rows:{this.Response.Changes.RowsCount()}";
+            }
+        }
 
         public HttpMessageSendChangesResponse Response { get; }
         public string Host { get; }
@@ -35,7 +44,16 @@ namespace Dotmim.Sync
 
         public HttpMessageSendChangesRequest Request { get; }
         public string Host { get; }
-        public override string Message => $"[{this.Host}] Sending Changes. Index:{this.Request.BatchIndex}. Rows:{this.Request.Changes.RowsCount()}";
+        public override string Message
+        {
+            get
+            {
+                if (this.Request.BatchCount == 0 && this.Request.BatchIndex == 0)
+                    return $"[{this.Host}] Sending All Changes. Rows:{this.Request.Changes.RowsCount()}";
+                else
+                    return $"[{this.Host}] Sending Batch Changes. ({this.Request.BatchIndex + 1}/{this.Request.BatchCount}). Rows:{this.Request.Changes.RowsCount()}";
+            }
+        }
 
         public override int EventId => HttpSyncEventsId.HttpSendingChanges.Id;
     }

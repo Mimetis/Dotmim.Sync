@@ -48,10 +48,8 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
-
         await SyncHttpThroughKestrellAsync();
         //await SynchronizeAsync();
-
     }
 
 
@@ -1750,7 +1748,7 @@ internal class Program
         // snapshot directory
         var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
         //var options = new SyncOptions { BatchSize = 100, SnapshotsDirectory = snapshotDirectory };
-        var options = new SyncOptions { BatchSize = 100};
+        var options = new SyncOptions() { BatchSize = 100 };
 
         var remoteProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
