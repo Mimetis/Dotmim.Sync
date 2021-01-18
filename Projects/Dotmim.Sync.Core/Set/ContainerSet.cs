@@ -46,6 +46,17 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Getting the container rows count
+        /// </summary>
+        public int RowsCount()
+        {
+            if (!HasTables)
+                return 0;
+
+            return this.Tables.Sum(t => t.Rows.Count);
+        }
+
         public ContainerSet() { }
     }
 }

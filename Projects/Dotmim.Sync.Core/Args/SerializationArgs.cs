@@ -107,7 +107,7 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId SerializingSet => CreateEventId(8000, nameof(SerializingSet));
-        public static EventId DeserializingSet => CreateEventId(8100, nameof(DeserializingSet));
+        public static EventId DeserializingSet => CreateEventId(8050, nameof(DeserializingSet));
 
     }
 }

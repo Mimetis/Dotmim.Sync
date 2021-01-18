@@ -147,8 +147,8 @@ namespace Dotmim.Sync
     public static partial class SyncEventsId
     {
         public static EventId DatabaseChangesSelecting => CreateEventId(1000, nameof(DatabaseChangesSelecting));
-        public static EventId DatabaseChangesSelected => CreateEventId(1100, nameof(DatabaseChangesSelected));
-        public static EventId DatabaseChangesApplying => CreateEventId(1200, nameof(DatabaseChangesApplying));
-        public static EventId DatabaseChangesApplied => CreateEventId(1300, nameof(DatabaseChangesApplied));
+        public static EventId DatabaseChangesSelected => CreateEventId(1050, nameof(DatabaseChangesSelected));
+        public static EventId DatabaseChangesApplying => CreateEventId(1100, nameof(DatabaseChangesApplying));
+        public static EventId DatabaseChangesApplied => CreateEventId(1150, nameof(DatabaseChangesApplied));
     }
 }
