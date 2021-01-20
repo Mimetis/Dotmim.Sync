@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync
 {
 
-
-    public class HttpGettingChangesArgs : ProgressArgs
+    public class HttpGettingServerChangesArgs : ProgressArgs
     {
-        public HttpGettingChangesArgs(HttpMessageSendChangesResponse response, string host)
+        public HttpGettingServerChangesArgs(HttpMessageSendChangesResponse response, string host)
             : base(response.SyncContext, null, null)
         {
             this.Response = response;
@@ -30,12 +29,12 @@ namespace Dotmim.Sync
         public HttpMessageSendChangesResponse Response { get; }
         public string Host { get; }
 
-        public override int EventId => HttpSyncEventsId.HttpGettingChanges.Id;
+        public override int EventId => HttpClientSyncEventsId.HttpGettingChanges.Id;
     }
 
-    public class HttpSendingChangesArgs : ProgressArgs
+    public class HttpSendingClientChangesArgs : ProgressArgs
     {
-        public HttpSendingChangesArgs(HttpMessageSendChangesRequest request, string host)
+        public HttpSendingClientChangesArgs(HttpMessageSendChangesRequest request, string host)
             : base(request.SyncContext, null, null)
         {
             this.Request = request;
@@ -55,11 +54,11 @@ namespace Dotmim.Sync
             }
         }
 
-        public override int EventId => HttpSyncEventsId.HttpSendingChanges.Id;
+        public override int EventId => HttpClientSyncEventsId.HttpSendingChanges.Id;
     }
 
 
-    public static partial class HttpSyncEventsId
+    public static partial class HttpClientSyncEventsId
     {
         public static EventId HttpSendingChanges => new EventId(20000, nameof(HttpSendingChanges));
         public static EventId HttpGettingChanges => new EventId(20050, nameof(HttpGettingChanges));
@@ -73,23 +72,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this BaseOrchestrator orchestrator, Action<HttpSendingChangesArgs> action)
+        public static void OnHttpSendingChanges(this WebClientOrchestrator orchestrator, Action<HttpSendingClientChangesArgs> action)
             => orchestrator.SetInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this BaseOrchestrator orchestrator, Func<HttpSendingChangesArgs, Task> action)
+        public static void OnHttpSendingChanges(this WebClientOrchestrator orchestrator, Func<HttpSendingClientChangesArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this BaseOrchestrator orchestrator, Action<HttpGettingChangesArgs> action)
+        public static void OnHttpGettingChanges(this WebClientOrchestrator orchestrator, Action<HttpGettingServerChangesArgs> action)
             => orchestrator.SetInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this BaseOrchestrator orchestrator, Func<HttpGettingChangesArgs, Task> action)
+        public static void OnHttpGettingChanges(this WebClientOrchestrator orchestrator, Func<HttpGettingServerChangesArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
     }

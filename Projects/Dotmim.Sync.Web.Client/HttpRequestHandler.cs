@@ -24,12 +24,16 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public class HttpRequestHandler : IDisposable
     {
-
         internal Dictionary<string, string> CustomHeaders { get; } = new Dictionary<string, string>();
 
         internal Dictionary<string, string> ScopeParameters { get; } = new Dictionary<string, string>();
 
         internal CookieHeaderValue Cookie { get; set; }
+
+        private BaseOrchestrator orchestrator;
+
+        public HttpRequestHandler(BaseOrchestrator orchestrator)
+            => this.orchestrator = orchestrator;
 
 
         /// <summary>
@@ -112,6 +116,9 @@ namespace Dotmim.Sync.Web.Client
                 if (serializerFactory.Key == SerializersCollection.JsonSerializer.Key && !requestMessage.Content.Headers.Contains("content-type"))
                     requestMessage.Content.Headers.Add("content-type", "application/json");
 
+                var args = new HttpSendingRequestMessageArgs(requestMessage, this.orchestrator.GetContext()); 
+                await this.orchestrator.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+
                 // Eventually, send the request
                 response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
@@ -132,6 +139,9 @@ namespace Dotmim.Sync.Web.Client
                 if (response.Content == null)
                     throw new HttpEmptyResponseContentException();
 
+                var args2 = new HttpGettingResponseMessageArgs(response, this.orchestrator.GetContext());
+                await this.orchestrator.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     if (streamResponse.CanRead && streamResponse.Length > 0)
@@ -143,7 +153,6 @@ namespace Dotmim.Sync.Web.Client
                         responseMessage = await responseSerializer.DeserializeAsync(streamResponse);
                     }
                 }
-
 
                 return responseMessage;
             }
@@ -277,7 +286,6 @@ namespace Dotmim.Sync.Web.Client
 
         #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
-
 
         protected virtual void Dispose(bool disposing)
         {

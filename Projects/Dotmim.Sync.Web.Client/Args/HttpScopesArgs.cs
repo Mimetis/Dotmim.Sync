@@ -16,16 +16,16 @@ namespace Dotmim.Sync
             this.Host = host;
         }
 
-        public override int EventId => HttpSyncEventsId.HttpGettingScope.Id;
+        public override int EventId => HttpClientSyncEventsId.HttpGettingScope.Id;
         public override string Message => $"[{this.Host}] Getting Scope. Scope Name:{this.Response.ServerScopeInfo.Name}.";
 
         public HttpMessageEnsureScopesResponse Response { get; }
         public string Host { get; }
     }
 
-    public static partial class HttpSyncEventsId
+    public static partial class HttpClientSyncEventsId
     {
-        public static EventId HttpGettingScope => new EventId(23000, nameof(HttpGettingScope));
+        public static EventId HttpGettingScope => new EventId(20300, nameof(HttpGettingScope));
     }
 
     /// <summary>
@@ -36,13 +36,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http call to get scope is done
         /// </summary>
-        public static void OnHttpGettingScope(this BaseOrchestrator orchestrator, Action<HttpGettingScopeArgs> action)
+        public static void OnHttpGettingScope(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get scope is done
         /// </summary>
-        public static void OnHttpGettingScope(this BaseOrchestrator orchestrator, Func<HttpGettingScopeArgs, Task> action)
+        public static void OnHttpGettingScope(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
 

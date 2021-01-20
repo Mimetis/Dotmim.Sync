@@ -38,7 +38,7 @@ namespace Interceptors
             Console.WriteLine(s1);
 
             // do not delete product row. it's your choice !
-            agent.LocalOrchestrator.OnTableChangesApplying(args =>
+            agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
             {
                 if (args.State == DataRowState.Deleted && args.Changes.TableName == "Product")
                 {
