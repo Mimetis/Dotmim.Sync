@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Batch;
-
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
@@ -50,9 +49,14 @@ namespace Dotmim.Sync.Web.Server
         public SyncSet Schema { get; set; }
 
         /// <summary>
-        /// Client converter used
+        /// Gets or Sets the Client Converter
         /// </summary>
         public IConverter ClientConverter { get; set; }
+
+        ///// <summary>
+        ///// Gets the current Http Context
+        ///// </summary>
+        //public HttpContext HttpContext { get; private set; }
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
@@ -65,11 +69,11 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public async Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            //this.HttpContext = context;
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var serAndsizeString = string.Empty;
             var cliConverterKey = string.Empty;
-
 
             // Get the serialization and batch size format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
@@ -127,37 +131,51 @@ namespace Dotmim.Sync.Web.Server
                 {
                     case HttpStep.EnsureScopes:
                         var m1 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m1.SyncContext, sessionCache), cancellationToken).ConfigureAwait(false);
                         var s1 = await this.EnsureScopesAsync(m1, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
                         break;
                     case HttpStep.EnsureSchema:
                         var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m11.SyncContext, sessionCache), cancellationToken).ConfigureAwait(false);
                         var s11 = await this.EnsureSchemaAsync(m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
                         break;
                     case HttpStep.SendChanges:
                         var m2 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m2.SyncContext, sessionCache), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m2, context.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
                         var s2 = await this.ApplyThenGetChangesAsync(m2, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s2, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s2);
                         break;
                     case HttpStep.GetChanges:
                         var m3 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m3.SyncContext, sessionCache), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m3, context.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
                         var s3 = await this.GetChangesAsync(m3, sessionCache, clientBatchSize, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s3, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s3);
                         break;
                     case HttpStep.GetMoreChanges:
                         var m4 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m4.SyncContext, sessionCache), cancellationToken).ConfigureAwait(false);
                         var s4 = await this.GetMoreChangesAsync(m4, sessionCache, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s4, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s4);
                         break;
                     case HttpStep.GetSnapshot:
                         var m5 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m5.SyncContext, sessionCache), cancellationToken).ConfigureAwait(false);
                         var s5 = await this.GetSnapshotAsync(m5, sessionCache, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s5, context.Request.Host.Host, sessionCache, true), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s5);
                         break;
                     case HttpStep.GetEstimatedChangesCount:
                         var m6 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m6.SyncContext, sessionCache), cancellationToken).ConfigureAwait(false);
                         var s6 = await this.GetEstimatedChangesCountAsync(m6, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s6, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s6);
                         break;
                 }
@@ -182,6 +200,8 @@ namespace Dotmim.Sync.Web.Server
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
 
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
+
+                await this.InterceptAsync(new HttpSendingResponseArgs(context, this.GetContext(), sessionCache), cancellationToken).ConfigureAwait(false);
 
             }
             catch (Exception ex)
@@ -208,15 +228,14 @@ namespace Dotmim.Sync.Web.Server
             {
                 httpResponse.Headers.Add("Content-Encoding", "gzip");
 
-                using (var writeSteam = new MemoryStream())
-                {
-                    using (var compress = new GZipStream(writeSteam, CompressionMode.Compress))
-                    {
-                        compress.Write(binaryData, 0, binaryData.Length);
-                    }
+                using var writeSteam = new MemoryStream();
 
-                    return writeSteam.ToArray();
+                using (var compress = new GZipStream(writeSteam, CompressionMode.Compress))
+                {
+                    compress.Write(binaryData, 0, binaryData.Length);
                 }
+
+                return writeSteam.ToArray();
 
             }
 

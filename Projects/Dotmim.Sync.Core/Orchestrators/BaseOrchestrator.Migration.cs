@@ -159,7 +159,7 @@ namespace Dotmim.Sync
             }
 
             // InterceptAsync Migrated
-            var args = new MigratedArgs(context, schema, this.Setup, migrationResults);
+            var args = new MigratedArgs(context, schema, this.Setup, migrationResults, connection, transaction);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(context, progress, args);
 

@@ -81,7 +81,7 @@ namespace Migration
             serverScope.Schema = newSchema;
 
             // save it
-            await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+            await remoteOrchestrator.SaveServerScopeAsync(serverScope);
 
             // -----------------------------------------------------------------
             // Client side
@@ -112,7 +112,7 @@ namespace Migration
             clientScope.Schema = newSchema;
 
             // save it
-            await localOrchestrator.WriteClientScopeAsync(clientScope);
+            await localOrchestrator.SaveClientScopeAsync(clientScope);
 
             // Now test a new sync, everything should work as expected.
             do

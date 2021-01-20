@@ -149,11 +149,11 @@ namespace Dotmim.Sync
             // Check logger, because we make some reflection here
             if (this.logger.IsEnabled(LogLevel.Information))
             {
-                var argsTypeName = args.GetType().Name;
-                this.logger.LogInformation(new EventId(args.EventId, argsTypeName), args);
-
+                var argsTypeName = args.GetType().Name.Replace("Args", ""); ;
                 if (this.logger.IsEnabled(LogLevel.Debug))
                     this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
+                else
+                    this.logger.LogInformation(new EventId(args.EventId, argsTypeName), args);
             }
 
             if (progress == null)
@@ -178,9 +178,6 @@ namespace Dotmim.Sync
         [DebuggerStepThrough]
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
-            this.logger.LogDebug(SyncEventsId.ConnectionOpen, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
-            this.logger.LogTrace(SyncEventsId.ConnectionOpen, new { connection.ConnectionString });
-
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
                 this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), cancellationToken));
@@ -209,9 +206,6 @@ namespace Dotmim.Sync
         {
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
-
-            this.logger.LogDebug(SyncEventsId.ConnectionClose, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
-            this.logger.LogTrace(SyncEventsId.ConnectionClose, new { connection.ConnectionString });
 
             if (connection != null && connection.State == ConnectionState.Open)
                 connection.Close();

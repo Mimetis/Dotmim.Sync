@@ -48,6 +48,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
+        //await SynchronizeWithLoggerAsync();
         await SyncHttpThroughKestrellAsync();
         //await SynchronizeAsync();
     }
@@ -1603,10 +1604,6 @@ internal class Program
         //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
 
 
-        var options = new SyncOptions();
-        options.BatchSize = 500;
-
-
         //Log.Logger = new LoggerConfiguration()
         //    .Enrich.FromLogContext()
         //    .MinimumLevel.Verbose()
@@ -1626,13 +1623,12 @@ internal class Program
         //options.Logger = logger;
 
         //3) Using Serilog with Seq
-        //var serilogLogger = new LoggerConfiguration()
-        //    .Enrich.FromLogContext()
-        //    .MinimumLevel.Debug()
-        //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-        //    .WriteTo.Seq("http://localhost:5341")
-        //    .WriteTo.Console()
-        //    .CreateLogger();
+        var serilogLogger = new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .WriteTo.Seq("http://localhost:5341")
+            .CreateLogger();
 
 
         //var actLogging = new Action<SyncLoggerOptions>(slo =>
@@ -1642,10 +1638,11 @@ internal class Program
         //});
 
         ////var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
-        //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
+
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
 
 
-        // loggerFactory.AddSerilog(serilogLogger);
+        //loggerFactory.AddSerilog(serilogLogger);
 
         //options.Logger = loggerFactory.CreateLogger("dms");
 
@@ -1662,36 +1659,21 @@ internal class Program
         //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
         //remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
 
+        var options = new SyncOptions();
+        options.BatchSize = 500;
+        options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
+
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
         // Using the Progress pattern to handle progession during the synchronization
-        //var progress = new SynchronousProgress<ProgressArgs>(s =>
-        //{
-        //    Console.ForegroundColor = ConsoleColor.Green;
-        //    Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-        //    Console.ResetColor();
-        //});
-
-        //var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        //{
-        //    Console.ForegroundColor = ConsoleColor.Yellow;
-        //    Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-        //    Console.ResetColor();
-        //});
-
-
-        //agent.AddRemoteProgress(remoteProgress);
-
-        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        // agent.Options.BatchSize = 1000;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.DisableConstraintsOnApplyChanges = true;
-        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-        //agent.Options.UseVerboseErrors = false;
-
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
 
         do
         {
@@ -1703,21 +1685,7 @@ internal class Program
                 //if (!agent.Parameters.Contains("CompanyName"))
                 //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
-
-                // Get the server scope
-                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
-
-
-                await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-                                                                     | SyncProvision.Triggers | SyncProvision.TrackingTable);
-
-                // Affect good values
-                serverScope.Setup = null;
-                serverScope.Schema = null;
-
-                // save the server scope
-                await agent.RemoteOrchestrator.SaveServerScopeAsync(serverScope);
+                var s1 = await agent.SynchronizeAsync(progress);
 
                 // Write results
                 Console.WriteLine(s1);
@@ -1784,28 +1752,31 @@ internal class Program
 
             //remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
 
-            //// ----------------------------------
-            //// Insert a value after snapshot created
-            //// ----------------------------------
-            //using (var c = serverProvider.CreateConnection())
-            //{
-            //    var command = c.CreateCommand();
-            //    var cat = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-
-            //    command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('" + cat + "');";
-            //    c.Open();
-            //    command.ExecuteNonQuery();
-            //    c.Close();
-            //}
-
-
 
         });
 
         var serverHandler = new RequestDelegate(async context =>
         {
             var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+
+            var orchestrator = webServerManager.GetOrchestrator(context);
+
+            orchestrator.OnHttpGettingRequest(req =>
+            {
+                Console.WriteLine("SRV REQ:" + req.Context.SyncStage + ". " + req.HttpContext.Request.Path + ". ");
+            });
+
+
+            orchestrator.OnHttpSendingResponse(res =>
+            {
+                Console.WriteLine("SRV RES:" + res.Context.SyncStage + ". " + res.HttpContext.Request.Path);
+            });
+
+            orchestrator.OnHttpGettingChanges(args => Console.WriteLine("SRV " + args));
+            orchestrator.OnHttpSendingChanges(args => Console.WriteLine("SRV " + args));
+
             await webServerManager.HandleRequestAsync(context);
+
         });
 
         using var server = new KestrellTestServer(configureServices);
@@ -1816,8 +1787,10 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
-                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
-                    var s = await agent.SynchronizeAsync(localProgress);
+                    var localOrchestrator = new WebClientOrchestrator(serviceUri);
+
+                    var agent = new SyncAgent(clientProvider, localOrchestrator, options);
+                    var s = await agent.SynchronizeAsync();
                     Console.WriteLine(s);
                 }
                 catch (SyncException e)
