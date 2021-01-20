@@ -62,5 +62,13 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual int EventId { get; } = 1;
 
+        public override string ToString()
+        {
+            if (!string.IsNullOrEmpty(this.Message))
+                return this.Message;
+
+            return base.ToString();
+        }
+
     }
 }

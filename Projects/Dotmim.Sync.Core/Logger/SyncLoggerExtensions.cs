@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -39,7 +40,7 @@ namespace Dotmim.Sync
             if (connection == null)
                 return "null";
 
-            return JsonConvert.SerializeObject(new { connection.DataSource, connection.Database, State=connection.State.ToString() });
+            return JsonConvert.SerializeObject(new { connection.DataSource, connection.Database, State = connection.State.ToString() });
         }
         public static string ToLogString(this DbTransaction transaction)
         {
@@ -53,7 +54,14 @@ namespace Dotmim.Sync
             if (command == null)
                 return "null";
 
-            return command.CommandText;
+            var parameters = new List<object>();
+            if (command.Parameters != null && command.Parameters.Count > 0)
+                foreach (DbParameter p in command.Parameters)
+                    parameters.Add(new { Name=p.ParameterName, Value=p.Value });
+
+            var s =  JsonConvert.SerializeObject(new { command.CommandText, Parameters = parameters });
+
+            return s;
         }
     }
 }

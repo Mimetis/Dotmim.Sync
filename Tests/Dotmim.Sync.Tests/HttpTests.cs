@@ -712,18 +712,16 @@ namespace Dotmim.Sync.Tests
             // configure server orchestrator
             this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
-            // Get response just before response with changes is send back from server
-            this.WebServerOrchestrator.OnHttpSendingChanges(sra =>
+            this.WebServerOrchestrator.OnHttpGettingRequest(r =>
             {
-                // check we have rows
-                Assert.True(sra.Request.Changes.HasRows);
+                Assert.NotNull(r.HttpContext);
+                Assert.NotNull(r.Context);
             });
 
-            // Get response just before response with scope is send back from server
-            this.WebServerOrchestrator.OnHttpGettingScope(sra =>
+            this.WebServerOrchestrator.OnHttpSendingResponse(r =>
             {
-                // check we have a schema
-                Assert.NotNull(sra.Response.ServerScopeInfo.Schema);
+                Assert.NotNull(r.HttpContext);
+                Assert.NotNull(r.Context);
             });
 
 
@@ -847,10 +845,10 @@ namespace Dotmim.Sync.Tests
             this.WebServerOrchestrator.OnHttpSendingChanges(sra =>
             {
                 // check we have rows
-                Assert.True(sra.Request.Changes.HasRows);
+                Assert.True(sra.Response.Changes.HasRows);
 
                 // getting a table where we know we have date time
-                var table = sra.Request.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
+                var table = sra.Response.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
 
                 if (table != null)
                 {

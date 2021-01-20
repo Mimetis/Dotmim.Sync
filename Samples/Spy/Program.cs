@@ -77,7 +77,7 @@ namespace Spy
             });
 
             // Just before applying changes locally, at the table level
-            localOrchestrator.OnTableChangesApplying(args =>
+            localOrchestrator.OnTableChangesBatchApplying(args =>
             {
                 if (args.Changes != null && args.Changes.HasRows)
                 {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.Web.Server;
+using Dotmim.Sync;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -32,6 +33,23 @@ namespace HelloWebSyncServer.Controllers
             // the User.Identity.IsAuthenticated value
             if (HttpContext.User.Identity.IsAuthenticated)
             {
+                var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
+
+                orchestrator.OnHttpGettingRequest(args =>
+                {
+                    var pUserId = args.Context.Parameters["UserId"];
+
+                    if (pUserId == null)
+                        args.Context.Parameters.Add("UserId", this.HttpContext.User.Identity.Name);
+
+                });
+
+                orchestrator.OnHttpSendingResponse(args =>
+                {
+                    if (args.Context.Parameters.Contains("UserId"))
+                        args.Context.Parameters.Remove("UserId");
+                });
+
                 await webServerManager.HandleRequestAsync(this.HttpContext);
             }
             else
