@@ -127,23 +127,22 @@ namespace Dotmim.Sync.Batch
             // Serialize on disk.
             var jsonConverter = new JsonConverter<ContainerSet>();
 
-            using (var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite))
+            using var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
+            
+            byte[] serializedBytes = null;
+
+            if (orchestrator != null)
             {
-                byte[] serializedBytes = null;
-
-                if (orchestrator != null)
-                {
-                    var interceptorArgs = new SerializingSetArgs(orchestrator.GetContext(), set, fileName, directoryFullPath);
-                    await orchestrator.InterceptAsync(interceptorArgs, default);
-                    serializedBytes = interceptorArgs.Result;
-                }
-
-                if (serializedBytes == null)
-                    serializedBytes = await jsonConverter.SerializeAsync(set);
-
-
-                f.Write(serializedBytes, 0, serializedBytes.Length);
+                var interceptorArgs = new SerializingSetArgs(orchestrator.GetContext(), set, fileName, directoryFullPath);
+                await orchestrator.InterceptAsync(interceptorArgs, default);
+                serializedBytes = interceptorArgs.Result;
             }
+
+            if (serializedBytes == null)
+                serializedBytes = await jsonConverter.SerializeAsync(set);
+
+
+            f.Write(serializedBytes, 0, serializedBytes.Length);
         }
 
         /// <summary>

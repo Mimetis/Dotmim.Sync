@@ -199,48 +199,43 @@ namespace Dotmim.Sync.MySql
         {
             var tableNameParser = ParserName.Parse(quotedTableName, "`");
 
-            using (var dbCommand = connection.CreateCommand())
-            {
-                dbCommand.CommandText = $"select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName";
+            using var dbCommand = connection.CreateCommand();
+            dbCommand.CommandText = $"select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName";
 
-                dbCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+            dbCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+            if (transaction != null)
+                dbCommand.Transaction = transaction;
 
-                await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                if (!alreadyOpened)
-                    connection.Close();
-
-            }
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public static async Task DropTriggerIfExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
         {
             var triggerName = ParserName.Parse(quotedTriggerName, "`");
 
-            using (DbCommand dbCommand = connection.CreateCommand())
-            {
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            using DbCommand dbCommand = connection.CreateCommand();
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                dbCommand.CommandText = $"drop trigger {triggerName.Unquoted().ToString()}";
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+            dbCommand.CommandText = $"drop trigger {triggerName.Unquoted().ToString()}";
+            if (transaction != null)
+                dbCommand.Transaction = transaction;
 
-                await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                if (!alreadyOpened)
-                    connection.Close();
-            }
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public static async Task<bool> TableExistsAsync(MySqlConnection connection, MySqlTransaction transaction, ParserName table)
@@ -284,7 +279,6 @@ namespace Dotmim.Sync.MySql
         {
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName, "`");
-
 
             using (var dbCommand = connection.CreateCommand())
             {

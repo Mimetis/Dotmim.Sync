@@ -40,18 +40,14 @@ namespace Dotmim.Sync.SqlServer
                 if (!string.IsNullOrEmpty(providerType))
                     return providerType;
 
-                Type type = typeof(SqlSyncProvider);
-                providerType = $"{type.Name}, {type.ToString()}";
+                Type type = typeof(SqlSyncChangeTrackingProvider);
+                providerType = $"{type.Name}, {type}";
 
                 return providerType;
             }
 
         }
 
-        /// <summary>
-        /// this provider supports change tracking(
-        /// </summary>
-        public override bool UseChangeTracking => true;
 
         /// <summary>
         /// Sql server support bulk operations through Table Value parameter
@@ -64,19 +60,19 @@ namespace Dotmim.Sync.SqlServer
         public override bool CanBeServerProvider => true;
 
 
-        /// <summary>
-        /// Metadatas are handled by Change Tracking
-        /// So just do nothing here
-        /// </summary>
-        public override Task<(SyncContext, DatabaseMetadatasCleaned)> DeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null) 
-            => Task.FromResult((context, new DatabaseMetadatasCleaned()));
-
         public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
-        public override DbScopeBuilder GetScopeBuilder() => new SqlChangeTrackingScopeBuilder();
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new SqlChangeTrackingBuilder(tableDescription, setup);
-        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqlManager(tableName, schemaName);
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
 
+            var tableBuilder = new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingName, setup);
+
+            return tableBuilder;
+        }
+
+        public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
 
 
     }

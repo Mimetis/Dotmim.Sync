@@ -1,60 +1,20 @@
-﻿using System.Data.Common;
+﻿using System;
+using System.Data.Common;
 using System.Linq;
+using System.Threading.Tasks;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 
 namespace Dotmim.Sync
 {
-    public class TableProvisionedArgs : ProgressArgs
-    {
-        public SyncProvision Provision { get; }
-        public SyncTable SchemaTable { get; }
 
-        public TableProvisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            Provision = provision;
-            SchemaTable = schemaTable;
-        }
-
-        public override string Message => $"[{Connection.Database}] [{SchemaTable.GetFullName()}] provision:{Provision}";
-
-        public override int EventId => 21;
-    }
-
-    public class TableProvisioningArgs : ProgressArgs
-    {
-        public SyncProvision Provision { get; }
-        public DbTableBuilder TableBuilder { get; }
-
-        public TableProvisioningArgs(SyncContext context, SyncProvision provision, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            Provision = provision;
-            TableBuilder = tableBuilder;
-        }
-
-        public override string Message => $"[{Connection.Database}] [{TableBuilder.TableDescription.GetFullName()}] provisioning:{Provision}";
-
-        public override int EventId => 22;
-    }
-
-
-    public class TableDeprovisionedArgs : TableProvisionedArgs
-    {
-        public TableDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncTable schemaTable, DbConnection connection = null, DbTransaction transaction = null) 
-            : base(context, provision, schemaTable, connection, transaction)
-        {
-        }
-        public override int EventId => 23;
-    }
-
-    public class DatabaseProvisionedArgs : ProgressArgs
+    public class ProvisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
         public SyncSet Schema { get; }
 
-        public DatabaseProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
+        public ProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
 
         {
@@ -62,12 +22,12 @@ namespace Dotmim.Sync
             Schema = schema;
         }
 
-        public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Count} provision:{Provision}";
+        public override string Message => $"[{Connection.Database}] Provisioned {Schema.Tables.Count} Tables. Provision:{Provision}.";
 
-        public override int EventId => 24;
+        public override int EventId => SyncEventsId.Provisioned.Id;
     }
 
-    public class DatabaseProvisioningArgs : ProgressArgs
+    public class ProvisioningArgs : ProgressArgs
     {
         /// <summary>
         /// Get the provision type (Flag enum)
@@ -79,7 +39,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncSet Schema { get; }
 
-        public DatabaseProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        public ProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
@@ -87,26 +47,85 @@ namespace Dotmim.Sync
             Schema = schema;
         }
 
-        // public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Sum(t => t.Columns.Count)} provision:{Provision}";
-        public override string Message => $"[{Connection.Database}] tables count:{Schema.Tables.Count} provision:{Provision}";
+        public override string Message => $"[{Connection.Database}] Provisioning {Schema.Tables.Count} Tables. Provision:{Provision}.";
 
-        public override int EventId => 25;
+        public override int EventId => SyncEventsId.Provisioning.Id;
     }
 
-    public class DatabaseDeprovisionedArgs : DatabaseProvisionedArgs
+    public class DeprovisionedArgs : ProvisionedArgs
     {
-        public DatabaseDeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null) 
+        public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, provision, schema, connection, transaction)
         {
         }
-        public override int EventId => 26;
+        public override int EventId => SyncEventsId.Deprovisioned.Id;
     }
 
-    public class DatabaseDeprovisioningArgs : DatabaseProvisioningArgs
+    public class DeprovisioningArgs : ProvisioningArgs
     {
-        public DatabaseDeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction) : base(context, provision, schema, connection, transaction)
+        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction) : base(context, provision, schema, connection, transaction)
         {
         }
-        public override int EventId => 27;
+        public override int EventId => SyncEventsId.Deprovisioning.Id;
     }
+
+    public static partial class InterceptorsExtensions
+    {
+
+        /// <summary>
+        /// Intercept the provider before it begins a database provisioning
+        /// </summary>
+        public static void OnProvisioning(this BaseOrchestrator orchestrator, Action<ProvisioningArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider before it begins a database provisioning
+        /// </summary>
+        public static void OnProvisioning(this BaseOrchestrator orchestrator, Func<ProvisioningArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider after it has provisioned a database
+        /// </summary>
+        public static void OnProvisioned(this BaseOrchestrator orchestrator, Action<ProvisionedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider after it has provisioned a database
+        /// </summary>
+        public static void OnProvisioned(this BaseOrchestrator orchestrator, Func<ProvisionedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider before it begins a database deprovisioning
+        /// </summary>
+        public static void OnDeprovisioning(this BaseOrchestrator orchestrator, Action<DeprovisioningArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider before it begins a database deprovisioning
+        /// </summary>
+        public static void OnDeprovisioning(this BaseOrchestrator orchestrator, Func<DeprovisioningArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider after it has deprovisioned a database
+        /// </summary>
+        public static void OnDeprovisioned(this BaseOrchestrator orchestrator, Action<DeprovisionedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider after it has deprovisioned a database
+        /// </summary>
+        public static void OnDeprovisioned(this BaseOrchestrator orchestrator, Func<DeprovisionedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+    }
+
+    public static partial class SyncEventsId
+    {
+        public static EventId Provisioning => CreateEventId(5000, nameof(Provisioning));
+        public static EventId Provisioned => CreateEventId(5050, nameof(Provisioned));
+        public static EventId Deprovisioning => CreateEventId(5100, nameof(Deprovisioning));
+        public static EventId Deprovisioned => CreateEventId(5150, nameof(Deprovisioned));
+    }
+
+
+
 }

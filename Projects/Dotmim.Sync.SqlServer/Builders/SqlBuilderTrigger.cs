@@ -11,10 +11,11 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Globalization;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlBuilderTrigger : IDbBuilderTriggerHelper
+    public class SqlBuilderTrigger
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -31,7 +32,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-        public virtual Task CreateDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
+        private string CreateDeleteTriggerAsync()
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
@@ -82,11 +83,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
-            return CreateTriggerAsync(connection, transaction, DbCommandType.DeleteTrigger, stringBuilder.ToString());
+            return stringBuilder.ToString();
 
         }
 
-        public virtual Task CreateInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
+        private string CreateInsertTriggerAsync()
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
@@ -139,11 +140,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
 
-            return CreateTriggerAsync(connection, transaction, DbCommandType.InsertTrigger, stringBuilder.ToString());
+            return stringBuilder.ToString();
 
         }
 
-        public virtual Task CreateUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
+        private string CreateUpdateTriggerAsync()
         {
 
             var stringBuilder = new StringBuilder();
@@ -231,71 +232,86 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
-            return CreateTriggerAsync(connection, transaction, DbCommandType.UpdateTrigger, stringBuilder.ToString());
+            return stringBuilder.ToString();
 
         }
 
-        private async Task CreateTriggerAsync(DbConnection connection, DbTransaction transaction, DbCommandType triggerType, string commandText)
+        public virtual Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
 
-            var commandTriggerName = this.sqlObjectNames.GetCommandName(triggerType).name;
+            var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
             var triggerName = ParserName.Parse(commandTriggerName).ToString();
-            var triggerSchemaName = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
 
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName)");
-            stringBuilder.AppendLine($"DROP TRIGGER {commandTriggerName};");
+            var commandText = $@"IF EXISTS (SELECT tr.name FROM sys.triggers tr  
+                                            JOIN sys.tables t ON tr.parent_id = t.object_id 
+                                            JOIN sys.schemas s ON t.schema_id = s.schema_id 
+                                            WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0";
 
-            using var commandDrop = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
-            commandDrop.Parameters.AddWithValue("@triggerName", triggerName);
-            commandDrop.Parameters.AddWithValue("@schemaName", triggerSchemaName);
-            await commandDrop.ExecuteNonQueryAsync().ConfigureAwait(false);
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            if (transaction != null)
+                command.Transaction = transaction;
 
-            string triggerFor = triggerType == DbCommandType.DeleteTrigger ? "DELETE" 
-                              : triggerType == DbCommandType.UpdateTrigger ? "UPDATE" 
+            command.CommandText = commandText;
+
+            var p1 = command.CreateParameter();
+            p1.ParameterName = "@triggerName";
+            p1.Value = triggerName;
+            command.Parameters.Add(p1);
+
+            var p2 = command.CreateParameter();
+            p2.ParameterName = "@schemaName";
+            p2.Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
+            command.Parameters.Add(p2);
+
+            return Task.FromResult(command);
+
+        }
+        public virtual Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+        {
+
+            var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
+
+            var commandText = $@"DROP TRIGGER {commandTriggerName}";
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            if (transaction != null)
+                command.Transaction = transaction;
+
+            command.CommandText = commandText;
+
+            return Task.FromResult(command);
+        }
+        public virtual Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+        {
+
+            var commandTriggerCommandString = triggerType switch
+            {
+                DbTriggerType.Delete => CreateDeleteTriggerAsync(),
+                DbTriggerType.Insert => CreateInsertTriggerAsync(),
+                DbTriggerType.Update => CreateUpdateTriggerAsync(),
+                _ => throw new NotImplementedException()
+            };
+            string triggerFor = triggerType == DbTriggerType.Delete ? "DELETE"
+                              : triggerType == DbTriggerType.Update ? "UPDATE"
                               : "INSERT";
 
-            stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR {triggerFor} AS");
-            stringBuilder.AppendLine(commandText);
-
-            using var commandCreate = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
-
-            await commandCreate.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
-
-
-
-        public virtual Task DropDeleteTriggerAsync(DbConnection connection, DbTransaction transaction)
-            => DropTriggerAsync(connection, transaction, DbCommandType.DeleteTrigger);
-
-        public virtual Task DropInsertTriggerAsync(DbConnection connection, DbTransaction transaction)
-            => DropTriggerAsync(connection, transaction, DbCommandType.InsertTrigger);
-
-        public virtual Task DropUpdateTriggerAsync(DbConnection connection, DbTransaction transaction)
-            => DropTriggerAsync(connection, transaction, DbCommandType.UpdateTrigger);
-
-        private async Task DropTriggerAsync(DbConnection connection, DbTransaction transaction, DbCommandType triggerType)
-        {
-            var commandTriggerName = this.sqlObjectNames.GetCommandName(triggerType).name;
-            var triggerName = ParserName.Parse(commandTriggerName).ToString();
-            var triggerSchemaName = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
+            var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName)");
-            stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"DROP TRIGGER {commandTriggerName};");
-            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR {triggerFor} AS");
+            stringBuilder.AppendLine(commandTriggerCommandString);
 
-            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                command.Parameters.AddWithValue("@triggerName", triggerName);
-                command.Parameters.AddWithValue("@schemaName", triggerSchemaName);
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            if (transaction != null)
+                command.Transaction = transaction;
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            command.CommandText = stringBuilder.ToString();
+
+            return Task.FromResult(command);
         }
-
 
     }
 }

@@ -48,11 +48,9 @@ namespace Dotmim.Sync.SampleConsole
         public static async Task EnsureDatabasesAsync(string databaseName, bool useSeeding = true)
         {
             // Create server database with items
-            using (var dbServer = new AdventureWorksContext(GetDatabaseConnectionString(databaseName), useSeeding))
-            {
-                await dbServer.Database.EnsureDeletedAsync();
-                await dbServer.Database.EnsureCreatedAsync();
-            }
+            using var dbServer = new AdventureWorksContext(GetDatabaseConnectionString(databaseName), useSeeding);
+            await dbServer.Database.EnsureDeletedAsync();
+            await dbServer.Database.EnsureCreatedAsync();
         }
 
         public static async Task DeleteDatabaseAsync(string dbName)

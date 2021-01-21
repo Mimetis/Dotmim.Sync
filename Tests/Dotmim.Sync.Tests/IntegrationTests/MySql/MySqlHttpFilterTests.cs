@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.MySql;
+﻿using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
@@ -37,7 +38,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // 1) EASY Way:
                 setup.Filters.Add("CustomerAddress", "CustomerID");
-                setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
+                setup.Filters.Add("SalesOrderHeader", "CustomerID");
 
 
                 // 2) Same, but decomposed in 3 Steps
@@ -57,17 +58,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 setup.Filters.Add(addressFilter);
                 // ----------------------------------------------------
 
-                // Create a filter on table SalesLT.SalesOrderDetail
+                // Create a filter on table SalesOrderDetail
                 var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail");
                 salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
                 salesOrderDetailFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderId", "SalesOrderDetail", "SalesOrderId");
-                salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesLT.SalesOrderHeader", "CustomerId");
+                salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
                 salesOrderDetailFilter.AddWhere("CustomerId", "CustomerAddress", "CustomerId");
                 setup.Filters.Add(salesOrderDetailFilter);
                 // ----------------------------------------------------
 
                 // 4) Custom Wheres on Product.
-                var productFilter = new SetupFilter("Product", "SalesLT");
+                var productFilter = new SetupFilter("Product");
                 productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL");
                 setup.Filters.Add(productFilter);
 
@@ -83,7 +84,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql, ProviderType.Sqlite};
+            { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.MySql;
 
@@ -97,6 +98,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 case ProviderType.MySql:
                     return new MySqlSyncProvider(cs);
+                case ProviderType.MariaDB:
+                    return new MariaDBSyncProvider(cs);
                 case ProviderType.Sqlite:
                     return new SqliteSyncProvider(cs);
                 case ProviderType.Sql:

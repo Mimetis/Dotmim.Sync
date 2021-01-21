@@ -27,10 +27,13 @@ using System.Collections.Generic;
 using Dotmim.Sync.Postgres;
 using Dotmim.Sync.Postgres.Builders;
 using Dotmim.Sync.MySql;
-using MySql.Data.MySqlClient;
 using System.Linq;
 using System.Transactions;
 using System.Threading;
+using MySql.Data.MySqlClient;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Builder;
+using System.Text;
 
 internal class Program
 {
@@ -45,8 +48,63 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
+        //await SynchronizeWithLoggerAsync();
+        await SyncHttpThroughKestrellAsync();
+        //await SynchronizeAsync();
+    }
 
-        await SynchronizeAsync();
+
+    public static async Task TestHelloKestrellAsync()
+    {
+
+        var hostBuilder = new WebHostBuilder()
+            .UseKestrel()
+            .UseUrls("http://127.0.0.1:0/");
+
+        hostBuilder.Configure(app =>
+        {
+            app.Run(async context => await context.Response.WriteAsync("Hello world"));
+
+        });
+
+        var host = hostBuilder.Build();
+        host.Start();
+        string serviceUrl = $"http://localhost:{host.GetPort()}/";
+
+        var client = new HttpClient();
+        var s = await client.GetAsync(serviceUrl);
+
+        Console.WriteLine(await s.Content.ReadAsStringAsync());
+
+    }
+
+    public static async Task TestWebSendAsync()
+    {
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqliteSyncProvider("testblob2.db");
+
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, new string[] { "Product" });
+
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            await context.Response.WriteAsync("Hello");
+        });
+
+        using var server = new KestrellTestServer(configureServices);
+
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
+        {
+            var client = new HttpClient();
+            var s = await client.GetAsync(serviceUri);
+
+        });
+        await server.Run(serverHandler, clientHandler);
 
     }
 
@@ -56,7 +114,7 @@ internal class Program
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("dedee.db");
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        //var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
         var options = new SyncOptions();
         // Creating an agent that will handle all the process
@@ -167,45 +225,44 @@ internal class Program
         });
 
 
-        using (var server = new KestrellTestServer(configureServices))
+        using var server = new KestrellTestServer(configureServices);
+
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            do
             {
-                do
+                Console.Clear();
+                Console.WriteLine("Web sync start");
+                try
                 {
-                    Console.Clear();
-                    Console.WriteLine("Web sync start");
-                    try
-                    {
-                        var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new CustomMessagePackSerializerFactory());
-                        var agent = new SyncAgent(clientProvider, webClientOrchestrator);
+                    var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new CustomMessagePackSerializerFactory());
+                    var agent = new SyncAgent(clientProvider, webClientOrchestrator);
 
-                        // Launch the sync process
-                        if (!agent.Parameters.Contains("CompanyName"))
-                            agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+                    // Launch the sync process
+                    if (!agent.Parameters.Contains("CompanyName"))
+                        agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
 
-                        var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                        Console.WriteLine(s);
-                    }
-                    catch (SyncException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                    }
+                    var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
 
 
-                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
-            });
-            await server.Run(serverHandler, clientHandler);
-        }
+        });
+        await server.Run(serverHandler, clientHandler);
     }
 
 
@@ -236,38 +293,37 @@ internal class Program
             await webServerManager.HandleRequestAsync(context, default, progress);
         });
 
-        using (var server = new KestrellTestServer(configureServices))
+        using var server = new KestrellTestServer(configureServices);
+
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            do
             {
-                do
+                Console.Clear();
+                Console.WriteLine("Web sync start");
+                try
                 {
-                    Console.Clear();
-                    Console.WriteLine("Web sync start");
-                    try
-                    {
-                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri));
-                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
-                        var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                        Console.WriteLine(s);
-                    }
-                    catch (SyncException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                    }
+                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri));
+                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
+                    var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
 
 
-                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
-            });
-            await server.Run(serverHandler, clientHandler);
-        }
+        });
+        await server.Run(serverHandler, clientHandler);
 
     }
 
@@ -313,14 +369,6 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-        agent.AddRemoteProgress(remoteProgress);
-
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
@@ -363,7 +411,7 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
-        agent.RemoteOrchestrator.OnDatabaseProvisioning(args =>
+        agent.RemoteOrchestrator.OnProvisioning(args =>
         {
             var schema = args.Schema;
 
@@ -418,8 +466,8 @@ internal class Program
         CreateSqliteDatabaseAndTable("Scenario01", "Customer");
 
         // Create MySql database and table
-        CreateMySqlDatabase("Scenario01");
-        CreateMySqlTable("Scenario01", "Customer");
+        CreateMySqlDatabase("Scenario01", null);
+        CreateMySqlTable("Scenario01", "Customer", null);
 
         // Add one mysql record
         AddMySqlRecord("Scenario01", "Customer");
@@ -441,6 +489,20 @@ internal class Program
         await TestSyncAsync("Scenario01", "Scenario01", "Customer", true);
     }
 
+    private static void CreateMySqlTable(string databaseName, string tableName, MySqlConnection mySqlConnection)
+    {
+
+        string sql = $"DROP TABLE IF EXISTS `{tableName}`; " +
+            $" CREATE TABLE `F` (" +
+            $" `ID` char(36) NOT NULL " +
+            $",`F1` int NULL" +
+            $",`F2` longtext NOT NULL" +
+            $",`F3` longtext NULL" +
+            $", PRIMARY KEY(`ID`))";
+
+        var cmd = new MySqlCommand(sql, mySqlConnection);
+        cmd.ExecuteNonQuery();
+    }
     private static void CreateSqliteDatabaseAndTable(string fileName, string tableName)
     {
 
@@ -475,91 +537,195 @@ internal class Program
                         ",[F3] text NULL COLLATE NOCASE" +
                         ", PRIMARY KEY([ID]))";
 
-            using (SqliteConnection dBase = new SqliteConnection(builder.ConnectionString))
-            {
-                try
-                {
-                    dBase.Open();
-                    SqliteCommand cmd = new SqliteCommand(sql, dBase);
-                    cmd.ExecuteNonQuery();
-                    dBase.Close();
-                    Console.WriteLine("Database created: " + fileName);
-                }
-                catch (SqliteException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-            }
-        }
-
-    }
-    private static void CreateMySqlDatabase(string databaseName)
-    {
-
-        var sysBuilder = new MySqlConnectionStringBuilder();
-
-        sysBuilder.Database = "sys";
-        sysBuilder.Port = 3307;
-        sysBuilder.UserID = "root";
-        sysBuilder.Password = "Password12!";
-
-        string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
-
-        using (var mySqlConnection = new MySqlConnection(sysBuilder.ConnectionString))
-        {
+            using SqliteConnection dBase = new SqliteConnection(builder.ConnectionString);
             try
             {
-                var cmd = new MySqlCommand(sqlDB, mySqlConnection);
-
-                mySqlConnection.Open();
+                dBase.Open();
+                SqliteCommand cmd = new SqliteCommand(sql, dBase);
                 cmd.ExecuteNonQuery();
-                mySqlConnection.Close();
-
-                Console.WriteLine("Database created: " + databaseName);
+                dBase.Close();
+                Console.WriteLine("Database created: " + fileName);
             }
             catch (SqliteException ex)
             {
                 Console.WriteLine(ex.Message);
             }
         }
-    }
-    private static void CreateMySqlTable(string databaseName, string tableName)
-    {
 
+    }
+
+
+    private static MySqlConnection GetMyConnection(string databaseName = null)
+    {
         var builder = new MySqlConnectionStringBuilder();
 
-        builder.Database = databaseName;
+        if (!string.IsNullOrEmpty(databaseName))
+            builder.Database = databaseName;
+
         builder.Port = 3307;
         builder.UserID = "root";
         builder.Password = "Password12!";
 
+        var mySqlConnection = new MySqlConnection(builder.ConnectionString);
+        return mySqlConnection;
 
-        string sql = $"CREATE TABLE `{tableName}` (" +
-            " `ID` char(36) NOT NULL " +
-            ",`F1` int NULL" +
-            ",`F2` longtext NOT NULL" +
-            ",`F3` longtext NULL" +
-            ", PRIMARY KEY(`ID`))";
+    }
 
-        using (var mySqlConnection = new MySqlConnection(builder.ConnectionString))
+    private static void BugExecutingProcedureMySql()
+    {
+        var databaseName = "test";
+
+        // creating database
+        using (var connection = GetMyConnection())
         {
-            try
-            {
-                var cmd = new MySqlCommand(sql, mySqlConnection);
+            connection.Open();
+            CreateMySqlDatabase(databaseName, connection);
+            connection.Close();
+        }
 
-                mySqlConnection.Open();
-                cmd.ExecuteNonQuery();
-                mySqlConnection.Close();
+        // creating 1st version of table and stored proc (then call it)
+        using (var connection = GetMyConnection(databaseName))
+        {
+            connection.Open();
 
-                Console.WriteLine("Table created.");
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            CreateMySqlTable(databaseName, connection);
+            CreateMySqlProcedure(databaseName, connection);
+            // call 1st version of my stored procedure
+            InsertMySqlRecord(connection);
+
+            connection.Close();
+        }
+
+        // creating 2nd version of table and stored proc (then call it)
+        using (var connection = GetMyConnection(databaseName))
+        {
+            connection.Open();
+            // Adding one column to table
+            AlterMySqlTable(databaseName, connection);
+            // Creating 2nd version of my stored procedure
+            CreateMySqlProcedure2(databaseName, connection);
+            // FAIL: Trying to call this new stored procedure
+            InsertMySqlRecord2(connection);
+
+            connection.Close();
         }
 
     }
+
+    // Creating my database
+    private static void CreateMySqlDatabase(string databaseName, MySqlConnection mySqlConnection)
+    {
+        string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
+        var cmd = new MySqlCommand(sqlDB, mySqlConnection);
+        cmd.ExecuteNonQuery();
+
+    }
+
+    // Creating my table
+    private static void CreateMySqlTable(string databaseName, MySqlConnection mySqlConnection)
+    {
+
+        string sql = $"DROP TABLE IF EXISTS `F`; " +
+            $" CREATE TABLE `F` (" +
+            $" `ID` char(36) NOT NULL " +
+            $",`F1` int NULL" +
+            $",`F2` longtext NOT NULL" +
+            $",`F3` longtext NULL" +
+            $", PRIMARY KEY(`ID`))";
+
+        var cmd = new MySqlCommand(sql, mySqlConnection);
+        cmd.ExecuteNonQuery();
+    }
+
+    // Adding new column to my table
+    private static void AlterMySqlTable(string databaseName, MySqlConnection mySqlConnection)
+    {
+        var cmd = new MySqlCommand($"ALTER TABLE `F` ADD `F4` longtext NULL;", mySqlConnection);
+        cmd.ExecuteNonQuery();
+    }
+
+    // Creating 1st version of the stored procedure
+    private static void CreateMySqlProcedure(string databaseName, MySqlConnection mySqlConnection)
+    {
+        var procedure = new StringBuilder();
+        procedure.AppendLine($"DROP PROCEDURE IF EXISTS `insert`;");
+        procedure.AppendLine($"CREATE PROCEDURE `insert` (");
+        procedure.AppendLine($" in_ID char(36)");
+        procedure.AppendLine($",in_F1 int");
+        procedure.AppendLine($",in_F2 longtext");
+        procedure.AppendLine($",in_F3 longtext)");
+        procedure.AppendLine($"BEGIN");
+        procedure.AppendLine($"  INSERT INTO `F` (");
+        procedure.AppendLine($"  `ID`, `F1`, `F2`, `F3`) ");
+        procedure.AppendLine($"VALUES (");
+        procedure.AppendLine($"  in_ID, in_F1, in_F2, in_F3);");
+        procedure.AppendLine($"END;");
+
+        var cmd = new MySqlCommand(procedure.ToString(), mySqlConnection);
+
+        cmd.ExecuteNonQuery();
+    }
+
+    // Creating 2nd version of the stored procedure
+    private static void CreateMySqlProcedure2(string databaseName, MySqlConnection mySqlConnection)
+    {
+        var procedure = new StringBuilder();
+        procedure.AppendLine($"DROP PROCEDURE IF EXISTS `insert`;");
+        procedure.AppendLine($"CREATE PROCEDURE `insert` (");
+        procedure.AppendLine($" in_ID char(36)");
+        procedure.AppendLine($",in_F1 int");
+        procedure.AppendLine($",in_F2 longtext");
+        procedure.AppendLine($",in_F3 longtext");
+        procedure.AppendLine($",in_F4 longtext)");
+        procedure.AppendLine($"BEGIN");
+        procedure.AppendLine($"  INSERT INTO `F` (");
+        procedure.AppendLine($"  `ID`, `F1`, `F2`, `F3`, `F4`) ");
+        procedure.AppendLine($"VALUES (");
+        procedure.AppendLine($"  in_ID, in_F1, in_F2, in_F3, in_F4);");
+        procedure.AppendLine($"END;");
+
+        var cmd = new MySqlCommand(procedure.ToString(), mySqlConnection);
+
+        cmd.ExecuteNonQuery();
+    }
+
+    // Executing 1st version of the stored procedure
+    private static void InsertMySqlRecord(MySqlConnection mySqlConnection)
+    {
+        var cmd = new MySqlCommand
+        {
+            CommandText = "`insert`",
+            CommandType = CommandType.StoredProcedure,
+            Connection = mySqlConnection
+        };
+
+        cmd.Parameters.AddWithValue("in_ID", Guid.NewGuid().ToString());
+        cmd.Parameters.AddWithValue("in_F1", 1);
+        cmd.Parameters.AddWithValue("in_F2", "Hello");
+        cmd.Parameters.AddWithValue("in_F3", "world");
+
+        cmd.ExecuteNonQuery();
+    }
+
+    // Executing 2nd version of the stored procedure
+    private static void InsertMySqlRecord2(MySqlConnection mySqlConnection)
+    {
+        var cmd = new MySqlCommand
+        {
+            CommandText = "`insert`",
+            CommandType = CommandType.StoredProcedure,
+            Connection = mySqlConnection
+        };
+
+        cmd.Parameters.AddWithValue("in_ID", Guid.NewGuid().ToString());
+        cmd.Parameters.AddWithValue("in_F1", 1);
+        cmd.Parameters.AddWithValue("in_F2", "Hello");
+        cmd.Parameters.AddWithValue("in_F3", "world");
+        cmd.Parameters.AddWithValue("in_F4", "again !");
+
+        cmd.ExecuteNonQuery();
+    }
+
 
     private static void AddMySqlRecord(string databaseName, string tableName)
     {
@@ -573,23 +739,21 @@ internal class Program
 
         string sql = $"INSERT INTO `{tableName}` (ID,F1,F2,F3) VALUES (@ID, 2, '2st2tem', '1111111')";
 
-        using (MySqlConnection dBase = new MySqlConnection(builder.ConnectionString))
+        using MySqlConnection dBase = new MySqlConnection(builder.ConnectionString);
+        try
         {
-            try
-            {
-                MySqlCommand cmd = new MySqlCommand(sql, dBase);
-                var parameter = new MySqlParameter("@ID", Guid.NewGuid());
-                cmd.Parameters.Add(parameter);
+            MySqlCommand cmd = new MySqlCommand(sql, dBase);
+            var parameter = new MySqlParameter("@ID", Guid.NewGuid());
+            cmd.Parameters.Add(parameter);
 
-                dBase.Open();
-                cmd.ExecuteNonQuery();
-                dBase.Close();
-                Console.WriteLine("Record added into table " + tableName);
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            dBase.Open();
+            cmd.ExecuteNonQuery();
+            dBase.Close();
+            Console.WriteLine("Record added into table " + tableName);
+        }
+        catch (SqliteException ex)
+        {
+            Console.WriteLine(ex.Message);
         }
     }
     private static void AddSqliteRecord(string fileName, string tableName)
@@ -600,24 +764,22 @@ internal class Program
 
         string sql = $"INSERT INTO [{tableName}] (ID,F1,F2,F3) VALUES ( @ID, 1, '1stItem', '1111111')";
 
-        using (SqliteConnection dBase = new SqliteConnection(builder.ConnectionString))
+        using SqliteConnection dBase = new SqliteConnection(builder.ConnectionString);
+        try
         {
-            try
-            {
-                SqliteCommand cmd = new SqliteCommand(sql, dBase);
-                var parameter = new SqliteParameter("@ID", Guid.NewGuid());
-                cmd.Parameters.Add(parameter);
+            SqliteCommand cmd = new SqliteCommand(sql, dBase);
+            var parameter = new SqliteParameter("@ID", Guid.NewGuid());
+            cmd.Parameters.Add(parameter);
 
 
-                dBase.Open();
-                cmd.ExecuteNonQuery();
-                dBase.Close();
-                Console.WriteLine("Record added into table " + tableName);
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
+            dBase.Open();
+            cmd.ExecuteNonQuery();
+            dBase.Close();
+            Console.WriteLine("Record added into table " + tableName);
+        }
+        catch (SqliteException ex)
+        {
+            Console.WriteLine(ex.Message);
         }
     }
 
@@ -761,20 +923,17 @@ internal class Program
 
         try
         {
-            using (var command = new NpgsqlCommand("fn_upsert_scope_info_json", connection))
-            {
-                command.Parameters.Add(p);
-                command.CommandType = CommandType.StoredProcedure;
+            using var command = new NpgsqlCommand("fn_upsert_scope_info_json", connection);
+            command.Parameters.Add(p);
+            command.CommandType = CommandType.StoredProcedure;
 
-                await connection.OpenAsync().ConfigureAwait(false);
+            await connection.OpenAsync().ConfigureAwait(false);
 
-                await command.ExecuteNonQueryAsync();
-
+            await command.ExecuteNonQueryAsync();
 
 
-                connection.Close();
 
-            }
+            connection.Close();
         }
         catch (Exception)
         {
@@ -801,24 +960,21 @@ internal class Program
 
         var connection = new NpgsqlConnection(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
 
-        using (var command = new NpgsqlCommand(commandText, connection))
+        using var command = new NpgsqlCommand(commandText, connection);
+        command.Parameters.AddWithValue("@tableName", tableNameString);
+        command.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+        await connection.OpenAsync().ConfigureAwait(false);
+
+        using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
         {
-            command.Parameters.AddWithValue("@tableName", tableNameString);
-            command.Parameters.AddWithValue("@schemaName", schemaNameString);
-
-            await connection.OpenAsync().ConfigureAwait(false);
-
-            using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    Console.WriteLine(reader["table_schema"].ToString() + "." + reader["table_name"].ToString());
-                }
+                Console.WriteLine(reader["table_schema"].ToString() + "." + reader["table_name"].ToString());
             }
-
-            connection.Close();
-
         }
+
+        connection.Close();
     }
 
 
@@ -847,6 +1003,7 @@ internal class Program
         Console.WriteLine();
         Console.WriteLine("SECOND PARALLEL SYNC");
         Console.WriteLine("--------------------");
+
 
         agent.LocalOrchestrator.OnDatabaseChangesSelecting(dcsa =>
         {
@@ -1029,7 +1186,7 @@ internal class Program
         serverScope.Schema = newSchema;
 
         // save it
-        await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+        await remoteOrchestrator.SaveServerScopeAsync(serverScope);
 
         // -----------------------------------------------------------------
         // Client side
@@ -1060,7 +1217,7 @@ internal class Program
         clientScope.Schema = newSchema;
 
         // save it
-        await localOrchestrator.WriteClientScopeAsync(clientScope);
+        await localOrchestrator.SaveClientScopeAsync(clientScope);
 
 
 
@@ -1097,35 +1254,33 @@ internal class Program
         var commandText = "Update ProductCategory Set Name=@Name Where ProductCategoryId=@Id; " +
                           "Select * from ProductCategory Where ProductCategoryId=@Id;";
 
-        using (DbCommand command = clientConnection.CreateCommand())
+        using DbCommand command = clientConnection.CreateCommand();
+        command.Connection = clientConnection;
+        command.CommandText = commandText;
+        var p = command.CreateParameter();
+        p.ParameterName = "@Id";
+        p.DbType = DbType.String;
+        p.Value = "FTNLBJ";
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.ParameterName = "@Name";
+        p.DbType = DbType.String;
+        p.Value = "Awesome Bike";
+        command.Parameters.Add(p);
+
+        clientConnection.Open();
+
+        using (var reader = command.ExecuteReader())
         {
-            command.Connection = clientConnection;
-            command.CommandText = commandText;
-            var p = command.CreateParameter();
-            p.ParameterName = "@Id";
-            p.DbType = DbType.String;
-            p.Value = "FTNLBJ";
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@Name";
-            p.DbType = DbType.String;
-            p.Value = "Awesome Bike";
-            command.Parameters.Add(p);
-
-            clientConnection.Open();
-
-            using (var reader = command.ExecuteReader())
+            while (reader.Read())
             {
-                while (reader.Read())
-                {
-                    var name = reader["Name"];
-                    Console.WriteLine(name);
-                }
+                var name = reader["Name"];
+                Console.WriteLine(name);
             }
-
-            clientConnection.Close();
         }
+
+        clientConnection.Close();
 
     }
     private static async Task TestDeleteWithoutBulkAsync()
@@ -1189,153 +1344,64 @@ internal class Program
 
     private static async Task AddNewColumnToAddressAsync(DbConnection c)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "ALTER TABLE dbo.Address ADD CreatedDate datetime NULL;";
-            c.Open();
-            await command.ExecuteNonQueryAsync();
-            c.Close();
-        }
+        using var command = c.CreateCommand();
+        command.CommandText = "ALTER TABLE dbo.Address ADD CreatedDate datetime NULL;";
+        c.Open();
+        await command.ExecuteNonQueryAsync();
+        c.Close();
     }
     private static int InsertOneProductCategoryId(IDbConnection c, string updatedName)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
-            var p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.Value = updatedName;
-            p.ParameterName = "@Name";
-            command.Parameters.Add(p);
+        using var command = c.CreateCommand();
+        command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
+        var p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.Value = updatedName;
+        p.ParameterName = "@Name";
+        command.Parameters.Add(p);
 
-            c.Open();
-            var id = command.ExecuteScalar();
-            c.Close();
+        c.Open();
+        var id = command.ExecuteScalar();
+        c.Close();
 
-            return Convert.ToInt32(id);
-        }
+        return Convert.ToInt32(id);
     }
     private static void UpdateOneProductCategoryId(IDbConnection c, int productCategoryId, string updatedName)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "Update ProductCategory Set Name = @Name Where ProductCategoryId = @Id";
-            var p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.Value = updatedName;
-            p.ParameterName = "@Name";
-            command.Parameters.Add(p);
+        using var command = c.CreateCommand();
+        command.CommandText = "Update ProductCategory Set Name = @Name Where ProductCategoryId = @Id";
+        var p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.Value = updatedName;
+        p.ParameterName = "@Name";
+        command.Parameters.Add(p);
 
-            p = command.CreateParameter();
-            p.DbType = DbType.Int32;
-            p.Value = productCategoryId;
-            p.ParameterName = "@Id";
-            command.Parameters.Add(p);
+        p = command.CreateParameter();
+        p.DbType = DbType.Int32;
+        p.Value = productCategoryId;
+        p.ParameterName = "@Id";
+        command.Parameters.Add(p);
 
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-        }
+        c.Open();
+        command.ExecuteNonQuery();
+        c.Close();
     }
     private static void DeleteOneLine(DbConnection c, int productCategoryId)
     {
-        using (var command = c.CreateCommand())
-        {
-            command.CommandText = "Delete from ProductCategory Where ProductCategoryId = @Id";
+        using var command = c.CreateCommand();
+        command.CommandText = "Delete from ProductCategory Where ProductCategoryId = @Id";
 
-            var p = command.CreateParameter();
-            p.DbType = DbType.Int32;
-            p.Value = productCategoryId;
-            p.ParameterName = "@Id";
-            command.Parameters.Add(p);
+        var p = command.CreateParameter();
+        p.DbType = DbType.Int32;
+        p.Value = productCategoryId;
+        p.ParameterName = "@Id";
+        command.Parameters.Add(p);
 
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-        }
+        c.Open();
+        command.ExecuteNonQuery();
+        c.Close();
     }
 
-    private static async Task CreateSnapshotAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        // specific Setup with only 2 tables, and one filtered
-        var setup = new SyncSetup(allTables);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        // snapshot directory
-        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
-
-        var options = new SyncOptions
-        {
-            SnapshotsDirectory = directory,
-            BatchSize = 2000
-        };
-
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-
-        await remoteOrchestrator.CreateSnapshotAsync(null, default, remoteProgress);
-        // client provider
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        // Insert a value after snapshot created
-        using (var c = serverProvider.CreateConnection())
-        {
-            var command = c.CreateCommand();
-            command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('Bikes revolution');";
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-        }
-
-        var syncOptions = new SyncOptions { SnapshotsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots") };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, syncOptions, setup);
-
-
-
-        //// Launch the sync process
-        //if (!agent.Parameters.Contains("City"))
-        //    agent.Parameters.Add("City", "Toronto");
-
-        //if (!agent.Parameters.Contains("postal"))
-        //    agent.Parameters.Add("postal", "NULL");
-
-
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
 
     private static async Task SynchronizeMultiScopesAsync()
     {
@@ -1365,17 +1431,6 @@ internal class Program
             Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
             Console.ResetColor();
         });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        // Spying what's going on the server side
-        agentProducts.AddRemoteProgress(remoteProgress);
-        agentCustomers.AddRemoteProgress(remoteProgress);
 
 
         do
@@ -1549,10 +1604,6 @@ internal class Program
         //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
 
 
-        var options = new SyncOptions();
-        options.BatchSize = 500;
-
-
         //Log.Logger = new LoggerConfiguration()
         //    .Enrich.FromLogContext()
         //    .MinimumLevel.Verbose()
@@ -1566,19 +1617,18 @@ internal class Program
         //options.Logger = logger;
 
 
-        // 1) create a serilog logger
+        // 2) create a serilog logger
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog().SetMinimumLevel(LogLevel.Trace); });
         //var logger = loggerFactory.CreateLogger("SyncAgent");
         //options.Logger = logger;
 
         //3) Using Serilog with Seq
-        //var serilogLogger = new LoggerConfiguration()
-        //    .Enrich.FromLogContext()
-        //    .MinimumLevel.Debug()
-        //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-        //    .WriteTo.Seq("http://localhost:5341")
-        //    .WriteTo.Console()
-        //    .CreateLogger();
+        var serilogLogger = new LoggerConfiguration()
+            .Enrich.FromLogContext()
+            .MinimumLevel.Debug()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .WriteTo.Seq("http://localhost:5341")
+            .CreateLogger();
 
 
         //var actLogging = new Action<SyncLoggerOptions>(slo =>
@@ -1588,10 +1638,11 @@ internal class Program
         //});
 
         ////var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
-        //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
+
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
 
 
-        // loggerFactory.AddSerilog(serilogLogger);
+        //loggerFactory.AddSerilog(serilogLogger);
 
         //options.Logger = loggerFactory.CreateLogger("dms");
 
@@ -1608,36 +1659,21 @@ internal class Program
         //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
         //remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
 
+        var options = new SyncOptions();
+        options.BatchSize = 500;
+        options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
+
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
         // Using the Progress pattern to handle progession during the synchronization
-        //var progress = new SynchronousProgress<ProgressArgs>(s =>
-        //{
-        //    Console.ForegroundColor = ConsoleColor.Green;
-        //    Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-        //    Console.ResetColor();
-        //});
-
-        //var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        //{
-        //    Console.ForegroundColor = ConsoleColor.Yellow;
-        //    Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-        //    Console.ResetColor();
-        //});
-
-
-        //agent.AddRemoteProgress(remoteProgress);
-
-        //agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        // agent.Options.BatchSize = 1000;
-        agent.Options.CleanMetadatas = true;
-        agent.Options.UseBulkOperations = true;
-        agent.Options.DisableConstraintsOnApplyChanges = true;
-        //agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-        //agent.Options.UseVerboseErrors = false;
-
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
 
         do
         {
@@ -1649,21 +1685,7 @@ internal class Program
                 //if (!agent.Parameters.Contains("CompanyName"))
                 //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
-
-                // Get the server scope
-                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
-
-
-                await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-                                                                     | SyncProvision.Triggers | SyncProvision.TrackingTable);
-
-                // Affect good values
-                serverScope.Setup = null;
-                serverScope.Schema = null;
-
-                // save the server scope
-                await agent.RemoteOrchestrator.WriteServerScopeAsync(serverScope);
+                var s1 = await agent.SynchronizeAsync(progress);
 
                 // Write results
                 Console.WriteLine(s1);
@@ -1680,7 +1702,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
- 
+
     public static async Task SyncHttpThroughKestrellAsync()
     {
         // server provider
@@ -1693,48 +1715,43 @@ internal class Program
         // ----------------------------------
         // snapshot directory
         var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
-        var options = new SyncOptions { BatchSize = 500, SnapshotsDirectory = snapshotDirectory };
+        //var options = new SyncOptions { BatchSize = 100, SnapshotsDirectory = snapshotDirectory };
+        var options = new SyncOptions() { BatchSize = 100 };
 
-
-
-        // ----------------------------------
-        // Insert a value after snapshot created
-        // ----------------------------------
-        using (var c = serverProvider.CreateConnection())
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
-            var command = c.CreateCommand();
-            command.CommandText = "INSERT INTO [dbo].[ProductCategory] ([Name]) VALUES ('Bikes revolution');";
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-        }
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+            Console.ResetColor();
+        });
+
+        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
+            Console.ResetColor();
+        });
+
+        var localProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            // ----------------------------------
-            // Web Server side
-            // ----------------------------------
-            var setup = new SyncSetup(new string[] { "ProductCategory", "Product" })
-            {
-                StoredProceduresPrefix = "s",
-                StoredProceduresSuffix = "",
-                TrackingTablesPrefix = "t",
-                TrackingTablesSuffix = "",
-                TriggersPrefix = "",
-                TriggersSuffix = "t"
-            };
-
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, "dd", setup, options);
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, allTables, options);
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Creating snapshot");
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, "dd");
-            remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
-            Console.WriteLine($"Done.");
-            Console.ResetColor();
+            //Console.ForegroundColor = ConsoleColor.Gray;
+            //Console.WriteLine($"Creating snapshot");
+            //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
+
+            //remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
+
 
         });
 
@@ -1742,64 +1759,57 @@ internal class Program
         {
             var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
 
-            var progress = new SynchronousProgress<ProgressArgs>(pa =>
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}");
-                Console.ResetColor();
-            });
+            var webServerOrchestrator = webServerManager.GetOrchestrator(context);
 
-            //// override sync type
-            //var orch = webServerManager.GetOrchestrator(context);
-            //orch.OnServerScopeLoaded(sla =>
-            //{
-            //    sla.Context.SyncType = SyncType.Reinitialize;
-            //});
+            //webServerOrchestrator.OnHttpGettingRequest(req =>
+            //    Console.WriteLine("Receiving Client Request:" + req.Context.SyncStage + ". " + req.HttpContext.Request.Host.Host + "."));
 
-            await webServerManager.HandleRequestAsync(context, default, progress);
+            //webServerOrchestrator.OnHttpSendingResponse(res =>
+            //    Console.WriteLine("Sending Client Response:" + res.Context.SyncStage + ". " + res.HttpContext.Request.Host.Host));
+
+            //webServerOrchestrator.OnHttpGettingChanges(args => Console.WriteLine("Getting Client Changes" + args));
+            //webServerOrchestrator.OnHttpSendingChanges(args => Console.WriteLine("Sending Server Changes" + args));
+
+            await webServerManager.HandleRequestAsync(context);
+
         });
 
-        using (var server = new KestrellTestServer(configureServices))
+        using var server = new KestrellTestServer(configureServices);
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
-            var clientHandler = new ResponseDelegate(async (serviceUri) =>
+            do
             {
-                do
+                Console.WriteLine("Web sync start");
+                try
                 {
-                    Console.Clear();
-                    Console.WriteLine("Web sync start");
-                    try
-                    {
-                        //var localSetup = new SyncSetup()
-                        //{
-                        //    StoredProceduresPrefix = "cli",
-                        //    StoredProceduresSuffix = "",
-                        //    TrackingTablesPrefix = "cli",
-                        //    TrackingTablesSuffix = "",
-                        //    TriggersPrefix = "cli",
-                        //    TriggersSuffix = ""
-                        //};
-                        var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options, "dd");
-                        var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SyncStage}\t {pa.Message}"));
-                        var s = await agent.SynchronizeAsync(progress);
-                        Console.WriteLine(s);
-                    }
-                    catch (SyncException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                    }
+                    var localOrchestrator = new WebClientOrchestrator(serviceUri);
+
+                    
+                    localOrchestrator.OnHttpGettingResponse(req => Console.WriteLine("Receiving Server Response"));
+                    localOrchestrator.OnHttpSendingRequest(res =>Console.WriteLine("Sending Client Request."));
+                    localOrchestrator.OnHttpGettingChanges(args => Console.WriteLine("Getting Server Changes" + args));
+                    localOrchestrator.OnHttpSendingChanges(args => Console.WriteLine("Sending Client Changes" + args));
+
+                    var agent = new SyncAgent(clientProvider, localOrchestrator, options);
+                    var s = await agent.SynchronizeAsync();
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
 
 
-                    Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-                } while (Console.ReadKey().Key != ConsoleKey.Escape);
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
-            });
-            await server.Run(serverHandler, clientHandler);
-        }
+        });
+        await server.Run(serverHandler, clientHandler);
 
     }
 
@@ -1948,16 +1958,17 @@ internal class Program
 
     }
 
-
-    private static async Task SynchronizeThenChangeSetupAsync()
+    private static async Task SynchronizeThenChangeSetupAsync2()
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new MySqlSyncProvider(DbHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("client.db");
 
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail", "BuildVersion" });
+        var setup = new SyncSetup(new string[] { "Customer" });
+        setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName", "EmailAddress" });
+
         // Add pref suf
         setup.StoredProceduresPrefix = "s";
         setup.StoredProceduresSuffix = "";
@@ -1975,58 +1986,58 @@ internal class Program
             Console.ResetColor();
         });
 
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+
+        Console.WriteLine(s1);
+
+    }
+
+    private static async Task SynchronizeThenChangeSetupAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("client.db");
+
+        var setup = new SyncSetup(new string[] { "Customer" });
+        setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
+
+        // Add pref suf
+        setup.StoredProceduresPrefix = "s";
+        setup.StoredProceduresSuffix = "";
+        setup.TrackingTablesPrefix = "t";
+        setup.TrackingTablesSuffix = "";
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
             Console.ResetColor();
         });
 
-
-        agent.AddRemoteProgress(remoteProgress);
         var s1 = await agent.SynchronizeAsync(progress);
 
         Console.WriteLine(s1);
 
-        // Change setup
-        setup.StoredProceduresPrefix = "dms";
-        setup.TrackingTablesPrefix = "dms";
-        setup.TriggersPrefix = "dms";
-        setup.Tables.Clear();
-        setup.Tables.Add("Product");
+        // Adding a new column to Customer
+        setup.Tables["Customer"].Columns.Add("EmailAddress");
 
-        //// Get scope_server
-        //var scope_server = await agent.RemoteOrchestrator.GetServerScopeAsync();
-        //var oldSetup = scope_server.Setup;
+        // fake old setup
+        var oldSetup = new SyncSetup(new string[] { "Customer" });
+        oldSetup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
 
-        //var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
+        await agent.RemoteOrchestrator.MigrationAsync(oldSetup);
+        var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
 
-        //await agent.RemoteOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
-        //await agent.LocalOrchestrator.MigrationAsync(newSchema, oldSetup, setup);
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Launch the sync process
-                //if (!agent.Parameters.Contains("CompanyName"))
-                //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
-
-                var r1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-
-                // Write results
-                Console.WriteLine(r1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+        await agent.LocalOrchestrator.MigrationAsync(oldSetup, newSchema);
 
 
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+        //var r1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
 
         Console.WriteLine("End");
     }

@@ -13,12 +13,6 @@ namespace Dotmim.Sync
     public class ContainerSet
     {
         /// <summary>
-        /// Gets or Sets the name of the data source (database name)
-        /// </summary>
-        [DataMember(Name = "n", IsRequired = true, Order = 1)]
-        public string DataSourceName { get; set; }
-
-        /// <summary>
         /// List of tables
         /// </summary>
         [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 2)]
@@ -52,9 +46,17 @@ namespace Dotmim.Sync
             }
         }
 
-        public ContainerSet() { }
+        /// <summary>
+        /// Getting the container rows count
+        /// </summary>
+        public int RowsCount()
+        {
+            if (!HasTables)
+                return 0;
 
-        public ContainerSet(string name) => this.DataSourceName = name;
-     
+            return this.Tables.Sum(t => t.Rows.Count);
+        }
+
+        public ContainerSet() { }
     }
 }

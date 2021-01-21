@@ -292,6 +292,17 @@ namespace Dotmim.Sync
         public MissingColumnsException() : base(message) { }
     }
 
+
+    /// <summary>
+    /// During a migration, droping a table is not allowed
+    /// </summary>
+    public class MigrationTableDropNotAllowedException : Exception
+    {
+        const string message = "During a migration, droping a table is not allowed";
+
+        public MigrationTableDropNotAllowedException() : base(message) { }
+    }
+
     /// <summary>
     /// Metadata exception.
     /// </summary>
@@ -459,6 +470,17 @@ namespace Dotmim.Sync
 
         public HttpScopeNameInvalidException(string scopeName) : base(string.Format(message, scopeName)) { }
     }
+
+    /// <summary>
+    /// Occurs when a session is lost during a sync session
+    /// </summary>
+    public class HttpSessionLostException : Exception
+    {
+        const string message = "Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.";
+
+        public HttpSessionLostException() : base(message) { }
+    }
+
 
 
     /// <summary>

@@ -52,7 +52,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
+                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType)
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -148,7 +148,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name
+                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType)
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 

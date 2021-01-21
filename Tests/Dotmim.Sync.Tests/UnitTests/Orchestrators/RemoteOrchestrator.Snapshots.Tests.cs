@@ -56,17 +56,17 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_CheckInterceptors()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            var dbName = HelperDatabase.GetRandomName("tcp_lo_srv");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
             var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, true);
+            var serverProvider = new SqlSyncProvider(cs);
+            
+            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, serverProvider), true, true);
             await ctx.Database.EnsureCreatedAsync();
 
             var scopeName = "scopesnap1";
             var onSnapshotCreating = false;
             var onSnapshotCreated = false;
-
 
             // snapshot directory
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
@@ -79,14 +79,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var setup = new SyncSetup(Tables);
-            var provider = new SqlSyncProvider(cs);
 
-            var orchestrator = new RemoteOrchestrator(provider, options, setup, scopeName);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, scopeName);
 
             // Assert on connection and transaction interceptors
-            BaseOrchestratorTests.AssertConnectionAndTransaction(orchestrator, SyncStage.SnapshotCreating, SyncStage.SnapshotCreated);
+            BaseOrchestratorTests.AssertConnectionAndTransaction(remoteOrchestrator, SyncStage.SnapshotCreating);
 
-            orchestrator.OnSnapshotCreating(args =>
+            remoteOrchestrator.OnSnapshotCreating(args =>
             {
                 Assert.IsType<SnapshotCreatingArgs>(args);
                 Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
@@ -100,15 +99,13 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 onSnapshotCreating = true;
             });
-            orchestrator.OnSnapshotCreated(args =>
+            remoteOrchestrator.OnSnapshotCreated(args =>
             {
                 Assert.IsType<SnapshotCreatedArgs>(args);
-                Assert.Equal(SyncStage.SnapshotCreated, args.Context.SyncStage);
+                Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Closed, args.Connection.State);
-                Assert.NotNull(args.Schema);
                 Assert.NotNull(args.BatchInfo);
 
                 var finalDirectoryFullName = Path.Combine(snapshotDirectory, scopeName);
@@ -122,13 +119,47 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSnapshotCreated = true;
             });
 
+            var bi = await remoteOrchestrator.CreateSnapshotAsync();
 
-            var bi = await orchestrator.CreateSnapshotAsync();
-
-            Assert.Equal(SyncStage.SnapshotCreated, orchestrator.GetContext().SyncStage);
+            Assert.Equal(SyncStage.SnapshotCreating, remoteOrchestrator.GetContext().SyncStage);
 
             Assert.True(onSnapshotCreating);
             Assert.True(onSnapshotCreated);
+
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider, options, setup, scopeName);
+
+            var onSnapshotApplying = false;
+            var onSnapshotApplied = false;
+
+
+
+            agent.LocalOrchestrator.OnSnapshotApplying(saa =>
+            {
+                onSnapshotApplying = true;
+            });
+
+            agent.LocalOrchestrator.OnSnapshotApplied(saa =>
+            {
+                onSnapshotApplied = true;
+            });
+
+
+            // Making a first sync, will initialize everything we need
+            await agent.SynchronizeAsync();
+
+            Assert.True(onSnapshotApplying);
+            Assert.True(onSnapshotApplied);
+
+
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

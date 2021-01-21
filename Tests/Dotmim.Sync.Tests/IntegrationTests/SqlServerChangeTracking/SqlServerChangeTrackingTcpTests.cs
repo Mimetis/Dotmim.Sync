@@ -14,6 +14,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
+using Dotmim.Sync.MariaDB;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
@@ -43,6 +44,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 case ProviderType.MySql:
                     return new MySqlSyncProvider(cs);
+                case ProviderType.MariaDB:
+                    return new MariaDBSyncProvider(cs);
                 case ProviderType.Sqlite:
                     return new SqliteSyncProvider(cs);
                 case ProviderType.Sql:
@@ -120,16 +123,25 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         private async Task ActivateChangeTracking(string dbName)
         {
 
+            var c = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+
+            // Check if we are using change tracking and it's enabled on the source
+            var isChangeTrackingEnabled = await SqlManagementUtils.IsChangeTrackingEnabledAsync(c, null).ConfigureAwait(false);
+
+            if (isChangeTrackingEnabled)
+                return;
+
+            using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+
             var script = $"ALTER DATABASE {dbName} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 2 DAYS, AUTO_CLEANUP = ON)";
-            using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
-            {
-                masterConnection.Open();
+            
+            
+            masterConnection.Open();
 
-                using (var cmdCT = new SqlCommand(script, masterConnection))
-                    await cmdCT.ExecuteNonQueryAsync();
+            using (var cmdCT = new SqlCommand(script, masterConnection))
+                await cmdCT.ExecuteNonQueryAsync();
 
-                masterConnection.Close();
-            }
+            masterConnection.Close();
         }
 
         /// <summary>

@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Web.Server
         {
             this.Serializers = new SerializersCollection();
             this.Converters = new Collection<IConverter>();
-            this.ServerCacheSlidingExpiration = TimeSpan.FromHours(1);
+            this.ServerCacheSlidingExpiration = TimeSpan.FromHours(12);
             this.ClientCacheSlidingExpiration = TimeSpan.FromMinutes(10);
 
         }

@@ -1,24 +1,37 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    public abstract class BaseOrchestrator
+    public abstract partial class BaseOrchestrator
     {
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
         internal SyncContext syncContext;
         internal ILogger logger;
+
+        // Internal table builder cache
+        private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
+            = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
+
+        // Internal sync adapter cache
+        private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
+            = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -33,7 +46,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the options used by this local orchestrator
         /// </summary>
-        public virtual SyncOptions Options { get; set; }
+        public virtual SyncOptions Options { get; internal set; }
 
         /// <summary>
         /// Gets the Setup used by this local orchestrator
@@ -67,68 +80,80 @@ namespace Dotmim.Sync
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             this.Provider.Orchestrator = this;
-            this.Provider.Options = options;
             this.logger = options.Logger;
         }
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        internal void On<T>(Func<T, Task> interceptorFunc) where T : ProgressArgs =>
-            this.interceptors.GetInterceptor<T>().Set(interceptorFunc);
+        [DebuggerStepThrough]
+        internal void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
+            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
 
         /// <summary>
         /// Set an interceptor to get info on the current sync process
         /// </summary>
-        internal void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
+        [DebuggerStepThrough]
+        internal void On<T>(Func<T, Task> interceptorAction) where T : ProgressArgs =>
             this.interceptors.GetInterceptor<T>().Set(interceptorAction);
 
         /// <summary>
         /// Set a collection of interceptors
         /// </summary>
+        [DebuggerStepThrough]
         internal void On(Interceptors interceptors) => this.interceptors = interceptors;
 
         /// <summary>
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
-        internal Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
+        [DebuggerStepThrough]
+        internal async Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
         {
             if (this.interceptors == null)
-                return Task.CompletedTask;
+                return;
 
             var interceptor = this.interceptors.GetInterceptor<T>();
 
             // Check logger, because we make some reflection here
             if (this.logger.IsEnabled(LogLevel.Debug))
             {
-                var argsTypeName = args.GetType().Name;
+                //for example, getting DatabaseChangesSelectingArgs and transform to DatabaseChangesSelecting
+                var argsTypeName = args.GetType().Name.Replace("Args", "");
+
                 this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
-                this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
             }
 
-
-            return interceptor.RunAsync(args, cancellationToken);
+            await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Affect an interceptor
+        /// </summary>
+        [DebuggerStepThrough]
+        internal void SetInterceptor<T>(Action<T> action) where T : ProgressArgs => this.On(action);
+        internal void SetInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.On(action);
 
         /// <summary>
         /// Gets a boolean returning true if an interceptor of type T, exists
         /// </summary>
+        [DebuggerStepThrough]
         internal bool ContainsInterceptor<T>() where T : ProgressArgs => this.interceptors.Contains<T>();
 
         /// <summary>
         /// Try to report progress
         /// </summary>
+        [DebuggerStepThrough]
         internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             // Check logger, because we make some reflection here
             if (this.logger.IsEnabled(LogLevel.Information))
             {
-                var argsTypeName = args.GetType().Name;
-                this.logger.LogInformation(new EventId(args.EventId, argsTypeName), args);
-
+                var argsTypeName = args.GetType().Name.Replace("Args", ""); ;
                 if (this.logger.IsEnabled(LogLevel.Debug))
                     this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
+                else
+                    this.logger.LogInformation(new EventId(args.EventId, argsTypeName), args);
             }
 
             if (progress == null)
@@ -150,11 +175,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Open a connection
         /// </summary>
+        [DebuggerStepThrough]
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
-            this.logger.LogDebug(SyncEventsId.OpenConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
-            this.logger.LogTrace(SyncEventsId.OpenConnection, new { connection.ConnectionString });
-
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
                 this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), cancellationToken));
@@ -178,14 +201,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Close a connection
         /// </summary>
+        [DebuggerStepThrough]
         internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
-            this.logger.LogDebug(SyncEventsId.CloseConnection, new { connection.Database, connection.DataSource, connection.ConnectionTimeout });
-            this.logger.LogTrace(SyncEventsId.CloseConnection, new { connection.ConnectionString });
+            if (connection != null && connection.State == ConnectionState.Closed)
+                return;
 
-            connection.Close();
+            if (connection != null && connection.State == ConnectionState.Open)
+                connection.Close();
 
-            await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
+            if (!cancellationToken.IsCancellationRequested)
+                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
             this.Provider.OnConnectionClosed(connection);
@@ -194,6 +220,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Encapsulates an error in a SyncException, let provider enrich the error if needed, then throw again
         /// </summary>
+        [DebuggerStepThrough]
         internal void RaiseError(Exception exception)
         {
             var syncException = new SyncException(exception, this.GetContext().SyncStage);
@@ -208,16 +235,64 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Get the provider sync adapter
+        /// </summary>
+        internal DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        {
+            var p = this.Provider.GetParsers(tableDescription, setup);
+
+            var s = JsonConvert.SerializeObject(setup);
+            var data = Encoding.UTF8.GetBytes(s);
+            var hash = HashAlgorithm.SHA256.Create(data);
+            var hashString = Convert.ToBase64String(hash);
+
+            // Create the key
+            var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+
+            // Get a lazy command instance
+            var lazySyncAdapter = syncAdapters.GetOrAdd(commandKey,
+                k => new Lazy<DbSyncAdapter>(() => this.Provider.GetSyncAdapter(tableDescription, setup)));
+
+            // Get the concrete instance
+            var syncAdapter = lazySyncAdapter.Value;
+
+            return syncAdapter;
+        }
+
+        /// <summary>
+        /// Get the provider table builder
+        /// </summary>
+        internal DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var p = this.Provider.GetParsers(tableDescription, setup);
+
+            var s = JsonConvert.SerializeObject(setup);
+            var data = Encoding.UTF8.GetBytes(s);
+            var hash = HashAlgorithm.SHA256.Create(data);
+            var hashString = Convert.ToBase64String(hash);
+
+            // Create the key
+            var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+
+            // Get a lazy command instance
+            var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey, 
+                k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
+
+            // Get the concrete instance
+            var tableBuilder = lazyTableBuilder.Value;
+
+            return tableBuilder;
+        }
+
+        /// <summary>
         /// Sets the current context
         /// </summary>
-        internal virtual void SetContext(SyncContext context)
-        {
-            this.syncContext = context;
-        }
+        internal virtual void SetContext(SyncContext context) => this.syncContext = context;
 
         /// <summary>
         /// Gets the current context
         /// </summary>
+        [DebuggerStepThrough]
         public virtual SyncContext GetContext()
         {
             if (this.syncContext != null)
@@ -226,313 +301,6 @@ namespace Dotmim.Sync
             this.syncContext = new SyncContext(Guid.NewGuid(), this.ScopeName); ;
 
             return this.syncContext;
-        }
-
-        /// <summary>
-        /// Provision the orchestrator database based on the orchestrator Setup, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-                   => this.ProvisionAsync(new SyncSet(this.Setup), provision, cancellationToken, progress);
-
-        /// <summary>
-        /// Provision the orchestrator database based on the schema argument, and the provision enumeration
-        /// </summary>
-        /// <param name="schema">Schema to be applied to the database managed by the orchestrator, through the provider.</param>
-        /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        /// <returns>Full schema with table and columns properties</returns>
-        public virtual async Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
-            using (var connection = this.Provider.CreateConnection())
-            {
-                // log
-                this.logger.LogInformation(SyncEventsId.Provision, new { connection.Database, Provision = provision });
-
-                try
-                {
-                    ctx.SyncStage = SyncStage.Provisioning;
-
-                    // If schema does not have any table, just return
-                    if (schema == null || schema.Tables == null || !schema.HasTables)
-                        throw new MissingTablesException();
-
-                    if (this is LocalOrchestrator && (provision.HasFlag(SyncProvision.ServerHistoryScope) || provision.HasFlag(SyncProvision.ServerScope)))
-                        throw new InvalidProvisionForLocalOrchestratorException();
-                    else if (!(this is LocalOrchestrator) && provision.HasFlag(SyncProvision.ClientScope))
-                        throw new InvalidProvisionForRemoteOrchestratorException();
-
-
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        // Check if we have tables AND columns
-                        // If we don't have any columns it's most probably because user called method with the Setup only
-                        // So far we have only tables names, it's enough to get the schema
-                        if (schema.HasTables && !schema.HasColumns)
-                        {
-                            this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
-                            (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                        }
-
-                        if (!schema.HasTables)
-                            throw new MissingTablesException();
-
-                        if (!schema.HasColumns)
-                            throw new MissingColumnsException();
-
-                        await this.InterceptAsync(new DatabaseProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        await this.Provider.ProvisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.Provisioned;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var args = new DatabaseProvisionedArgs(ctx, provision, schema, connection);
-                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, args);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State == ConnectionState.Open)
-                        connection.Close();
-                }
-
-                return schema;
-            }
-        }
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the Setup table argument, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SetupTable table, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var setup = new SyncSetup();
-            setup.Tables.Add(table);
-
-            return this.DeprovisionAsync(new SyncSet(setup), provision, cancellationToken, progress);
-        }
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.DeprovisionAsync(new SyncSet(this.Setup), provision, cancellationToken, progress);
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
-        /// </summary>
-        /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual async Task DeprovisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
-            using (var connection = this.Provider.CreateConnection())
-            {
-                // Encapsulate in a try catch for a better exception handling
-                // Especially when called from web proxy
-                try
-                {
-                    this.logger.LogInformation(SyncEventsId.Deprovision, new { connection.Database, Provision = provision });
-
-                    ctx.SyncStage = SyncStage.Deprovisioning;
-
-                    // If schema does not have any table, just return
-                    if (schema == null || schema.Tables == null || !schema.HasTables)
-                        throw new MissingTablesException();
-
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new DatabaseDeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        await this.Provider.DeprovisionAsync(ctx, schema, this.Setup, provision, this.Options.ScopeInfoTableName, this.Options.DisableConstraintsOnApplyChanges, connection, transaction, cancellationToken, progress);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.Deprovisioned;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var args = new DatabaseDeprovisionedArgs(ctx, provision, schema, connection);
-                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, args);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State == ConnectionState.Open)
-                        connection.Close();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Read the schema stored from the orchestrator database, through the provider.
-        /// </summary>
-        /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual async Task<SyncSet> GetSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
-
-            SyncSet schema = null;
-            using (var connection = this.Provider.CreateConnection())
-            {
-                // Encapsulate in a try catch for a better exception handling
-                // Especially whew called from web proxy
-                try
-                {
-
-                    this.logger.LogInformation(SyncEventsId.GetSchema, this.Setup);
-
-                    ctx.SyncStage = SyncStage.SchemaReading;
-
-                    if (this.Setup.Tables.Count <= 0)
-                        throw new MissingTablesException();
-
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        (ctx, schema) = await this.Provider.GetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.SchemaRead;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var schemaArgs = new SchemaArgs(ctx, schema, connection);
-                    await this.InterceptAsync(schemaArgs, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, schemaArgs);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-
-                return schema;
-            }
-        }
-
-        /// <summary>
-        /// Delete metadatas items from tracking tables
-        /// </summary>
-        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <param name="progress">Progress args</param>
-        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
-            DatabaseMetadatasCleaned databaseMetadatasCleaned = null;
-            // Get context or create a new one
-            var ctx = this.GetContext();
-            using (var connection = this.Provider.CreateConnection())
-            {
-                try
-                {
-                    this.logger.LogInformation(SyncEventsId.MetadataCleaning, new { connection.Database, TimeStampStart = timeStampStart });
-
-                    ctx.SyncStage = SyncStage.MetadataCleaning;
-
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
-                        // No need columns or primary keys to be able to deprovision a table
-                        SyncSet schema = new SyncSet(this.Setup);
-
-                        (ctx, databaseMetadatasCleaned) = await this.Provider.DeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
-
-                        transaction.Commit();
-                    }
-
-                    ctx.SyncStage = SyncStage.MetadataCleaned;
-
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
-
-                    var args = new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, connection);
-                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, args);
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
-
-                return databaseMetadatasCleaned;
-            }
-
         }
 
 
@@ -551,7 +319,7 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = this.GetContext();
-             
+
             // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
             // so far we return directly false
             if (clientScopeInfo.IsNewScope)
@@ -560,10 +328,7 @@ namespace Dotmim.Sync
             // Check if the provider is not outdated
             // We can have negative value where we want to compare anyway
             if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
-            {
                 isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
-                this.logger.LogInformation(SyncEventsId.IsOutdated, new { serverScopeInfo.LastCleanupTimestamp, clientScopeInfo.LastServerSyncTimestamp, IsOutDated = isOutdated });
-            }
 
             // Get a chance to make the sync even if it's outdated
             if (isOutdated)
@@ -574,10 +339,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(outdatedArgs, cancellationToken).ConfigureAwait(false);
 
                 if (outdatedArgs.Action != OutdatedAction.Rollback)
-                {
                     ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
-                    this.logger.LogDebug(SyncEventsId.IsOutdated, outdatedArgs);
-                }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
                     throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);
@@ -586,59 +348,145 @@ namespace Dotmim.Sync
             return isOutdated;
         }
 
-
-        /// <summary>
-        /// Get the last timestamp from the orchestrator database
-        /// </summary>
-        public virtual async Task<long> GetLocalTimestampAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
+                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            // get database builder
+            var databaseBuilder = this.Provider.GetDatabaseBuilder();
 
+            var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
+
+            return (context, hello.DatabaseName, hello.Version);
+        }
+
+
+        [DebuggerStepThrough]
+        internal async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+             CancellationToken cancellationToken = default)
+        {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
-            
+
             // Get context or create a new one
             var ctx = this.GetContext();
 
-            long timestamp = 0;
-            using (var connection = this.Provider.CreateConnection())
+            T result = default;
+
+            using var connection = this.Provider.CreateConnection();
+
+            try
             {
-                try
-                {
-                    // Open connection
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                if (stage != SyncStage.None)
+                    ctx.SyncStage = stage;
 
-                    // Create a transaction
-                    using (var transaction = connection.BeginTransaction())
-                    {
-                        await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                // Open connection
+                await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                        timestamp = await this.Provider.GetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
+                // Create a transaction
+                using var transaction = connection.BeginTransaction();
 
-                        await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                        transaction.Commit();
-                    }
+                if (actionTask != null)
+                    result = await actionTask(ctx, connection, transaction);
 
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-                }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
-                finally
-                {
-                    if (connection != null && connection.State != ConnectionState.Closed)
-                        connection.Close();
-                }
+                transaction.Commit();
 
-                this.logger.LogInformation(SyncEventsId.GetLocalTimestamp, new { connection.Database, timestamp });
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
-                return timestamp;
+                return result;
             }
-
-            
+            catch (Exception ex)
+            {
+                RaiseError(ex);
+            }
+            finally
+            {
+                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+            }
+            return default;
         }
 
+
+
+        /// <summary>
+        /// Get a snapshot root directory name and folder directory name
+        /// </summary>
+        public virtual Task<(string DirectoryRoot, string DirectoryName)>
+            GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            // check parameters
+            // If context has no parameters specified, and user specifies a parameter collection we switch them
+            if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
+                ctx.Parameters = syncParameters;
+
+            return this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress);
+        }
+
+
+        /// <summary>
+        /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
+        /// </summary>
+        internal virtual async Task<bool> InternalCanCleanFolderAsync(SyncContext context, BatchInfo batchInfo,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            if (batchInfo.InMemory)
+                return false;
+
+            var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
+
+            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync();
+
+            if (string.IsNullOrEmpty(snapshotRootDirectory))
+                return true;
+
+            var snapInfo = Path.Combine(snapshotRootDirectory, snapshotNameDirectory);
+            var snapshotDirectoryFullPath = new DirectoryInfo(snapInfo);
+
+            var canCleanFolder = batchInfoDirectoryFullPath.FullName != snapshotDirectoryFullPath.FullName;
+
+            return canCleanFolder;
+        }
+
+
+        internal virtual Task<(string DirectoryRoot, string DirectoryName)> InternalGetSnapshotDirectoryAsync(SyncContext context,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+
+            if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
+                return Task.FromResult<(string, string)>((default, default));
+
+            // cleansing scope name
+            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+
+            var directoryFullPath = Path.Combine(this.Options.SnapshotsDirectory, directoryScopeName);
+
+            var sb = new StringBuilder();
+            var underscore = "";
+
+            if (context.Parameters != null)
+            {
+                foreach (var p in context.Parameters.OrderBy(p => p.Name))
+                {
+                    var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
+                    var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
+
+                    sb.Append($"{underscore}{cleanName}_{cleanValue}");
+                    underscore = "_";
+                }
+            }
+
+            var directoryName = sb.ToString();
+            directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
+
+            return Task.FromResult((directoryFullPath, directoryName));
+
+        }
     }
 }

@@ -13,9 +13,9 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public class FancyCoreProvider : CoreProvider
     {
-        public override DbMetadata Metadata { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public override DbMetadata GetMetadata() => throw new NotImplementedException();
 
-        public override string ProviderTypeName => "Fancy";
+        public override string GetProviderTypeName() => "Fancy";
 
         public override bool SupportBulkOperations => throw new NotImplementedException();
 
@@ -24,11 +24,9 @@ namespace Dotmim.Sync.Web.Client
         public override DbConnection CreateConnection() => throw new NotImplementedException();
 
         public override DbBuilder GetDatabaseBuilder() => throw new NotImplementedException();
-
-        public override DbScopeBuilder GetScopeBuilder() => throw new NotImplementedException();
-
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
+        public override DbScopeBuilder GetScopeBuilder(string scope) => throw new NotImplementedException();
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
-
-        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => throw new NotImplementedException();
     }
 }

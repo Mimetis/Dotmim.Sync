@@ -109,7 +109,17 @@ namespace Dotmim.Sync.Postgres
 
         public override DbConnection CreateConnection() => new NpgsqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder() => new NpgsqlScopeBuilder();
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new NpgsqlTableBuilder(tableDescription, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var tableBuilder = new NpgsqlTableBuilder(tableDescription, setup)
+            {
+                UseBulkProcedures = this.SupportBulkOperations,
+                UseChangeTracking = this.UseChangeTracking,
+                Filter = tableDescription.GetFilter()
+            };
+
+            return tableBuilder;
+        }
         public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new NpgsqlManager(tableName, schemaName);
         public override DbBuilder GetDatabaseBuilder() => new NpgsqlBuilder();
 

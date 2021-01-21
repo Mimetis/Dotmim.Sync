@@ -34,7 +34,6 @@ namespace Dotmim.Sync
 
         public ILogger CreateLogger(string categoryName)
         {
-
             var syncLogger = new SyncLogger();
 
             if (this.ConfigureOptions != null)

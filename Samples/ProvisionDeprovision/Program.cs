@@ -64,7 +64,7 @@ namespace ProvisionDeprovision
             serverScope.Schema = newSchema;
 
             // save the server scope
-            await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+            await remoteOrchestrator.SaveServerScopeAsync(serverScope);
         }
 
 
@@ -92,7 +92,7 @@ namespace ProvisionDeprovision
             serverScope.Schema = null;
 
             // save the server scope
-            await remoteOrchestrator.WriteServerScopeAsync(serverScope);
+            await remoteOrchestrator.SaveServerScopeAsync(serverScope);
         }
         private static async Task DeprovisionClientManuallyAsync()
         {
@@ -118,7 +118,7 @@ namespace ProvisionDeprovision
             clientScope.Schema = null;
 
             // save the local scope
-            await localOrchestrator.WriteClientScopeAsync(clientScope);
+            await localOrchestrator.SaveClientScopeAsync(clientScope);
         }
 
 
@@ -171,7 +171,7 @@ namespace ProvisionDeprovision
             clientScope.Schema = serverSchema;
 
             // save the client scope
-            await localOrchestrator.WriteClientScopeAsync(clientScope);
+            await localOrchestrator.SaveClientScopeAsync(clientScope);
 
         }
     }
