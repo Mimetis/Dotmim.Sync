@@ -1759,21 +1759,16 @@ internal class Program
         {
             var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
 
-            var orchestrator = webServerManager.GetOrchestrator(context);
+            var webServerOrchestrator = webServerManager.GetOrchestrator(context);
 
-            orchestrator.OnHttpGettingRequest(req =>
-            {
-                Console.WriteLine("SRV REQ:" + req.Context.SyncStage + ". " + req.HttpContext.Request.Path + ". ");
-            });
+            //webServerOrchestrator.OnHttpGettingRequest(req =>
+            //    Console.WriteLine("Receiving Client Request:" + req.Context.SyncStage + ". " + req.HttpContext.Request.Host.Host + "."));
 
+            //webServerOrchestrator.OnHttpSendingResponse(res =>
+            //    Console.WriteLine("Sending Client Response:" + res.Context.SyncStage + ". " + res.HttpContext.Request.Host.Host));
 
-            orchestrator.OnHttpSendingResponse(res =>
-            {
-                Console.WriteLine("SRV RES:" + res.Context.SyncStage + ". " + res.HttpContext.Request.Path);
-            });
-
-            orchestrator.OnHttpGettingChanges(args => Console.WriteLine("SRV " + args));
-            orchestrator.OnHttpSendingChanges(args => Console.WriteLine("SRV " + args));
+            //webServerOrchestrator.OnHttpGettingChanges(args => Console.WriteLine("Getting Client Changes" + args));
+            //webServerOrchestrator.OnHttpSendingChanges(args => Console.WriteLine("Sending Server Changes" + args));
 
             await webServerManager.HandleRequestAsync(context);
 
@@ -1788,6 +1783,12 @@ internal class Program
                 try
                 {
                     var localOrchestrator = new WebClientOrchestrator(serviceUri);
+
+                    
+                    localOrchestrator.OnHttpGettingResponse(req => Console.WriteLine("Receiving Server Response"));
+                    localOrchestrator.OnHttpSendingRequest(res =>Console.WriteLine("Sending Client Request."));
+                    localOrchestrator.OnHttpGettingChanges(args => Console.WriteLine("Getting Server Changes" + args));
+                    localOrchestrator.OnHttpSendingChanges(args => Console.WriteLine("Sending Client Changes" + args));
 
                     var agent = new SyncAgent(clientProvider, localOrchestrator, options);
                     var s = await agent.SynchronizeAsync();
