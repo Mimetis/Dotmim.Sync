@@ -844,6 +844,9 @@ namespace Dotmim.Sync.Tests
             // Assert if datetime are correctly converted to long
             this.WebServerOrchestrator.OnHttpSendingChanges(sra =>
             {
+                if (sra.Response.Changes == null)
+                    return;
+
                 // check we have rows
                 Assert.True(sra.Response.Changes.HasRows);
 
