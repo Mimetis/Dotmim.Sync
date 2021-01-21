@@ -9,19 +9,14 @@ namespace Dotmim.Sync.Builders
     public abstract class DbBuilder
     {
         /// <summary>
-        /// Gets or Sets if the Database builder supports bulk procedures
+        /// First step before creating schema
         /// </summary>
-        public bool UseBulkProcedures { get; set; } = true;
-
-        /// <summary>
-        /// Gets or Sets if the Database builder shoud use change tracking
-        /// </summary>
-        public bool UseChangeTracking { get; set; } = false;
+        public abstract Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
         /// First step before creating schema
         /// </summary>
-        public abstract Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null);
+        public abstract Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
         /// Make a hello test on the current database

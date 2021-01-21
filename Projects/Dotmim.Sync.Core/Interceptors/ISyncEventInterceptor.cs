@@ -15,4 +15,9 @@ namespace Dotmim.Sync
         Task RunAsync(T args, CancellationToken cancellationToken);
     }
 
+    public interface ISyncInterceptor2 : ISyncInterceptor
+    {
+        Task RunAsync(object args, CancellationToken cancellationToken);
+    }
+
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
@@ -10,20 +11,21 @@ namespace Dotmim.Sync
     /// <summary>
     /// Object representing a migration about to start
     /// </summary>
-    public class DatabaseMigratingArgs : ProgressArgs
+    public class MigratingArgs : ProgressArgs
     {
-        public DatabaseMigratingArgs(SyncContext context, SyncSet newSchema, SyncSetup oldSetup, SyncSetup newSetup, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+        public MigratingArgs(SyncContext context, SyncSet newSchema, SyncSetup oldSetup, SyncSetup newSetup, MigrationResults migrationResults, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
             this.NewSchema = newSchema;
             this.OldSetup = oldSetup;
             this.NewSetup = newSetup;
+            this.MigrationResults = migrationResults;
         }
 
 
         /// <summary>
         /// Gets message about migration
         /// </summary>
-        public override string Message => $"[{Connection.Database}] applying migration...";
+        public override string Message => $"[{Connection.Database}] Applying Migration.";
 
         /// <summary>
         /// Gets the schema used to apply migration
@@ -39,24 +41,27 @@ namespace Dotmim.Sync
         /// Gets the new setup to apply
         /// </summary>
         public SyncSetup NewSetup { get; }
-        public override int EventId => 19;
+        public MigrationResults MigrationResults { get; }
+
+        public override int EventId => SyncEventsId.DatabaseMigrating.Id;
     }
 
     /// <summary>
     /// Once migrated you have a new setup and schema available
     /// </summary>
-    public class DatabaseMigratedArgs : ProgressArgs
+    public class MigratedArgs : ProgressArgs
     {
-        public DatabaseMigratedArgs(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public MigratedArgs(SyncContext context, SyncSet schema, SyncSetup setup, MigrationResults migration, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
             this.Schema = schema;
             this.Setup = setup;
+            this.Migration = migration;
         }
 
         /// <summary>
         /// Gets message about migration
         /// </summary>
-        public override string Message => $"Migrated. Setup tables count:{Setup.Tables.Count}.";
+        public override string Message => $"[{Connection.Database}] Migrated. Tables:{Setup.Tables.Count}.";
 
         /// <summary>
         /// Gets the schema currently used
@@ -67,6 +72,47 @@ namespace Dotmim.Sync
         /// Gets the new setup applied
         /// </summary>
         public SyncSetup Setup { get; }
-        public override int EventId => 20;
+
+        /// <summary>
+        /// Gets the Migration results
+        /// </summary>
+        public MigrationResults Migration { get; }
+
+        public override int EventId => SyncEventsId.DatabaseMigrated.Id;
     }
+
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the orchestrator when migrating a Setup
+        /// </summary>
+        public static void OnMigrating(this BaseOrchestrator orchestrator, Action<MigratingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the orchestrator when migrating a Setup
+        /// </summary>
+        public static void OnMigrating(this BaseOrchestrator orchestrator, Func<MigratingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when a Setup has been migrated
+        /// </summary>
+        public static void OnMigrated(this BaseOrchestrator orchestrator, Action<MigratedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the orchestrator when a Setup has been migrated
+        /// </summary>
+        public static void OnMigrated(this BaseOrchestrator orchestrator, Func<MigratedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+    }
+
+
+    public static partial class SyncEventsId
+    {
+        public static EventId DatabaseMigrating => CreateEventId(4000, nameof(DatabaseMigrating));
+        public static EventId DatabaseMigrated => CreateEventId(4050, nameof(DatabaseMigrated));
+    }
+
 }

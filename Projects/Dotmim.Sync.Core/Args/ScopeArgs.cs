@@ -1,126 +1,286 @@
-﻿using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    /// <summary>
-    /// Args generated when a scope is about to be loaded
-    /// </summary>
+
+
+    public class ScopeTableDroppedArgs : ProgressArgs
+    {
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+
+        public ScopeTableDroppedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
+        }
+
+        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Dropped.";
+
+        public override int EventId => SyncEventsId.ScopeTableDropped.Id;
+    }
+
+    public class ScopeTableCreatedArgs : ProgressArgs
+    {
+        public ScopeTableCreatedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
+        {
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
+        }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public override int EventId => SyncEventsId.ScopeTableCreated.Id;
+    }
+
+    public class ScopeTableDroppingArgs : ProgressArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; set; }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+
+        public ScopeTableDroppingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context,  connection, transaction)
+        {
+            this.Command = command;
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
+        }
+        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Dropping.";
+        public override int EventId => SyncEventsId.ScopeTableDropping.Id;
+
+    }
+
+    public class ScopeTableCreatingArgs : ProgressArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; set; }
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
+        {
+            this.Command = command;
+            this.ScopeType = scopeType;
+            this.ScopeName = scopeName;
+        }
+        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Creating.";
+        public override int EventId => SyncEventsId.ScopeTableCreating.Id;
+    }
+
+    public class ScopeLoadedArgs<T> : ProgressArgs where T : class
+    {
+        public DbScopeType ScopeType { get; }
+        public string ScopeName { get; }
+        public ScopeLoadedArgs(SyncContext context, string scopeName, DbScopeType scopeType, T scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
+            : base(context, connection, transaction)
+        {
+            this.ScopeInfo = scopeInfo;
+        }
+
+        public override string Message {
+            get
+            {
+                return this.ScopeInfo switch
+                {
+                    ServerScopeInfo ssi => $"[{Connection.Database}] [{ssi?.Name}] [Version {ssi.Version}] Last cleanup Timestamp:{ssi?.LastCleanupTimestamp}.",
+                    ScopeInfo si => $"[{Connection.Database}] [{si?.Name}] [Version {si.Version}] Last sync:{si?.LastSync} Last sync duration:{si?.LastSyncDurationString}.",
+                    _ => base.Message
+                };
+            }
+        }
+        public T ScopeInfo { get; }
+        public override int EventId => SyncEventsId.ScopeLoaded.Id;
+    }
+
     public class ScopeLoadingArgs : ProgressArgs
     {
-        public ScopeLoadingArgs(SyncContext context, string scopeName, string scopeTableInfoName, DbConnection connection, DbTransaction transaction)
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; set; }
+        public DbScopeType ScopeType { get; set; }
+        public string ScopeName { get; }
+        public ScopeLoadingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, connection, transaction)
         {
+            this.Command = command;
+            this.ScopeType = scopeType;
             this.ScopeName = scopeName;
-            this.ScopeTableInfoName = scopeTableInfoName;
         }
+        public override int EventId => SyncEventsId.ScopeLoading.Id;
+        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Loading.";
+    }
 
-        /// <summary>
-        /// Gets the scope name to load from the client database
-        /// </summary>
+    public class ScopeSavingArgs : ProgressArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; set; }
+        public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
 
-        /// <summary>
-        /// Gets the table where the scope will be loaded from.
-        /// </summary>
-        public string ScopeTableInfoName { get; }
-
-        public override string Message => $"Loading scope {this.ScopeName} from table {this.ScopeTableInfoName}";
-
-        public override int EventId => 28;
-    }
-
-    /// <summary>
-    /// Args generated when a scope has been loaded from client database
-    /// </summary>
-    public class ScopeLoadedArgs : ProgressArgs
-    {
-        public ScopeLoadedArgs(SyncContext context, ScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
+        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, connection, transaction)
         {
-            this.ScopeInfo = scope;
-        }
-
-        /// <summary>
-        /// Gets the current scope from the local database
-        /// </summary>
-        public ScopeInfo ScopeInfo { get; }
-
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}] Last sync:{ScopeInfo?.LastSync} Last sync duration:{ScopeInfo?.LastSyncDurationString} ";
-        public override int EventId => 29;
-    }
-
-
-    /// <summary>
-    /// Args generated when a server scope is about to be loaded from server
-    /// </summary>
-    public class ServerScopeLoadingArgs : ProgressArgs
-    {
-        public ServerScopeLoadingArgs(SyncContext context, string scopeName, string scopeTableInfoName, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
+            this.Command = command;
+            this.ScopeType = scopeType;
             this.ScopeName = scopeName;
-            this.ScopeTableInfoName = scopeTableInfoName;
         }
+        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Saving.";
 
-        /// <summary>
-        /// Gets the scope name to load from the client database
-        /// </summary>
+        public object ScopeInfo { get; }
+        public override int EventId => SyncEventsId.ScopeSaving.Id;
+    }
+
+    public class ScopeSavedArgs : ProgressArgs
+    {
+        public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
-
-        /// <summary>
-        /// Gets the table where the scope will be loaded from.
-        /// </summary>
-        public string ScopeTableInfoName { get; }
-
-        public override string Message => $"Loading server scope {this.ScopeName} from table {this.ScopeTableInfoName}";
-
-        public override int EventId => 30;
-    }
-
-    /// <summary>
-    /// Args generated before and after a scope has been applied
-    /// </summary>
-    public class ServerScopeLoadedArgs : ProgressArgs
-    {
-        public ServerScopeLoadedArgs(SyncContext context, ServerScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
+        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, connection, transaction)
         {
-            this.ScopeInfo = scope;
+            this.ScopeType = scopeType;
+            this.ScopeInfo = scopeInfo;
+            this.ScopeName = scopeName;
         }
+        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Saved.";
 
-        /// <summary>
-        /// Gets the current scope from the local database
-        /// </summary>
-        public ServerScopeInfo ScopeInfo { get; }
-
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo.Version}]";
-
-        public override int EventId => 31;
+        public object ScopeInfo { get; }
+        public override int EventId => SyncEventsId.ScopeSaved.Id;
     }
 
-
-    /// <summary>
-    /// Args generated before and after a scope has been applied
-    /// </summary>
-    public class ServerHistoryScopeLoadedArgs : ProgressArgs
+    public static partial class InterceptorsExtensions
     {
-        public ServerHistoryScopeLoadedArgs(SyncContext context, ServerHistoryScopeInfo scope, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            this.ScopeInfo = scope;
-        }
+        /// <summary>
+        /// Intercept the provider action when a scope table is creating
+        /// </summary>
+        public static void OnScopeTableCreating(this BaseOrchestrator orchestrator, Action<ScopeTableCreatingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is creating
+        /// </summary>
+        public static void OnScopeTableCreating(this BaseOrchestrator orchestrator, Func<ScopeTableCreatingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Gets the current scope from the local database
+        /// Intercept the provider action when a scope table is created
         /// </summary>
-        public ServerHistoryScopeInfo ScopeInfo { get; }
+        public static void OnScopeTableCreated(this BaseOrchestrator orchestrator, Action<ScopeTableCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is created
+        /// </summary>
+        public static void OnScopeTableCreated(this BaseOrchestrator orchestrator, Func<ScopeTableCreatedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}]";
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropping
+        /// </summary>
+        public static void OnScopeTableDropping(this BaseOrchestrator orchestrator, Action<ScopeTableDroppingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropping
+        /// </summary>
+        public static void OnScopeTableDropping(this BaseOrchestrator orchestrator, Func<ScopeTableDroppingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
 
-        public override int EventId => 32;
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropped
+        /// </summary>
+        public static void OnScopeTableDropped(this BaseOrchestrator orchestrator, Action<ScopeTableDroppedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope table is dropped
+        /// </summary>
+        public static void OnScopeTableDropped(this BaseOrchestrator orchestrator, Func<ScopeTableDroppedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this LocalOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// </summary>
+        public static void OnScopeLoading(this LocalOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from ServerScope database
+        /// </summary>
+        public static void OnServerScopeLoading(this RemoteOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is about to be loaded from ServerScope database
+        /// </summary>
+        public static void OnServerScopeLoading(this RemoteOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs<ScopeInfo>> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from client database
+        /// </summary>
+        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Func<ScopeLoadedArgs<ScopeInfo>, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from Server database
+        /// </summary>
+        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs<ServerScopeInfo>> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is loaded from Server database
+        /// </summary>
+        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Func<ScopeLoadedArgs<ServerScopeInfo>, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is saving
+        /// </summary>
+        public static void OnScopeSaving(this BaseOrchestrator orchestrator, Action<ScopeSavingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is saving
+        /// </summary>
+        public static void OnScopeSaving(this BaseOrchestrator orchestrator, Func<ScopeSavingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a scope is saved
+        /// </summary>
+        public static void OnScopeSaved(this BaseOrchestrator orchestrator, Action<ScopeSavedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the provider action when a scope is saved
+        /// </summary>
+        public static void OnScopeSaved(this BaseOrchestrator orchestrator, Func<ScopeSavedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
     }
+    public static partial class SyncEventsId
+    {
+        public static EventId ScopeTableCreating => CreateEventId(7000, nameof(ScopeTableCreating));
+        public static EventId ScopeTableCreated => CreateEventId(7050, nameof(ScopeTableCreated));
+        public static EventId ScopeTableDropping => CreateEventId(7100, nameof(ScopeTableDropping));
+        public static EventId ScopeTableDropped => CreateEventId(7150, nameof(ScopeTableDropped));
+        public static EventId ScopeLoading => CreateEventId(7200, nameof(ScopeLoading));
+        public static EventId ScopeLoaded => CreateEventId(7250, nameof(ScopeLoaded));
+        public static EventId ServerScopeScopeLoading => CreateEventId(7300, nameof(ServerScopeScopeLoading));
+        public static EventId ServerScopeScopeLoaded => CreateEventId(7350, nameof(ServerScopeScopeLoaded));
+        public static EventId ScopeSaving => CreateEventId(7400, nameof(ScopeSaving));
+        public static EventId ScopeSaved => CreateEventId(7450, nameof(ScopeSaved));
+    }
+
 }

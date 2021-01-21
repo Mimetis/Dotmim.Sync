@@ -156,6 +156,8 @@ namespace Dotmim.Sync
                 return TryConvertTo<byte[]>(value, provider);
             else if (typeConverter.CanConvertFrom(typeOfT))
                 return Convert.ChangeType(typeConverter.ConvertFrom(value), typeOfT, provider);
+            else if (typeOfT == typeof(Object))
+                return value;
             else
                 throw new FormatTypeException(typeOfT);
 

@@ -83,14 +83,12 @@ namespace Dotmim.Sync.MySql
             try
             {
 
-                using (MySqlDataReader reader = cmd.ExecuteReader())
-                {
-                    reader.Read();
-                    string body = reader.GetString(2);
-                    string sqlMode = reader.GetString(1);
-                    reader.Close();
-                    ParseProcedureBody(parametersTable, body, sqlMode, schema, procName);
-                }
+                using MySqlDataReader reader = cmd.ExecuteReader();
+                reader.Read();
+                string body = reader.GetString(2);
+                string sqlMode = reader.GetString(1);
+                reader.Close();
+                ParseProcedureBody(parametersTable, body, sqlMode, schema, procName);
             }
             catch (Exception)
             {

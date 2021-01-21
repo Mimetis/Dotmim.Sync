@@ -12,7 +12,7 @@
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.5.8</Version>
+    <Version>0.6.0</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>8.0</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
@@ -42,7 +42,7 @@
 
   <ItemGroup>
     <PackageReference Include="MySqlConnector">
-      <Version>0.63.0</Version>
+      <Version>0.69.10</Version>
     </PackageReference>
   </ItemGroup>  
   

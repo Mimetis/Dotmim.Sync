@@ -12,10 +12,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Dotmim.Sync.Manager;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlBuilderTable : IDbBuilderTableHelper
+    public class SqlBuilderTable
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -60,73 +61,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             return name;
         }
 
-        //public async Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation relation, DbConnection connection, DbTransaction transaction)
-        //{
-        //    // Don't want foreign key on same table since it could be a problem on first 
-        //    // sync. We are not sure that parent row will be inserted in first position
-        //    //if (relation.GetParentTable() == relation.GetTable())
-        //    //    return false;
-
-        //    string tableName = relation.GetTable().TableName;
-        //    string schemaName = relation.GetTable().SchemaName;
-        //    string fullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
-        //    var relationName = NormalizeRelationName(relation.RelationName);
-
-        //    var syncTable = await SqlManagementUtils.GetRelationsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, tableName, schemaName).ConfigureAwait(false);
-
-        //    var foreignKeyExist = syncTable.Rows.Any(r =>
-        //       string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
-
-        //    return !foreignKeyExist;
-
-        //}
-        
-        //private SqlCommand BuildForeignKeyConstraintsCommand(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
-        //{
-        //    var sqlCommand = new SqlCommand();
-        //    sqlCommand.Connection = (SqlConnection)connection;
-        //    sqlCommand.Transaction = (SqlTransaction)transaction;
-
-
-        //    var stringBuilder = new StringBuilder();
-
-        //    sqlCommand.CommandText = stringBuilder.ToString();
-        //    return sqlCommand;
-        //}
-      
-        //public async Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
-        //{
-        //    using (var command = BuildForeignKeyConstraintsCommand(constraint, connection, transaction))
-        //    {
-        //        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-        //    }
-        //}
-
-        //private SqlCommand BuildPkCommand(DbConnection connection, DbTransaction transaction)
-        //{
-        //    var stringBuilder = new StringBuilder();
-        //    var tableNameString = tableName.Schema().Quoted().ToString();
-        //    var primaryKeyNameString = tableName.Schema().Unquoted().Normalized().ToString();
-
-
-        //    return new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
-        //}
-        //public async Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction)
-        //{
-        //    using (var command = BuildPkCommand(connection, transaction))
-        //    {
-        //        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-        //    }
-        //}
-
-        private SqlCommand BuildTableCommand(DbConnection connection, DbTransaction transaction)
+        private SqlCommand BuildCreateTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
             var tbl = tableName.ToString();
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-            stringBuilder.AppendLine("IF NOT EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) ");
-            stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
@@ -210,11 +150,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 stringBuilder.Append(" ) ");
             }
-
-            stringBuilder.AppendLine("END");
             string createTableCommandString = stringBuilder.ToString();
 
-            var command =  new SqlCommand(createTableCommandString, (SqlConnection)connection, (SqlTransaction)transaction);
+            var command = new SqlCommand(createTableCommandString, (SqlConnection)connection, (SqlTransaction)transaction);
 
             SqlParameter sqlParameter = new SqlParameter()
             {
@@ -233,67 +171,282 @@ namespace Dotmim.Sync.SqlServer.Builders
             return command;
         }
 
-        private SqlCommand BuildDeleteTableCommand(DbConnection connection, DbTransaction transaction)
+        internal async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+
+            var lstKeys = new List<SyncColumn>();
+
+            foreach (var dmKey in syncTableKeys.Rows)
+            {
+                var keyColumn = SyncColumn.Create<string>((string)dmKey["columnName"]);
+                keyColumn.Ordinal = Convert.ToInt32(dmKey["column_id"]);
+                lstKeys.Add(keyColumn);
+            }
+
+            return lstKeys;
+
+        }
+        internal async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var relations = new List<DbRelationDefinition>();
+            var tableRelations = await SqlManagementUtils.GetRelationsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+
+            if (tableRelations != null && tableRelations.Rows.Count > 0)
+            {
+                foreach (var fk in tableRelations.Rows.GroupBy(row =>
+                new
+                {
+                    Name = (string)row["ForeignKey"],
+                    TableName = (string)row["TableName"],
+                    SchemaName = (string)row["SchemaName"] == "dbo" ? "" : (string)row["SchemaName"],
+                    ReferenceTableName = (string)row["ReferenceTableName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "dbo" ? "" : (string)row["ReferenceSchemaName"],
+                }))
+                {
+                    var relationDefinition = new DbRelationDefinition()
+                    {
+                        ForeignKey = fk.Key.Name,
+                        TableName = fk.Key.TableName,
+                        SchemaName = fk.Key.SchemaName,
+                        ReferenceTableName = fk.Key.ReferenceTableName,
+                        ReferenceSchemaName = fk.Key.ReferenceSchemaName,
+                    };
+
+                    relationDefinition.Columns.AddRange(fk.Select(dmRow =>
+                       new DbRelationColumnDefinition
+                       {
+                           KeyColumnName = (string)dmRow["ColumnName"],
+                           ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
+                           Order = (int)dmRow["ForeignKeyOrder"]
+                       }));
+
+                    relations.Add(relationDefinition);
+                }
+
+            }
+            return relations.OrderBy(t => t.ForeignKey).ToArray();
+
+        }
+        internal async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var columns = new List<SyncColumn>();
+            // Get the columns definition
+            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+            var sqlDbMetadata = new SqlDbMetadata();
+
+            foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
+            {
+                var typeName = c["type"].ToString();
+                var name = c["name"].ToString();
+                var maxLengthLong = Convert.ToInt64(c["max_length"]);
+
+                // Gets the datastore owner dbType 
+                var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
+                // once we have the datastore type, we can have the managed type
+                var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+
+                var sColumn = new SyncColumn(name, columnType);
+                sColumn.OriginalDbType = datastoreDbType.ToString();
+                sColumn.Ordinal = (int)c["column_id"];
+                sColumn.OriginalTypeName = c["type"].ToString();
+                sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
+                sColumn.Precision = (byte)c["precision"];
+                sColumn.Scale = (byte)c["scale"];
+                sColumn.AllowDBNull = (bool)c["is_nullable"];
+                sColumn.IsAutoIncrement = (bool)c["is_identity"];
+                sColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
+                sColumn.IsCompute = (bool)c["is_computed"];
+                sColumn.DefaultValue = c["defaultvalue"] != DBNull.Value ? c["defaultvalue"].ToString() : null;
+
+                if (sColumn.IsAutoIncrement)
+                {
+                    sColumn.AutoIncrementSeed = Convert.ToInt32(c["seed"]);
+                    sColumn.AutoIncrementStep = Convert.ToInt32(c["step"]);
+                }
+
+                switch (sColumn.OriginalTypeName.ToLowerInvariant())
+                {
+                    case "nchar":
+                    case "nvarchar":
+                        sColumn.IsUnicode = true;
+                        break;
+                    default:
+                        sColumn.IsUnicode = false;
+                        break;
+                }
+
+                // No unsigned type in SQL Server
+                sColumn.IsUnsigned = false;
+
+                columns.Add(sColumn);
+            }
+
+            return columns;
+        }
+        public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            if (schema == "dbo")
+                return null;
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"Create Schema {schema}";
+
+            return Task.FromResult(command);
+        }
+        public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var command = BuildCreateTableCommand(connection, transaction);
+            return Task.FromResult((DbCommand)command);
+        }
+        public Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var tbl = tableName.ToString();
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) ");
-            stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine("END");
+            var command = connection.CreateCommand();
 
-            var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0;";
 
-            SqlParameter sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@tableName",
-                Value = tbl
-            };
-            command.Parameters.Add(sqlParameter);
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tbl;
+            command.Parameters.Add(parameter);
 
-            sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@schemaName",
-                Value = schema
-            };
-            command.Parameters.Add(sqlParameter);
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = schema;
+            command.Parameters.Add(parameter);
 
-            return command;
+            return Task.FromResult(command);
+        }
+        public Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = "IF EXISTS (SELECT sch.name FROM sys.schemas sch WHERE sch.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = schema;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+        public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {tableName.Schema().Quoted().ToString()};";
+
+            return Task.FromResult(command);
         }
 
-        public async Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "dbo")
-                return;
+            var command = connection.CreateCommand();
 
-            var schemaExists = await SqlManagementUtils.SchemaExistsAsync((SqlConnection)connection, (SqlTransaction)transaction, tableName.SchemaName);
+            command.Connection = connection;
+            command.Transaction = transaction;
 
-            if (schemaExists)
-                return;
+            var stringBuilder = new StringBuilder($"ALTER TABLE {tableName.Schema().Quoted().ToString()} WITH NOCHECK ");
 
-            var schemaCommand = $"Create Schema {tableName.SchemaName}";
+            var column = this.tableDescription.Columns[columnName];
+            var columnNameString = ParserName.Parse(column).Quoted().ToString();
 
-            using var command = new SqlCommand(schemaCommand, (SqlConnection)connection, (SqlTransaction)transaction);
-            
-            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
+            var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var columnType = $"{columnTypeString} {columnPrecisionString}";
+            var identity = string.Empty;
 
-        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = BuildTableCommand(connection, transaction))
+            if (column.IsAutoIncrement)
             {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                var s = column.GetAutoIncrementSeedAndStep();
+                identity = $"IDENTITY({s.Seed},{s.Step})";
             }
+            var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
+
+            // if we have a computed column, we should allow null
+            if (column.IsReadOnly)
+                nullString = "NULL";
+
+            string defaultValue = string.Empty;
+            if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
+            {
+                if (!string.IsNullOrEmpty(column.DefaultValue))
+                {
+                    defaultValue = "DEFAULT " + column.DefaultValue;
+                }
+            }
+
+            stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
+
+            command.CommandText = stringBuilder.ToString();
+
+            return Task.FromResult(command);
         }
 
-        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            using (var command = BuildDeleteTableCommand(connection, transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} WITH NOCHECK DROP COLUMN {columnName};";
+
+            return Task.FromResult(command);
         }
+
+        public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var tbl = tableName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"IF EXISTS (" +
+                $"SELECT col.* " +
+                $"FROM sys.columns as col " +
+                $"JOIN sys.tables as t on t.object_id = col.object_id " +
+                $"JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName and col.name=@columnName) SELECT 1 ELSE SELECT 0;";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tbl;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = schema;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@columnName";
+            parameter.Value = columnName;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+
     }
+
+
 }

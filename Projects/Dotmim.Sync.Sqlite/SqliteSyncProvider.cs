@@ -13,27 +13,19 @@ namespace Dotmim.Sync.Sqlite
     public class SqliteSyncProvider : CoreProvider
     {
 
-       
+
         private string filePath;
         private DbMetadata dbMetadata;
         private static String providerType;
 
-        public override DbMetadata Metadata
+        public override DbMetadata GetMetadata()
         {
-            get
-            {
-                if (dbMetadata == null)
-                    dbMetadata = new SqliteDbMetadata();
+            if (dbMetadata == null)
+                dbMetadata = new SqliteDbMetadata();
 
-                return dbMetadata;
-            }
-            set
-            {
-                dbMetadata = value;
-
-            }
+            return dbMetadata;
         }
-     
+
 
         /// <summary>
         /// Sqlite does not support Bulk operations
@@ -47,7 +39,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public override bool CanBeServerProvider => false;
 
-        public override string ProviderTypeName => ProviderType;
+        public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType
         {
@@ -65,29 +57,6 @@ namespace Dotmim.Sync.Sqlite
         }
         public SqliteSyncProvider() : base()
         {
-        }
-
-        /// <summary>
-        /// Override Options for settings special PRAGMA stuff
-        /// </summary>
-        public override SyncOptions Options
-        {
-            get
-            {
-                return base.Options;
-            }
-            set
-            {
-                base.Options = value;
-
-                // Affect options
-                var builder = new SqliteConnectionStringBuilder(this.ConnectionString)
-                {
-                    // overriding connectionstring
-                    ForeignKeys = !this.Options.DisableConstraintsOnApplyChanges
-                };
-                this.ConnectionString = builder.ToString();
-            }
         }
 
         public SqliteSyncProvider(string filePath) : this()
@@ -125,7 +94,6 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
-
         public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder) : this()
         {
             if (String.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
@@ -151,26 +119,63 @@ namespace Dotmim.Sync.Sqlite
                 return;
 
             syncException.Number = sqliteException.SqliteErrorCode;
-            
+
 
             return;
         }
 
-
         public override DbConnection CreateConnection()
         {
+            // Affect options
+            var builder = new SqliteConnectionStringBuilder(this.ConnectionString);
+
+            if (!builder.ForeignKeys.HasValue)
+            {
+                builder.ForeignKeys = !this.Orchestrator.Options.DisableConstraintsOnApplyChanges;
+                this.ConnectionString = builder.ToString();
+            }
+
             var sqliteConnection = new SqliteConnection(this.ConnectionString);
+
             return sqliteConnection;
         }
 
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqliteScopeBuilder(scopeInfoTableName);
+
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
 
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => new SqliteTableBuilder(tableDescription, setup);
+            var tableBuilder = new SqliteTableBuilder(tableDescription, tableName, trackingName, setup);
 
-        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName) => new SqliteManager(tableName);
-
-        public override DbScopeBuilder GetScopeBuilder() => new SqliteScopeBuilder();
-
+            return tableBuilder;
+        }
         public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+            var adapter = new SqliteSyncAdapter(tableDescription, tableName, trackingName, setup);
+
+            return adapter;
+        }
+
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        {
+            string tableAndPrefixName = tableDescription.TableName;
+            var originalTableName = ParserName.Parse(tableDescription);
+
+            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
+            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
+
+            // be sure, at least, we have a suffix if we have empty values. 
+            // othewise, we have the same name for both table and tracking table
+            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
+                suf = "_tracking";
+
+            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}");
+
+            return (originalTableName, trackingTableName);
+        }
     }
 }
