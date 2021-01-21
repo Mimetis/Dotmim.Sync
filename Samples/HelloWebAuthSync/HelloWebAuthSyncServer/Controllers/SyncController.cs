@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 
 namespace HelloWebSyncServer.Controllers
 {
@@ -39,7 +40,10 @@ public class SyncController : ControllerBase
                 var pUserId = args.Context.Parameters["UserId"];
 
                 if (pUserId == null)
-                    args.Context.Parameters.Add("UserId", this.HttpContext.User.Identity.Name);
+                {
+                    var userId = this.HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier);
+                    args.Context.Parameters.Add("UserId", userId);
+                }
 
             });
 
