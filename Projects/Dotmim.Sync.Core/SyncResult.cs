@@ -114,7 +114,7 @@ namespace Dotmim.Sync
                 return ($"Synchronization done. " + Environment.NewLine +
                         $"\tTotal changes  uploaded: {TotalChangesUploaded}" + Environment.NewLine +
                         $"\tTotal changes  downloaded: {TotalChangesDownloaded} " + Environment.NewLine +
-                        $"\tTotal changes  applied: {TotalChangesDownloaded} " + Environment.NewLine +
+                        $"\tTotal changes  applied: {TotalChangesApplied} " + Environment.NewLine +
                         $"\tTotal resolved conflicts: {TotalResolvedConflicts}" + Environment.NewLine +
                         $"\tTotal duration :{durationstr} ");
 

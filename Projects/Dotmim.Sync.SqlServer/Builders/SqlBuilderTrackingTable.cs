@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlBuilderTrackingTable : IDbBuilderTrackingTableHelper
+    public class SqlBuilderTrackingTable
     {
         private ParserName trackingName;
         private readonly SyncTable tableDescription;
@@ -30,13 +30,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
             var tbl = trackingName.ToString();
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-            stringBuilder.AppendLine("IF NOT EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) ");
-            stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
 
             // Adding the primary key
@@ -59,7 +57,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"[timestamp_bigint] AS (CONVERT([bigint],[timestamp])) PERSISTED, ");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] [bit] NOT NULL default(0), ");
             stringBuilder.AppendLine($"[last_change_datetime] [datetime] NULL, ");
-            stringBuilder.Append(");");
+            stringBuilder.AppendLine(");");
 
             // Primary Keys
             stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
@@ -74,12 +72,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (i < primaryKeysColumns.Count - 1)
                     stringBuilder.Append(", ");
             }
-            stringBuilder.Append(");");
+            stringBuilder.AppendLine(");");
 
 
             // Index
             var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
-         
+
             stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
             stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
@@ -91,62 +89,52 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             stringBuilder.Append(");");
 
-            stringBuilder.AppendLine("END");
-
-            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
+            var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+            SqlParameter sqlParameter = new SqlParameter()
             {
-                SqlParameter sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@tableName",
-                    Value = tbl
-                };
-                command.Parameters.Add(sqlParameter);
+                ParameterName = "@tableName",
+                Value = tbl
+            };
+            command.Parameters.Add(sqlParameter);
 
-                sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@schemaName",
-                    Value = schema
-                };
-                command.Parameters.Add(sqlParameter);
+            sqlParameter = new SqlParameter()
+            {
+                ParameterName = "@schemaName",
+                Value = schema
+            };
+            command.Parameters.Add(sqlParameter);
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            return Task.FromResult((DbCommand)command);
         }
 
-        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var tbl = trackingName.ToString();
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) ");
-            stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {trackingName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine("END");
 
-            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
+            var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
+
+            SqlParameter sqlParameter = new SqlParameter()
             {
-                SqlParameter sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@tableName",
-                    Value = tbl
-                };
-                command.Parameters.Add(sqlParameter);
+                ParameterName = "@tableName",
+                Value = tbl
+            };
+            command.Parameters.Add(sqlParameter);
 
-                sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@schemaName",
-                    Value = schema
-                };
-                command.Parameters.Add(sqlParameter);
+            sqlParameter = new SqlParameter()
+            {
+                ParameterName = "@schemaName",
+                Value = schema
+            };
+            command.Parameters.Add(sqlParameter);
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            return Task.FromResult((DbCommand)command);
         }
-
-        public async Task RenameTableAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
-
             StringBuilder stringBuilder = new StringBuilder();
 
             var schemaName = this.trackingName.SchemaName;
@@ -166,12 +154,33 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
                 stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
             }
-            using (var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
+            var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
+            return Task.FromResult((DbCommand)command);
+        }
+        public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var tbl = trackingName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0;";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tbl;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = schema;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
 
     }
 }

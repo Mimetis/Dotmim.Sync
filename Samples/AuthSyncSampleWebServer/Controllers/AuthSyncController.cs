@@ -26,9 +26,9 @@ namespace AuthSyncSampleWebServer.Controllers
         [HttpPost]
         public async Task Post()
         {
-            // Checking the scope is optional
             // The [Authorize] class attribute is enough, since it prevents anyone to access
             // this controller without a Bearer token
+            // Checking the scope is optional
             // Anyway you can have a more detailed control using the claims !
             string scope = (User.FindFirst("http://schemas.microsoft.com/identity/claims/scope"))?.Value;
             string user = (User.FindFirst(ClaimTypes.NameIdentifier))?.Value;

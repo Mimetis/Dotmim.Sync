@@ -37,23 +37,6 @@ namespace HelloWebSyncClient
             var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.Context.SyncStage}:\t{args.Message}"));
 
 
-            //Spy the changes sent
-            serverProxyOrchestrator.OnSendingChanges(args =>
-            {
-                using (var ms = new MemoryStream(args.Content))
-                {
-                    using (var reader = new StreamReader(ms))
-                    {
-                        var text = reader.ReadToEnd();
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine(text);
-                        Console.ResetColor();
-                    }
-
-                }
-
-            });
-
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProxyOrchestrator);
 

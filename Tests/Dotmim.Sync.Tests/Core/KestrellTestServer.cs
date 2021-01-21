@@ -30,7 +30,6 @@ namespace Dotmim.Sync.Tests
 
         public KestrellTestServer(WebServerOrchestrator webServerOrchestrator, bool useFidller = false)
         {
-
             var hostBuilder = new WebHostBuilder()
                 .UseKestrel()
                 .UseUrls("http://127.0.0.1:0/")
@@ -61,21 +60,15 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
             {
-                var webProxyServer = context.RequestServices.GetService<WebServerManager>();
-                await webProxyServer.HandleRequestAsync(context);
+                var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+                await webServerManager.HandleRequestAsync(context);
             });
 
                 
             this.builder.Configure(app =>
             {
                 app.UseSession();
-                app.Run(async context =>
-                {
-                    await serverHandler(context);
-
-                    Debug.WriteLine("Request executed");
-                });
-
+                app.Run(async context => await serverHandler(context));
             });
 
             var fiddler = useFiddler ? ".fiddler" : "";
@@ -83,6 +76,7 @@ namespace Dotmim.Sync.Tests
             this.host = this.builder.Build();
             this.host.Start();
             string serviceUrl = $"http://localhost{fiddler}:{this.host.GetPort()}/";
+
             return serviceUrl;
         }
 
@@ -103,6 +97,7 @@ namespace Dotmim.Sync.Tests
 
         internal Task StopAsync() => this.Dispose(true);
     }
+
     public static class IWebHostPortExtensions
     {
         public static string GetHost(this IWebHost host, bool isHttps = false)

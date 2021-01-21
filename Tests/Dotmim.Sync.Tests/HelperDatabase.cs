@@ -59,6 +59,9 @@ namespace Dotmim.Sync.Tests
                 case ProviderType.MySql:
                     con = Setup.GetMySqlDatabaseConnectionString(dbName);
                     break;
+                case ProviderType.MariaDB:
+                    con = Setup.GetMariaDBDatabaseConnectionString(dbName);
+                    break;
                 case ProviderType.Sqlite:
                     con = GetSqliteDatabaseConnectionString(dbName);
                     break;
@@ -79,6 +82,8 @@ namespace Dotmim.Sync.Tests
                     return CreateSqlServerDatabaseAsync(dbName, recreateDb);
                 case ProviderType.MySql:
                     return CreateMySqlDatabaseAsync(dbName, recreateDb);
+                case ProviderType.MariaDB:
+                    return CreateMariaDBDatabaseAsync(dbName, recreateDb);
                 case ProviderType.Sqlite:
                     return Task.CompletedTask;
             }
@@ -103,15 +108,13 @@ namespace Dotmim.Sync.Tests
 
             await policy.ExecuteAsync(async () =>
             {
-                using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
-                {
-                    masterConnection.Open();
+                using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+                masterConnection.Open();
 
-                    using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
-                        await cmdDb.ExecuteNonQueryAsync();
+                using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
+                    await cmdDb.ExecuteNonQueryAsync();
 
-                    masterConnection.Close();
-                }
+                masterConnection.Close();
             });
         }
 
@@ -130,21 +133,50 @@ namespace Dotmim.Sync.Tests
 
             await policy.ExecuteAsync(async () =>
             {
-                using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema")))
+                using var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema"));
+                sysConnection.Open();
+
+                if (recreateDb)
                 {
-                    sysConnection.Open();
-
-                    if (recreateDb)
-                    {
-                        using (var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection))
-                            await cmdDrop.ExecuteNonQueryAsync();
-                    }
-
-                    using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
-                        cmdDb.ExecuteNonQuery();
-
-                    sysConnection.Close();
+                    using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    await cmdDrop.ExecuteNonQueryAsync();
                 }
+
+                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                    cmdDb.ExecuteNonQuery();
+
+                sysConnection.Close();
+            });
+        }
+
+        /// <summary>
+        /// Create a new MySql Server database
+        /// </summary>
+        private static async Task CreateMariaDBDatabaseAsync(string dbName, bool recreateDb = true)
+        {
+            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
+            {
+                Console.WriteLine($"Creating MariaDB database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                return Task.CompletedTask;
+            });
+
+            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+
+            await policy.ExecuteAsync(async () =>
+            {
+                using var sysConnection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString("information_schema"));
+                sysConnection.Open();
+
+                if (recreateDb)
+                {
+                    using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    await cmdDrop.ExecuteNonQueryAsync();
+                }
+
+                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                    cmdDb.ExecuteNonQuery();
+
+                sysConnection.Close();
             });
         }
 
@@ -161,6 +193,9 @@ namespace Dotmim.Sync.Tests
                 case ProviderType.MySql:
                     DropMySqlDatabase(dbName);
                     break;
+                case ProviderType.MariaDB:
+                    DropMariaDBDatabase(dbName);
+                    break;
                 case ProviderType.Sqlite:
                     DropSqliteDatabase(dbName);
                     break;
@@ -172,15 +207,28 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropMySqlDatabase(string dbName)
         {
-            using (var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema")))
-            {
-                sysConnection.Open();
+            using var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema"));
+            sysConnection.Open();
 
-                using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
-                    cmdDb.ExecuteNonQuery();
+            using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
+                cmdDb.ExecuteNonQuery();
 
-                sysConnection.Close();
-            }
+            sysConnection.Close();
+        }
+
+
+        /// <summary>
+        /// Drop a MariaDB database
+        /// </summary>
+        private static void DropMariaDBDatabase(string dbName)
+        {
+            using var sysConnection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString("information_schema"));
+            sysConnection.Open();
+
+            using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
+                cmdDb.ExecuteNonQuery();
+
+            sysConnection.Close();
         }
 
         /// <summary>
@@ -211,23 +259,21 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropSqlDatabase(string dbName)
         {
-            using (var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
+            using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            try
             {
-                try
-                {
-                    masterConnection.Open();
+                masterConnection.Open();
 
-                    using (var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection))
-                        cmdDb.ExecuteNonQuery();
+                using (var cmdDb = new SqlCommand(GetSqlDropDatabaseScript(dbName), masterConnection))
+                    cmdDb.ExecuteNonQuery();
 
-                    masterConnection.Close();
+                masterConnection.Close();
 
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                    throw;
-                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
             }
         }
 
@@ -238,6 +284,8 @@ namespace Dotmim.Sync.Tests
             {
                 case ProviderType.MySql:
                     return ExecuteMySqlScriptAsync(dbName, script);
+                case ProviderType.MariaDB:
+                    return ExecuteMariaDBScriptAsync(dbName, script);
                 case ProviderType.Sqlite:
                     return ExecuteSqliteScriptAsync(dbName, script);
                 case ProviderType.Sql:
@@ -246,49 +294,51 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        private static async Task ExecuteMariaDBScriptAsync(string dbName, string script)
+        {
+            using var connection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString(dbName));
+            connection.Open();
+
+            using (var cmdDb = new MySqlCommand(script, connection))
+                await cmdDb.ExecuteNonQueryAsync();
+
+            connection.Close();
+        }
         private static async Task ExecuteMySqlScriptAsync(string dbName, string script)
         {
-            using (var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName)))
-            {
-                connection.Open();
+            using var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName));
+            connection.Open();
 
-                using (var cmdDb = new MySqlCommand(script, connection))
-                    await cmdDb.ExecuteNonQueryAsync();
+            using (var cmdDb = new MySqlCommand(script, connection))
+                await cmdDb.ExecuteNonQueryAsync();
 
-                connection.Close();
-            }
+            connection.Close();
         }
         private static async Task ExecuteSqlScriptAsync(string dbName, string script)
         {
-            using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName)))
+            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+            connection.Open();
+
+            //split the script on "GO" commands
+            string[] splitter = new string[] { "\r\nGO\r\n" };
+            string[] commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string commandText in commandTexts)
             {
-                connection.Open();
-
-                //split the script on "GO" commands
-                string[] splitter = new string[] { "\r\nGO\r\n" };
-                string[] commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (string commandText in commandTexts)
-                {
-                    using (var cmdDb = new SqlCommand(commandText, connection))
-                    {
-                        await cmdDb.ExecuteNonQueryAsync();
-                    }
-                }
-                connection.Close();
+                using var cmdDb = new SqlCommand(commandText, connection);
+                await cmdDb.ExecuteNonQueryAsync();
             }
+            connection.Close();
         }
         private static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
-            using (var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName)))
+            using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
+            connection.Open();
+            using (var cmdDb = new SqliteCommand(script, connection))
             {
-                connection.Open();
-                using (var cmdDb = new SqliteCommand(script, connection))
-                {
-                    await cmdDb.ExecuteNonQueryAsync();
-                }
-                connection.Close();
+                await cmdDb.ExecuteNonQueryAsync();
             }
+            connection.Close();
         }
 
         /// <summary>
@@ -326,17 +376,15 @@ namespace Dotmim.Sync.Tests
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
 
-            using (var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master")))
+            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            connection.Open();
+
+            using (var cmdDb = new SqlCommand(script, connection))
             {
-                connection.Open();
-
-                using (var cmdDb = new SqlCommand(script, connection))
-                {
-                    cmdDb.ExecuteNonQuery();
-                }
-
-                connection.Close();
+                cmdDb.ExecuteNonQuery();
             }
+
+            connection.Close();
         }
 
 

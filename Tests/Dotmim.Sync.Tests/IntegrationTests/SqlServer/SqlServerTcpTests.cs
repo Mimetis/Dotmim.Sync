@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Data.SqlClient;
+using Dotmim.Sync.MariaDB;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
@@ -29,7 +30,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            {ProviderType.Sql,  ProviderType.Sqlite};
+            {ProviderType.Sql , ProviderType.MySql , ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.Sql;
 
@@ -41,6 +42,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 case ProviderType.MySql:
                     return new MySqlSyncProvider(cs);
+                case ProviderType.MariaDB:
+                    return new MariaDBSyncProvider(cs);
                 case ProviderType.Sqlite:
                     return new SqliteSyncProvider(cs);
                 case ProviderType.Sql:

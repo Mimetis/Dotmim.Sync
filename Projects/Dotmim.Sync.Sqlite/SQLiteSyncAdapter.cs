@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
-    public class SqliteSyncAdapter : SyncAdapter
+    public class SqliteSyncAdapter : DbSyncAdapter
     {
         private SqliteObjectNames sqliteObjectNames;
         private SqliteDbMetadata sqliteDbMetadata;

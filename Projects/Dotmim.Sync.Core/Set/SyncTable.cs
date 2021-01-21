@@ -190,7 +190,7 @@ namespace Dotmim.Sync
         /// Gets the full name of the table, based on schema name + "." + table name (if schema name exists)
         /// </summary>
         /// <returns></returns>
-        public string GetFullName() 
+        public string GetFullName()
             => string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
 
 
@@ -245,6 +245,9 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncFilter GetFilter()
         {
+            if (this.Schema == null || this.Schema.Filters == null || this.Schema.Filters.Count <= 0)
+                return null;
+
             return this.Schema.Filters.FirstOrDefault(sf =>
             {
                 var sc = SyncGlobalization.DataSourceStringComparison;

@@ -141,12 +141,12 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            //HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
-            //foreach (var client in Clients)
-            //{
-            //    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
-            //}
+            foreach (var client in Clients)
+            {
+                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+            }
 
             this.stopwatch.Stop();
 
@@ -160,32 +160,28 @@ namespace Dotmim.Sync.Tests
         private async Task CheckProductCategoryRows((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) client, string nameShouldStartWith = null)
         {
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(this.Server))
+            using var ctx = new AdventureWorksContext(this.Server);
+            // get all product categories
+            var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+
+            using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+            // get all product categories
+            var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+
+            // check row count
+            Assert.Equal(serverPC.Count, clientPC.Count);
+
+            foreach (var cpc in clientPC)
             {
-                // get all product categories
-                var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+                var spc = serverPC.First(pc => pc.ProductCategoryId == cpc.ProductCategoryId);
 
-                using (var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    // get all product categories
-                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+                // check column value
+                Assert.Equal(spc.ProductCategoryId, cpc.ProductCategoryId);
+                Assert.Equal(spc.Name, cpc.Name);
 
-                    // check row count
-                    Assert.Equal(serverPC.Count, clientPC.Count);
+                if (!string.IsNullOrEmpty(nameShouldStartWith))
+                    Assert.StartsWith(nameShouldStartWith, cpc.Name);
 
-                    foreach (var cpc in clientPC)
-                    {
-                        var spc = serverPC.First(pc => pc.ProductCategoryId == cpc.ProductCategoryId);
-
-                        // check column value
-                        Assert.Equal(spc.ProductCategoryId, cpc.ProductCategoryId);
-                        Assert.Equal(spc.Name, cpc.Name);
-
-                        if (!string.IsNullOrEmpty(nameShouldStartWith))
-                            Assert.StartsWith(nameShouldStartWith, cpc.Name);
-
-                    }
-                }
             }
         }
 

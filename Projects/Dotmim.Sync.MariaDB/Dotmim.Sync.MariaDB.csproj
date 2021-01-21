@@ -12,7 +12,7 @@
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.5.8</Version>
+    <Version>0.6.0</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>8.0</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
@@ -40,11 +40,8 @@
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTrigger.cs" Link="Builders\MySqlBuilderTrigger.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlDbMetadata.cs" Link="Builders\MySqlDbMetadata.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlObjectNames.cs" Link="Builders\MySqlObjectNames.cs" />
-    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeBuilder.cs" Link="Builders\MySqlScopeBuilder.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeInfoBuilder.cs" Link="Builders\MySqlScopeInfoBuilder.cs" />
-    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlManager.cs" Link="Manager\MySqlManager.cs" />
-    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlManagerTable.cs" Link="Manager\MySqlManagerTable.cs" />
-    <Compile Include="..\Dotmim.Sync.MySql\Manager\MySqlTableBuilder.cs" Link="Manager\MySqlTableBuilder.cs" />
+    <Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlTableBuilder.cs" Link="Builders\MySqlTableBuilder.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\MySqlExtensionsMethods.cs" Link="MySqlExtensionsMethods.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\MySqlManagementUtils.cs" Link="MySqlManagementUtils.cs" />
     <Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.cs" Link="MySqlSyncAdapter.cs" />
@@ -60,7 +57,7 @@
 
   <ItemGroup>
     <PackageReference Include="MySqlConnector">
-      <Version>0.63.0</Version>
+      <Version>0.69.10</Version>
     </PackageReference>
   </ItemGroup>
 
@@ -71,7 +68,6 @@
 
   <ItemGroup>
     <Folder Include="Builders\" />
-    <Folder Include="Manager\" />
   </ItemGroup>
   
   

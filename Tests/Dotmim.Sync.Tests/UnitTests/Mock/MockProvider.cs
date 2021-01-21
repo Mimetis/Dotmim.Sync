@@ -28,16 +28,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             throw new NotImplementedException();
         }
 
-        public override DbScopeBuilder GetScopeBuilder() => new MockScopeBuilder();
+        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
+        public override DbScopeBuilder GetScopeBuilder(string n) => new MockScopeBuilder();
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
-        {
-            return new MockTableBuilder(tableDescription, setup);
-        }
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();
 
-        public override DbTableManagerFactory GetTableManagerFactory(string tableName, string schemaName)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

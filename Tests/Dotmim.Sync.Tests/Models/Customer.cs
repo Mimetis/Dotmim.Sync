@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Tests.Models
         }
 
         public Guid CustomerId { get; set; }
-        public int EmployeeId { get; set; }
+        public int? EmployeeId { get; set; }
         public bool NameStyle { get; set; }
         public string Title { get; set; }
         public string FirstName { get; set; }

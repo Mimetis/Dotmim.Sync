@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
-
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
@@ -57,6 +57,14 @@ namespace Dotmim.Sync
         [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public SyncParameters Parameters { get; set; }
 
+
+        /// <summary>
+        /// Get or Sets additional properties you want to use
+        /// </summary>
+        [DataMember(Name = "ap", IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        public Dictionary<string, string> AdditionalProperties { get; set; }
+
+
         /// <summary>
         /// Ctor. New sync context with a new Guid
         /// </summary>
@@ -86,6 +94,13 @@ namespace Dotmim.Sync
             otherSyncContext.SyncStage = this.SyncStage;
             otherSyncContext.SyncType = this.SyncType;
             otherSyncContext.SyncWay = this.SyncWay;
+
+            if (this.AdditionalProperties != null)
+            {
+                otherSyncContext.AdditionalProperties = new Dictionary<string, string>();
+                foreach (var p in this.AdditionalProperties)
+                    otherSyncContext.AdditionalProperties.Add(p.Key, p.Value);
+            }
 
         }
 

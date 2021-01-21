@@ -103,7 +103,7 @@ namespace Dotmim.Sync.Postgres.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override DbCommand GetStoredProcedureCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new NpgsqlCommand();
 

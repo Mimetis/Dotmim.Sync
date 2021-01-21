@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.MySql;
+﻿using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
@@ -27,7 +28,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.Sqlite};
+            {ProviderType.Sql , ProviderType.MySql , ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.Sql;
 
@@ -40,6 +41,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 case ProviderType.MySql:
                     return new MySqlSyncProvider(cs);
+                case ProviderType.MariaDB:
+                    return new MariaDBSyncProvider(cs);
                 case ProviderType.Sqlite:
                     return new SqliteSyncProvider(cs);
                 case ProviderType.Sql:

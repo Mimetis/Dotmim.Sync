@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.MySql;
+﻿using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
@@ -83,7 +84,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Sql, ProviderType.Sqlite};
+            {ProviderType.Sql , ProviderType.MySql , ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.Sql;
 
@@ -97,6 +98,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 case ProviderType.MySql:
                     return new MySqlSyncProvider(cs);
+                case ProviderType.MariaDB:
+                    return new MariaDBSyncProvider(cs);
                 case ProviderType.Sqlite:
                     return new SqliteSyncProvider(cs);
                 case ProviderType.Sql:
@@ -140,7 +143,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             using (var serverDbCtx = new AdventureWorksContext(t))
             {
 
-                var addressesCount =  serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
+                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
                 var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
                 var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();

@@ -42,16 +42,6 @@ namespace Progression
             // Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
             var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.Context.SyncStage}:\t{args.Message}"));
 
-            // Because we are in a TCP project, we are able to reach the RemoteOrchestrator progress
-            // This "trick" will not work on a HTTP mode sync project
-            var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-                Console.ResetColor();
-            });
-            agent.AddRemoteProgress(remoteProgress);
-
             // --------------------------------------------
             // Using Interceptors
             // --------------------------------------------
@@ -71,7 +61,7 @@ namespace Progression
 
             // Intercept a table changes applying with a particular state [Upsert] or [Deleted]
             // The rows included in the args.Changes table will be applied right after.
-            agent.LocalOrchestrator.OnTableChangesApplying(args =>
+            agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
             {
                 Console.WriteLine($"-------- Applying changes {args.State} to table {args.Changes.GetFullName()} ...");
 
@@ -116,7 +106,7 @@ namespace Progression
                 Console.ResetColor();
             });
 
-            agent.RemoteOrchestrator.OnTableChangesApplying(args =>
+            agent.RemoteOrchestrator.OnTableChangesBatchApplying(args =>
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"-------- Applying changes {args.State} to table {args.Changes.GetFullName()} ...");

@@ -82,6 +82,9 @@ namespace Dotmim.Sync
             {
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
+                
+                var parser = ParserName.Parse(tableName);
+                var tblName = parser.ObjectName;
 
                 schemaName = schemaName == null ? string.Empty : schemaName;
 
@@ -90,7 +93,7 @@ namespace Dotmim.Sync
                 var table = InnerCollection.FirstOrDefault(innerTable =>
                 {
                     var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                    return string.Equals(innerTable.TableName, tableName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
                 return table;

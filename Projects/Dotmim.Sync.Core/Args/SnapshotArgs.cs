@@ -1,8 +1,10 @@
 ﻿using Dotmim.Sync.Batch;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -15,8 +17,8 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"Applying snapshot.";
-        public override int EventId => 42;
+        public override string Message => $"[{Connection.Database}] Applying Snapshot.";
+        public override int EventId => SyncEventsId.SnapshotApplying.Id;
     }
 
 
@@ -25,12 +27,15 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotAppliedArgs : ProgressArgs
     {
-        public SnapshotAppliedArgs(SyncContext context) : base(context, null, null)
+        public DatabaseChangesApplied ChangesApplied { get; set; }
+
+        public SnapshotAppliedArgs(SyncContext context, DatabaseChangesApplied changesApplied) : base(context, null, null)
         {
+            this.ChangesApplied = changesApplied;
         }
 
-        public override string Message => $"Snapshot applied.";
-        public override int EventId => 43;
+        public override string Message => $"[Snapshot] [Total] Applied:{ChangesApplied.TotalAppliedChanges}. Resolved Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
+        public override int EventId => SyncEventsId.SnapshotApplied.Id;
     }
 
 
@@ -67,8 +72,8 @@ namespace Dotmim.Sync
         /// </summary>
         public long Timestamp { get; }
 
-        public override string Message => $"Creating snapshot.";
-        public override int EventId => 44;
+        public override string Message => $"[{Connection.Database}] Creating Snapshot.";
+        public override int EventId => SyncEventsId.SnapshotCreating.Id;
     }
 
 
@@ -77,23 +82,74 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotCreatedArgs : ProgressArgs
     {
-        public SnapshotCreatedArgs(SyncContext context, SyncSet schema, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public SnapshotCreatedArgs(SyncContext context, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
-            this.Schema = schema;
             this.BatchInfo = batchInfo;
         }
 
-        public override string Message => $"Created snapshot.";
+        public override string Message => $"[{Connection.Database}] Snapshot Created [{BatchInfo.GetDirectoryFullPath()}].";
 
-        /// <summary>
-        /// Gets the schema used to create the snapshot
-        /// </summary>
-        public SyncSet Schema { get; }
-        
         /// <summary>
         /// Gets the batch info summarizing the snapshot created
         /// </summary>
         public BatchInfo BatchInfo { get; }
-        public override int EventId => 45;
+        public override int EventId => SyncEventsId.SnapshotCreated.Id;
+    }
+
+    public static partial class InterceptorsExtensions
+    {
+        /// <summary>
+        /// Intercept the orchestrator when creating a snapshot
+        /// </summary>
+        public static void OnSnapshotCreating(this BaseOrchestrator orchestrator, Action<SnapshotCreatingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the orchestrator when creating a snapshot
+        /// </summary>
+        public static void OnSnapshotCreating(this BaseOrchestrator orchestrator, Func<SnapshotCreatingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been created
+        /// </summary>
+        public static void OnSnapshotCreated(this BaseOrchestrator orchestrator, Action<SnapshotCreatedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been created
+        /// </summary>
+        public static void OnSnapshotCreated(this BaseOrchestrator orchestrator, Func<SnapshotCreatedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when applying a snapshot
+        /// </summary>
+        public static void OnSnapshotApplying(this BaseOrchestrator orchestrator, Action<SnapshotApplyingArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the orchestrator when applying a snapshot
+        /// </summary>
+        public static void OnSnapshotApplying(this BaseOrchestrator orchestrator, Func<SnapshotApplyingArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been applied
+        /// </summary>
+        public static void OnSnapshotApplied(this BaseOrchestrator orchestrator, Action<SnapshotAppliedArgs> action)
+            => orchestrator.SetInterceptor(action);
+        /// <summary>
+        /// Intercept the orchestrator when a snapshot has been applied
+        /// </summary>
+        public static void OnSnapshotApplied(this BaseOrchestrator orchestrator, Func<SnapshotAppliedArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+    }
+
+    public static partial class SyncEventsId
+    {
+        public static EventId SnapshotCreating => CreateEventId(10000, nameof(SnapshotCreating));
+        public static EventId SnapshotCreated => CreateEventId(10050, nameof(SnapshotCreated));
+        public static EventId SnapshotApplying => CreateEventId(10100, nameof(SnapshotApplying));
+        public static EventId SnapshotApplied => CreateEventId(10150, nameof(SnapshotApplied));
+
     }
 }

@@ -161,7 +161,6 @@ namespace Dotmim.Sync.Tests
             // start server and get uri
             this.ServiceUri = this.kestrell.Run();
 
-
             // Get all clients providers
             Clients = new List<(string DatabaseName, ProviderType ProviderType, CoreProvider Provider)>(this.ClientsType.Count);
 
@@ -180,10 +179,10 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            //HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
-            //foreach (var client in Clients)
-            //    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+            foreach (var client in Clients)
+                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
 
             this.stopwatch.Stop();
 
@@ -375,21 +374,19 @@ namespace Dotmim.Sync.Tests
                     Freight = 22.0087M,
                     TotalDue = 6530.35M + 70.4279M + 22.0087M
                 };
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var productId = ctx.Product.First().ProductId;
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                var productId = ctx.Product.First().ProductId;
 
-                    var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
-                    var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
-                    var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+                var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+                var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+                var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
 
-                    soh.SalesOrderDetail.Add(sod1);
-                    soh.SalesOrderDetail.Add(sod2);
-                    soh.SalesOrderDetail.Add(sod3);
+                soh.SalesOrderDetail.Add(sod1);
+                soh.SalesOrderDetail.Add(sod2);
+                soh.SalesOrderDetail.Add(sod3);
 
-                    ctx.SalesOrderHeader.Add(soh);
-                    await ctx.SaveChangesAsync();
-                }
+                ctx.SalesOrderHeader.Add(soh);
+                await ctx.SaveChangesAsync();
 
             }
 
@@ -426,7 +423,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact, TestPriority(6)]
+        [Fact, TestPriority(5)]
         public async Task Snapshot_Initialize()
         {
             // create a server schema with seeding
@@ -445,7 +442,7 @@ namespace Dotmim.Sync.Tests
             var options = new SyncOptions
             {
                 SnapshotsDirectory = directory,
-                BatchSize = 3000
+                BatchSize = 200
             };
 
             // ----------------------------------
@@ -484,6 +481,8 @@ namespace Dotmim.Sync.Tests
 
             // configure server orchestrator
             this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
+            this.WebServerOrchestrator.Options.BatchSize = 200;
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -492,20 +491,27 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
+                var snapshotApplying = 0;
+                var snapshotApplied = 0;
+
+                agent.LocalOrchestrator.OnSnapshotApplying(saa => snapshotApplying++);
+                agent.LocalOrchestrator.OnSnapshotApplied(saa => snapshotApplied++);
+
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(1, snapshotApplying);
+                Assert.Equal(1, snapshotApplied);
             }
         }
-
-
 
         /// <summary>
         /// Insert two rows on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(3)]
+        [Theory, TestPriority(6)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task CustomSeriazlizer_MessagePack(SyncOptions options)
         {
@@ -579,6 +585,106 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        /// <summary>
+        /// Insert one row in two tables on server, should be correctly sync on all clients
+        /// </summary>
+        [Fact, TestPriority(7)]
+        public async Task Snapshot_ShouldNot_Delete_Folders()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // ----------------------------------
+            // Setting correct options for sync agent to be able to reach snapshot
+            // ----------------------------------
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+            var serverOptions = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "srv"),
+                BatchSize = 200
+            };
+
+            var clientOptions = new SyncOptions
+            {
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "cli"),
+                BatchSize = 200
+            };
+
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, serverOptions, this.FilterSetup);
+
+            // getting snapshot directory names
+            var (rootDirectory, nameDirectory) = await remoteOrchestrator.GetSnapshotDirectoryAsync(this.FilterParameters).ConfigureAwait(false);
+
+            Assert.False(Directory.Exists(rootDirectory));
+            Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+
+            Assert.True(Directory.Exists(rootDirectory));
+            Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+
+
+            // ----------------------------------
+            // Add rows on server AFTER snapshot
+            // ----------------------------------
+            // Create a new address & customer address on server
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var newAddress = new Address { AddressLine1 = addressLine1 };
+
+                serverDbCtx.Address.Add(newAddress);
+                await serverDbCtx.SaveChangesAsync();
+
+                var newCustomerAddress = new CustomerAddress
+                {
+                    AddressId = newAddress.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "OTH"
+                };
+
+                serverDbCtx.CustomerAddress.Add(newCustomerAddress);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerOrchestrator.Options.SnapshotsDirectory = serverOptions.SnapshotsDirectory;
+            this.WebServerOrchestrator.Options.BatchSize = serverOptions.BatchSize;
+            this.WebServerOrchestrator.Options.BatchDirectory = serverOptions.BatchDirectory;
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), clientOptions);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.True(Directory.Exists(rootDirectory));
+                Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+
+                var serverFiles = Directory.GetFiles(serverOptions.BatchDirectory, "*", SearchOption.AllDirectories);
+                var clientFiles = Directory.GetFiles(clientOptions.BatchDirectory, "*", SearchOption.AllDirectories);
+
+                Assert.Empty(serverFiles);
+                Assert.Empty(clientFiles);
+            }
+        }
 
     }
 }
