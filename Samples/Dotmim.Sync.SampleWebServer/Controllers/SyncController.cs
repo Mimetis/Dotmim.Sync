@@ -77,7 +77,7 @@ namespace Dotmim.Sync.SampleWebServer.Controllers
             serverScope.Schema = newSchema;
 
             // save the server scope
-            await orchestrator.WriteServerScopeAsync(serverScope);
+            await orchestrator.SaveServerScopeAsync(serverScope);
 
         }
 
