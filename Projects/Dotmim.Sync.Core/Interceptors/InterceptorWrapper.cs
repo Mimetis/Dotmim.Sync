@@ -16,18 +16,23 @@ namespace Dotmim.Sync
     public class InterceptorWrapper<T> : ISyncInterceptor<T> where T : class
     {
         private Func<T, Task> wrapperAsync;
-        private static Func<T, Task> empty = new Func<T, Task>(t => Task.CompletedTask);
+        internal static Func<T, Task> Empty = new Func<T, Task>(t => Task.CompletedTask);
 
 
         /// <summary>
         /// Create a new empty interceptor
         /// </summary>
-        public InterceptorWrapper() => this.wrapperAsync = empty;
+        public InterceptorWrapper() => this.wrapperAsync = Empty;
+
+        /// <summary>
+        /// Gets a boolean indicating if the interceptor is not used by user (ie : is Empty)
+        /// </summary>
+        public bool IsEmpty => this.wrapperAsync == Empty;
 
         /// <summary>
         /// Set a Func<T, Task> as interceptor
         /// </summary>
-        public void Set(Func<T, Task> run) => this.wrapperAsync = run != null ? run : empty;
+        public void Set(Func<T, Task> run) => this.wrapperAsync = run != null ? run : Empty;
 
         /// <summary>
         /// Set an Action<T> as interceptor
@@ -37,14 +42,9 @@ namespace Dotmim.Sync
         {
             this.wrapperAsync = run != null ? (t =>
             {
-                Debug.WriteLine("Begin Run");
-                
                 run(t);
-                
-                Debug.WriteLine("End Run");
-                
                 return Task.CompletedTask;
-            }) : empty;
+            }) : Empty;
 
         }
 
