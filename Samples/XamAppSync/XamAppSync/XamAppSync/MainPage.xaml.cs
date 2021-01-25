@@ -14,10 +14,7 @@ namespace XamAppSync
 {
     public partial class MainPage : ContentPage
     {
-        public MainPage()
-        {
-            InitializeComponent();
-        }
+        public MainPage() => this.InitializeComponent();
 
         private async void Handle_Clicked(object sender, System.EventArgs e)
         {

@@ -10,10 +10,7 @@ namespace HelloSync
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main(string[] args)
-        {
-            await SynchronizeAsync();
-        }
+        static async Task Main() => await SynchronizeAsync();
 
 
         private static async Task SynchronizeAsync()

@@ -24,50 +24,28 @@ We have a lot of progress values raised from both the **server** and the **clien
 
     public enum SyncStage
     {
-        None,
-        // Sync start and ends
+         None = 0,
+
         BeginSession,
         EndSession,
 
-        // Loading metadatas
         ScopeLoading,
-        ScopeLoaded,
+        ScopeWriting,
 
-        // Creating a snapshot on the server side
         SnapshotCreating,
-        SnapshotCreated,
-
-        // Applying a snapshot on the client side
         SnapshotApplying,
-        SnapshotApplied,
 
-        // Reading a schema
         SchemaReading,
-        SchemaRead,
 
-        // Provisioning a schema (tables / stored proc / triggers / tracking tables)
         Provisioning,
-        Provisioned,
-
-        // Deprovisioning a schema
         Deprovisioning,
-        Deprovisioned,
 
-        // Selecting changes to apply to the server or client
         ChangesSelecting,
-        ChangesSelected,
-
-        // Applying changes to the server or client
         ChangesApplying,
-        ChangesApplied,
 
-        // Cleaning tracking information from any tracking table
-        MetadataCleaning,
-        MetadataCleaned,
-
-        // Migrating a setup to a new one
         Migrating,
-        Migrated,
+
+        MetadataCleaning,
     }
 
 To explain how things work, we are starting from a really straightforward sync process example, using the sample from `Hello sync sample <https://github.com/Mimetis/Dotmim.Sync/blob/master/Samples/HelloSync>`_:
@@ -207,84 +185,3 @@ The result is really verbose, but you have ALL the informations  from both **Cli
 *In the screenshot below, yellow lines are progression events raised from server side.*
 
 .. image:: assets/ProgressionVerbose.png
-
-
-Interceptor\<T\>
-^^^^^^^^^^^^^^^^^^^^^^
-
-The ``Progress<T>`` stuff is great, but as we said, it's mainly read only, and the progress is always reported **at the end of a current sync stage**.   
-
-| So, if you need a more granular control on all the progress values, you can subscribe to an ``Interceptor<T>``.   
-| On each **orchestrator**, you will find a lot of relevant methods to intercept the sync process, encapsulate in a fancy ``OnMethodAsync()`` method:
-
-.. image:: assets/interceptor01.png
-
-
-Imagine you have a table that should **never** be synchronized. You're able to use an interceptor like this:
-
-.. code-block:: csharp
-
-    // We are using a cancellation token that will be passed as an argument 
-    // to the SynchronizeAsync() method !
-    var cts = new CancellationTokenSource();
-
-    agent.LocalOrchestrator.OnTableChangesApplying((args) =>
-    {
-        if (args.SchemaTable.TableName == "Table_That_Should_Not_Be_Sync")
-            cts.Cancel();
-    });
-
-Be careful, your ``CancellationTokenSource`` instance will rollback the whole sync session and you will get a ``SyncException`` error ! 
-
-Intercepting rows
-------------------------------------------------------
-
-| You may want to intercept all the rows that have just been selected from the source (client or server), and are about to be sent to their destination (server or client).   
-| Or even intercept all the rows that are going to be applied on a destination database.   
-| That way, you may be able to modify these rows, to meet your business / requirements rules.  
-
-To do so, you can use the **interceptors** ``OnTableChangesSelecting`` and ``OnTableChangesSelected`` to have more details on what changes are selected for each table.
-
-In the other hand, you can use the **interceptors** ``OnTableChangesApplying`` and ``OnTableChangesApplied`` to get all the rows that will be applied to a destination database.
-
-
-.. hint:: You will find the sample used for this chapter, here : `Spy sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Spy>`_. 
-
-
-.. code-block:: csharp
-
-    // Intercept a table changes selecting stage.
-    agent.LocalOrchestrator.OnTableChangesSelecting(args =>
-    {
-        Console.WriteLine('$'"-- Getting changes from table {args.Table.GetFullName()} ...");
-    });
-
-    // Intercept a table changes applying stage, with a particular state [Upsert] or [Deleted]
-    // The rows included in the args.Changes table will be applied right after.
-    agent.LocalOrchestrator.OnTableChangesApplying(args =>
-    {
-        Console.WriteLine('$'"-- Applying changes {args.State} to table {args.Changes.GetFullName()}");
-
-        if (args.Changes == null || args.Changes.Rows.Count == 0)
-            return;
-
-        foreach (var row in args.Changes.Rows)
-            Console.WriteLine(row);
-    });
-
-    // Intercept a table changes selected stage.
-    // The rows included in the args.Changes have been selected 
-    // from the local database and will be sent to the server.
-    agent.LocalOrchestrator.OnTableChangesSelected(args =>
-    {
-        if (args.Changes == null || args.Changes.Rows.Count == 0)
-            return;
-
-        foreach (var row in args.Changes.Rows)
-            Console.WriteLine(row);
-    });
-
-
-*In the screenshot below, yellow lines are interceptors from server side.*
-
-.. image:: assets/ProgressionInterceptors.png

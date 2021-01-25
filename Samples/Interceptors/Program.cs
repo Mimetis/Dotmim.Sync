@@ -37,6 +37,7 @@ namespace Interceptors
             // Write results
             Console.WriteLine(s1);
 
+           
             // do not delete product row. it's your choice !
             agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
             {

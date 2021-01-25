@@ -1,4 +1,4 @@
-ASP.NET Core 2.0 Web Proxy
+ASP.NET Core Web Proxy
 ================================
 
 
