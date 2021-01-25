@@ -35,7 +35,7 @@ namespace Microsoft.Extensions.DependencyInjection
             if (webServerOptions == null)
                 webServerOptions = new WebServerOptions();
 
-            options = options ?? new SyncOptions();
+            options ??= new SyncOptions();
             setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             var serviceProvider = serviceCollection.BuildServiceProvider();

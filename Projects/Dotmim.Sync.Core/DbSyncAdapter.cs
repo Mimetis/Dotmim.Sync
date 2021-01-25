@@ -235,12 +235,117 @@ namespace Dotmim.Sync
             return syncRow;
         }
 
+
+        //internal async Task<int> ApplyChanges2Async(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp,
+        //                                        List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying,
+        //                                        DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
+        //{
+        //    var bulk = true;
+
+        //    // Get correct command type
+        //    var dbCommandType = this.ApplyType switch
+        //    {
+        //        DataRowState.Deleted => bulk ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow,
+        //        DataRowState.Modified => bulk ? DbCommandType.BulkUpdateRows : DbCommandType.UpdateRow,
+        //        _ => throw new UnknownException("RowState not valid during ApplyBulkChanges operation"),
+        //    };
+
+        //    // Get command
+        //    var command = await this.PrepareCommandAsync(dbCommandType, connection, transaction);
+
+        //    // Launch any interceptor if available
+        //    if (iTableChangesBatchApplying != null)
+        //    {
+        //        var action = new TableChangesBatchApplyingArgs(context, changesTable, this.ApplyType, command, connection, transaction);
+        //        await iTableChangesBatchApplying.RunAsync(action, cancellationToken);
+
+        //        if (action.Cancel || action.Command == null)
+        //            return 0;
+
+        //        // get the correct pointer to the command from the interceptor in case user change the whole instance
+        //        command = action.Command;
+        //    }
+
+
+        //    // get the items count
+        //    var itemsArrayCount = changesTable.Rows.Count;
+
+        //    // Make some parts of BATCH_SIZE
+        //    await Task.Run(async () =>
+        //    {
+        //        for (int step = 0; step < itemsArrayCount; step += BATCH_SIZE)
+        //        {
+        //            // get upper bound max value
+        //            var taken = step + BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : BATCH_SIZE;
+
+        //            var arrayStepChanges = changesTable.Rows.Skip(step).Take(taken);
+
+
+        //            if (bulk)
+        //            {
+        //                var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
+
+        //                // execute the batch, through the provider
+        //                await ExecuteBatchCommandAsync(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
+
+        //                // Get local and remote row and create the conflict object
+        //                foreach (var failedRow in failedPrimaryKeysTable.Rows)
+        //                {
+        //                    // Get the row that caused the problem, from the opposite side (usually client)
+        //                    var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
+
+        //                    if (remoteConflictRows.Count() == 0)
+        //                        throw new Exception("Cant find changes row who is in conflict");
+
+        //                    var remoteConflictRow = remoteConflictRows.ToList()[0];
+
+        //                    var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
+
+        //                    conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
+        //                }
+
+        //            }
+        //            else
+        //            {
+        //                int appliedRowsTmp = 0;
+
+        //                foreach (var row in arrayStepChanges)
+        //                {
+        //                    // Set the parameters value from row 
+        //                    this.SetColumnParametersValues(command, row);
+
+        //                    // Set the special parameters for update
+        //                    AddScopeParametersValues(command, senderScopeId, lastTimestamp, ApplyType == DataRowState.Deleted, false);
+
+        //                    var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+        //                    // Check if we have a return value instead
+        //                    var syncRowCountParam = GetParameter(command, "sync_row_count");
+
+        //                    if (syncRowCountParam != null)
+        //                        rowAppliedCount = (int)syncRowCountParam.Value;
+
+        //                    if (rowAppliedCount > 0)
+        //                        appliedRowsTmp++;
+        //                    else
+        //                        conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false)));
+
+
+        //                }
+        //            }
+        //        }
+
+
+        //    });
+
+        //}
+
         /// <summary>
         /// Launch apply bulk changes
         /// </summary>
         /// <returns></returns>
         internal async Task<int> ApplyBulkChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp,
-                                                     List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying, 
+                                                     List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying,
                                                      DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
             var dbCommandType = this.ApplyType switch
@@ -267,7 +372,6 @@ namespace Dotmim.Sync
 
             // Create
             var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
-            //AddSchemaForFailedRowsTable(failedPrimaryKeysTable);
 
             // get the items count
             var itemsArrayCount = changesTable.Rows.Count;
@@ -275,13 +379,12 @@ namespace Dotmim.Sync
             // Make some parts of BATCH_SIZE
             await Task.Run(async () =>
             {
-                var rowsList = changesTable.Rows.ToList();
                 for (int step = 0; step < itemsArrayCount; step += BATCH_SIZE)
                 {
                     // get upper bound max value
                     var taken = step + BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : BATCH_SIZE;
 
-                    var arrayStepChanges = rowsList.Skip(step).Take(taken);
+                    var arrayStepChanges = changesTable.Rows.Skip(step).Take(taken);
 
                     // execute the batch, through the provider
                     await ExecuteBatchCommandAsync(command, senderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, lastTimestamp, connection, transaction).ConfigureAwait(false);
@@ -292,9 +395,7 @@ namespace Dotmim.Sync
                     // Get local and remote row and create the conflict object
                     foreach (var failedRow in failedPrimaryKeysTable.Rows)
                     {
-                        //failedRow.RowState = this.ApplyType;
-
-                        // Get the row that caused the problem, from the remote side (client)
+                        // Get the row that caused the problem, from the opposite side (usually client)
                         var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
 
                         if (remoteConflictRows.Count() == 0)
@@ -314,15 +415,15 @@ namespace Dotmim.Sync
         }
 
 
-   
+
         /// <summary>
         /// Try to apply changes on the server.
         /// Internally will call ApplyUpdate or ApplyDelete and will return
         /// </summary>
         /// <param name="changes">Changes</param>
         /// <returns>every lines not updated / deleted in the destination data source</returns>
-        internal async Task<int> ApplyChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp, 
-                                                   List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying, 
+        internal async Task<int> ApplyChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp,
+                                                   List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying,
                                                    DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
 
