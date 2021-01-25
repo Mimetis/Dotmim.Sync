@@ -17,7 +17,7 @@ namespace HelloWebSyncClient
     {
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main(string[] args)
+        static async Task Main()
         {
             try
             {

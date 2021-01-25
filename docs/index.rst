@@ -97,9 +97,12 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    Overview
    HowDoesItWorks
    Synchronize
+   Orchestrators
    Progression
+   Interceptors
    ChangeTracking
    Web
+   WebSecurity
    SerializerConverter
    Timeout
    Snapshot
@@ -108,6 +111,7 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    Metadatas
    Conflict
    Filters
+   SqliteEncryption
    AlreadyExisting
    MultiScopes
    Debugging
