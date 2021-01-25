@@ -345,7 +345,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         internal async Task<int> ApplyBulkChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp,
-                                                     List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying,
+                                                     List<SyncRow> conflictRows, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying,
                                                      DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
             var dbCommandType = this.ApplyType switch
@@ -396,16 +396,18 @@ namespace Dotmim.Sync
                     foreach (var failedRow in failedPrimaryKeysTable.Rows)
                     {
                         // Get the row that caused the problem, from the opposite side (usually client)
-                        var remoteConflictRows = changesTable.Rows.GetRowsByPrimaryKeys(failedRow);
+                        var remoteConflictRow = changesTable.Rows.GetRowByPrimaryKeys(failedRow);
 
-                        if (remoteConflictRows.Count() == 0)
+                        if (remoteConflictRow == null)
                             throw new Exception("Cant find changes row who is in conflict");
 
-                        var remoteConflictRow = remoteConflictRows.ToList()[0];
+                        //var remoteConflictRow = remoteConflictRows.ToList()[0];
 
-                        var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
+                        conflictRows.Add(remoteConflictRow);
 
-                        conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
+                        //var localConflictRow = await GetRowAsync(localScopeId, failedRow, changesTable, connection, transaction).ConfigureAwait(false);
+
+                        //conflicts.Add(GetConflict(remoteConflictRow, localConflictRow));
                     }
                 }
             });
@@ -423,7 +425,7 @@ namespace Dotmim.Sync
         /// <param name="changes">Changes</param>
         /// <returns>every lines not updated / deleted in the destination data source</returns>
         internal async Task<int> ApplyChangesAsync(SyncContext context, Guid localScopeId, Guid senderScopeId, SyncTable changesTable, long lastTimestamp,
-                                                   List<SyncConflict> conflicts, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying,
+                                                   List<SyncRow> conflictRows, InterceptorWrapper<TableChangesBatchApplyingArgs> iTableChangesBatchApplying,
                                                    DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
 
@@ -458,53 +460,60 @@ namespace Dotmim.Sync
 
                 foreach (var row in changesTable.Rows)
                 {
-                    try
+                    //try
+                    //{
+                    if (row.Table == null)
+                        throw new ArgumentException("Schema table is not present in the row");
+
+                    // Set the parameters value from row 
+                    this.SetColumnParametersValues(command, row);
+
+                    // Set the special parameters for update
+                    this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, ApplyType == DataRowState.Deleted, false);
+
+                    var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                    // Check if we have a return value instead
+                    var syncRowCountParam = GetParameter(command, "sync_row_count");
+
+                    if (syncRowCountParam != null)
+                        rowAppliedCount = (int)syncRowCountParam.Value;
+
+                    if (rowAppliedCount > 0)
                     {
-                        if (row.Table == null)
-                            throw new ArgumentException("Schema table is not present in the row");
-
-                        // Set the parameters value from row 
-                        this.SetColumnParametersValues(command, row);
-
-                        // Set the special parameters for update
-                        AddScopeParametersValues(command, senderScopeId, lastTimestamp, ApplyType == DataRowState.Deleted, false);
-
-                        var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                        // Check if we have a return value instead
-                        var syncRowCountParam = GetParameter(command, "sync_row_count");
-
-                        if (syncRowCountParam != null)
-                            rowAppliedCount = (int)syncRowCountParam.Value;
-
-                        if (rowAppliedCount > 0)
-                            appliedRowsTmp++;
-                        else
-                            conflicts.Add(GetConflict(row, await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false)));
+                        appliedRowsTmp++;
 
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        if (this.IsUniqueKeyViolation(ex))
-                        {
-                            // Generate the conflict
-                            var conflict = new SyncConflict(ConflictType.UniqueKeyConstraint);
-
-                            // Add the row as Remote row
-                            conflict.AddRemoteRow(row);
-
-                            // Get the local row
-                            var localRow = await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false);
-                            if (localRow != null)
-                                conflict.AddLocalRow(localRow);
-
-                            conflicts.Add(conflict);
-                        }
-                        else
-                        {
-                            throw;
-                        }
+                        //var localRow = await this.GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false);
+                        //var conflict = this.GetConflict(row, localRow);
+                        conflictRows.Add(row);
                     }
+
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //if (this.IsUniqueKeyViolation(ex))
+                    //{
+                    //    // Generate the conflict
+                    //    var conflict = new SyncConflict(ConflictType.UniqueKeyConstraint);
+
+                    //    // Add the row as Remote row
+                    //    conflict.AddRemoteRow(row);
+
+                    //    // Get the local row
+                    //    var localRow = await GetRowAsync(localScopeId, row, changesTable, connection, transaction).ConfigureAwait(false);
+                    //    if (localRow != null)
+                    //        conflict.AddLocalRow(localRow);
+
+                    //    conflicts.Add(conflict);
+                    //}
+                    //else
+                    //{
+                    //    throw;
+                    //}
+                    //}
                 }
 
                 return appliedRowsTmp;
@@ -574,7 +583,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// We have a conflict, try to get the source row and generate a conflict
         /// </summary>
-        private SyncConflict GetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
+        internal SyncConflict GetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
         {
 
             var dbConflictType = ConflictType.ErrorsOccurred;
