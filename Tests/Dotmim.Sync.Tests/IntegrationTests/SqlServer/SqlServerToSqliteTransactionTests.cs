@@ -25,8 +25,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class SqlServerToSqliteTransactionTests : HttpTestsBase
     {
-        private Stopwatch stopwatch;
-
         public SqlServerToSqliteTransactionTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
