@@ -264,7 +264,7 @@ namespace Dotmim.Sync
 
 
         private async Task<(int rowsAppliedCount, int conflictsResolvedCount, int syncErrorsCount)> ResolveConflictsAsync(
-            SyncContext context, Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, List<SyncRow> conflictRows, MessageApplyChanges message, 
+            SyncContext context, Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, List<SyncRow> conflictRows, MessageApplyChanges message,
             SyncTable schemaChangesTable, DbConnection connection, DbTransaction transaction)
         {
             int rowsAppliedCount = 0;
@@ -313,7 +313,7 @@ namespace Dotmim.Sync
             int rowAppliedCount = 0;
             Guid? nullableSenderScopeId;
 
-            (conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) = await this.GetConflictActionAsync(context, localScopeId, syncAdapter, conflictRow, schemaChangesTable, 
+            (conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) = await this.GetConflictActionAsync(context, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
                 policy, senderScopeId, connection, transaction).ConfigureAwait(false);
 
             // Conflict rollbacked by user
@@ -393,9 +393,16 @@ namespace Dotmim.Sync
 
                         // Conflict, but both have delete the row, so just update the metadata to the right winner
                         if (!operationComplete)
+                        {
                             operationComplete = await syncAdapter.UpdateMetadatasAsync(conflictRow, nullableSenderScopeId, true, connection, transaction);
+                            rowAppliedCount = 0;
 
-                        rowAppliedCount = 1;
+                        }
+                        else
+                        {
+                            rowAppliedCount = 1;
+                        }
+
                         break;
 
                     case ConflictType.ErrorsOccurred:
