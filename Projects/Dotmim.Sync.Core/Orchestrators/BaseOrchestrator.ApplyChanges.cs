@@ -106,34 +106,37 @@ namespace Dotmim.Sync
             var changesSet = schema.Schema.Clone(false);
             var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
             // Create a new empty row
-            SyncRow syncRow = selectTable.NewRow();
+            SyncRow syncRow = null;
 
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
-            if (dataReader.Read())
+            if (!dataReader.Read())
+                return null;
+
+            syncRow = selectTable.NewRow();
+
+            for (var i = 0; i < dataReader.FieldCount; i++)
             {
-                for (var i = 0; i < dataReader.FieldCount; i++)
+                var columnName = dataReader.GetName(i);
+
+                // if we have the tombstone value, do not add it to the table
+                if (columnName == "sync_row_is_tombstone")
                 {
-                    var columnName = dataReader.GetName(i);
-
-                    // if we have the tombstone value, do not add it to the table
-                    if (columnName == "sync_row_is_tombstone")
-                    {
-                        var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                        syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
-                        continue;
-                    }
-                    if (columnName == "update_scope_id")
-                    {
-                        // var readerScopeId = dataReader.GetValue(i);
-                        continue;
-                    }
-
-                    var columnValueObject = dataReader.GetValue(i);
-                    var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-                    syncRow[columnName] = columnValue;
+                    var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                    syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
+                    continue;
                 }
+                if (columnName == "update_scope_id")
+                {
+                    // var readerScopeId = dataReader.GetValue(i);
+                    continue;
+                }
+
+                var columnValueObject = dataReader.GetValue(i);
+                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                syncRow[columnName] = columnValue;
             }
+
 
             // if syncRow is not a deleted row, we can check for which kind of row it is.
             if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
