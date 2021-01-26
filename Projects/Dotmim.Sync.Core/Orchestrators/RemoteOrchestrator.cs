@@ -41,7 +41,7 @@ namespace Dotmim.Sync
         /// Then return the schema readed
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
-        internal virtual Task<ServerScopeInfo> EnsureSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual Task<ServerScopeInfo> EnsureSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
         {
             // starting with scope loading
@@ -119,13 +119,13 @@ namespace Dotmim.Sync
             }
             return serverScopeInfo;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>
         /// Migrate an old setup configuration to a new one. This method is usefull if you are changing your SyncSetup when a database has been already configured previously
         /// </summary>
-        public virtual Task<bool> MigrationAsync(SyncSetup oldSetup, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<bool> MigrationAsync(SyncSetup oldSetup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Migrating, async (ctx, connection, transaction) =>
         {
             SyncSet schema;
@@ -153,7 +153,7 @@ namespace Dotmim.Sync
 
             return true;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>
@@ -301,7 +301,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get changes from remote database
         /// </summary>
-        public virtual Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)> GetChangesAsync(ScopeInfo clientScope, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)> GetChangesAsync(ScopeInfo clientScope, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ChangesSelecting, async (ctx, connection, transaction) =>
         {
             // Output
@@ -313,7 +313,7 @@ namespace Dotmim.Sync
                 throw new InvalidScopeInfoException();
 
             // Before getting changes, be sure we have a remote schema available
-            var serverScope = await this.EnsureSchemaAsync(cancellationToken, progress);
+            var serverScope = await this.EnsureSchemaAsync(connection, transaction, cancellationToken, progress);
 
             // Should we ?
             if (serverScope.Schema == null)
@@ -338,12 +338,12 @@ namespace Dotmim.Sync
                 await this.InternalGetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
-        });
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Get estimated changes from remote database to be applied on client
         /// </summary>
-        public virtual Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)> GetEstimatedChangesCountAsync(ScopeInfo clientScope, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)> GetEstimatedChangesCountAsync(ScopeInfo clientScope, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
           => RunInTransactionAsync(SyncStage.ChangesSelecting, async (ctx, connection, transaction) =>
           {
               // Output
@@ -353,7 +353,7 @@ namespace Dotmim.Sync
               if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
                   throw new InvalidScopeInfoException();
 
-              var serverScope = await this.EnsureSchemaAsync(cancellationToken, progress);
+              var serverScope = await this.EnsureSchemaAsync(connection, transaction, cancellationToken, progress);
 
               // Should we ?
               if (serverScope.Schema == null)
@@ -379,12 +379,12 @@ namespace Dotmim.Sync
 
               return (remoteClientTimestamp, serverChangesSelected);
 
-          }, cancellationToken);
+          }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Check if we can reach the underlying provider database
         /// </summary>
-        public Task<(string DatabaseName, string Version)> GetHelloAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
           => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
           {
               string databaseName = null;
@@ -394,32 +394,33 @@ namespace Dotmim.Sync
 
               return (databaseName, version);
 
-          }, cancellationToken);
+          }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from history client table
         /// </summary>
-        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            // Get the min timestamp, where we can without any problem, delete metadatas
-            var histories = await this.GetServerHistoryScopes(cancellationToken, progress);
+        public Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+            {
+                // Get the min timestamp, where we can without any problem, delete metadatas
+                var histories = await this.GetServerHistoryScopes(connection, transaction, cancellationToken, progress);
 
-            if (histories == null || histories.Count == 0)
-                return new DatabaseMetadatasCleaned();
+                if (histories == null || histories.Count == 0)
+                    return new DatabaseMetadatasCleaned();
 
-            var minTimestamp = histories.Min(shsi => shsi.LastSyncTimestamp);
+                var minTimestamp = histories.Min(shsi => shsi.LastSyncTimestamp);
 
-            if (minTimestamp == 0)
-                return new DatabaseMetadatasCleaned();
+                if (minTimestamp == 0)
+                    return new DatabaseMetadatasCleaned();
 
-            return await this.DeleteMetadatasAsync(minTimestamp, cancellationToken, progress);
-        }
+                return await this.DeleteMetadatasAsync(minTimestamp, connection, transaction, cancellationToken, progress);
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
           => RunInTransactionAsync(SyncStage.MetadataCleaning, async (ctx, connection, transaction) =>
           {
               await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart, connection, transaction), cancellationToken).ConfigureAwait(false);
@@ -448,7 +449,7 @@ namespace Dotmim.Sync
 
               return databaseMetadatasCleaned;
 
-          }, cancellationToken);
+          }, connection, transaction, cancellationToken);
 
     }
 }

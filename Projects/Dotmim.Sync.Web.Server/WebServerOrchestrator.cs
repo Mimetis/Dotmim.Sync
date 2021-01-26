@@ -311,7 +311,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.GetServerScopeAsync(cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Create http response
             var httpResponse = new HttpMessageEnsureScopesResponse(ctx, serverScopeInfo);
@@ -337,7 +337,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.EnsureSchemaAsync(connection:default, default, cancellationToken, progress).ConfigureAwait(false);
 
             this.Schema = serverScopeInfo.Schema;
             this.Schema.EnsureSchema();
@@ -368,7 +368,7 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
-            var changes = await base.GetChangesAsync(httpMessage.Scope, cancellationToken, progress);
+            var changes = await base.GetChangesAsync(httpMessage.Scope, default, default, cancellationToken, progress);
 
             // no changes applied to server
             var clientChangesApplied = new DatabaseChangesApplied();
@@ -398,7 +398,7 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
-            var changes = await base.GetEstimatedChangesCountAsync(httpMessage.Scope, cancellationToken, progress);
+            var changes = await base.GetEstimatedChangesCountAsync(httpMessage.Scope, default, default, cancellationToken, progress);
 
 
             var changesResponse = new HttpMessageSendChangesResponse(syncContext)
@@ -430,7 +430,7 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 this.Schema = serverScopeInfo.Schema;
                 this.Schema.EnsureSchema();
@@ -493,7 +493,7 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 this.Schema = serverScopeInfo.Schema;
                 this.Schema.EnsureSchema();

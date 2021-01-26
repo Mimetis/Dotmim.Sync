@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         /// The scope contains all about last sync, schema and scope and local / remote timestamp 
         /// </summary>
         public virtual Task<bool> CreateScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, bool overwrite = false,
-                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
            => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
            {
                bool hasBeenCreated = false;
@@ -42,13 +42,13 @@ namespace Dotmim.Sync
 
                return hasBeenCreated;
 
-           },cancellationToken);
+           }, connection, transaction, cancellationToken);
 
 
         /// <summary>
         /// Check if a scope info table exists
         /// </summary>
-        public Task<bool> ExistScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> ExistScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             // Get table builder
@@ -58,7 +58,7 @@ namespace Dotmim.Sync
 
             return exists;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>

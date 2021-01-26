@@ -21,8 +21,8 @@ namespace Dotmim.Sync
         /// Provision the orchestrator database based on the orchestrator Setup, and the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.ProvisionAsync(new SyncSet(this.Setup), provision, overwrite, cancellationToken, progress);
+        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => this.ProvisionAsync(new SyncSet(this.Setup), provision, overwrite, connection, transaction, cancellationToken, progress);
 
         /// <summary>
         /// Provision the orchestrator database based on the schema argument, and the provision enumeration
@@ -30,7 +30,7 @@ namespace Dotmim.Sync
         /// <param name="schema">Schema to be applied to the database managed by the orchestrator, through the provider.</param>
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
         /// <returns>Full schema with table and columns properties</returns>
-        public virtual Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
             {
                 // Check incompatibility with the flags
@@ -43,13 +43,13 @@ namespace Dotmim.Sync
 
                 return schema;
 
-            }, cancellationToken);
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Deprovision the orchestrator database based on the Setup table argument, and the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SetupTable table, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task DeprovisionAsync(SetupTable table, SyncProvision provision, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var setup = new SyncSetup();
             setup.Tables.Add(table);
@@ -70,14 +70,14 @@ namespace Dotmim.Sync
                 tmpSchema.Filters.Add(filter);
 
 
-            return this.DeprovisionAsync(tmpSchema, provision, cancellationToken, progress);
+            return this.DeprovisionAsync(tmpSchema, provision, connection, transaction, cancellationToken, progress);
         }
 
         /// <summary>
         /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task DeprovisionAsync(SyncProvision provision, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Create a temporary SyncSet for attaching to the schemaTable
             var tmpSchema = new SyncSet();
@@ -92,7 +92,7 @@ namespace Dotmim.Sync
             foreach (var filter in this.Setup.Filters)
                 tmpSchema.Filters.Add(filter);
 
-            return this.DeprovisionAsync(tmpSchema, provision, cancellationToken, progress);
+            return this.DeprovisionAsync(tmpSchema, provision, connection, transaction, cancellationToken, progress);
         }
 
         /// <summary>
@@ -100,12 +100,12 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncSet schema, SyncProvision provision, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task DeprovisionAsync(SyncSet schema, SyncProvision provision, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, (ctx, connection, transaction) =>
         {
             return InternalDeprovisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress);
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -216,7 +216,7 @@ namespace Dotmim.Sync
             // Disable check constraints
             if (this.Options.DisableConstraintsOnApplyChanges)
                 foreach (var table in schemaTables.Reverse())
-                    await this.DisableConstraintsAsync(ctx, table, this.Setup, connection, transaction).ConfigureAwait(false);
+                    await this.InternalDisableConstraintsAsync(ctx, this.GetSyncAdapter(table, this.Setup), connection, transaction).ConfigureAwait(false);
 
 
             // Checking if we have to deprovision tables

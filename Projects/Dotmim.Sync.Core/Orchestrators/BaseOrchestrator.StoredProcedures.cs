@@ -23,7 +23,7 @@ namespace Dotmim.Sync
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedure</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
         /// <param name="overwrite">If true, drop the existing stored procedure then create again</param>
-        public Task<bool> CreateStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             bool hasBeenCreated = false;
@@ -64,14 +64,14 @@ namespace Dotmim.Sync
 
             return hasBeenCreated;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Create a Stored Procedure
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedures</param>
         /// <param name="overwrite">If true, drop the existing Stored Procedures then create them all, again</param>
-        public Task<bool> CreateStoredProceduresAsync(SetupTable table, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateStoredProceduresAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
          {
              var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -88,14 +88,14 @@ namespace Dotmim.Sync
 
              return r;
 
-         }, cancellationToken);
+         }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Check if a Stored Procedure exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to check if the Stored Procedure exists</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
-        public Task<bool> ExistStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> ExistStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             // using a fake SyncTable based on SetupTable, since we don't need columns
@@ -119,14 +119,14 @@ namespace Dotmim.Sync
 
             return exists;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Drop a Stored Procedure
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop the Stored Procedure</param>
         /// <param name="storedProcedureType">Stored Procedure type</param>
-        public Task<bool> DropStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
             {
                 bool hasBeenDropped = false;
@@ -160,13 +160,13 @@ namespace Dotmim.Sync
 
                 return hasBeenDropped;
 
-            }, cancellationToken);
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Drop all Stored Procedures
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop all the Stored Procedures</param>
-        public Task<bool> DropStoredProceduresAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropStoredProceduresAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
             {
                 var hasDroppedAtLeastOneStoredProcedure = false;
@@ -198,7 +198,7 @@ namespace Dotmim.Sync
 
                 return hasDroppedAtLeastOneStoredProcedure;
 
-            }, cancellationToken);
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Internal create Stored Procedure routine
@@ -276,7 +276,6 @@ namespace Dotmim.Sync
 
         }
 
-
         /// <summary>
         /// Internal drop storedProcedures routine
         /// </summary>
@@ -331,7 +330,6 @@ namespace Dotmim.Sync
 
             return hasDroppedAtLeastOneStoredProcedure;
         }
-
 
         /// <summary>
         /// Internal create storedProcedures routine

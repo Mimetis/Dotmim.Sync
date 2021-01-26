@@ -380,7 +380,7 @@ namespace Dotmim.Sync
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // On local orchestrator, get scope info
-                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(cancellationToken, progress);
+                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(default, default, cancellationToken, progress);
 
                 // Register local scope id
                 context.ClientScopeId = clientScopeInfo.Id;
@@ -394,7 +394,7 @@ namespace Dotmim.Sync
                     // if schema already exists on server, then the server setup will be compared with this one
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, progress);
+                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress);
                     clientScopeInfo.Schema = serverScopeInfo.Schema;
                     clientScopeInfo.Setup = serverScopeInfo.Setup;
                     clientScopeInfo.Version = serverScopeInfo.Version;
@@ -410,7 +410,7 @@ namespace Dotmim.Sync
 
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, cancellationToken, progress).ConfigureAwait(false);
+                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     // Set schema for agent, just to let the opportunity to user to use it.
                     this.Schema = serverScopeInfo.Schema;
@@ -420,7 +420,7 @@ namespace Dotmim.Sync
                     // on remote orchestrator get scope info as well
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(cancellationToken, progress);
+                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(default, default, cancellationToken, progress);
 
                     // compare local setup options with setup provided on SyncAgent constructor (check if pref / suf have changed)
                     var hasSameOptions = clientScopeInfo.Setup.HasSameOptions(this.Setup);
@@ -440,7 +440,7 @@ namespace Dotmim.Sync
                     else
                     {
                         // Get full schema from server
-                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, progress);
+                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress);
 
                         // Set the correct schema
                         this.Schema = serverScopeInfo.Schema;
@@ -481,7 +481,7 @@ namespace Dotmim.Sync
 
 
                 // On local orchestrator, get local changes
-                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, cancellationToken, progress);
+                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, default, default, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

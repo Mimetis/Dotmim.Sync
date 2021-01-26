@@ -1784,9 +1784,9 @@ internal class Program
                 {
                     var localOrchestrator = new WebClientOrchestrator(serviceUri);
 
-                    
+
                     localOrchestrator.OnHttpGettingResponse(req => Console.WriteLine("Receiving Server Response"));
-                    localOrchestrator.OnHttpSendingRequest(res =>Console.WriteLine("Sending Client Request."));
+                    localOrchestrator.OnHttpSendingRequest(res => Console.WriteLine("Sending Client Request."));
                     localOrchestrator.OnHttpGettingChanges(args => Console.WriteLine("Getting Server Changes" + args));
                     localOrchestrator.OnHttpSendingChanges(args => Console.WriteLine("Sending Client Changes" + args));
 
@@ -1928,13 +1928,9 @@ internal class Program
             {
                 var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
 
-
-
-                var serverSchema = await proxyClientProvider.GetSchemaAsync(default, progress);
+                var serverSchema = await proxyClientProvider.GetSchemaAsync(progress: progress);
 
                 var serverScope = await proxyClientProvider.GetServerScopeAsync();
-
-
 
                 // var s = await agent.SynchronizeAsync(progress);
 

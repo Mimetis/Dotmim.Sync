@@ -101,7 +101,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
-            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(cts.Token));
+            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(default, default, cts.Token));
 
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var cts = new CancellationTokenSource();
 
             localOrchestrator.OnTransactionCommit(args => cts.Cancel());
-            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(cts.Token));
+            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(default, default, cts.Token));
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
             

@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.SnapshotCreating, async (ctx, connection, transaction) =>
         {
             if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
@@ -58,7 +58,7 @@ namespace Dotmim.Sync
 
 
             return batchInfo;
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>
@@ -76,8 +76,6 @@ namespace Dotmim.Sync
             BatchInfo serverBatchInfo = null;
             try
             {
-                var connection = this.Provider.CreateConnection();
-
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
                     return (0, null);
 
@@ -90,7 +88,7 @@ namespace Dotmim.Sync
                 // Get Schema from remote provider if no schema passed from args
                 if (schema == null)
                 {
-                    var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                    var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
                     schema = serverScopeInfo.Schema;
                 }
 

@@ -23,7 +23,7 @@ namespace Dotmim.Sync
         /// <param name="table">A table from your Setup instance, where you want to create the trigger</param>
         /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
         /// <param name="overwrite">If true, drop the existing trriger then create again</param>
-        public Task<bool> CreateTriggerAsync(SetupTable table, DbTriggerType triggerType, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTriggerAsync(SetupTable table, DbTriggerType triggerType, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
             {
                 bool hasBeenCreated = false;
@@ -55,14 +55,14 @@ namespace Dotmim.Sync
 
                 return hasBeenCreated;
 
-            }, cancellationToken);
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Create a trigger
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to create the triggers</param>
         /// <param name="overwrite">If true, drop the existing triggers then create them all, again</param>
-        public Task<bool> CreateTriggersAsync(SetupTable table, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTriggersAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
             {
                 var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -78,14 +78,14 @@ namespace Dotmim.Sync
                 var r = await this.InternalCreateTriggersAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return r;
-            }, cancellationToken);
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Check if a trigger exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to check if the trigger exists</param>
         /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
-        public Task<bool> ExistTriggerAsync(SetupTable table, DbTriggerType triggerType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> ExistTriggerAsync(SetupTable table, DbTriggerType triggerType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             // Fake sync table without column definitions. Not need for making a check exists call
@@ -98,14 +98,14 @@ namespace Dotmim.Sync
 
             return exists;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Dropping a trigger
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop the trigger</param>
         /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
-        public Task<bool> DropTriggerAsync(SetupTable table, DbTriggerType triggerType, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropTriggerAsync(SetupTable table, DbTriggerType triggerType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             bool hasBeenDropped = false;
@@ -123,13 +123,13 @@ namespace Dotmim.Sync
 
             return hasBeenDropped;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Drop all triggers
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop all the triggers</param>
-        public Task<bool> DropTriggersAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropTriggersAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, (ctx, connection, transaction) =>
         {
             // Fake sync table without column definitions. Not need for making a drop call
@@ -140,7 +140,7 @@ namespace Dotmim.Sync
 
             return this.InternalDropTriggersAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress);
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Internal create trigger routine

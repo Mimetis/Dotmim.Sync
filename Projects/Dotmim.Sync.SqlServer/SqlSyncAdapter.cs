@@ -238,7 +238,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                         sqlMetadataIndex++;
                     }
 
-
                     records.Add(record);
                 }
             }

@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// Create a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTableAsync(SyncTable syncTable, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTableAsync(SyncTable syncTable, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             var hasBeenCreated = false;
@@ -50,13 +50,13 @@ namespace Dotmim.Sync
 
             return hasBeenCreated;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Create all tables
         /// </summary>
         /// <param name="schema">A complete schema you want to create, containing table, primary keys and relations</param>
-        public Task<bool> CreateTablesAsync(SyncSet schema, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTablesAsync(SyncSet schema, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             var atLeastOneHasBeenCreated = false;
@@ -107,14 +107,14 @@ namespace Dotmim.Sync
 
             return atLeastOneHasBeenCreated;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>
         /// Check if a table exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, you want to check if it exists</param>
-        public Task<bool> ExistTableAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> ExistTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             // Fake sync table without column definitions. Not need for making a check exists call
@@ -127,13 +127,13 @@ namespace Dotmim.Sync
 
             return exists;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Drop a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public Task<bool> DropTableAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             var hasBeenDropped = false;
@@ -155,12 +155,12 @@ namespace Dotmim.Sync
 
             return hasBeenDropped;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Drop all tables, declared in the Setup instance
         /// </summary>
-        public Task<bool> DropTablesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             bool atLeastOneTableHasBeenDropped = false;
@@ -183,7 +183,7 @@ namespace Dotmim.Sync
 
             return atLeastOneTableHasBeenDropped;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>

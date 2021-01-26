@@ -1269,8 +1269,7 @@ namespace Dotmim.Sync.Tests
                         var addProp = tca.Context.AdditionalProperties[tca.Table.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            var adapter = agent.LocalOrchestrator.GetSyncAdapter(tca.Table, setup);
-                            await adapter.ResetTableAsync(tca.Connection, tca.Transaction);
+                            await agent.LocalOrchestrator.ResetTableAsync(setup.Tables[tca.Table.TableName, tca.Table.SchemaName], tca.Connection, tca.Transaction);
                         }
                     }
                 });
@@ -1330,7 +1329,7 @@ namespace Dotmim.Sync.Tests
             Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
 
             await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
-            
+
             Assert.True(Directory.Exists(rootDirectory));
             Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
 
