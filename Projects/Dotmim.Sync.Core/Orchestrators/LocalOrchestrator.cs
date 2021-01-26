@@ -69,7 +69,7 @@ namespace Dotmim.Sync
         /// Get changes from local database
         /// </summary>
         /// <returns></returns>
-        public Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)> GetChangesAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)> GetChangesAsync(ScopeInfo localScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ChangesSelecting, async (ctx, connection, transaction) =>
         {
             // Output
@@ -120,7 +120,7 @@ namespace Dotmim.Sync
 
             return (clientTimestamp, clientBatchInfo, clientChangesSelected);
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
 
@@ -128,7 +128,7 @@ namespace Dotmim.Sync
         /// Get estimated changes from local database to be sent to the server
         /// </summary>
         /// <returns></returns>
-        public Task<(long ClientTimestamp, DatabaseChangesSelected ClientChangesSelected)> GetEstimatedChangesCountAsync(ScopeInfo localScopeInfo = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<(long ClientTimestamp, DatabaseChangesSelected ClientChangesSelected)> GetEstimatedChangesCountAsync(ScopeInfo localScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.ChangesSelecting, async (ctx, connection, transaction) =>
             {
                 // Output
@@ -177,7 +177,7 @@ namespace Dotmim.Sync
                     (ctx, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return (clientTimestamp, clientChangesSelected);
-            }, cancellationToken);
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Apply changes locally
@@ -232,7 +232,7 @@ namespace Dotmim.Sync
 
             return (clientChangesApplied, scope);
 
-        }, cancellationToken);
+        }, default, default, cancellationToken);
 
 
         /// <summary>
@@ -271,18 +271,18 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from scope info table
         /// </summary>
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
             // Get the min timestamp, where we can without any problem, delete metadatas
-            var clientScopeInfo = await this.GetClientScopeAsync(cancellationToken, progress).ConfigureAwait(false);
+            var clientScopeInfo = await this.GetClientScopeAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (clientScopeInfo.LastSyncTimestamp == 0)
                 return new DatabaseMetadatasCleaned();
 
-            return await base.DeleteMetadatasAsync(clientScopeInfo.LastSyncTimestamp, cancellationToken, progress).ConfigureAwait(false);
+            return await base.DeleteMetadatasAsync(clientScopeInfo.LastSyncTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
         }
 
 
@@ -319,26 +319,7 @@ namespace Dotmim.Sync
             return true;
         });
 
-        /// <summary>
-        /// Update all untracked rows from the client database
-        /// </summary>
-        public virtual Task<bool> UpdateUntrackedRowsAsync(SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.ChangesApplying, async (ctx, connection, transaction) =>
-        {
-            // If schema does not have any table, just return
-            if (schema == null || schema.Tables == null || !schema.HasTables)
-                throw new MissingTablesException();
 
-            // Update untracked rows
-            foreach (var table in schema.Tables)
-            {
-                var syncAdapter = this.GetSyncAdapter(table, this.Setup);
-                await syncAdapter.UpdateUntrackedRowsAsync(connection, transaction).ConfigureAwait(false);
-            }
-
-            return true;
-
-        }, cancellationToken);
 
     }
 }

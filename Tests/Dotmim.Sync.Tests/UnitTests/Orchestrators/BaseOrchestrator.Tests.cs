@@ -251,7 +251,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var schema = await localOrchestrator.GetSchemaAsync(cts.Token);
+                var schema = await localOrchestrator.GetSchemaAsync(cancellationToken:cts.Token);
             });
 
             Assert.Equal(SyncStage.SchemaReading, se.SyncStage);

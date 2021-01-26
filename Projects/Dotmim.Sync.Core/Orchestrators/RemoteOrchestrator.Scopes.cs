@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the server scope histories
         /// </summary>
-        public virtual Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopes(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopes(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
            => RunInTransactionAsync(SyncStage.ScopeLoading, async (ctx, connection, transaction) =>
            {
                List<ServerHistoryScopeInfo> serverHistoryScopes = null;
@@ -39,14 +39,14 @@ namespace Dotmim.Sync
 
                return serverHistoryScopes;
 
-           }, cancellationToken);
+           }, connection, transaction, cancellationToken);
 
 
         /// <summary>
         /// Get the local configuration, ensures the local scope is created
         /// </summary>
         /// <returns>Server scope info, containing all scopes names, version, setup and related schema infos</returns>
-        public virtual Task<ServerScopeInfo> GetServerScopeAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> GetServerScopeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ScopeLoading, async (ctx, connection, transaction) =>
         {
             ServerScopeInfo serverScopeInfo = null;
@@ -88,14 +88,14 @@ namespace Dotmim.Sync
 
             return serverScopeInfo;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
 
         /// <summary>
         /// Update or Insert a server scope row
         /// </summary>
-        public virtual Task<ServerScopeInfo> SaveServerScopeAsync(ServerScopeInfo scopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> SaveServerScopeAsync(ServerScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ScopeWriting, async (ctx, connection, transaction) =>
         {
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -110,12 +110,12 @@ namespace Dotmim.Sync
 
             return scopeInfoUpdated;
 
-        },cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Update or Insert a server scope row
         /// </summary>
-        public virtual Task<ServerHistoryScopeInfo> SaveServerHistoryScopeAsync(ServerHistoryScopeInfo scopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerHistoryScopeInfo> SaveServerHistoryScopeAsync(ServerHistoryScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ScopeWriting, async (ctx, connection, transaction) =>
         {
             var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -130,7 +130,7 @@ namespace Dotmim.Sync
 
             return scopeInfoUpdated;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
     }
 }
