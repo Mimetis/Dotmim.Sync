@@ -1928,7 +1928,7 @@ internal class Program
             {
                 var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
 
-                var serverSchema = await proxyClientProvider.GetSchemaAsync(progress: progress);
+                var serverSchema = await proxyClientProvider.GetSchemaAsync();
 
                 var serverScope = await proxyClientProvider.GetServerScopeAsync();
 
