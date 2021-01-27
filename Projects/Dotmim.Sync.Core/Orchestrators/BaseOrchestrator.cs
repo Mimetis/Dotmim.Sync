@@ -29,6 +29,10 @@ namespace Dotmim.Sync
         private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
             = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
 
+        // Internal scope builder cache
+        private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
+            = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
+
         // Internal sync adapter cache
         private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
             = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
@@ -289,6 +293,24 @@ namespace Dotmim.Sync
             return tableBuilder;
         }
 
+
+        /// <summary>
+        /// Get a provider scope builder by scope table name
+        /// </summary>
+        public DbScopeBuilder GetScopeBuilder(string scopeInfoTableName)
+        {
+            // Create the key
+            var commandKey = $"{scopeInfoTableName}-{this.Provider.ConnectionString}";
+
+            // Get a lazy command instance
+            var lazyScopeBuilder = scopeBuilders.GetOrAdd(commandKey,
+                k => new Lazy<DbScopeBuilder>(() => this.Provider.GetScopeBuilder(scopeInfoTableName)));
+
+            // Get the concrete instance
+            var scopeBuilder = lazyScopeBuilder.Value;
+
+            return scopeBuilder;
+        }
         /// <summary>
         /// Sets the current context
         /// </summary>

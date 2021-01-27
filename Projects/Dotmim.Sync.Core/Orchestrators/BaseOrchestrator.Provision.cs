@@ -128,7 +128,7 @@ namespace Dotmim.Sync
                 schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Get Scope Builder
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             // Shoudl we create scope
             if (provision.HasFlag(SyncProvision.ClientScope))
@@ -294,7 +294,7 @@ namespace Dotmim.Sync
             }
 
             // Get Scope Builder
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             if (provision.HasFlag(SyncProvision.ClientScope))
             {

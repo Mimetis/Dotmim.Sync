@@ -80,7 +80,7 @@ namespace Dotmim.Sync
             // Get local scope, if not provided 
             if (localScopeInfo == null)
             {
-                var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -138,7 +138,7 @@ namespace Dotmim.Sync
                 // Get local scope, if not provided 
                 if (localScopeInfo == null)
                 {
-                    var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                     var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -226,7 +226,7 @@ namespace Dotmim.Sync
             scope.Setup = this.Setup;
 
             // Write scopes locally
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, scope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -300,7 +300,7 @@ namespace Dotmim.Sync
             await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Get Scope Builder
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             ScopeInfo localScope = null;
 
@@ -314,7 +314,7 @@ namespace Dotmim.Sync
             localScope.Setup = this.Setup;
             localScope.Schema = schema;
 
-            await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalSaveScopeAsync(ctx, DbScopeType.Client,localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return true;
         });

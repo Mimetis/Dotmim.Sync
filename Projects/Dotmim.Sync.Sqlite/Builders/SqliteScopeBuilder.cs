@@ -15,11 +15,13 @@ namespace Dotmim.Sync.Sqlite
         {
         }
 
-
-        public Task<DbCommand> GetAllClientScopesCommandAsync(string scopeName, DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetAllScopesCommand(DbScopeType scopeType,  DbConnection connection, DbTransaction transaction)
         {
+            if (scopeType != DbScopeType.Client)
+                return null;
+
             var commandText =
-                    $@"SELECT sync_scope_id
+                                $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
                            , sync_scope_setup
@@ -41,28 +43,19 @@ namespace Dotmim.Sync.Sqlite
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = scopeName;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
-
-            return Task.FromResult(command);
-        }
-
-        public override Task<DbCommand> GetAllScopesCommandAsync(DbScopeType scopeType, string scopeName, DbConnection connection, DbTransaction transaction)
-        {
-            if (scopeType != DbScopeType.Client)
-                return Task.FromResult<DbCommand>(null);
-
-            return GetAllClientScopesCommandAsync(scopeName, connection, transaction);
+            return command;
         }
 
 
 
-        public override Task<DbCommand> GetCreateScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetCreateScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         {
             if (scopeType != DbScopeType.Client)
-                return Task.FromResult<DbCommand>(null);
+                return null;
 
             var commandText =
                     $@"CREATE TABLE {ScopeInfoTableName.Quoted().ToString()}(
@@ -84,13 +77,13 @@ namespace Dotmim.Sync.Sqlite
 
             command.CommandText = commandText;
 
-            return Task.FromResult(command);
+            return command;
         }
 
-        public override Task<DbCommand> GetDropScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDropScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         {
             if (scopeType != DbScopeType.Client)
-                return Task.FromResult<DbCommand>(null);
+                return null;
 
             var commandText = $"DROP Table {ScopeInfoTableName.Unquoted().ToString()}";
 
@@ -102,12 +95,31 @@ namespace Dotmim.Sync.Sqlite
             if (transaction != null)
                 command.Transaction = transaction;
 
-            return Task.FromResult(command);
+            return command;
         }
-        public override Task<DbCommand> GetExistsScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+
+        public override DbCommand GetExistsScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         {
             if (scopeType != DbScopeType.Client)
-                return Task.FromResult<DbCommand>(null);
+                return null;
+
+            var commandText = $@"Select count(*) from {ScopeInfoTableName.Unquoted().ToString()} where sync_scope_id = @sync_scope_id";
+
+            var scommand = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction);
+
+            var p0 = scommand.CreateParameter();
+            p0.ParameterName = "@sync_scope_id";
+            p0.DbType = DbType.String;
+            scommand.Parameters.Add(p0);
+
+            return scommand;
+
+        }
+
+        public override DbCommand GetExistsScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        {
+            if (scopeType != DbScopeType.Client)
+                return null;
 
             var commandText = $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{ScopeInfoTableName.Unquoted().ToString()}'";
 
@@ -119,10 +131,27 @@ namespace Dotmim.Sync.Sqlite
             if (transaction != null)
                 command.Transaction = transaction;
 
-            return Task.FromResult(command);
+            return command;
 
         }
-        public override Task<DbCommand> GetLocalTimestampCommandAsync(DbConnection connection, DbTransaction transaction)
+
+        public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        {
+            if (scopeType != DbScopeType.Client)
+                return null;
+
+            return this.GetSaveScopeInfoCommand(false, connection, transaction);
+        }
+
+        public override DbCommand GetUpdateScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        {
+            if (scopeType != DbScopeType.Client)
+                return null;
+
+            return this.GetSaveScopeInfoCommand(true, connection, transaction);
+        }
+
+        public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
 
             var commandText = $"Select {SqliteObjectNames.TimestampValue}";
@@ -135,32 +164,12 @@ namespace Dotmim.Sync.Sqlite
             if (transaction != null)
                 command.Transaction = transaction;
 
-            return Task.FromResult(command);
+            return command;
         }
 
 
-        public override async Task<DbCommand> GetSaveScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfoObject, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetSaveScopeInfoCommand(bool exist, DbConnection connection, DbTransaction transaction)
         {
-            if (scopeType != DbScopeType.Client)
-                return null;
-
-            var scopeInfo = scopeInfoObject as ScopeInfo;
-
-            var commandText = $@"Select count(*) from {ScopeInfoTableName.Unquoted().ToString()} where sync_scope_id = @sync_scope_id";
-
-            bool exist;
-
-            using (var scommand = new SqliteCommand(commandText, (SqliteConnection)connection, (SqliteTransaction)transaction))
-            {
-                var p0 = scommand.CreateParameter();
-                p0.ParameterName = "@sync_scope_id";
-                p0.Value = scopeInfo.Id.ToString();
-                p0.DbType = DbType.String;
-                scommand.Parameters.Add(p0);
-
-                exist = ((long)await scommand.ExecuteScalarAsync().ConfigureAwait(false)) > 0;
-            }
-
             var stmtText = new StringBuilder();
 
             stmtText.AppendLine(exist
@@ -184,56 +193,52 @@ namespace Dotmim.Sync.Sqlite
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = scopeInfo.Name;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_schema";
-            p.Value = scopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Schema);
             p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_setup";
-            p.Value = scopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
             p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_version";
-            p.Value = string.IsNullOrEmpty(scopeInfo.Version) ? DBNull.Value : (object)scopeInfo.Version;
             p.DbType = DbType.String;
+            p.Size = 10;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync";
-            p.Value = scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value;
             p.DbType = DbType.DateTime;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_server_sync_timestamp";
-            p.Value = scopeInfo.LastServerSyncTimestamp;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_timestamp";
-            p.Value = scopeInfo.LastSyncTimestamp;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_duration";
-            p.Value = scopeInfo.LastSyncDuration;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.Value = scopeInfo.Id.ToString();
             p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             return command;

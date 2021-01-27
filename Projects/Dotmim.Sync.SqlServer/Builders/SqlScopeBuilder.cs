@@ -14,7 +14,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
         }
 
-        public Task<DbCommand> GetAllClientScopesCommandAsync(string scopeName, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetAllClientScopesCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
                 $@"SELECT [sync_scope_id]
@@ -37,14 +37,14 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = scopeName;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
-            return Task.FromResult(command);
+            return command;
         }
 
-        public Task<DbCommand> GetAllServerHistoryScopesCommandAsync(string scopeName, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetAllServerHistoryScopesCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
             var commandText =
@@ -65,15 +65,15 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = scopeName;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
-            return Task.FromResult(command);
+            return command;
 
 
         }
-        public Task<DbCommand> GetAllServerScopesCommandAsync(string scopeName, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetAllServerScopesCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
             var commandText =
@@ -93,22 +93,22 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = scopeName;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
-            return Task.FromResult(command);
+            return command;
         }
 
-        public override Task<DbCommand> GetAllScopesCommandAsync(DbScopeType scopeType, string scopeName, DbConnection connection, DbTransaction transaction) 
+        public override DbCommand GetAllScopesCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         => scopeType switch
         {
-            DbScopeType.Server => GetAllServerScopesCommandAsync(scopeName, connection, transaction),
-            DbScopeType.ServerHistory => GetAllServerHistoryScopesCommandAsync(scopeName, connection, transaction),
-            _ => GetAllClientScopesCommandAsync(scopeName, connection, transaction)
+            DbScopeType.Server => GetAllServerScopesCommand(connection, transaction),
+            DbScopeType.ServerHistory => GetAllServerHistoryScopesCommand(connection, transaction),
+            _ => GetAllClientScopesCommand(connection, transaction)
         };
 
-        public Task<DbCommand> GetCreateClientScopeInfoTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand GetCreateClientScopeInfoTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
                 $@"CREATE TABLE [dbo].{this.ScopeInfoTableName.Quoted().ToString()}(
@@ -130,10 +130,10 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             command.CommandText = commandText;
 
-            return Task.FromResult(command);
+            return command;
         }
- 
-        public Task<DbCommand> GetCreateServerHistoryScopeInfoTableCommandAsync(DbConnection connection, DbTransaction transaction)
+
+        public DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -154,10 +154,10 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             command.CommandText = commandText;
 
-            return Task.FromResult(command);
+            return command;
 
         }
-        public Task<DbCommand> GetCreateServerScopeInfoTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        public DbCommand GetCreateServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
 
@@ -178,20 +178,20 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             command.CommandText = commandText;
 
-            return Task.FromResult(command);
+            return command;
 
         }
 
-        public override Task<DbCommand> GetCreateScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction) 
+        public override DbCommand GetCreateScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         => scopeType switch
         {
-            DbScopeType.Server => GetCreateServerScopeInfoTableCommandAsync(connection, transaction),
-            DbScopeType.ServerHistory => GetCreateServerHistoryScopeInfoTableCommandAsync(connection, transaction),
+            DbScopeType.Server => GetCreateServerScopeInfoTableCommand(connection, transaction),
+            DbScopeType.ServerHistory => GetCreateServerHistoryScopeInfoTableCommand(connection, transaction),
             _ => GetCreateClientScopeInfoTableCommandAsync(connection, transaction)
         };
 
 
-        public override Task<DbCommand> GetDropScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDropScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         {
             var tableName = scopeType switch
             {
@@ -206,16 +206,16 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             command.CommandText = $"DROP Table [dbo].[{tableName}]";
 
-            return Task.FromResult(command);
+            return command;
         }
 
-        public override Task<DbCommand> GetExistsScopeInfoTableCommandAsync(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         {
             var tableName = scopeType switch
             {
                 DbScopeType.Server => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server",
                 DbScopeType.ServerHistory => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history",
-               _ => this.ScopeInfoTableName.Unquoted().ToString(),
+                _ => this.ScopeInfoTableName.Unquoted().Normalized().ToString(),
             };
 
             var command = connection.CreateCommand();
@@ -225,10 +225,10 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0"; ;
 
-            return Task.FromResult(command);
+            return command;
         }
 
-        public override Task<DbCommand> GetLocalTimestampCommandAsync(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             // UPDATE Nov 2019 : We don't use min_active_rowversion anymore, since we are in a transaction
             // and we still need the last row version "during the transaction", so check back to @@DBTS
@@ -245,19 +245,50 @@ namespace Dotmim.Sync.SqlServer.Scope
             p.Direction = ParameterDirection.Output;
             command.Parameters.Add(p);
 
-            return Task.FromResult(command);
+            return command;
         }
 
-        public override Task<DbCommand> GetSaveScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction)
-            => scopeInfo switch
+        public override DbCommand GetExistsScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+
+            if (transaction != null)
+                command.Transaction = transaction;
+
+            var tableName = scopeType switch
             {
-                ScopeInfo si => GetSaveClientScopeInfoCommandAsync(si, connection, transaction),
-                ServerHistoryScopeInfo shsi => GetSaveServerHistoryScopeInfoCommandAsync(shsi, connection, transaction),
-                ServerScopeInfo ssi => GetSaveServerScopeInfoCommandAsync(ssi, connection, transaction),
+                DbScopeType.Client => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}",
+                DbScopeType.Server => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server",
+                DbScopeType.ServerHistory => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history",
+                _ => throw new NotImplementedException($"Can't get scope name from this DbScopeType {scopeType}")
+            };
+
+            if (scopeType == DbScopeType.Server)
+                command.CommandText = $@"Select count(*) from [{tableName}] where sync_scope_name = @sync_scope_id";
+            else
+                command.CommandText = $@"Select count(*) from [{tableName}] where sync_scope_id = @sync_scope_id";
+
+            var p0 = command.CreateParameter();
+            p0.ParameterName = "@sync_scope_id";
+            p0.DbType = DbType.String;
+            p0.Size = -1;
+            command.Parameters.Add(p0);
+
+            return command;
+        }
+        public override DbCommand GetUpdateScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+            => GetInsertScopeInfoCommand(scopeType, connection, transaction);
+
+        public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+            => scopeType switch
+            {
+                DbScopeType.Client => GetSaveClientScopeInfoCommand(connection, transaction),
+                DbScopeType.ServerHistory => GetSaveServerHistoryScopeInfoCommand(connection, transaction),
+                DbScopeType.Server => GetSaveServerScopeInfoCommand(connection, transaction),
                 _ => throw new NotImplementedException($"Can't save this DbScopeType {scopeType}")
             };
 
-        public Task<DbCommand> GetSaveClientScopeInfoCommandAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetSaveClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"
                     MERGE {this.ScopeInfoTableName.Quoted().ToString()} AS [base] 
@@ -304,62 +335,57 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = scopeInfo.Name;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_schema";
-            p.Value = scopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Schema);
             p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_setup";
-            p.Value = scopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup);
             p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_version";
-            p.Value = string.IsNullOrEmpty(scopeInfo.Version) ? DBNull.Value : (object)scopeInfo.Version;
             p.DbType = DbType.String;
+            p.Size = 10;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.Value = scopeInfo.Id;
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync";
-            p.Value = scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value;
             p.DbType = DbType.DateTime;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_timestamp";
-            p.Value = scopeInfo.LastSyncTimestamp;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_server_sync_timestamp";
-            p.Value = scopeInfo.LastServerSyncTimestamp;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_duration";
-            p.Value = scopeInfo.LastSyncDuration;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
-            return Task.FromResult(command);
+            return command;
 
         }
-        public Task<DbCommand> GetSaveServerHistoryScopeInfoCommandAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetSaveServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -395,38 +421,39 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = serverHistoryScopeInfo.Name;
+            //p.Value = serverHistoryScopeInfo.Name;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.Value = serverHistoryScopeInfo.Id;
+            //p.Value = serverHistoryScopeInfo.Id;
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_timestamp";
-            p.Value = serverHistoryScopeInfo.LastSyncTimestamp;
+            //p.Value = serverHistoryScopeInfo.LastSyncTimestamp;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync";
-            p.Value = serverHistoryScopeInfo.LastSync.HasValue ? (object)serverHistoryScopeInfo.LastSync.Value : DBNull.Value;
+            //p.Value = serverHistoryScopeInfo.LastSync.HasValue ? (object)serverHistoryScopeInfo.LastSync.Value : DBNull.Value;
             p.DbType = DbType.DateTime;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_duration";
-            p.Value = serverHistoryScopeInfo.LastSyncDuration;
+            //p.Value = serverHistoryScopeInfo.LastSyncDuration;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
-            return Task.FromResult(command);
+            return command;
 
         }
-        public Task<DbCommand> GetSaveServerScopeInfoCommandAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetSaveServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
 
@@ -464,35 +491,39 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = serverScopeInfo.Name;
+            //p.Value = serverScopeInfo.Name;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_schema";
-            p.Value = serverScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Schema);
+            //p.Value = serverScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Schema);
             p.DbType = DbType.String;
+            p.Size = int.MaxValue;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_setup";
-            p.Value = serverScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Setup);
+            //p.Value = serverScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Setup);
             p.DbType = DbType.String;
+            p.Size = int.MaxValue;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_version";
-            p.Value = string.IsNullOrEmpty(serverScopeInfo.Version) ? DBNull.Value : (object)serverScopeInfo.Version;
+            //p.Value = string.IsNullOrEmpty(serverScopeInfo.Version) ? DBNull.Value : (object)serverScopeInfo.Version;
             p.DbType = DbType.String;
+            p.Size = 10;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_last_clean_timestamp";
-            p.Value = serverScopeInfo.LastCleanupTimestamp;
+            //p.Value = serverScopeInfo.LastCleanupTimestamp;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
-            return Task.FromResult(command);
+            return command;
         }
     }
 }
