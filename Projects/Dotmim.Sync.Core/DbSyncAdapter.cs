@@ -116,7 +116,6 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Remove a Command from internal shared dictionary
         /// </summary>
@@ -168,9 +167,7 @@ namespace Dotmim.Sync
 
             return command;
         }
-
     
-
         /// <summary>
         /// Add common parameters which could be part of the command
         /// if not found, no set done
@@ -184,6 +181,8 @@ namespace Dotmim.Sync
             DbSyncAdapter.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
+
+        // TODO : Migrate to BaseOrchestrator
         /// <summary>
         /// Create a change table with scope columns and tombstone column
         /// </summary>

@@ -47,7 +47,7 @@ namespace Dotmim.Sync
             // starting with scope loading
             ctx.SyncStage = SyncStage.ScopeLoading;
 
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -136,7 +136,7 @@ namespace Dotmim.Sync
             // Migrate the db structure
             await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -202,7 +202,7 @@ namespace Dotmim.Sync
 
                     // Getting server scope assumes we have already created the schema on server
 
-                    var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                     var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, clientScope.Name, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -272,7 +272,7 @@ namespace Dotmim.Sync
                     };
 
                     // Write scopes locally
-                    var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                     await this.InternalSaveScopeAsync(ctx, DbScopeType.ServerHistory, scopeHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -432,7 +432,7 @@ namespace Dotmim.Sync
               var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
               // Update server scope table
-              var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+              var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
               var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

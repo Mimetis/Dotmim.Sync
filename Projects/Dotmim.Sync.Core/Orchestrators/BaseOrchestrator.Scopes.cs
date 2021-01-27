@@ -23,7 +23,7 @@ namespace Dotmim.Sync
                bool hasBeenCreated = false;
 
                // Get table builder
-               var scopeBuilder = this.Provider.GetScopeBuilder(scopeInfoTableName);
+               var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
 
                var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -52,7 +52,7 @@ namespace Dotmim.Sync
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             // Get table builder
-            var scopeBuilder = this.Provider.GetScopeBuilder(scopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
 
             var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -67,7 +67,28 @@ namespace Dotmim.Sync
         internal async Task<bool> InternalExistsScopeInfoTableAsync(SyncContext ctx, DbScopeType scopeType, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
-            var existsCommand = await scopeBuilder.GetExistsScopeInfoTableCommandAsync(scopeType, connection, transaction).ConfigureAwait(false);
+            var existsCommand = scopeBuilder.PrepareCommand(DbScopeCommandType.ExistsScopeTable, scopeType, connection, transaction);
+
+            if (existsCommand == null)
+                return false;
+
+            var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+            var exists = Convert.ToInt32(existsResultObject) > 0;
+            return exists;
+        }
+
+        /// <summary>
+        /// Internal exists scope
+        /// </summary>
+        internal async Task<bool> InternalExistsScopeInfoAsync(SyncContext ctx, DbScopeType scopeType, string scopeId, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            // Get exists command
+            var existsCommand = scopeBuilder.PrepareCommand(DbScopeCommandType.ExistScope, scopeType, connection, transaction);
+
+            // Just in case, in older version we may have sync_scope_name as primary key;
+            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", scopeId);
+            // Set primary key value
+            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_id", scopeId);
 
             if (existsCommand == null)
                 return false;
@@ -82,7 +103,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<bool> InternalDropScopeInfoTableAsync(SyncContext ctx, DbScopeType scopeType, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var command = await scopeBuilder.GetDropScopeInfoTableCommandAsync(scopeType, connection, transaction).ConfigureAwait(false);
+            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.DropScopeTable, scopeType, connection, transaction);
 
             if (command == null)
                 return false;
@@ -105,7 +126,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<bool> InternalCreateScopeInfoTableAsync(SyncContext ctx, DbScopeType scopeType, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var command = await scopeBuilder.GetCreateScopeInfoTableCommandAsync(scopeType, connection, transaction).ConfigureAwait(false);
+            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.CreateScopeTable, scopeType, connection, transaction);
 
             if (command == null)
                 return false;
@@ -128,10 +149,12 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<List<T>> InternalGetAllScopesAsync<T>(SyncContext ctx, DbScopeType scopeType, string scopeName, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress) where T : class
         {
-            var command = await scopeBuilder.GetAllScopesCommandAsync(scopeType, scopeName, connection, transaction).ConfigureAwait(false);
+            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.GetScopes, scopeType, connection, transaction);
 
             if (command == null)
                 return null;
+
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", scopeName);
 
             var action = new ScopeLoadingArgs(ctx, scopeName, scopeType, command, connection, transaction);
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
@@ -179,7 +202,7 @@ namespace Dotmim.Sync
                 // create a new scope id for the current owner (could be server or client as well)
                 T scope = scopeType switch
                 {
-                    DbScopeType.Client => new ScopeInfo { Id = Guid.NewGuid(), Name = this.ScopeName, IsNewScope = true, LastSync = null } as T,
+                    DbScopeType.Client => new ScopeInfo { Id = Guid.NewGuid(), Name = scopeName, IsNewScope = true, LastSync = null } as T,
                     DbScopeType.Server => new ServerScopeInfo { Name = scopeName, LastCleanupTimestamp = 0, Version = "1" } as T,
                     _ => throw new NotImplementedException($"Type {typeof(T).Name} is not implemented when trying to get a single instance")
                 };
@@ -194,7 +217,7 @@ namespace Dotmim.Sync
 
             if (typeof(T) == typeof(ScopeInfo))
             {
-                //check if we have alread a good last sync. if no, treat it as new
+                //check if we have already a good last sync. if no, treat it as new
                 scopes.ForEach(sc => (sc as ScopeInfo).IsNewScope = (sc as ScopeInfo).LastSync == null);
 
                 var scopeInfo = localScope as ScopeInfo;
@@ -224,10 +247,34 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<T> InternalSaveScopeAsync<T>(SyncContext ctx, DbScopeType scopeType, T scopeInfo, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress) where T : class
         {
-            var command = await scopeBuilder.GetSaveScopeInfoCommandAsync(scopeType, scopeInfo, connection, transaction).ConfigureAwait(false);
+
+            var scopeId = scopeType switch
+            {
+                DbScopeType.Client => (scopeInfo as ScopeInfo).Id.ToString(),
+                DbScopeType.Server => (scopeInfo as ServerScopeInfo).Name,
+                DbScopeType.ServerHistory => (scopeInfo as ServerHistoryScopeInfo).Id.ToString(),
+                _ => throw new NotImplementedException($"Can't set parameters to scope command type {scopeType}.")
+            };
+
+            var scopeExists = await InternalExistsScopeInfoAsync(ctx, scopeType, scopeId, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            DbCommand command;
+
+            if (scopeExists)
+                command = scopeBuilder.PrepareCommand(DbScopeCommandType.UpdateScope, scopeType, connection, transaction);
+            else
+                command = scopeBuilder.PrepareCommand(DbScopeCommandType.InsertScope, scopeType, connection, transaction);
 
             if (command == null)
                 return null;
+
+            command = scopeType switch
+            {
+                DbScopeType.Client => SetSaveScopeParameters(scopeInfo as ScopeInfo, command),
+                DbScopeType.Server => SetSaveScopeParameters(scopeInfo as ServerScopeInfo, command),
+                DbScopeType.ServerHistory => SetSaveScopeParameters(scopeInfo as ServerHistoryScopeInfo, command),
+                _ => throw new NotImplementedException($"Can't set parameters to scope command type {scopeType}.")
+            };
 
             var action = new ScopeSavingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, scopeInfo, command, connection, transaction);
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
@@ -241,9 +288,9 @@ namespace Dotmim.Sync
 
             T newScopeInfo = scopeType switch
             {
+                DbScopeType.Client => ReadScopeInfo(reader) as T,
                 DbScopeType.Server => ReaderServerScopeInfo(reader) as T,
                 DbScopeType.ServerHistory => ReadServerHistoryScopeInfo(reader) as T,
-                DbScopeType.Client => ReadScopeInfo(reader) as T,
                 _ => throw new NotImplementedException($"Can't get {scopeType} from the reader ")
             };
 
@@ -254,6 +301,40 @@ namespace Dotmim.Sync
             return newScopeInfo;
         }
 
+        private DbCommand SetSaveScopeParameters(ScopeInfo scopeInfo, DbCommand command)
+        {
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", scopeInfo.Name);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Schema));
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(scopeInfo.Setup));
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_version", scopeInfo.Version);
+            DbSyncAdapter.SetParameterValue(command, "scope_last_sync", scopeInfo.LastSync.HasValue ? (object)scopeInfo.LastSync.Value : DBNull.Value);
+            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_timestamp", scopeInfo.LastSyncTimestamp);
+            DbSyncAdapter.SetParameterValue(command, "scope_last_server_sync_timestamp", scopeInfo.LastServerSyncTimestamp);
+            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_duration", scopeInfo.LastSyncDuration);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", scopeInfo.Id.ToString());
+
+            return command;
+        }
+        private DbCommand SetSaveScopeParameters(ServerHistoryScopeInfo serverHistoryScopeInfo, DbCommand command)
+        {
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", serverHistoryScopeInfo.Name);
+            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_timestamp", serverHistoryScopeInfo.LastSyncTimestamp);
+            DbSyncAdapter.SetParameterValue(command, "scope_last_sync", serverHistoryScopeInfo.LastSync.HasValue ? (object)serverHistoryScopeInfo.LastSync.Value : DBNull.Value);
+            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_duration", serverHistoryScopeInfo.LastSyncDuration);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", serverHistoryScopeInfo.Id.ToString());
+
+            return command;
+        }
+        private DbCommand SetSaveScopeParameters(ServerScopeInfo serverScopeInfo, DbCommand command)
+        {
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", serverScopeInfo.Name);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_schema", serverScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Schema));
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_setup", serverScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Setup));
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_version", serverScopeInfo.Version);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_last_clean_timestamp", serverScopeInfo.LastCleanupTimestamp);
+
+            return command;
+        }
 
         private ScopeInfo ReadScopeInfo(DbDataReader reader)
         {
