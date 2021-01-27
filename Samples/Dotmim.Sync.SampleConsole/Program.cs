@@ -34,6 +34,7 @@ using MySql.Data.MySqlClient;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using System.Text;
+using System.Diagnostics;
 
 internal class Program
 {
@@ -49,10 +50,100 @@ internal class Program
     private static async Task Main(string[] args)
     {
         //await SynchronizeWithLoggerAsync();
-        await SyncHttpThroughKestrellAsync();
+        await TestMultiCallToMethodsAsync();
         //await SynchronizeAsync();
     }
 
+    private static async Task TestMultiCallToMethodsAsync()
+    {
+        var loop = 5000;
+
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+
+
+        var options = new SyncOptions();
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+        var orchestrator = agent.LocalOrchestrator;
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var r = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(r);
+
+        // Be sure commands are loaded
+        //await orchestrator.GetEstimatedChangesCountAsync().ConfigureAwait(false); ;
+        //await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false); ;
+        //await orchestrator.GetLocalTimestampAsync().ConfigureAwait(false);
+        //await orchestrator.GetSchemaAsync().ConfigureAwait(false);
+        //await orchestrator.GetChangesAsync().ConfigureAwait(false);
+
+        await orchestrator.ExistScopeInfoTableAsync(Dotmim.Sync.Builders.DbScopeType.Client, options.ScopeInfoTableName).ConfigureAwait(false);
+        await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false);
+        await orchestrator.GetClientScopeAsync();
+
+        var stopwatch = Stopwatch.StartNew();
+
+        for (int i = 0; i < loop; i++)
+        {
+            //await orchestrator.GetEstimatedChangesCountAsync().ConfigureAwait(false);
+            //await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false);
+            //await orchestrator.GetLocalTimestampAsync().ConfigureAwait(false);
+            //await orchestrator.GetSchemaAsync().ConfigureAwait(false);
+            //await orchestrator.GetChangesAsync().ConfigureAwait(false);
+
+            await orchestrator.ExistScopeInfoTableAsync(Dotmim.Sync.Builders.DbScopeType.Client, options.ScopeInfoTableName).ConfigureAwait(false);
+            await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false);
+            await orchestrator.GetClientScopeAsync();
+        }
+
+        stopwatch.Stop();
+        var str = $"SQL Server [Connection Pooling, Connection not shared]: {stopwatch.Elapsed.Minutes}:{stopwatch.Elapsed.Seconds}.{stopwatch.Elapsed.Milliseconds}";
+        Console.WriteLine(str);
+
+        var stopwatch2 = Stopwatch.StartNew();
+        using (var connection = agent.LocalOrchestrator.Provider.CreateConnection())
+        {
+            connection.Open();
+            using (var transaction = connection.BeginTransaction())
+            {
+                for (int i = 0; i < loop; i++)
+                {
+                    //await orchestrator.GetEstimatedChangesCountAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
+                    //await orchestrator.ExistTableAsync(agent.Setup.Tables[0], connection: connection, transaction: transaction).ConfigureAwait(false);
+                    //await orchestrator.GetLocalTimestampAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
+                    //await orchestrator.GetSchemaAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
+                    //await orchestrator.GetChangesAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
+
+                    await orchestrator.ExistScopeInfoTableAsync(Dotmim.Sync.Builders.DbScopeType.Client, options.ScopeInfoTableName, connection, transaction).ConfigureAwait(false);
+                    await orchestrator.ExistTableAsync(agent.Setup.Tables[0], connection, transaction).ConfigureAwait(false);
+                    await orchestrator.GetClientScopeAsync(connection, transaction);
+                }
+                transaction.Commit();
+            }
+            connection.Close();
+        }
+        stopwatch2.Stop();
+
+        var str2 = $"SQL Server [Connection Pooling, Connection shared]: {stopwatch2.Elapsed.Minutes}:{stopwatch2.Elapsed.Seconds}.{stopwatch2.Elapsed.Milliseconds}";
+        Console.WriteLine(str2);
+
+        Console.WriteLine("End");
+    }
 
     public static async Task TestHelloKestrellAsync()
     {
@@ -1095,23 +1186,13 @@ internal class Program
                 $"Select timestamp from Address_tracking where AddressID = (Select AddressID from Address where AddressLine1 = '{addressline1}')";
 
             command.Transaction = transaction;
-
-            //using (var transaction = connection.BeginTransaction())
-            //{
-            //command.Transaction = transaction;
             Console.WriteLine("Inserting row ");
 
             var ts = await command.ExecuteScalarAsync();
 
-            //await Task.Delay(10000);
-
-            //transaction.Commit();
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("SQLite Timestamp inserted: " + ts.ToString().Substring(ts.ToString().Length - 4, 4));
             Console.ResetColor();
-
-            //}
-            //connection.Close();
         }
         catch (Exception)
         {

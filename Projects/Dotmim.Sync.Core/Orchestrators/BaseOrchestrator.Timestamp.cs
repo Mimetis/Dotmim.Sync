@@ -37,9 +37,10 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = await scopeBuilder.GetLocalTimestampCommandAsync(connection, transaction).ConfigureAwait(false);
+            // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
+            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.GetLocalTimestamp, DbScopeType.Client, connection, transaction);
 
             if (command == null)
                 return 0L;
