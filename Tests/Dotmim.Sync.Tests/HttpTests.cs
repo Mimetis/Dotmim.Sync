@@ -760,10 +760,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, wenClientOrchestrator, options);
 
                 // Interceptor on sending scopes
-                wenClientOrchestrator.OnHttpGettingScope(sra =>
+                wenClientOrchestrator.OnHttpGettingScopeResponse(sra =>
                 {
                     // check we a scope name
-                    Assert.NotNull(sra.Response.SyncContext);
+                    Assert.NotNull(sra.Context);
                 });
 
                 var s = await agent.SynchronizeAsync();
@@ -772,7 +772,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                wenClientOrchestrator.OnHttpGettingScope(null);
+                wenClientOrchestrator.OnHttpGettingScopeResponse(null);
             }
 
             // Insert one line on each client
@@ -799,7 +799,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Just before sending changes, get changes sent
-                webClientOrchestrator.OnHttpSendingChanges(sra =>
+                webClientOrchestrator.OnHttpSendingChangesRequest(sra =>
                 {
                     // check we have rows
                     Assert.True(sra.Request.Changes.HasRows);
@@ -812,7 +812,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                webClientOrchestrator.OnHttpSendingChanges(null);
+                webClientOrchestrator.OnHttpSendingChangesRequest(null);
             }
 
         }
@@ -1341,7 +1341,7 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnHttpSendingChanges(x =>
+                orch.OnHttpSendingChangesRequest(x =>
                 {
                     if (batchIndex == 1)
                     {
@@ -1435,11 +1435,11 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnHttpGettingChanges(x =>
+                orch.OnHttpGettingChangesResponse(x =>
                 {
                     if (batchIndex == 1)
                     {
-                        var sessionId = x.Response.SyncContext.SessionId.ToString();
+                        var sessionId = x.Context.SessionId.ToString();
 
                         if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
                             Assert.True(false, "sessionid was wrong. please fix this test!!");

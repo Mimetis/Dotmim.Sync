@@ -23,7 +23,7 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangeBatchAsync(
+        internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangesAsync(
                              SyncContext context, MessageGetChangesBatch message,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -51,14 +51,13 @@ namespace Dotmim.Sync
                 Directory.CreateDirectory(message.BatchDirectory);
             }
 
+            changesSelected = new DatabaseChangesSelected();
+
             // numbers of batch files generated
             var batchIndex = 0;
 
             // Check if we are in batch mode
             var isBatch = message.BatchSize > 0;
-
-            // Create stats object to store changes count
-            var changes = new DatabaseChangesSelected();
 
             // Create a batch info in memory (if !isBatch) or serialized on disk (if isBatch)
             // batchinfo generate a schema clone with scope columns if needed
@@ -67,8 +66,13 @@ namespace Dotmim.Sync
             // Clean SyncSet, we will add only tables we need in the batch info
             var changesSet = new SyncSet();
 
+            var cptSyncTable = 0;
+            var currentProgress = context.ProgressPercentage;
             foreach (var syncTable in message.Schema.Tables)
             {
+                // tmp count of table for report progress pct
+                cptSyncTable++;
+
                 // if we are in upload stage, so check if table is not download only
                 if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
                     continue;
@@ -158,11 +162,13 @@ namespace Dotmim.Sync
 
                     // We don't report progress if no table changes is empty, to limit verbosity
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-                        changes.TableChangesSelected.Add(tableChangesSelected);
+                        changesSelected.TableChangesSelected.Add(tableChangesSelected);
 
                     // even if no rows raise the interceptor
                     var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
                     await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);
 
                     // only raise report progress if we have something
                     if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
@@ -178,18 +184,21 @@ namespace Dotmim.Sync
                 await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this).ConfigureAwait(false);
             }
 
+            //Set the total rows count contained in the batch info
+            batchInfo.RowsCount = changesSelected.TotalChangesSelected;
+
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
 
             // Raise database changes selected
-            if (changes.TotalChangesSelected > 0 || changes.TotalChangesSelectedDeletes > 0 || changes.TotalChangesSelectedUpdates > 0)
+            if (changesSelected.TotalChangesSelected > 0 || changesSelected.TotalChangesSelectedDeletes > 0 || changesSelected.TotalChangesSelectedUpdates > 0)
             {
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changes, connection);
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changesSelected, connection);
                 this.ReportProgress(context, progress, databaseChangesSelectedArgs);
                 await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
             }
 
-            return (context, batchInfo, changes);
+            return (context, batchInfo, changesSelected);
 
         }
 

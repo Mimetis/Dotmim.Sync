@@ -66,6 +66,12 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Gets or Sets the current percentage progress overall
+        /// </summary>
+        [DataMember(Name = "pp", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        public double ProgressPercentage { get; set; }
+
+        /// <summary>
         /// Ctor. New sync context with a new Guid
         /// </summary>
         public SyncContext(Guid sessionId, string scopeName)
@@ -94,6 +100,7 @@ namespace Dotmim.Sync
             otherSyncContext.SyncStage = this.SyncStage;
             otherSyncContext.SyncType = this.SyncType;
             otherSyncContext.SyncWay = this.SyncWay;
+            otherSyncContext.ProgressPercentage = this.ProgressPercentage;
 
             if (this.AdditionalProperties != null)
             {

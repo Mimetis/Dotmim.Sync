@@ -44,6 +44,7 @@ namespace Dotmim.Sync
             var sessionArgs = new SessionBeginArgs(ctx, null, null);
             await this.InterceptAsync(sessionArgs, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, sessionArgs);
+
         }
 
         /// <summary>
@@ -115,7 +116,7 @@ namespace Dotmim.Sync
             if (isNew)
                 (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(message).ConfigureAwait(false);
             else
-                (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
             return (clientTimestamp, clientBatchInfo, clientChangesSelected);
@@ -183,7 +184,7 @@ namespace Dotmim.Sync
         /// Apply changes locally
         /// </summary>
         internal Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)> ApplyChangesAsync(ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
-                              long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy,
+                              long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, DatabaseChangesSelected allChangesSelected,
                               CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ChangesApplying, async (ctx, connection, transaction) =>
         {
@@ -238,7 +239,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a snapshot locally
         /// </summary>
-        internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)> ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)> 
+            ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (serverBatchInfo == null || !await serverBatchInfo.HasDataAsync(this))
                 return (new DatabaseChangesApplied(), clientScopeInfo);
@@ -254,14 +256,13 @@ namespace Dotmim.Sync
 
             // Applying changes and getting the new client scope info
             var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, clientScopeInfo.Schema, serverBatchInfo,
-                    clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, cancellationToken, progress).ConfigureAwait(false);
+                    clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, new DatabaseChangesSelected(), cancellationToken, progress).ConfigureAwait(false);
 
             // Because we have initialize everything here (if syncType != Normal)
             // We don't want to download everything from server, so change syncType to Normal
             ctx.SyncType = SyncType.Normal;
 
             var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx, changesApplied);
-            this.ReportProgress(ctx, progress, snapshotAppliedArgs);
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
 
             return (changesApplied, newClientScopeInfo);
@@ -314,7 +315,7 @@ namespace Dotmim.Sync
             localScope.Setup = this.Setup;
             localScope.Schema = schema;
 
-            await this.InternalSaveScopeAsync(ctx, DbScopeType.Client,localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return true;
         });
