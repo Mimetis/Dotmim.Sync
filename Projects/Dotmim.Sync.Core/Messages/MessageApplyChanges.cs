@@ -90,7 +90,7 @@ namespace Dotmim.Sync
         public bool CleanFolder { get; set; }
 
         /// <summary>
-        /// Gets or Sets the Batch Info used for this sync session
+        /// Gets or Sets the changes to apply
         /// </summary>
         public BatchInfo Changes { get; set; }
 

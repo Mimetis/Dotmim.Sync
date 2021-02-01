@@ -337,7 +337,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.EnsureSchemaAsync(connection:default, default, cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await base.EnsureSchemaAsync(connection:default, default, cancellationToken, progress).ConfigureAwait(false);
 
             this.Schema = serverScopeInfo.Schema;
             this.Schema.EnsureSchema();
@@ -430,7 +430,7 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 this.Schema = serverScopeInfo.Schema;
                 this.Schema.EnsureSchema();
@@ -493,7 +493,7 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 this.Schema = serverScopeInfo.Schema;
                 this.Schema.EnsureSchema();
@@ -544,7 +544,7 @@ namespace Dotmim.Sync.Web.Server
 
             // get changes
             var (remoteClientTimestamp, serverBatchInfo, _, clientChangesApplied, serverChangesSelected) =
-               await this.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
+               await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory

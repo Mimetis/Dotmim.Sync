@@ -13,6 +13,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using UWPSyncSampleWebServer.Context;
+using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
 
 namespace UWPSyncSampleWebServer
 {
@@ -34,33 +36,50 @@ namespace UWPSyncSampleWebServer
             services.AddMemoryCache();
 
             // Get a connection string for your server data source
-            var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+            var connectionString = Configuration.GetConnectionString("AdventureWorksConnection");
 
-            // Set the web server Options
-            var options = new WebServerOptions()
+            //services.AddDbContext<ContosoContext>(o => o.UseSqlServer(connectionString));
+
+            services.AddSingleton<ContosoContext>();
+
+            // Sync options
+            var syncOptions = new SyncOptions
             {
                 BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
             };
 
             // Create the setup used for your sync process
-            var tables = new string[] {"Employee" };
+            //var tables = new string[] { "Employees" };
+
+            var tables = new string[] {"ProductDescription", "ProductCategory",
+                                                    "ProductModel", "Product",
+                                                    "Address", "Customer", "CustomerAddress",
+                                                    "SalesOrderHeader", "SalesOrderDetail" };
 
             var setup = new SyncSetup(tables);
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, syncOptions);
 
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
 
-            app.UseMvc();
+            app.UseHttpsRedirection();
+
+            app.UseRouting();
+
+            app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
         }
     }
 }

@@ -33,7 +33,11 @@ namespace Dotmim.Sync
             var hasChanges = await message.Changes.HasDataAsync(this);
 
             if (!hasChanges)
+            {
+                context.ProgressPercentage += 0.2d;
                 return (context, changesApplied);
+
+            }
 
             // Disable check constraints
             // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
@@ -288,16 +292,23 @@ namespace Dotmim.Sync
                             Applied = rowsApplied,
                             ResolvedConflicts = conflictsResolvedCount,
                             Failed = changedFailed,
-                            State = applyType
+                            State = applyType,
+                            TotalRowsCount = message.Changes.RowsCount,
+                            TotalAppliedCount = changesApplied.TotalAppliedChanges + rowsApplied
                         };
                         changesApplied.TableChangesApplied.Add(tableChangesApplied);
                     }
                     else
                     {
                         tableChangesApplied.Applied += rowsApplied;
+                        tableChangesApplied.TotalAppliedCount = changesApplied.TotalAppliedChanges;
                         tableChangesApplied.ResolvedConflicts += conflictsResolvedCount;
                         tableChangesApplied.Failed += changedFailed;
                     }
+
+                    // we've got 0.25% to fill here 
+                    var progresspct = rowsApplied * 0.25d / tableChangesApplied.TotalRowsCount;
+                    context.ProgressPercentage += progresspct;
 
                     var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
 
@@ -390,7 +401,7 @@ namespace Dotmim.Sync
                         }
 
                         //rows minus failed rows
-                        appliedRowsTmp += itemsArrayCount - failedPrimaryKeysTable.Rows.Count;
+                        appliedRowsTmp += taken - failedPrimaryKeysTable.Rows.Count;
 
                     }
                     else

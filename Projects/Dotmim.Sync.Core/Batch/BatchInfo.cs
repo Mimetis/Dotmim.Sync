@@ -89,6 +89,12 @@ namespace Dotmim.Sync.Batch
         [DataMember(Name = "parts", IsRequired = true, Order = 4)]
         public List<BatchPartInfo> BatchPartsInfo { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the rows count contained in the batch info
+        /// </summary>
+        [DataMember(Name = "count", IsRequired = true, Order = 5)]
+        public int RowsCount { get; set; }
+
 
         /// <summary>
         /// Get the full path of the Batch directory

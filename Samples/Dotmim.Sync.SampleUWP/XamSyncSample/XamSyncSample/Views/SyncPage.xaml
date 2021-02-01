@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="XamSyncSample.Views.SyncPage"
+             xmlns:vm="clr-namespace:XamSyncSample.ViewModels"
+             Title="{Binding Title}">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <Color x:Key="Accent">#96d1ff</Color>
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <ContentPage.Content>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <StackLayout BackgroundColor="{StaticResource Accent}" VerticalOptions="FillAndExpand" HorizontalOptions="Fill">
+                <StackLayout Orientation="Horizontal" HorizontalOptions="Center" VerticalOptions="Center">
+                    <ContentView Padding="0,40,0,40" VerticalOptions="FillAndExpand">
+                        <Image Source="xamarin_logo.png" VerticalOptions="Center" HeightRequest="64" />
+                    </ContentView>
+                </StackLayout>
+            </StackLayout>
+            <ScrollView Grid.Row="1">
+                <StackLayout Orientation="Vertical" Padding="30,24,30,24" Spacing="10" >
+                    <Label Text="Synchronize" FontSize="Title"/>
+                    <Button VerticalOptions="Center" Text="Synchronize" 
+                    IsEnabled="{Binding SyncCommandButtonEnabled}"
+                    Command="{Binding SyncCommand}"/>
+
+                    <Button VerticalOptions="Center" Text="Reinitialize" 
+                    IsEnabled="{Binding SyncCommandButtonEnabled}"
+                    Command="{Binding SyncReinitializeCommand}"/>
+
+                    <Button VerticalOptions="Center" Text="Add 10000 rows" 
+                    IsEnabled="{Binding SyncCommandButtonEnabled}"
+                    Command="{Binding AddRowsCommand}"/>
+                    
+                    <ProgressBar Progress="{Binding SyncProgress}" />
+
+                    <Label Text="{Binding SyncProgressionText}" FontSize="12" />
+                </StackLayout>
+            </ScrollView>
+        </Grid>
+    </ContentPage.Content>
+</ContentPage>

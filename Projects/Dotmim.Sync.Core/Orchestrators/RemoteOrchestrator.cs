@@ -160,7 +160,8 @@ namespace Dotmim.Sync
         /// Apply changes on remote provider
         /// </summary>
         internal virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy, DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
-            ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, 
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -231,6 +232,8 @@ namespace Dotmim.Sync
                 }
 
                 ctx.SyncStage = SyncStage.ChangesSelecting;
+                ctx.ProgressPercentage = 0.55;
+
 
                 using (transaction = connection.BeginTransaction())
                 {
@@ -254,7 +257,7 @@ namespace Dotmim.Sync
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     (ctx, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalGetChangesAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (cancellationToken.IsCancellationRequested)
                         cancellationToken.ThrowIfCancellationRequested();
@@ -335,7 +338,7 @@ namespace Dotmim.Sync
             // When we get the chnages from server, we create the batches if it's requested by the client
             // the batch decision comes from batchsize from client
             (ctx, serverBatchInfo, serverChangesSelected) =
-                await this.InternalGetChangeBatchAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalGetChangesAsync(ctx, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
         }, connection, transaction, cancellationToken);

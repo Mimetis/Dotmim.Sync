@@ -359,9 +359,12 @@ namespace Dotmim.Sync
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
-
+            //await Task.Run(async () =>
+            //{
             try
             {
+
+
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -480,6 +483,9 @@ namespace Dotmim.Sync
                 }
 
 
+                context.ProgressPercentage = 0.1;
+                // Get changes is 20 %
+
                 // On local orchestrator, get local changes
                 var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, default, default, cancellationToken, progress);
 
@@ -503,6 +509,8 @@ namespace Dotmim.Sync
                     }
                 }
 
+                context.ProgressPercentage = 0.3;
+                // apply is 25%, get changes is 20%
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -511,10 +519,12 @@ namespace Dotmim.Sync
                 // Policy is always Server policy, so reverse this policy to get the client policy
                 var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
+                // apply is 25%
+                context.ProgressPercentage = 0.75;
                 var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
                     clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
                     clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy,
-                    cancellationToken, progress);
+                    serverChanges.ServerChangesSelected, cancellationToken, progress);
 
                 completeTime = DateTime.UtcNow;
                 this.LocalOrchestrator.CompleteTime = completeTime;
@@ -529,12 +539,14 @@ namespace Dotmim.Sync
                 result.ChangesAppliedOnServer = serverChanges.ClientChangesApplied;
 
                 // Begin session
+                context.ProgressPercentage = 1;
                 await this.LocalOrchestrator.EndSessionAsync(cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
             }
+
             catch (SyncException se)
             {
                 this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
@@ -553,6 +565,7 @@ namespace Dotmim.Sync
                 // unlock sync since it's over
                 UnlockSync();
             }
+            //});
 
             return result;
         }

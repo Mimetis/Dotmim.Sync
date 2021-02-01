@@ -56,7 +56,7 @@ namespace Dotmim.Sync
                 int changesApplied = 0;
                 foreach (var tableProgress in this.TableChangesApplied)
                 {
-                    changesApplied = changesApplied + tableProgress.Applied;
+                    changesApplied += tableProgress.Applied;
                 }
                 return changesApplied;
             }
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
             {
                 int changesFailed = 0;
                 foreach (var tableProgress in this.TableChangesApplied)
-                    changesFailed = changesFailed + tableProgress.Failed;
+                    changesFailed += tableProgress.Failed;
 
                 return changesFailed;
             }

@@ -25,7 +25,8 @@ namespace Dotmim.Sync
             this.ChangesRequest = changesRequest;
         }
 
-        public override string Message => $"[{Connection.Database}] Getting Changes.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Getting Changes.";
 
         public MessageGetChangesBatch ChangesRequest { get; }
         public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
@@ -44,7 +45,8 @@ namespace Dotmim.Sync
             this.ChangesSelected = changesSelected;
         }
 
-        public override string Message => $"[{Connection.Database}] [Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}";
+        public override string Source => Connection.Database;
+        public override string Message => $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}";
 
         public long Timestamp { get; }
 
@@ -67,12 +69,15 @@ namespace Dotmim.Sync
             this.ApplyChanges = applyChanges;
         }
 
-        public override string Message => $"[{Connection.Database}] Applying Changes.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Applying Changes. Total Changes To Apply: {ApplyChanges.Changes.RowsCount}";
 
         /// <summary>
         /// All parameters that will be used to apply changes
         /// </summary>
         public MessageApplyChanges ApplyChanges { get; }
+
+
         public override int EventId => SyncEventsId.DatabaseChangesApplying.Id;
     }
 
@@ -89,7 +94,8 @@ namespace Dotmim.Sync
 
         public DatabaseChangesApplied ChangesApplied { get; set; }
 
-        public override string Message => $"[{Connection.Database}] [Total] Applied:{ChangesApplied.TotalAppliedChanges}. Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
+        public override string Source => Connection.Database;
+        public override string Message => $"[Total] Applied:{ChangesApplied.TotalAppliedChanges}. Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
 
         public override int EventId => SyncEventsId.DatabaseChangesApplied.Id;
     }
