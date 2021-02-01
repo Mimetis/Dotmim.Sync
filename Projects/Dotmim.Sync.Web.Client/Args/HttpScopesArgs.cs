@@ -8,24 +8,46 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync
 {
 
-    public class HttpGettingScopeArgs : ProgressArgs
+    /// <summary>
+    /// Represents a response from server containing the server scope info
+    /// </summary>
+    public class HttpGettingScopeResponseArgs : ProgressArgs
     {
-        public HttpGettingScopeArgs(HttpMessageEnsureScopesResponse response, string host) : base(response.SyncContext, null)
+        public HttpGettingScopeResponseArgs(ServerScopeInfo scopeInfo, SyncContext context, string host) : base(context, null)
         {
-            this.Response = response;
+            this.ServerScopeInfo = scopeInfo;
             this.Host = host;
         }
 
-        public override int EventId => HttpClientSyncEventsId.HttpGettingScope.Id;
-        public override string Message => $"[{this.Host}] Getting Scope. Scope Name:{this.Response.ServerScopeInfo.Name}.";
+        public override int EventId => HttpClientSyncEventsId.HttpGettingScopeResponse.Id;
+        public override string Source => this.Host;
+        public override string Message => $"Received Scope. Scope Name:{this.ServerScopeInfo.Name}.";
 
-        public HttpMessageEnsureScopesResponse Response { get; }
+        public ServerScopeInfo ServerScopeInfo { get; }
+        public string Host { get; }
+    }
+
+    /// <summary>
+    /// Represents a request made to the server to get the server scope info
+    /// </summary>
+    public class HttpGettingScopeRequestArgs : ProgressArgs
+    {
+        public HttpGettingScopeRequestArgs(SyncContext context, string host) : base(context, null)
+        {
+            this.Host = host;
+        }
+
+        public override int EventId => HttpClientSyncEventsId.HttpGettingScopeRequest.Id;
+        public override string Source => this.Host;
+        public override string Message => $"Getting Server Scope. Scope Name:{this.Context.ScopeName}.";
+
         public string Host { get; }
     }
 
     public static partial class HttpClientSyncEventsId
     {
-        public static EventId HttpGettingScope => new EventId(20300, nameof(HttpGettingScope));
+        public static EventId HttpGettingScopeRequest => new EventId(20300, nameof(HttpGettingScopeRequest));
+        public static EventId HttpGettingScopeResponse => new EventId(20350, nameof(HttpGettingScopeResponse));
     }
 
     /// <summary>
@@ -34,15 +56,27 @@ namespace Dotmim.Sync
     public static partial class HttpInterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider when an http call to get scope is done
+        /// Intercept the provider when an http is about to be done to get server scope 
         /// </summary>
-        public static void OnHttpGettingScope(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeArgs> action)
+        public static void OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeRequestArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get scope is done
         /// </summary>
-        public static void OnHttpGettingScope(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeArgs, Task> action)
+        public static void OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeRequestArgs, Task> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when an http is about to be done to get server scope 
+        /// </summary>
+        public static void OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeResponseArgs> action)
+            => orchestrator.SetInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider when an http call to get scope is done
+        /// </summary>
+        public static void OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeResponseArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
 

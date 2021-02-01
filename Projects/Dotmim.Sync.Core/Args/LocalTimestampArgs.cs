@@ -18,7 +18,8 @@ namespace Dotmim.Sync
             this.Command = command;
         }
 
-        public override string Message => $"[{Connection.Database}] Getting Local Timestamp.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Getting Local Timestamp.";
 
         public override int EventId => SyncEventsId.LocalTimestampLoading.Id;
     }
@@ -29,7 +30,8 @@ namespace Dotmim.Sync
             this.LocalTimestamp = localTimestamp;
         }
 
-        public override string Message => $"[{Connection.Database}] Local Timestamp Loaded:{LocalTimestamp}.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Local Timestamp Loaded:{LocalTimestamp}.";
         public long LocalTimestamp { get; }
         public override int EventId => SyncEventsId.LocalTimestampLoaded.Id;
     }

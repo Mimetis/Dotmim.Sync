@@ -17,14 +17,15 @@ namespace Dotmim.Sync
             this.SessionCache = sessionCache;
         }
 
+        public override string Source => this.Host;
         public override string Message
         {
             get
             {
                 if (this.Request.BatchCount == 0 && this.Request.BatchIndex == 0)
-                    return $"[{this.Host}] Getting All Changes. Rows:{this.Request.Changes.RowsCount()}";
+                    return $"Getting All Changes. Rows:{this.Request.Changes.RowsCount()}";
                 else
-                    return $"[{this.Host}] Getting Batch Changes. ({this.Request.BatchIndex + 1}/{this.Request.BatchCount}). Rows:{this.Request.Changes.RowsCount()}";
+                    return $"Getting Batch Changes. ({this.Request.BatchIndex + 1}/{this.Request.BatchCount}). Rows:{this.Request.Changes.RowsCount()}";
             }
         }
 
@@ -51,6 +52,7 @@ namespace Dotmim.Sync
         public SessionCache SessionCache { get; }
         public bool IsSnapshot { get; }
 
+        public override string Source => this.Host;
         public override string Message
         {
             get
@@ -59,9 +61,9 @@ namespace Dotmim.Sync
                 var changesString = IsSnapshot ? "Snapshot" : ""; 
 
                 if (this.Response.BatchCount == 0 && this.Response.BatchIndex == 0)
-                    return $"[{this.Host}] Sending All {changesString} Changes. Rows:{rowsCount}";
+                    return $"Sending All {changesString} Changes. Rows:{rowsCount}";
                 else
-                    return $"[{this.Host}] Sending Batch {changesString} Changes. ({this.Response.BatchIndex + 1}/{this.Response.BatchCount}). Rows:{rowsCount}";
+                    return $"Sending Batch {changesString} Changes. ({this.Response.BatchIndex + 1}/{this.Response.BatchCount}). Rows:{rowsCount}";
             }
         }
 

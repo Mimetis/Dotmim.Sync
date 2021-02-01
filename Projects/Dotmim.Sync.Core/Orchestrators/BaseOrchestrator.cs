@@ -111,7 +111,6 @@ namespace Dotmim.Sync
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
-        [DebuggerStepThrough]
         internal async Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
         {
             if (this.interceptors == null)
@@ -152,7 +151,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to report progress
         /// </summary>
-        [DebuggerStepThrough]
         internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             // Check logger, because we make some reflection here
@@ -174,11 +172,13 @@ namespace Dotmim.Sync
             if (transaction == null && args.Transaction != null)
                 transaction = args.Transaction;
 
-            var dt = DateTime.Now;
-            var message = $"{dt.ToLongTimeString()}.{dt.Millisecond}\t {args.Message}";
-            var progressArgs = new ProgressArgs(context, message, connection, transaction);
+            if (args.Connection == null || args.Connection != connection)
+                args.Connection = connection;
 
-            progress.Report(progressArgs);
+            if (args.Transaction== null || args.Transaction != transaction)
+                args.Transaction = transaction;
+
+            progress.Report(args);
         }
 
         /// <summary>

@@ -282,6 +282,9 @@ namespace Dotmim.Sync
                 await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this).ConfigureAwait(false);
             }
 
+            //Set the total rows count contained in the batch info
+            batchInfo.RowsCount = changes.TotalChangesSelected;
+
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
 

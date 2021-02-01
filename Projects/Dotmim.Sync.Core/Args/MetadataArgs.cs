@@ -19,7 +19,8 @@ namespace Dotmim.Sync
             this.Setup = setup;
             this.TimeStampStart = timeStampStart;
         }
-        public override string Message => $"[{Connection.Database}] Cleaning Metadatas.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Cleaning Metadatas.";
 
         public override int EventId => SyncEventsId.MetadataCleaning.Id;
     }
@@ -37,7 +38,8 @@ namespace Dotmim.Sync
         /// </summary>
         public DatabaseMetadatasCleaned DatabaseMetadatasCleaned { get; set; }
 
-        public override string Message => $"[{Connection.Database}] Tables Cleaned:{DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{DatabaseMetadatasCleaned.RowsCleanedCount}.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Tables Cleaned:{DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{DatabaseMetadatasCleaned.RowsCleanedCount}.";
 
         public override int EventId => SyncEventsId.MetadataCleaned.Id;
     }
