@@ -531,7 +531,7 @@ namespace Dotmim.Sync.Web.Client
             if (httpMessageContent.Changes == null)
                 return (httpMessageContent.RemoteClientTimestamp, null);
 
-            serverBatchInfo.RowsCount = httpMessageContent.ServerChangesSelected.TotalChangesSelected;
+            serverBatchInfo.RowsCount = httpMessageContent?.ServerChangesSelected?.TotalChangesSelected ?? 0;
 
             // Raise response from server containing some changes (all if only 1 batch)
             var responseArgs = new HttpGettingServerChangesResponseArgs(httpMessageContent, this.GetServiceHost());
