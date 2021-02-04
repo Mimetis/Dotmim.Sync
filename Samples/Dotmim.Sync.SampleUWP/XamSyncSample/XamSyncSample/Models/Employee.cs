@@ -9,11 +9,12 @@ namespace XamSyncSample.Models
     public class Employee
     {
         public Guid EmployeeId { get; set; }
-        public String FirstName { get; set; }
-        public String LastName { get; set; }
-        public Byte[] ProfilePicture { get; set; }
-        public String PhoneNumber { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public byte[] ProfilePicture { get; set; }
+        public string ProfilePictureFileName { get; set; }
+        public string PhoneNumber { get; set; }
         public DateTime HireDate { get; set; }
-        public String Comments { get; set; }
+        public string Comments { get; set; }
     }
 }

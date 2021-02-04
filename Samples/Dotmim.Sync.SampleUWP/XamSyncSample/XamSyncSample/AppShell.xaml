@@ -82,7 +82,7 @@
         <ShellContent Route="AboutPage" ContentTemplate="{DataTemplate local:AboutPage}" />
     </FlyoutItem>
     <FlyoutItem Title="Browse" Icon="icon_feed.png">
-        <ShellContent Route="ItemsPage" ContentTemplate="{DataTemplate local:ItemsPage}" />
+        <ShellContent Route="ItemsPage" ContentTemplate="{DataTemplate local:EmployeesPage}" />
     </FlyoutItem>
     <FlyoutItem Title="Sync" Icon="icon_feed.png">
         <ShellContent Route="SyncPage" ContentTemplate="{DataTemplate local:SyncPage}" />

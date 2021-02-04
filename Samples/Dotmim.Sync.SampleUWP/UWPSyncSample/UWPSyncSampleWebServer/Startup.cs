@@ -38,23 +38,23 @@ namespace UWPSyncSampleWebServer
             // Get a connection string for your server data source
             var connectionString = Configuration.GetConnectionString("AdventureWorksConnection");
 
-            //services.AddDbContext<ContosoContext>(o => o.UseSqlServer(connectionString));
-
             services.AddSingleton<ContosoContext>();
 
             // Sync options
             var syncOptions = new SyncOptions
             {
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server"),
+                SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Server"),
+                BatchSize = 10000,
             };
 
             // Create the setup used for your sync process
             //var tables = new string[] { "Employees" };
 
             var tables = new string[] {"ProductDescription", "ProductCategory",
-                                                    "ProductModel", "Product",
-                                                    "Address", "Customer", "CustomerAddress",
-                                                    "SalesOrderHeader", "SalesOrderDetail" };
+                                    "ProductModel", "Product",
+                                    "Address", "Customer", "CustomerAddress",
+                                    "SalesOrderHeader", "SalesOrderDetail" };
 
             var setup = new SyncSetup(tables);
 

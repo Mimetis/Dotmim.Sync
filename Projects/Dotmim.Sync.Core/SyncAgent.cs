@@ -563,6 +563,8 @@ namespace Dotmim.Sync
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
                 // unlock sync since it's over
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
                 UnlockSync();
             }
             //});
