@@ -53,7 +53,7 @@ internal class Program
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         // await SynchronizeAsync();
-        // await CreateSnapshotAsync();
+        await CreateSnapshotAsync();
         await SyncHttpThroughKestrellAsync();
         //await SyncThroughWebApiAsync();
     }
@@ -101,8 +101,8 @@ internal class Program
         // server provider
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqliteSyncProvider("AdvHugeD.db");
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("AdvHugeD.db");
 
         // ----------------------------------
         // Client & Server side
@@ -111,7 +111,7 @@ internal class Program
         // Sync options
         var options = new SyncOptions
         {
-            SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "snapshots"),
+            SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),
             BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Tmp"),
             BatchSize = 10000,
         };

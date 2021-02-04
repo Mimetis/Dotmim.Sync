@@ -293,7 +293,7 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public void Clear(bool deleteFolder)
         {
-            if (this.InMemory)
+            if (this.InMemory && this.InMemoryData != null)
             {
                 this.InMemoryData.Dispose();
                 return;
@@ -303,10 +303,13 @@ namespace Dotmim.Sync.Batch
             if (deleteFolder)
                 this.TryRemoveDirectory();
 
-            foreach (var bpi in this.BatchPartsInfo)
-                bpi.Clear();
+            if (this.BatchPartsInfo != null)
+            {
+                foreach (var bpi in this.BatchPartsInfo)
+                    bpi.Clear();
 
-            this.BatchPartsInfo.Clear();
+                this.BatchPartsInfo.Clear();
+            }
 
         }
 
