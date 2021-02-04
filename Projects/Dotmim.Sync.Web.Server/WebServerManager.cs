@@ -111,7 +111,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Get a WebServerOrchestrator with Scope name == SyncOptions.
+        /// Get a WebServerOrchestrator using http context to determine the scope name
         /// </summary>
         public WebServerOrchestrator GetOrchestrator(HttpContext context)
         {

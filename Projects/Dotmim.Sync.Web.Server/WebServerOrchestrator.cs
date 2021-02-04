@@ -634,12 +634,13 @@ namespace Dotmim.Sync.Web.Server
                 BeforeSerializeRows(batchPartInfo.Data, this.ClientConverter);
 
             changesResponse.Changes = batchPartInfo.Data.GetContainerSet();
-
             changesResponse.BatchIndex = batchIndexRequested;
             changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo.Count;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
             changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
             changesResponse.ServerStep = batchPartInfo.IsLastBatch ? HttpStep.GetMoreChanges : HttpStep.GetChangesInProgress;
+
+            batchPartInfo.Clear();
 
             // If we have only one bpi, we can safely delete it
             if (batchPartInfo.IsLastBatch)

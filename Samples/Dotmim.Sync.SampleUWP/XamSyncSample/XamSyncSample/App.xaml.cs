@@ -1,6 +1,7 @@
 ﻿using System;
 using Xamarin.Forms;
 using Xamarin.Forms.Xaml;
+using XamSyncSample.Context;
 using XamSyncSample.Services;
 using XamSyncSample.Views;
 
@@ -13,7 +14,7 @@ namespace XamSyncSample
         {
             InitializeComponent();
 
-            DependencyService.Register<MockDataStore>();
+            DependencyService.Register<ContosoContext>();
             DependencyService.Register<SettingServices>();
             DependencyService.Register<SyncServices>();
             MainPage = new AppShell();

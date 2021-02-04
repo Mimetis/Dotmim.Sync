@@ -1,9 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using Dotmim.Sync;
 using Dotmim.Sync.Web.Server;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Text;
+using System.Threading.Tasks;
 using UWPSyncSampleWebServer.Context;
 
 namespace UWPSyncSampleWebServer.Controllers
@@ -28,13 +29,44 @@ namespace UWPSyncSampleWebServer.Controllers
         {
             await manager.HandleRequestAsync(this.HttpContext);
         }
-        // POST api/values
         [HttpGet]
         public async Task Get()
         {
             await context.EnsureDatabaseCreatedAsync();
 
             await manager.HandleRequestAsync(this.HttpContext);
+        }
+
+        [HttpGet("snapshot/{scopeName}")]
+        public async Task Snapshot(string scopeName)
+        {
+            var orchestrator = this.manager.GetOrchestrator(scopeName);
+
+            var stringBuilder = new StringBuilder();
+
+            var progress = new Progress<ProgressArgs>(args =>
+            {
+                stringBuilder.AppendLine($"<div>{args.Message}</div>");
+            });
+
+
+            stringBuilder.AppendLine("<!doctype html>");
+            stringBuilder.AppendLine("<html>");
+            stringBuilder.AppendLine("<head>");
+            stringBuilder.AppendLine("</head>");
+            stringBuilder.AppendLine("<title>Web Server properties</title>");
+            stringBuilder.AppendLine("<body>");
+            stringBuilder.AppendLine("<h2>Generating Snapshot</h2>");
+
+            var snap = await orchestrator.CreateSnapshotAsync(progress:progress);
+
+            stringBuilder.AppendLine("</div>");
+            stringBuilder.AppendLine("</body>");
+            stringBuilder.AppendLine("</html>");
+
+
+            await this.HttpContext.Response.WriteAsync(stringBuilder.ToString());
+
         }
 
     }

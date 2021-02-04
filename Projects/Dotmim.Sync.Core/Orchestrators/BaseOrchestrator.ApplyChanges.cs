@@ -30,51 +30,46 @@ namespace Dotmim.Sync
             var changesApplied = new DatabaseChangesApplied();
 
             // Check if we have some data available
-            var hasChanges = await message.Changes.HasDataAsync(this);
+            var hasChanges = message.Changes.HasData();
 
-            if (!hasChanges)
+            // if we have changes or if we are in re init mode
+            if (hasChanges || context.SyncType != SyncType.Normal)
             {
-                context.ProgressPercentage += 0.2d;
-                return (context, changesApplied);
+                // Disable check constraints
+                // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
+                // Report this disabling constraints brefore opening a transaction
+                if (message.DisableConstraintsOnApplyChanges)
+                    foreach (var table in message.Schema.Tables.Reverse())
+                        await this.InternalDisableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
+                // -----------------------------------------------------
+                // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server)
+                // -----------------------------------------------------
+                if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
+                    foreach (var table in message.Schema.Tables)
+                        await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
+
+                // -----------------------------------------------------
+                // 1) Applying deletes. Do not apply deletes if we are in a new database
+                // -----------------------------------------------------
+                if (!message.IsNew && hasChanges)
+                    foreach (var table in message.Schema.Tables.Reverse())
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
+                            transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+
+                // -----------------------------------------------------
+                // 2) Applying Inserts and Updates. Apply in table order
+                // -----------------------------------------------------
+                if (hasChanges)
+                    foreach (var table in message.Schema.Tables)
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
+                            transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+
+                // Re enable check constraints
+                if (message.DisableConstraintsOnApplyChanges)
+                    foreach (var table in message.Schema.Tables)
+                        await this.InternalEnableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
             }
-
-            // Disable check constraints
-            // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
-            // Report this disabling constraints brefore opening a transaction
-            if (message.DisableConstraintsOnApplyChanges)
-                foreach (var table in message.Schema.Tables.Reverse())
-                    await this.InternalDisableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
-
-            // -----------------------------------------------------
-            // 0) Check if we are in a reinit mode
-            // -----------------------------------------------------
-            if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                foreach (var table in message.Schema.Tables)
-                    await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
-
-            // -----------------------------------------------------
-            // 1) Applying deletes. Do not apply deletes if we are in a new database
-            // -----------------------------------------------------
-            if (!message.IsNew)
-            {
-                // for delete we must go from Up to Down
-                foreach (var table in message.Schema.Tables.Reverse())
-                    await this.InternalApplyTableChangesAsync(context, table, message, connection,
-                        transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-            }
-
-            // -----------------------------------------------------
-            // 2) Applying Inserts and Updates. Apply in table order
-            // -----------------------------------------------------
-            foreach (var table in message.Schema.Tables)
-                await this.InternalApplyTableChangesAsync(context, table, message, connection,
-                    transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-
-            // Re enable check constraints
-            if (message.DisableConstraintsOnApplyChanges)
-                foreach (var table in message.Schema.Tables)
-                    await this.InternalEnableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
 
             // Before cleaning, check if we are not applying changes from a snapshotdirectory
@@ -218,7 +213,7 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Download && schemaTable.SyncDirection == SyncDirection.UploadOnly)
                 return;
 
-            var hasChanges = await message.Changes.HasDataAsync(this);
+            var hasChanges = message.Changes.HasData(schemaTable.TableName, schemaTable.SchemaName);
 
             // Each table in the messages contains scope columns. Don't forget it
             if (hasChanges)

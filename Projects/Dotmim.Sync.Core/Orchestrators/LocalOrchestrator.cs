@@ -242,7 +242,7 @@ namespace Dotmim.Sync
         internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)> 
             ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (serverBatchInfo == null || !await serverBatchInfo.HasDataAsync(this))
+            if (serverBatchInfo == null )
                 return (new DatabaseChangesApplied(), clientScopeInfo);
 
             // Get context or create a new one
