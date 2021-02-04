@@ -1,5 +1,6 @@
 ﻿
 
+using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -112,7 +113,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Check if this batchinfo has some data (in memory or not)
         /// </summary>
-        public async Task<bool> HasDataAsync(BaseOrchestrator orchestrator = null)
+        public bool HasData()
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -122,22 +123,47 @@ namespace Dotmim.Sync.Batch
 
             if (!InMemory && BatchPartsInfo != null && BatchPartsInfo.Count > 0)
             {
-                foreach (var bpi in BatchPartsInfo)
-                {
-                    await bpi.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
+                var rowsCount = BatchPartsInfo.Sum(bpi => bpi.RowsCount);
 
-                    var hasData = bpi.Data.HasRows;
-
-                    //bpi.Clear();
-                    //bpi.Data = null;
-
-                    return hasData;
-                }
+                return rowsCount > 0;
             }
 
             return false;
         }
 
+
+
+        /// <summary>
+        /// Check if this batchinfo has some data (in memory or not)
+        /// </summary>
+        public bool HasData(string tableName, string schemaName)
+        {
+            if (this.SanitizedSchema == null)
+                throw new NullReferenceException("Batch info schema should not be null");
+
+            if (InMemory && InMemoryData != null && InMemoryData.HasTables)
+            {
+                var table = InMemoryData.Tables[tableName, schemaName];
+                if (table == null)
+                    return false;
+
+                return table.HasRows;
+            }
+
+            if (!InMemory && BatchPartsInfo != null && BatchPartsInfo.Count > 0)
+            {
+                var tableInfo = new BatchPartTableInfo(tableName, schemaName);
+
+                var bpiTables = BatchPartsInfo.Where(bpi => bpi.Tables.Any(t => t.EqualsByName(tableInfo)));
+
+                if (bpiTables == null)
+                    return false;
+
+                return bpiTables.Sum(bpi => bpi.RowsCount) > 0;
+            }
+
+            return false;
+        }
 
         public async IAsyncEnumerable<SyncTable> GetTableAsync(string tableName, string schemaName, BaseOrchestrator orchestrator = null)
         {
@@ -153,20 +179,28 @@ namespace Dotmim.Sync.Batch
             }
             else
             {
-                foreach (var batchPartinInfo in this.BatchPartsInfo.OrderBy(bpi => bpi.Index))
-                {
+                var bpiTables = BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.Tables.Any(t => t.EqualsByName(tableInfo))).OrderBy(t => t.Index);
 
-                    if (batchPartinInfo.Tables != null && batchPartinInfo.Tables.Any(t => t.EqualsByName(tableInfo)))
+                if (bpiTables != null)
+                {
+                    foreach (var batchPartinInfo in bpiTables)
                     {
-                        await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
+                        // load only if not already loaded in memory
+                        if (batchPartinInfo.Data == null)
+                            await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
 
                         // Get the table from the batchPartInfo
                         // generate a tmp SyncTable for 
                         var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt.EqualsByName(new SyncTable(tableName, schemaName)));
 
                         if (batchTable != null)
+                        {
                             yield return batchTable;
 
+                            // once loaded and yield, can dispose
+                            batchPartinInfo.Data.Dispose();
+                            batchPartinInfo.Data = null;
+                        }
                     }
                 }
             }
@@ -275,5 +309,6 @@ namespace Dotmim.Sync.Batch
             this.BatchPartsInfo.Clear();
 
         }
+
     }
 }

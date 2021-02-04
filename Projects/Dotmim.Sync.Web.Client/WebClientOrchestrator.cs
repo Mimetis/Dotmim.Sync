@@ -421,7 +421,10 @@ namespace Dotmim.Sync.Web.Client
                 ctx = httpMessageContent.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
-                var changesSet = sanitizedSchema.Clone();
+                var changesSet = new SyncSet();
+
+                foreach (var tbl in httpMessageContent.Changes.Tables)
+                    DbSyncAdapter.CreateChangesTable(clientBatchInfo.SanitizedSchema.Tables[tbl.TableName, tbl.SchemaName], changesSet);
 
                 changesSet.ImportContainerSet(httpMessageContent.Changes, false);
 
@@ -434,6 +437,9 @@ namespace Dotmim.Sync.Web.Client
                 // free some memory
                 if (!workInMemoryLocally && httpMessageContent.Changes != null)
                     httpMessageContent.Changes.Clear();
+
+                if (!workInMemoryLocally)
+                    changesSet.Clear();
 
                 if (!isLastBatch)
                 {
@@ -546,7 +552,10 @@ namespace Dotmim.Sync.Web.Client
                 ctx = httpMessageContent.SyncContext;
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
 
-                var changesSet = serverBatchInfo.SanitizedSchema.Clone();
+                var changesSet = new SyncSet();
+
+                foreach (var tbl in httpMessageContent.Changes.Tables)
+                    DbSyncAdapter.CreateChangesTable(serverBatchInfo.SanitizedSchema.Tables[tbl.TableName, tbl.SchemaName], changesSet);
 
                 changesSet.ImportContainerSet(httpMessageContent.Changes, false);
 
@@ -556,9 +565,14 @@ namespace Dotmim.Sync.Web.Client
                 // Create a BatchPartInfo instance
                 await serverBatchInfo.AddChangesAsync(changesSet, httpMessageContent.BatchIndex, isLastBatch, this);
 
-                // free some memory
+                // Free some memory
                 if (httpMessageContent.Changes != null)
-                    httpMessageContent.Changes.Clear();
+                {
+                    httpMessageContent.Changes.Dispose();
+                    httpMessageContent.Changes = null;
+                }
+
+                changesSet.Dispose();
 
                 if (!isLastBatch)
                 {
@@ -584,8 +598,6 @@ namespace Dotmim.Sync.Web.Client
                     // Raise response from server containing a batch changes 
                     var responseArgs2 = new HttpGettingServerChangesResponseArgs(httpMessageContent, this.GetServiceHost());
                     await this.InterceptAsync(responseArgs2, cancellationToken).ConfigureAwait(false);
-
-
                 }
 
             } while (!isLastBatch);
@@ -682,7 +694,10 @@ namespace Dotmim.Sync.Web.Client
                 remoteClientTimestamp = httpMessageContent.RemoteClientTimestamp;
                 serverChangesSelected = httpMessageContent.ServerChangesSelected;
 
-                var changesSet = serverBatchInfo.SanitizedSchema.Clone();
+                var changesSet = new SyncSet();
+
+                foreach (var tbl in httpMessageContent.Changes.Tables)
+                    DbSyncAdapter.CreateChangesTable(serverBatchInfo.SanitizedSchema.Tables[tbl.TableName, tbl.SchemaName], changesSet);
 
                 changesSet.ImportContainerSet(httpMessageContent.Changes, false);
 
@@ -693,8 +708,14 @@ namespace Dotmim.Sync.Web.Client
                 await serverBatchInfo.AddChangesAsync(changesSet, httpMessageContent.BatchIndex, isLastBatch, this);
 
                 // free some memory
-                if (httpMessageContent.Changes != null)
+                if (!workInMemoryLocally && httpMessageContent.Changes != null)
                     httpMessageContent.Changes.Clear();
+
+                if (!workInMemoryLocally)
+                    changesSet.Clear();
+
+
+                changesSet.Clear();
 
                 if (!isLastBatch)
                 {

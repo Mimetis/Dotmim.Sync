@@ -1,0 +1,1 @@
+﻿ngrok http https://localhost:44313 --host-header="localhost:44313"

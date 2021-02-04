@@ -6,10 +6,10 @@ namespace XamSyncSample.Services
 {
     public interface IDataStore<T>
     {
-        Task<bool> AddItemAsync(T item);
-        Task<bool> UpdateItemAsync(T item);
-        Task<bool> DeleteItemAsync(string id);
-        Task<T> GetItemAsync(string id);
-        Task<IEnumerable<T>> GetItemsAsync(bool forceRefresh = false);
+        Task<bool> AddEmployeeAsync(T item);
+        Task<bool> UpdateEmployeeAsync(T item);
+        Task<bool> DeleteEmployeeAsync(Guid id);
+        Task<T> GetEmployeeAsync(Guid id);
+        Task<List<T>> GetEmployeesAsync(bool forceRefresh = false);
     }
 }

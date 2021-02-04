@@ -10,7 +10,7 @@ using System.Text;
 namespace Dotmim.Sync
 {
     [DataContract(Name = "c"), Serializable]
-    public class ContainerSet
+    public class ContainerSet : IDisposable
     {
         /// <summary>
         /// List of tables
@@ -18,13 +18,7 @@ namespace Dotmim.Sync
         [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public Collection<ContainerTable> Tables { get; set; } = new Collection<ContainerTable>();
 
-        public void Clear()
-        {
-            foreach (var t in Tables)
-                t.Clear();
-
-            Tables.Clear();
-        }
+       
 
         /// <summary>
         /// Check if we have some tables in the container
@@ -58,5 +52,31 @@ namespace Dotmim.Sync
         }
 
         public ContainerSet() { }
+
+        public void Clear()
+        {
+            foreach (var t in Tables)
+                t.Clear();
+
+            Tables.Clear();
+        }
+        public void Dispose()
+        {
+            this.Dispose(true);
+
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool cleanup)
+        {
+            // Dispose managed ressources
+            if (cleanup)
+            {
+                Clear();
+                Tables = null;
+            }
+
+            // Dispose unmanaged ressources
+        }
     }
 }

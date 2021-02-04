@@ -35,9 +35,9 @@
                     IsEnabled="{Binding SyncCommandButtonEnabled}"
                     Command="{Binding SyncReinitializeCommand}"/>
 
-                    <Button VerticalOptions="Center" Text="Add 10000 rows" 
+                    <!--<Button VerticalOptions="Center" Text="Add 10000 rows" 
                     IsEnabled="{Binding SyncCommandButtonEnabled}"
-                    Command="{Binding AddRowsCommand}"/>
+                    Command="{Binding AddRowsCommand}"/>-->
                     
                     <ProgressBar Progress="{Binding SyncProgress}" />
 

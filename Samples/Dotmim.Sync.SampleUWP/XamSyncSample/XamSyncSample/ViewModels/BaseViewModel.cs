@@ -12,7 +12,7 @@ namespace XamSyncSample.ViewModels
 {
     public class BaseViewModel : INotifyPropertyChanged
     {
-        public IDataStore<Item> DataStore => DependencyService.Get<IDataStore<Item>>();
+        public IDataStore<Employee> DataStore => DependencyService.Get<IDataStore<Employee>>();
 
         bool isBusy = false;
         public bool IsBusy
