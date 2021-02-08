@@ -175,7 +175,7 @@ namespace Dotmim.Sync.Batch
             // Even if the set is empty (serialized on disk), we should retain the tables names
             if (set != null)
             {
-                bpi.Tables = set.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName)).ToArray();
+                bpi.Tables = set.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName, t.Rows.Count)).ToArray();
                 bpi.RowsCount = set.Tables.Sum(t => t.Rows.Count);
             }
 

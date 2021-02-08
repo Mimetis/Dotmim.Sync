@@ -258,10 +258,6 @@ namespace Dotmim.Sync
             var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, clientScopeInfo.Schema, serverBatchInfo,
                     clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, new DatabaseChangesSelected(), cancellationToken, progress).ConfigureAwait(false);
 
-            // Because we have initialize everything here (if syncType != Normal)
-            // We don't want to download everything from server, so change syncType to Normal
-            ctx.SyncType = SyncType.Normal;
-
             var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx, changesApplied);
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
 
