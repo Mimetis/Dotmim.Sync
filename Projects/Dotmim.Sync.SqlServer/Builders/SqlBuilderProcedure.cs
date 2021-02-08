@@ -46,7 +46,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlCommand = connection.CreateCommand();
 
-            if (transaction != null)
                 sqlCommand.Transaction = transaction;
 
             sqlCommand.CommandText = text;
@@ -75,7 +74,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlCommand = connection.CreateCommand();
 
-            if (transaction != null)
                 sqlCommand.Transaction = transaction;
 
             sqlCommand.CommandText = text;

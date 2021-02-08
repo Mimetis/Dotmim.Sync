@@ -130,15 +130,10 @@ namespace Dotmim.Sync
             // Create the key
             var commandKey = $"{connection.DataSource}-{connection.Database}-{this.TableDescription.GetFullName()}-{commandType}";
 
-            // Get a lazy command instance
-            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() =>
-            {
-                var syncCommand = new SyncCommand(GetCommand(commandType, filter));
-                return syncCommand;
-            }));
+            var command = GetCommand(commandType, filter);
 
-            // Get the concrete instance
-            var command = lazyCommand.Value.DbCommand;
+            // Add Parameters
+            await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 
             if (command == null)
                 throw new MissingCommandException(commandType.ToString());
@@ -150,16 +145,18 @@ namespace Dotmim.Sync
                 throw new ConnectionClosedException(connection);
 
             command.Connection = connection;
+            command.Transaction = transaction;
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            // Get a lazy command instance
+            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() =>
+            {
+                var syncCommand = new SyncCommand(commandKey);
+                return syncCommand;
+            }));
 
             // lazyCommand.Metadata is a boolean indicating if the command is already prepared on the server
             if (lazyCommand.Value.IsPrepared == true)
                 return command;
-
-            // Add Parameters
-            await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 
             // Testing The Prepare() performance increase
             command.Prepare();

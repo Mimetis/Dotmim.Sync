@@ -45,6 +45,11 @@ namespace Dotmim.Sync
 
             var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
+            var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (!exists)
+                return false;
+
             var scope = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (scope == null)

@@ -104,16 +104,17 @@ namespace Dotmim.Sync
             // Create a select table based on the schema in parameter + scope columns
             var changesSet = schema.Schema.Clone(false);
             var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
-            // Create a new empty row
-            SyncRow syncRow = null;
-
+            
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             if (!dataReader.Read())
+            {
+                dataReader.Close();
                 return null;
+            }
 
-            syncRow = selectTable.NewRow();
-
+            // Create a new empty row
+            var syncRow = selectTable.NewRow();
             for (var i = 0; i < dataReader.FieldCount; i++)
             {
                 var columnName = dataReader.GetName(i);
@@ -140,6 +141,8 @@ namespace Dotmim.Sync
             // if syncRow is not a deleted row, we can check for which kind of row it is.
             if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
                 syncRow.RowState = DataRowState.Modified;
+
+            dataReader.Close();
 
             return syncRow;
         }

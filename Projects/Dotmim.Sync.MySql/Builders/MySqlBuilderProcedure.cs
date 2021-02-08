@@ -199,8 +199,7 @@ namespace Dotmim.Sync.MySql
                                         and ROUTINE_NAME = @procName limit 1";
 
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             var p = command.CreateParameter();
             p.ParameterName = "@procName";
