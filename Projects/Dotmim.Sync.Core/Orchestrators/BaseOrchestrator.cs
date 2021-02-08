@@ -217,7 +217,10 @@ namespace Dotmim.Sync
                 return;
 
             if (connection != null && connection.State == ConnectionState.Open)
+            {
                 connection.Close();
+                connection.Dispose();
+            }
 
             if (!cancellationToken.IsCancellationRequested)
                 await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
@@ -388,10 +391,8 @@ namespace Dotmim.Sync
         }
 
 
-        /// <summary>
-        /// Run an actin inside a connection / transaction
-        /// </summary>
-        internal async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+
+        public async Task<T> RunInTransactionAsync2<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
               DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
         {
             if (!this.StartTime.HasValue)
@@ -402,6 +403,46 @@ namespace Dotmim.Sync
 
             T result = default;
 
+            using (var c = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    await c.OpenAsync();
+
+                    using (var t = c.BeginTransaction())
+                    {
+                        if (actionTask != null)
+                            result = await actionTask(ctx, c, t);
+
+                        t.Commit();
+                    }
+                    c.Close();
+                    c.Dispose();
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// Run an actin inside a connection / transaction
+        /// </summary>
+        public async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+              DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            T result = default;
 
             if (connection == null)
                 connection = this.Provider.CreateConnection();
@@ -432,6 +473,7 @@ namespace Dotmim.Sync
                 {
                     await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
                     transaction.Commit();
+                    transaction.Dispose();
                 }
 
                 if (!alreadyOpened)

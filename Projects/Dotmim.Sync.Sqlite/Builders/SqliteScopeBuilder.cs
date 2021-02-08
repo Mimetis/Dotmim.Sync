@@ -38,7 +38,6 @@ namespace Dotmim.Sync.Sqlite
             command.CommandText = commandText;
 
             command.Connection = connection;
-            if (transaction != null)
                 command.Transaction = transaction;
 
             var p = command.CreateParameter();
@@ -72,7 +71,6 @@ namespace Dotmim.Sync.Sqlite
 
             var command = connection.CreateCommand();
 
-            if (transaction != null)
                 command.Transaction = transaction;
 
             command.CommandText = commandText;
@@ -92,7 +90,6 @@ namespace Dotmim.Sync.Sqlite
             command.CommandText = commandText;
 
             command.Connection = connection;
-            if (transaction != null)
                 command.Transaction = transaction;
 
             return command;
@@ -128,7 +125,6 @@ namespace Dotmim.Sync.Sqlite
             command.CommandText = commandText;
 
             command.Connection = connection;
-            if (transaction != null)
                 command.Transaction = transaction;
 
             return command;
@@ -161,7 +157,6 @@ namespace Dotmim.Sync.Sqlite
             command.CommandText = commandText;
 
             command.Connection = connection;
-            if (transaction != null)
                 command.Transaction = transaction;
 
             return command;

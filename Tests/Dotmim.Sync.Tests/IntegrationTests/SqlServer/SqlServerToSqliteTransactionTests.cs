@@ -234,7 +234,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var timestamp = rcr.GetInt64(1);
                 return (id, timestamp);
             }
-
+            rcr.Close();
             return (productId, 0);
         }
     }

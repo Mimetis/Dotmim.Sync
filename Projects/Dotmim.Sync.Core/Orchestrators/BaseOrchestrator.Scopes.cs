@@ -67,7 +67,7 @@ namespace Dotmim.Sync
         internal async Task<bool> InternalExistsScopeInfoTableAsync(SyncContext ctx, DbScopeType scopeType, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
-            var existsCommand = scopeBuilder.PrepareCommand(DbScopeCommandType.ExistsScopeTable, scopeType, connection, transaction);
+            var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistsScopeTable, scopeType, connection, transaction);
 
             if (existsCommand == null)
                 return false;
@@ -83,7 +83,7 @@ namespace Dotmim.Sync
         internal async Task<bool> InternalExistsScopeInfoAsync(SyncContext ctx, DbScopeType scopeType, string scopeId, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
-            var existsCommand = scopeBuilder.PrepareCommand(DbScopeCommandType.ExistScope, scopeType, connection, transaction);
+            var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistScope, scopeType, connection, transaction);
 
             // Just in case, in older version we may have sync_scope_name as primary key;
             DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", scopeId);
@@ -103,7 +103,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<bool> InternalDropScopeInfoTableAsync(SyncContext ctx, DbScopeType scopeType, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.DropScopeTable, scopeType, connection, transaction);
+            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.DropScopeTable, scopeType, connection, transaction);
 
             if (command == null)
                 return false;
@@ -126,7 +126,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<bool> InternalCreateScopeInfoTableAsync(SyncContext ctx, DbScopeType scopeType, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.CreateScopeTable, scopeType, connection, transaction);
+            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.CreateScopeTable, scopeType, connection, transaction);
 
             if (command == null)
                 return false;
@@ -149,7 +149,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<List<T>> InternalGetAllScopesAsync<T>(SyncContext ctx, DbScopeType scopeType, string scopeName, DbScopeBuilder scopeBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress) where T : class
         {
-            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.GetScopes, scopeType, connection, transaction);
+            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetScopes, scopeType, connection, transaction);
 
             if (command == null)
                 return null;
@@ -261,9 +261,9 @@ namespace Dotmim.Sync
             DbCommand command;
 
             if (scopeExists)
-                command = scopeBuilder.PrepareCommand(DbScopeCommandType.UpdateScope, scopeType, connection, transaction);
+                command = scopeBuilder.GetCommandAsync(DbScopeCommandType.UpdateScope, scopeType, connection, transaction);
             else
-                command = scopeBuilder.PrepareCommand(DbScopeCommandType.InsertScope, scopeType, connection, transaction);
+                command = scopeBuilder.GetCommandAsync(DbScopeCommandType.InsertScope, scopeType, connection, transaction);
 
             if (command == null)
                 return null;

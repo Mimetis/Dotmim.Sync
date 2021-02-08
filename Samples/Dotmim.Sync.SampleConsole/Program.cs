@@ -53,9 +53,140 @@ internal class Program
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
-        await SynchronizeAsync();
+        await Synchronize30ClientsAsync();
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
+    }
+
+
+    private static Task ConnectionTransactionTask2()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        var randomDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        var dataSource = $"{randomDatabaseName}.db";
+        var clientProvider = new SqliteSyncProvider(dataSource);
+
+        var options = new SyncOptions { BatchSize = 1000};
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+
+        agent.RemoteOrchestrator.OnConnectionOpen(coa =>
+        {
+            Console.WriteLine($"OPEN : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
+        });
+        agent.RemoteOrchestrator.OnConnectionClose(coa =>
+        {
+            Console.WriteLine($"CLOSE : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
+        });
+
+        return agent.RemoteOrchestrator.RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        {
+            var command = connection.CreateCommand();
+            command.CommandText = "Select top 1 * from Product";
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            var reader = await command.ExecuteReaderAsync();
+
+            while (reader.Read())
+                Console.WriteLine($"{reader[0]} {reader[1]} ");
+
+            reader.Close();
+            return true;
+        });
+
+    }
+    private static async Task ConnectionTransactionTask()
+    {
+        using var connection = new SqlConnection(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        await connection.OpenAsync();
+        Console.WriteLine($"OPEN : {connection.GetHashCode()} - {connection.ConnectionString}");
+
+        using var transaction = connection.BeginTransaction();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "Select top 1 * from Product";
+        command.Connection = connection;
+        command.Transaction = transaction;
+
+        var reader = await command.ExecuteReaderAsync();
+
+        while (reader.Read())
+            Console.WriteLine($"{reader[0]} {reader[1]} ");
+
+        transaction.Commit();
+
+        await connection.CloseAsync();
+        Console.WriteLine($"CLOSE : {connection.GetHashCode()} - {connection.ConnectionString}");
+    }
+
+
+    private static async Task Synchronize30ClientsAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        var clients = new List<SqliteSyncProvider>();
+
+        int maxClients = 30;
+
+        var allTasks = new List<Task<SyncResult>>();
+        //var allTasks = new List<Task>();
+
+        // Creating an agent that will handle all the process
+        for (var i = 0; i < maxClients; i++)
+        {
+            var randomDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            var dataSource = $"{randomDatabaseName}.db";
+            var clientProvider = new SqliteSyncProvider(dataSource);
+
+            var options = new SyncOptions { BatchSize = 1000 };
+
+            var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+
+            agent.RemoteOrchestrator.OnConnectionOpen(coa =>
+            {
+                Console.WriteLine($"OPEN : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
+            });
+            agent.RemoteOrchestrator.OnConnectionClose(coa =>
+            {
+                Console.WriteLine($"CLOSE : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
+            });
+
+            //agent.RemoteOrchestrator.OnTransactionOpen(toa =>
+            //{
+            //    var command = toa.Connection.CreateCommand();
+            //    command.Connection = toa.Connection;
+            //    command.Transaction = toa.Transaction;
+
+            //    // Set transaction level for the session
+            //    command.CommandText = "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;";
+            //    command.ExecuteNonQuery();
+            //    Console.WriteLine($"ISOL LEVEL RU : {toa.Connection.GetHashCode()} - {toa.Connection.ConnectionString}");
+            //});
+
+            // Using the Progress pattern to handle progession during the synchronization
+            var progress = new SynchronousProgress<ProgressArgs>(s =>
+            {
+                //Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"{randomDatabaseName}:{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+                //Console.ResetColor();
+            });
+
+            var t = agent.SynchronizeAsync();
+
+            allTasks.Add(t);
+        }
+
+        await Task.WhenAll(allTasks);
+
+        foreach (var t in allTasks)
+        {
+            Console.WriteLine(t.Result);
+        }
     }
 
 
@@ -84,6 +215,7 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+
 
 
         // Using the Progress pattern to handle progession during the synchronization
@@ -452,11 +584,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress = new SynchronousProgress<ProgressArgs>(s =>
-                    {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-                        Console.ResetColor();
-                    });
+                        {
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+                            Console.ResetColor();
+                        });
 
                     var s = await agent.SynchronizeAsync(progress);
                     Console.WriteLine(s);
@@ -466,11 +598,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress2 = new SynchronousProgress<ProgressArgs>(s =>
-                    {
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-                        Console.ResetColor();
-                    });
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkGreen;
+                            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+                            Console.ResetColor();
+                        });
                     s = await agent2.SynchronizeAsync(progress2);
                     Console.WriteLine(s);
                 }

@@ -19,17 +19,16 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = "SELECT CHANGE_TRACKING_CURRENT_VERSION()";
 
             return command;
         }
 
-        public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction) 
+        public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
             => this.GetUpdateScopeInfoCommand(scopeType, connection, transaction);
-        
+
         public override DbCommand GetUpdateScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
             => scopeType switch
             {
@@ -72,8 +71,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 ";
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 

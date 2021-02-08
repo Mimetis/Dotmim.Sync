@@ -30,8 +30,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     WHERE [sync_scope_name] = @sync_scope_name";
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -58,8 +57,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -86,8 +84,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     WHERE [sync_scope_name] = @sync_scope_name";
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -125,8 +122,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                         )";
             var command = connection.CreateCommand();
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -149,8 +145,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var command = connection.CreateCommand();
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -173,8 +168,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var command = connection.CreateCommand();
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -201,8 +195,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             };
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = $"DROP Table [dbo].[{tableName}]";
 
@@ -220,8 +213,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var command = connection.CreateCommand();
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0"; ;
 
@@ -234,8 +226,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             // and we still need the last row version "during the transaction", so check back to @@DBTS
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = "SELECT CONVERT(bigint, @@DBTS) as lastTimestamp";
 
@@ -252,8 +243,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
             var command = connection.CreateCommand();
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             var tableName = scopeType switch
             {
@@ -328,8 +318,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -484,8 +473,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
