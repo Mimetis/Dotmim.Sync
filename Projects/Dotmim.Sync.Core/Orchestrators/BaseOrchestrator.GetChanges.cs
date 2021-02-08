@@ -350,30 +350,12 @@ namespace Dotmim.Sync
         /// </summary>
         internal void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
-            // Generate the isNewScope Flag.
-            var isNewScope = isNew ? 1 : 0;
-            var isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
 
-            switch (context.SyncWay)
-            {
-                case SyncWay.Upload:
-                    // Overwrite if we are in Reinitialize mode (not RenitializeWithUpload)
-                    isNewScope = context.SyncType == SyncType.Reinitialize ? 1 : isNewScope;
-                    lastTimestamp = context.SyncType == SyncType.Reinitialize ? 0 : lastTimestamp;
-                    isReinit = context.SyncType == SyncType.Reinitialize ? 1 : 0;
-                    break;
-                case SyncWay.Download:
-                    // Ovewrite on bot Reinitialize and ReinitializeWithUpload
-                    isNewScope = context.SyncType != SyncType.Normal ? 1 : isNewScope;
-                    lastTimestamp = context.SyncType != SyncType.Normal ? 0 : lastTimestamp;
-                    isReinit = context.SyncType != SyncType.Normal ? 1 : 0;
-                    break;
-                default:
-                    break;
-            }
+            // If new, timestamp should be null if 0 (backward compatibility)
+            long? ts = (isNew && lastTimestamp <= 0) ? null : (long?)lastTimestamp;
 
             // Set the parameters
-            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", ts);
             DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
 
             // Check filters

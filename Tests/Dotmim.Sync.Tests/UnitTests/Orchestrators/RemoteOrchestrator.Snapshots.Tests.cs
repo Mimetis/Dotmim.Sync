@@ -175,6 +175,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, true);
             await ctx.Database.EnsureCreatedAsync();
 
+            var rowsCount = GetServerDatabaseRowsCount((dbName, ProviderType.Sql, sqlProvider));
+
             var scopeName = "scopesnap2";
 
             // snapshot directory
@@ -202,6 +204,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Single(bi.BatchPartsInfo);
             Assert.Equal(17, bi.BatchPartsInfo[0].Tables.Length);
             Assert.True(bi.BatchPartsInfo[0].IsLastBatch);
+            Assert.Equal(rowsCount, bi.RowsCount);
 
             // Check summary.json exists.
             var summaryFile = Path.Combine(bi.GetDirectoryFullPath(), "summary.json");
@@ -372,6 +375,36 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+        }
+
+
+        public int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
+        {
+            int totalCountRows = 0;
+
+            using (var serverDbCtx = new AdventureWorksContext(t))
+            {
+                totalCountRows += serverDbCtx.Address.Count();
+                totalCountRows += serverDbCtx.Customer.Count();
+                totalCountRows += serverDbCtx.CustomerAddress.Count();
+                totalCountRows += serverDbCtx.Employee.Count();
+                totalCountRows += serverDbCtx.EmployeeAddress.Count();
+                totalCountRows += serverDbCtx.Log.Count();
+                totalCountRows += serverDbCtx.Posts.Count();
+                totalCountRows += serverDbCtx.PostTag.Count();
+                totalCountRows += serverDbCtx.PricesList.Count();
+                totalCountRows += serverDbCtx.PricesListCategory.Count();
+                totalCountRows += serverDbCtx.PricesListDetail.Count();
+                totalCountRows += serverDbCtx.Product.Count();
+                totalCountRows += serverDbCtx.ProductCategory.Count();
+                totalCountRows += serverDbCtx.ProductModel.Count();
+                totalCountRows += serverDbCtx.SalesOrderDetail.Count();
+                totalCountRows += serverDbCtx.SalesOrderHeader.Count();
+                totalCountRows += serverDbCtx.Sql.Count();
+                totalCountRows += serverDbCtx.Tags.Count();
+            }
+
+            return totalCountRows;
         }
 
     }

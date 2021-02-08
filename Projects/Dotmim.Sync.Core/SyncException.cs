@@ -208,6 +208,16 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
+    /// Occurs when a scope info is needed, but does not exists
+    /// </summary>
+    public class MissingServerScopeInfoException : Exception
+    {
+        const string message = "The server scope info is invalid. You need to make a first sync before.";
+
+        public MissingServerScopeInfoException() : base(message) { }
+    }
+
+    /// <summary>
     /// Occurs when a scope info is not good, conflicting with the one from the orchestrator
     /// </summary>
     public class InvalidScopeInfoException : Exception
