@@ -14,7 +14,7 @@ namespace Dotmim.Sync
         /// Applying changes message.
         /// Be careful policy could be differente from the schema (especially on client side, it's the reverse one, by default)
         /// </summary>
-        public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long lastTimestamp, SyncSet schema, SyncSetup setup,
+        public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
                                     bool useBulkOperations, bool cleanMetadatas, bool cleanFolder, BatchInfo changes)
         {
@@ -52,7 +52,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the last date timestamp from where we want rows
         /// </summary>
-        public long LastTimestamp { get; }
+        public long? LastTimestamp { get; }
 
         /// <summary>
         /// Gets or Sets the schema used for this sync

@@ -69,7 +69,7 @@ namespace Dotmim.Sync
         /// Execute a batch command
         /// </summary>
         public abstract Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
-                                                      SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction);
+                                                      SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction);
 
         /// <summary>
         /// Create a Sync Adapter
@@ -125,13 +125,17 @@ namespace Dotmim.Sync
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters
         /// </summary>
-        internal async Task<DbCommand> PrepareCommandAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        public async Task<DbCommand> GetCommandAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             // Create the key
             var commandKey = $"{connection.DataSource}-{connection.Database}-{this.TableDescription.GetFullName()}-{commandType}";
 
             // Get a lazy command instance
-            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() => new SyncCommand(GetCommand(commandType, filter))));
+            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() =>
+            {
+                var syncCommand = new SyncCommand(GetCommand(commandType, filter));
+                return syncCommand;
+            }));
 
             // Get the concrete instance
             var command = lazyCommand.Value.DbCommand;
@@ -167,16 +171,16 @@ namespace Dotmim.Sync
 
             return command;
         }
-    
+
         /// <summary>
         /// Add common parameters which could be part of the command
         /// if not found, no set done
         /// </summary>
-        internal void AddScopeParametersValues(DbCommand command, Guid? id, long lastTimestamp, bool isDeleted, bool forceWrite)
+        internal void AddScopeParametersValues(DbCommand command, Guid? id, long? lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
             DbSyncAdapter.SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
-            DbSyncAdapter.SetParameterValue(command, "sync_min_timestamp", lastTimestamp);
+            DbSyncAdapter.SetParameterValue(command, "sync_min_timestamp", lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value);
             DbSyncAdapter.SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
             DbSyncAdapter.SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }

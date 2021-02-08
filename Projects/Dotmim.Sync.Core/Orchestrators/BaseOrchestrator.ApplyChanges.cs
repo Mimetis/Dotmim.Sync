@@ -96,7 +96,7 @@ namespace Dotmim.Sync
         private async Task<SyncRow> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository
-            var command = await syncAdapter.PrepareCommandAsync(DbCommandType.SelectRow, connection, transaction);
+            var command = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
 
             // set the primary keys columns as parameters
             syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
@@ -147,12 +147,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a delete on a row
         /// </summary>
-        private async Task<bool> InternalApplyConflictDeleteAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        private async Task<bool> InternalApplyConflictDeleteAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
-            var command = await syncAdapter.PrepareCommandAsync(DbCommandType.DeleteRow, connection, transaction);
+            var command = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
@@ -174,12 +174,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
         /// </summary>
-        private async Task<bool> InternalApplyConflictUpdateAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        private async Task<bool> InternalApplyConflictUpdateAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
-            var command = await syncAdapter.PrepareCommandAsync(DbCommandType.UpdateRow, connection, transaction);
+            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
@@ -353,7 +353,7 @@ namespace Dotmim.Sync
             };
 
             // Get command
-            var command = await syncAdapter.PrepareCommandAsync(dbCommandType, connection, transaction);
+            var command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
 
             // Launch any interceptor if available
             var args = new TableChangesBatchApplyingArgs(context, changesTable, applyType, command, connection, transaction);
@@ -462,7 +462,7 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<(int conflictResolvedCount, SyncRow resolvedRow, int rowAppliedCount)> HandleConflictAsync(
                                 Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, SyncContext context, SyncRow conflictRow, SyncTable schemaChangesTable,
-                                ConflictResolutionPolicy policy, long lastTimestamp, DbConnection connection, DbTransaction transaction)
+                                ConflictResolutionPolicy policy, long? lastTimestamp, DbConnection connection, DbTransaction transaction)
         {
 
             SyncRow finalRow;

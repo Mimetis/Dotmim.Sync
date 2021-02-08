@@ -212,8 +212,8 @@ namespace Dotmim.Sync
                 cancellationToken.ThrowIfCancellationRequested();
 
             // check if we need to delete metadatas
-            if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0)
-                await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, lastSyncTS, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastSyncTS.HasValue)
+                await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, lastSyncTS.Value, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // now the sync is complete, remember the time
             this.CompleteTime = DateTime.UtcNow;
@@ -248,6 +248,9 @@ namespace Dotmim.Sync
             // Get context or create a new one
             var ctx = this.GetContext();
 
+            // store value 
+            var isNew = clientScopeInfo.IsNewScope;
+
             ctx.SyncStage = SyncStage.SnapshotApplying;
             await this.InterceptAsync(new SnapshotApplyingArgs(ctx), cancellationToken).ConfigureAwait(false);
 
@@ -260,6 +263,9 @@ namespace Dotmim.Sync
 
             var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx, changesApplied);
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
+
+            // re-apply scope is new flag
+            newClientScopeInfo.IsNewScope = isNew;
 
             return (changesApplied, newClientScopeInfo);
 

@@ -340,7 +340,7 @@ namespace Dotmim.Sync
                 dbCommandType = DbCommandType.SelectChanges;
 
             // Get correct Select incremental changes command 
-            command = await syncAdapter.PrepareCommandAsync(dbCommandType, connection, transaction, tableFilter);
+            command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction, tableFilter);
 
             return command;
         }
@@ -348,14 +348,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set common parameters to SelectChanges Sql command
         /// </summary>
-        internal void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long lastTimestamp, DbCommand selectIncrementalChangesCommand)
+        internal void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
-
-            // If new, timestamp should be null if 0 (backward compatibility)
-            long? ts = (isNew && lastTimestamp <= 0) ? null : (long?)lastTimestamp;
-
             // Set the parameters
-            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", ts);
+            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
             DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
 
             // Check filters
