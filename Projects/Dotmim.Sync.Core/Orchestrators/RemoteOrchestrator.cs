@@ -211,11 +211,7 @@ namespace Dotmim.Sync
                     if (serverScopeInfo.Schema == null)
                         throw new MissingRemoteOrchestratorSchemaException();
 
-                    // Check if we have a version to control
-                    if (!serverScopeInfo.Version.Equals(clientScope.Version, SyncGlobalization.DataSourceStringComparison))
-                        throw new ArgumentException("Server schema version does not match client schema version");
-
-                    // deserialiaze schema
+                    // Deserialiaze schema
                     schema = serverScopeInfo.Schema;
 
                     // Create message containing everything we need to apply on server side

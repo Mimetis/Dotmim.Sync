@@ -397,7 +397,7 @@ namespace Dotmim.Sync.Web.Client
             var serverBatchInfo = new BatchInfo(workInMemoryLocally, schema, this.Options.BatchDirectory);
 
             // Set correct rows count
-            serverBatchInfo.RowsCount = httpMessageContent.ServerChangesSelected.TotalChangesSelected;
+            serverBatchInfo.RowsCount = httpMessageContent.ServerChangesSelected?.TotalChangesSelected ?? 0;
             // stats
             DatabaseChangesSelected serverChangesSelected = null;
             DatabaseChangesApplied clientChangesApplied = null;
@@ -609,10 +609,23 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// We can't delete metadats on request from client
+        /// Not Allowed from WebClientOrchestrator
         /// </summary>
         public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
+
+        /// <summary>
+        /// Not Allowed from WebClientOrchestrator
+        /// </summary>
+        public override Task<bool> NeedsToUpgradeAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                        => throw new NotImplementedException();
+
+        /// <summary>
+        /// Not Allowed from WebClientOrchestrator
+        /// </summary>
+        public override Task<bool> UpgradeAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                        => throw new NotImplementedException();
+
 
         /// <summary>
         /// We can't get changes from server, from a web client orchestrator
@@ -680,7 +693,7 @@ namespace Dotmim.Sync.Web.Client
             // Create the BatchInfo and SyncContext to return at the end
             var serverBatchInfo = new BatchInfo(workInMemoryLocally, schema, this.Options.BatchDirectory);
 
-            serverBatchInfo.RowsCount = httpMessageContent.ServerChangesSelected.TotalChangesSelected;
+            serverBatchInfo.RowsCount = httpMessageContent?.ServerChangesSelected?.TotalChangesSelected ?? 0;
 
             // stats
             DatabaseChangesSelected serverChangesSelected;

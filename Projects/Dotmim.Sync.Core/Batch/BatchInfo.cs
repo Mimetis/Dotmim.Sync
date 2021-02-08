@@ -154,12 +154,13 @@ namespace Dotmim.Sync.Batch
             {
                 var tableInfo = new BatchPartTableInfo(tableName, schemaName);
 
-                var bpiTables = BatchPartsInfo.Where(bpi => bpi.Tables.Any(t => t.EqualsByName(tableInfo)));
+                var bptis = BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t => t.EqualsByName(tableInfo)));
 
-                if (bpiTables == null)
+                if (bptis == null)
                     return false;
 
-                return bpiTables.Sum(bpi => bpi.RowsCount) > 0;
+
+                return bptis.Sum(bpti => bpti.RowsCount) > 0;
             }
 
             return false;
