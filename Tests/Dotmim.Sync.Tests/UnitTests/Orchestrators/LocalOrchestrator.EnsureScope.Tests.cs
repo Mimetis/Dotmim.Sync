@@ -62,10 +62,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(scopeName, localScopeInfo.Name);
             Assert.True(localScopeInfo.IsNewScope);
             Assert.NotEqual(Guid.Empty, localScopeInfo.Id);
-            Assert.Equal(0, localScopeInfo.LastServerSyncTimestamp);
+            Assert.Null(localScopeInfo.LastServerSyncTimestamp);
             Assert.Null(localScopeInfo.LastSync);
             Assert.Equal(0, localScopeInfo.LastSyncDuration);
-            Assert.Equal(0, localScopeInfo.LastSyncTimestamp);
+            Assert.Null(localScopeInfo.LastSyncTimestamp);
             Assert.Null(localScopeInfo.Schema);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
 
