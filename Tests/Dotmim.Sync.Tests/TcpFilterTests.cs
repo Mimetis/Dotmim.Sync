@@ -776,7 +776,7 @@ namespace Dotmim.Sync.Tests
                     Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
                     Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
 
-                    if (client.ProviderType == ProviderType.Sql)
+                    if (client.ProviderType == ProviderType.Sql || client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
                     {
                         Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
                         Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
@@ -814,11 +814,16 @@ namespace Dotmim.Sync.Tests
                     Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
                     Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
 
-                    if (client.ProviderType == ProviderType.Sql)
+                    if (client.ProviderType == ProviderType.Sql || client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
                     {
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+
+                        if (client.ProviderType == ProviderType.Sql)
+                        {
+                            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
+                            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
+                            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+                        }
+
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
@@ -1098,11 +1103,14 @@ namespace Dotmim.Sync.Tests
                     Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
                     Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
 
-                    if (client.ProviderType == ProviderType.Sql)
+                    if (client.ProviderType == ProviderType.Sql || client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
                     {
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+                        if (client.ProviderType == ProviderType.Sql)
+                        {
+                            Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
+                            Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
+                            Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+                        }
                         Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
                         Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
                         Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
