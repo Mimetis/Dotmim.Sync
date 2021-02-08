@@ -40,7 +40,7 @@ namespace Dotmim.Sync
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
-            var command = scopeBuilder.PrepareCommand(DbScopeCommandType.GetLocalTimestamp, DbScopeType.Client, connection, transaction);
+            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, DbScopeType.Client, connection, transaction);
 
             if (command == null)
                 return 0L;

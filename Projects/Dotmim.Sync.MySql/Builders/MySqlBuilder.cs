@@ -21,8 +21,7 @@ namespace Dotmim.Sync.MySql.Builders
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            if (transaction != null)
-                dbCommand.Transaction = transaction;
+            dbCommand.Transaction = transaction;
 
             await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 

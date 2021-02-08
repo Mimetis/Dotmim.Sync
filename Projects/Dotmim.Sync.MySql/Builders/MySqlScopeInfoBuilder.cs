@@ -36,8 +36,7 @@ namespace Dotmim.Sync.MySql
                     WHERE sync_scope_name = @sync_scope_name";
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -67,8 +66,7 @@ namespace Dotmim.Sync.MySql
 
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -96,8 +94,7 @@ namespace Dotmim.Sync.MySql
                     WHERE sync_scope_name = @sync_scope_name";
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -113,9 +110,9 @@ namespace Dotmim.Sync.MySql
         public override DbCommand GetAllScopesCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
             => scopeType switch
             {
-                DbScopeType.Server => GetAllServerScopesCommand( connection, transaction),
-                DbScopeType.ServerHistory => GetAllServerHistoryScopesCommand( connection, transaction),
-                _ => GetAllClientScopesCommand( connection, transaction)
+                DbScopeType.Server => GetAllServerScopesCommand(connection, transaction),
+                DbScopeType.ServerHistory => GetAllServerHistoryScopesCommand(connection, transaction),
+                _ => GetAllClientScopesCommand(connection, transaction)
             };
 
 
@@ -138,8 +135,7 @@ namespace Dotmim.Sync.MySql
 
             var command = connection.CreateCommand();
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -163,9 +159,7 @@ namespace Dotmim.Sync.MySql
                         )";
 
             var command = connection.CreateCommand();
-
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -188,9 +182,7 @@ namespace Dotmim.Sync.MySql
                         PRIMARY KEY (sync_scope_name)
                         )";
             var command = connection.CreateCommand();
-
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -215,8 +207,7 @@ namespace Dotmim.Sync.MySql
             };
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = $"DROP TABLE `{tableName}`";
 
@@ -233,9 +224,7 @@ namespace Dotmim.Sync.MySql
             };
 
             var command = connection.CreateCommand();
-
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 
@@ -249,8 +238,7 @@ namespace Dotmim.Sync.MySql
             var command = connection.CreateCommand();
 
             command.Connection = connection;
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
             command.CommandText = commandText;
 
             return command;
@@ -269,7 +257,7 @@ namespace Dotmim.Sync.MySql
         public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
             => scopeType switch
             {
-                DbScopeType.Client => GetSaveClientScopeInfoCommand( false, connection, transaction),
+                DbScopeType.Client => GetSaveClientScopeInfoCommand(false, connection, transaction),
                 DbScopeType.ServerHistory => GetSaveServerHistoryScopeInfoCommand(false, connection, transaction),
                 DbScopeType.Server => GetSaveServerScopeInfoCommand(false, connection, transaction),
                 _ => throw new NotImplementedException($"Can't get Insert command from this DbScopeType {scopeType}")
@@ -279,9 +267,7 @@ namespace Dotmim.Sync.MySql
         public override DbCommand GetExistsScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
-
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             var tableName = scopeType switch
             {
@@ -306,7 +292,7 @@ namespace Dotmim.Sync.MySql
             return command;
         }
 
-        public DbCommand GetSaveClientScopeInfoCommand( bool exist, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetSaveClientScopeInfoCommand(bool exist, DbConnection connection, DbTransaction transaction)
         {
             var stmtText = new StringBuilder(exist
                 ? $"Update {this.ScopeInfoTableName.Quoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema,  sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id;"
@@ -321,8 +307,7 @@ namespace Dotmim.Sync.MySql
             var command = connection.CreateCommand();
 
             command.Connection = connection;
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = stmtText.ToString();
 
@@ -394,8 +379,7 @@ namespace Dotmim.Sync.MySql
             var command = connection.CreateCommand();
 
             command.Connection = connection;
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = stmtText.ToString();
 
@@ -446,8 +430,7 @@ namespace Dotmim.Sync.MySql
             var command = connection.CreateCommand();
 
             command.Connection = connection;
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = stmtText.ToString();
 

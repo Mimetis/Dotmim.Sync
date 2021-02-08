@@ -30,7 +30,6 @@ namespace Dotmim.Sync.SqlServer
             {
                 var getParamsCommand = new SqlCommand("sp_procedure_params_rowset", connection);
                 getParamsCommand.CommandType = CommandType.StoredProcedure;
-                if (transaction != null)
                     getParamsCommand.Transaction = transaction;
 
                 var p = new SqlParameter("@procedure_name", SqlDbType.NVarChar);

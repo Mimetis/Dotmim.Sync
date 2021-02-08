@@ -51,8 +51,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
@@ -69,9 +68,9 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public static async Task<SyncTable> GetTriggerAsync(SqlConnection connection, SqlTransaction transaction, string triggerName, string schemaName)
         {
-            var command = $"SELECT tr.name FROM sys.triggers tr " + 
-                           "JOIN sys.tables t ON tr.parent_id = t.object_id " + 
-                           "JOIN sys.schemas s ON t.schema_id = s.schema_id " + 
+            var command = $"SELECT tr.name FROM sys.triggers tr " +
+                           "JOIN sys.tables t ON tr.parent_id = t.object_id " +
+                           "JOIN sys.schemas s ON t.schema_id = s.schema_id " +
                            "WHERE tr.name = @triggerName and s.name = @schemaName";
 
             var triggerNameNormalized = ParserName.Parse(triggerName).Unquoted().Normalized().ToString();
@@ -96,8 +95,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
@@ -157,12 +155,11 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
-                
+
                 if (!alreadyOpened)
                     connection.Close();
 
@@ -206,8 +203,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -257,8 +253,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
@@ -283,8 +278,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
 
                 await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -310,8 +304,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -337,8 +330,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
 
                 await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -365,8 +357,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -404,8 +395,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
@@ -440,8 +430,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 using (var reader = await dbCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
@@ -480,8 +469,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
@@ -509,8 +497,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
@@ -552,8 +539,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
@@ -587,8 +573,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
@@ -600,7 +585,7 @@ namespace Dotmim.Sync.SqlServer
             }
             return schemaExist;
         }
-         
+
         public static async Task<bool> TriggerExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
@@ -616,8 +601,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
@@ -647,8 +631,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 var result = await sqlCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
@@ -671,7 +654,7 @@ namespace Dotmim.Sync.SqlServer
             string str = "";
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString() ;
+                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
@@ -723,7 +706,7 @@ namespace Dotmim.Sync.SqlServer
         }
 
 
-  
+
 
     }
 }

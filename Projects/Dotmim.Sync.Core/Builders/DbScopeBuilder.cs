@@ -37,34 +37,23 @@ namespace Dotmim.Sync.Builders
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters
         /// </summary>
-        internal DbCommand PrepareCommand(DbScopeCommandType commandType, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        internal DbCommand GetCommandAsync(DbScopeCommandType commandType, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             // Create the key
             var commandKey = $"{connection.DataSource}-{connection.Database}-{this.ScopeInfoTableName.ToString()}-{commandType}-{scopeType}";
 
-            // Get a lazy command instance
-            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() =>
+            var command = commandType switch
             {
-                var dbCommand = commandType switch
-                {
-                    DbScopeCommandType.ExistsScopeTable => GetExistsScopeInfoTableCommand(scopeType, connection, transaction),
-                    DbScopeCommandType.CreateScopeTable => GetCreateScopeInfoTableCommand(scopeType, connection, transaction),
-                    DbScopeCommandType.GetScopes => GetAllScopesCommand(scopeType, connection, transaction),
-                    DbScopeCommandType.InsertScope   => GetInsertScopeInfoCommand(scopeType, connection, transaction),
-                    DbScopeCommandType.UpdateScope => GetUpdateScopeInfoCommand(scopeType, connection, transaction),
-                    DbScopeCommandType.ExistScope => GetExistsScopeInfoCommand(scopeType, connection, transaction),
-                    DbScopeCommandType.GetLocalTimestamp => GetLocalTimestampCommand(connection, transaction),
-                    DbScopeCommandType.DropScopeTable => GetDropScopeInfoTableCommand(scopeType, connection, transaction),
-                    _ => throw new Exception($"This DbScopeCommandType {commandType} not exists")
-                };
-
-                var command = new SyncCommand(dbCommand);
-
-                return command;
-            }));
-
-            // Get the concrete instance
-            var command = lazyCommand.Value.DbCommand;
+                DbScopeCommandType.ExistsScopeTable => GetExistsScopeInfoTableCommand(scopeType, connection, transaction),
+                DbScopeCommandType.CreateScopeTable => GetCreateScopeInfoTableCommand(scopeType, connection, transaction),
+                DbScopeCommandType.GetScopes => GetAllScopesCommand(scopeType, connection, transaction),
+                DbScopeCommandType.InsertScope => GetInsertScopeInfoCommand(scopeType, connection, transaction),
+                DbScopeCommandType.UpdateScope => GetUpdateScopeInfoCommand(scopeType, connection, transaction),
+                DbScopeCommandType.ExistScope => GetExistsScopeInfoCommand(scopeType, connection, transaction),
+                DbScopeCommandType.GetLocalTimestamp => GetLocalTimestampCommand(connection, transaction),
+                DbScopeCommandType.DropScopeTable => GetDropScopeInfoTableCommand(scopeType, connection, transaction),
+                _ => throw new Exception($"This DbScopeCommandType {commandType} not exists")
+            };
 
             if (command == null)
                 throw new MissingCommandException(commandType.ToString());
@@ -76,9 +65,14 @@ namespace Dotmim.Sync.Builders
                 throw new ConnectionClosedException(connection);
 
             command.Connection = connection;
+            command.Transaction = transaction;
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            // Get a lazy command instance
+            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() =>
+            {
+                var syncCommand = new SyncCommand(commandKey);
+                return syncCommand;
+            }));
 
             // lazyCommand.Metadata is a boolean indicating if the command is already prepared on the server
             if (lazyCommand.Value.IsPrepared == true)

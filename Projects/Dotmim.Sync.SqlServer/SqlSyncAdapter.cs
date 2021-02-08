@@ -30,7 +30,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
         {
-            this.sqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup) ;
+            this.sqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup);
             this.sqlMetadata = new SqlDbMetadata();
         }
 
@@ -105,7 +105,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, 
+        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
                                                             SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
 
@@ -258,11 +258,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    cmd.Transaction = transaction;
+                cmd.Transaction = transaction;
 
                 using var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-                
+
                 while (dataReader.Read())
                 {
                     //var itemArray = new object[dataReader.FieldCount];
@@ -444,8 +443,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    command.Transaction =transaction;
+                command.Transaction = transaction;
 
                 var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
 
