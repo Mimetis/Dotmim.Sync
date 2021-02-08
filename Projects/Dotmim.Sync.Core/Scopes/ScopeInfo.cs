@@ -64,13 +64,13 @@ namespace Dotmim.Sync
         /// Gets or Sets the last timestamp a sync has occured. This timestamp is set just 'before' sync start.
         /// </summary>
         [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public long LastSyncTimestamp { get; set; }
+        public long? LastSyncTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the last server timestamp a sync has occured for this scope client.
         /// </summary>
         [DataMember(Name = "lsst", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public long LastServerSyncTimestamp { get; set; }
+        public long? LastServerSyncTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the last duration a sync has occured. 

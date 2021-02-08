@@ -493,10 +493,6 @@ namespace Dotmim.Sync
                 // Get if we need to get all rows from the datasource
                 var fromScratch = clientScopeInfo.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
 
-                // Set timestamp to null if fromScratch (and mostly if Reinitialize)
-                if (fromScratch && clientScopeInfo.LastServerSyncTimestamp > 0)
-                    clientScopeInfo.LastServerSyncTimestamp = 0;
-
                 // IF is new and we have a snapshot directory, try to apply a snapshot
                 if (fromScratch)
                 {

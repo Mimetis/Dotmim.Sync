@@ -149,8 +149,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
             setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
-            setup1.Version = "1";
-            setup2.Version = "1";
+            setup1.Version = SyncVersion.Current.ToString();
+            setup2.Version = SyncVersion.Current.ToString();
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));

@@ -37,7 +37,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseChangesSelectedArgs : ProgressArgs
     {
-        public DatabaseChangesSelectedArgs(SyncContext context, long timestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected changesSelected, DbConnection connection = null, DbTransaction transaction = null)
+        public DatabaseChangesSelectedArgs(SyncContext context, long? timestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected changesSelected, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Timestamp = timestamp;
@@ -48,7 +48,7 @@ namespace Dotmim.Sync
         public override string Source => Connection.Database;
         public override string Message => $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}";
 
-        public long Timestamp { get; }
+        public long? Timestamp { get; }
 
         /// <summary>
         /// Get the batch info. Always null when raised from a call from GetEstimatedChangesCount

@@ -90,7 +90,7 @@ namespace Dotmim.Sync
                 serverScopeInfo.LastCleanupTimestamp = 0;
                 serverScopeInfo.Schema = schema;
                 serverScopeInfo.Setup = this.Setup;
-                serverScopeInfo.Version = "1";
+                serverScopeInfo.Version = SyncVersion.Current.ToString();
 
                 // 3) Update server scope
                 await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -419,16 +419,19 @@ namespace Dotmim.Sync
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
           => RunInTransactionAsync(SyncStage.MetadataCleaning, async (ctx, connection, transaction) =>
           {
-              await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart, connection, transaction), cancellationToken).ConfigureAwait(false);
+              if (!timeStampStart.HasValue)
+                  return null;
+
+              await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart.Value, connection, transaction), cancellationToken).ConfigureAwait(false);
 
               // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
               // No need columns or primary keys to be able to deprovision a table
               SyncSet schema = new SyncSet(this.Setup);
 
-              var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+              var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart.Value, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
               // Update server scope table
               var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);

@@ -202,7 +202,7 @@ namespace Dotmim.Sync
                 // create a new scope id for the current owner (could be server or client as well)
                 T scope = scopeType switch
                 {
-                    DbScopeType.Client => new ScopeInfo { Id = Guid.NewGuid(), Name = scopeName, IsNewScope = true, LastSync = null, Version = SyncVersion.Current.ToString() } as T,
+                    DbScopeType.Client => new ScopeInfo { Id = Guid.NewGuid(), Name = scopeName, IsNewScope = true, LastSync = null, LastServerSyncTimestamp= null, LastSyncTimestamp = null, Version = SyncVersion.Current.ToString() } as T,
                     DbScopeType.Server => new ServerScopeInfo { Name = scopeName, LastCleanupTimestamp = 0, Version = SyncVersion.Current.ToString() } as T,
                     _ => throw new NotImplementedException($"Type {typeof(T).Name} is not implemented when trying to get a single instance")
                 };
@@ -346,8 +346,8 @@ namespace Dotmim.Sync
                 Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]),
                 Version = reader["sync_scope_version"] as string,
                 LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync")) : null,
-                LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : 0L,
-                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L,
+                LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? (long?)reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : null,
+                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long?)reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) :null,
                 LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L
             };
 

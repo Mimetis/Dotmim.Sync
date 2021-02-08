@@ -106,7 +106,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// Executing a batch command
         /// </summary>
         public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, 
-                                                            SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null)
+                                                            SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
 
             var applyRowsCount = applyRows.Count();
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].TypeName = string.Empty;
             ((SqlParameterCollection)cmd.Parameters)["@changeTable"].Value = records;
-            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp;
+            ((SqlParameterCollection)cmd.Parameters)["@sync_min_timestamp"].Value = lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value;
             ((SqlParameterCollection)cmd.Parameters)["@sync_scope_id"].Value = senderScopeId;
 
             bool alreadyOpened = connection.State == ConnectionState.Open;

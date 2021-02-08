@@ -9,7 +9,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class MessageGetChangesBatch
     {
-        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long lastTimestamp, SyncSet schema, SyncSetup setup,
+        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
                                       int batchSize, string batchDirectory)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
@@ -43,7 +43,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the last date timestamp from where we want rows
         /// </summary>
-        public long LastTimestamp { get; set; }
+        public long? LastTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema used for this sync
