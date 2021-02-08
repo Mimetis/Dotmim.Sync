@@ -26,15 +26,18 @@ namespace Dotmim.Sync
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="progress">Progress args</param>
-        public virtual Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.MetadataCleaning, async (ctx, connection, transaction) =>
         {
+
+            if (!timeStampStart.HasValue)
+                return null;
 
             // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
             // No need columns or primary keys to be able to deprovision a table
             SyncSet schema = new SyncSet(this.Setup);
 
-            var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart.Value, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return databaseMetadatasCleaned;
 
@@ -54,7 +57,7 @@ namespace Dotmim.Sync
                 // Create sync adapter
                 var syncAdapter = this.GetSyncAdapter(syncTable, setup);
 
-                var command = await syncAdapter.PrepareCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
+                var command = await syncAdapter.GetCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
                 // Set the special parameters for delete metadata
                 DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
@@ -92,7 +95,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<bool> InternalUpdateMetadatasAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            var command = await syncAdapter.PrepareCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
+            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);

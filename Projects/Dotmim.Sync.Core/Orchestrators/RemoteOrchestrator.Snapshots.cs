@@ -191,7 +191,7 @@ namespace Dotmim.Sync
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, this.Setup, true, connection, transaction);
 
                 // Set parameters
-                this.SetSelectChangesCommonParameters(context, table, null, true, 0, selectIncrementalChangesCommand);
+                this.SetSelectChangesCommonParameters(context, table, null, true, null, selectIncrementalChangesCommand);
 
                 // launch interceptor if any
                 var args = new TableChangesSelectingArgs(context, table, selectIncrementalChangesCommand, connection, transaction);

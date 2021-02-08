@@ -47,7 +47,7 @@ namespace Dotmim.Sync
         internal async Task<int> InternalUpdateUntrackedRowsAsync(SyncContext ctx, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction)
         {
             // Get correct Select incremental changes command 
-            var command = await syncAdapter.PrepareCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
+            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);

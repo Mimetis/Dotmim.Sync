@@ -778,9 +778,12 @@ namespace Dotmim.Sync.Tests
 
                     if (client.ProviderType == ProviderType.Sql || client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
                     {
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+                        if (client.ProviderType == ProviderType.Sql)
+                        {
+                            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
+                            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
+                            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+                        }
                         Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
                         Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
                         Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
@@ -1222,7 +1225,7 @@ namespace Dotmim.Sync.Tests
 
                 // ON SERVER : When trying to get changes from the server, just replace the command with the Initialize command
                 // and get ALL the rows for the migrated new table
-                agent.RemoteOrchestrator.OnTableChangesSelecting(tcs =>
+                agent.RemoteOrchestrator.OnTableChangesSelecting(async tcs =>
                 {
                     if (tcs.Context.AdditionalProperties == null || tcs.Context.AdditionalProperties.Count <= 0)
                         return;
@@ -1233,10 +1236,7 @@ namespace Dotmim.Sync.Tests
                         if (addProp == "Reinitialize")
                         {
                             var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
-                            var command = adapter.GetCommand(DbCommandType.SelectInitializedChanges);
-                            command.Connection = tcs.Connection;
-                            command.Transaction = tcs.Transaction;
-
+                            var command = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.Table.GetFilter());
                             tcs.Command = command;
                         }
                     }

@@ -3317,15 +3317,34 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Add rows on server AFTER snapshot
             // ----------------------------------
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
             using (var ctx = new AdventureWorksContext(this.Server))
             {
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
                 var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                 ctx.Add(pc);
 
