@@ -16,6 +16,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class SqlServerHttpFilterTests : HttpFilterTests
     {
+
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            {ProviderType.Sql, ProviderType.MariaDB,  ProviderType.Sqlite};
         public SqlServerHttpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -82,9 +85,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter),
         };
 
-
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            {ProviderType.Sql , ProviderType.MySql , ProviderType.Sqlite};
 
         public override ProviderType ServerType => ProviderType.Sql;
 

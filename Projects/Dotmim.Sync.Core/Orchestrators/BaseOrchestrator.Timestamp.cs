@@ -21,14 +21,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the last timestamp from the orchestrator database
         /// </summary>
-        public virtual Task<long> GetLocalTimestampAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<long> GetLocalTimestampAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             var timestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
             return timestamp;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Read a scope info
@@ -37,9 +37,10 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            var scopeBuilder = this.Provider.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = await scopeBuilder.GetLocalTimestampCommandAsync(connection, transaction).ConfigureAwait(false);
+            // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
+            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, DbScopeType.Client, connection, transaction);
 
             if (command == null)
                 return 0L;

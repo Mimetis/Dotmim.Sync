@@ -23,16 +23,13 @@ namespace UWPSyncSampleWebServer.Context
         }
 
         public DbSet<Employee> Employees { get; set; }
-        public string ConnectionString { get; }
-        public IConfiguration Configuration { get; }
+        public string ConnectionString { get; private set; }
+        public IConfiguration Configuration { get; private set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            // Get a connection string for your server data source
-            var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
-
-            optionsBuilder.UseSqlServer(this.ConnectionString);
-
+            var connectionString = Configuration.GetConnectionString("ContosoConnection");
+            optionsBuilder.UseSqlServer(connectionString);
         }
 
         public Task EnsureDatabaseCreatedAsync() => Database.EnsureCreatedAsync();

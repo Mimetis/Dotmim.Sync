@@ -16,28 +16,30 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
         }
 
-        public override Task<DbCommand> GetLocalTimestampCommandAsync(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = "SELECT CHANGE_TRACKING_CURRENT_VERSION()";
 
-            return Task.FromResult(command);
+            return command;
         }
 
-        public override Task<DbCommand> GetSaveScopeInfoCommandAsync(DbScopeType scopeType, object scopeInfo, DbConnection connection, DbTransaction transaction)
-        => scopeInfo switch
-        {
-            ScopeInfo si => GetSaveClientScopeInfoCommandAsync(si, connection, transaction),
-            ServerHistoryScopeInfo shsi => GetSaveServerHistoryScopeInfoCommandAsync(shsi, connection, transaction),
-            ServerScopeInfo ssi => GetSaveServerScopeInfoCommandForTrackingChangeAsync(ssi, connection, transaction),
-            _ => throw new NotImplementedException($"Can't save this DbScopeType {scopeType}")
-        };
+        public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+            => this.GetUpdateScopeInfoCommand(scopeType, connection, transaction);
+
+        public override DbCommand GetUpdateScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
+            => scopeType switch
+            {
+                DbScopeType.Client => GetSaveClientScopeInfoCommand(connection, transaction),
+                DbScopeType.ServerHistory => GetSaveServerHistoryScopeInfoCommand(connection, transaction),
+                DbScopeType.Server => GetSaveServerScopeInfoCommandForTrackingChange(connection, transaction),
+                _ => throw new NotImplementedException($"Can't save this DbScopeType {scopeType}")
+            };
 
 
-        public Task<DbCommand> GetSaveServerScopeInfoCommandForTrackingChangeAsync(ServerScopeInfo serverScopeInfo, DbConnection connection, DbTransaction transaction)
+        public DbCommand GetSaveServerScopeInfoCommandForTrackingChange(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
             var commandText = $@"
@@ -69,42 +71,35 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 ";
 
             var command = connection.CreateCommand();
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            p.Value = serverScopeInfo.Name;
             p.DbType = DbType.String;
+            p.Size = 100;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_schema";
-            p.Value = serverScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Schema);
             p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_setup";
-            p.Value = serverScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Setup);
             p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_version";
-            p.Value = string.IsNullOrEmpty(serverScopeInfo.Version) ? DBNull.Value : (object)serverScopeInfo.Version;
             p.DbType = DbType.String;
+            p.Size = 10;
             command.Parameters.Add(p);
 
-            //p = command.CreateParameter();
-            //p.ParameterName = "@sync_scope_last_clean_timestamp";
-            //p.Value = serverScopeInfo.LastCleanupTimestamp;
-            //p.DbType = DbType.Int64;
-            //command.Parameters.Add(p);
-
-            return Task.FromResult(command);
+            return command;
         }
     }
 }

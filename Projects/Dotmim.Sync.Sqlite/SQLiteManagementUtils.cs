@@ -27,7 +27,6 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -56,7 +55,6 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
@@ -86,7 +84,6 @@ namespace Dotmim.Sync.Sqlite
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            if (transaction != null)
                 sqlCommand.Transaction = transaction;
 
 
@@ -113,7 +110,6 @@ namespace Dotmim.Sync.Sqlite
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
                     sqlCommand.Transaction = transaction;
 
 
@@ -136,7 +132,6 @@ namespace Dotmim.Sync.Sqlite
             using (DbCommand command = connection.CreateCommand())
             {
                 command.CommandText = $"drop table if exist {tableName}";
-                if (transaction != null)
                     command.Transaction = transaction;
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -150,7 +145,6 @@ namespace Dotmim.Sync.Sqlite
             using (DbCommand dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = $"drop trigger if exist {triggerName}";
-                if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -173,7 +167,6 @@ namespace Dotmim.Sync.Sqlite
                 };
                 dbCommand.Parameters.Add(SqliteParameter);
 
-                if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 tableExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
@@ -192,7 +185,6 @@ namespace Dotmim.Sync.Sqlite
 
                 dbCommand.Parameters.AddWithValue("@triggerName", triggerName);
 
-                if (transaction != null)
                     dbCommand.Transaction = transaction;
 
                 triggerExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;

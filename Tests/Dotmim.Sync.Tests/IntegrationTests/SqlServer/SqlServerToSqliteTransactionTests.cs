@@ -25,8 +25,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class SqlServerToSqliteTransactionTests : HttpTestsBase
     {
-        private Stopwatch stopwatch;
-
         public SqlServerToSqliteTransactionTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -236,7 +234,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var timestamp = rcr.GetInt64(1);
                 return (id, timestamp);
             }
-
+            rcr.Close();
             return (productId, 0);
         }
     }

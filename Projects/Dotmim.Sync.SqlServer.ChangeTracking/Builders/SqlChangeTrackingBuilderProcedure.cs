@@ -560,6 +560,109 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
+        protected override SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        {
+            var sqlCommand = new SqlCommand();
+
+            var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
+            sqlCommand.Parameters.Add(pTimestamp);
+
+            // Add filter parameters
+            if (filter != null)
+                CreateFilterParameters(sqlCommand, filter);
+
+            var stringBuilder = new StringBuilder("");
+            stringBuilder.AppendLine($";WITH ");
+            stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
+            stringBuilder.Append($"\tSELECT ");
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append($"[CT].{columnName}, ");
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
+            stringBuilder.AppendLine($"\t)");
+
+            stringBuilder.AppendLine("SELECT DISTINCT");
+
+            var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
+            for (var i = 0; i < columns.Count; i++)
+            {
+                var mutableColumn = columns[i];
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilder.Append($"\t[base].{columnName}");
+
+                if (i < columns.Count - 1)
+                    stringBuilder.AppendLine(", ");
+            }
+            stringBuilder.AppendLine();
+
+
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+            stringBuilder.Append($"LEFT JOIN {trackingName.Quoted().ToString()} [side]");
+            stringBuilder.Append($"ON ");
+
+            string empty = "";
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+                empty = " AND ";
+            }
+
+            // ----------------------------------
+            // Custom Joins
+            // ----------------------------------
+            if (filter != null)
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("WHERE (");
+            string str = string.Empty;
+
+            // ----------------------------------
+            // Where filters on [side]
+            // ----------------------------------
+            if (filter != null)
+            {
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                stringBuilder.Append(createFilterWhereSide);
+
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
+                    stringBuilder.AppendLine($"AND ");
+            }
+            // ----------------------------------
+
+            // ----------------------------------
+            // Custom Where 
+            // ----------------------------------
+            if (filter != null)
+            {
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                stringBuilder.Append(createFilterCustomWheres);
+
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
+            }
+            // ----------------------------------
+
+
+
+            stringBuilder.AppendLine("\t([side].[timestamp] > @sync_min_timestamp OR @sync_min_timestamp IS NULL)");
+            stringBuilder.AppendLine(")");
+            sqlCommand.CommandText = stringBuilder.ToString();
+
+            return sqlCommand;
+        }
+
+
+        //------------------------------------------------------------------
+        // Select changes command
+        //------------------------------------------------------------------
         protected override SqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter)
         {
             var sqlCommand = new SqlCommand();

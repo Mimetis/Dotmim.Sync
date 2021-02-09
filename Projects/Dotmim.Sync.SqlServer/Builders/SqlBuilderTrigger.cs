@@ -249,7 +249,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var command = connection.CreateCommand();
             command.Connection = connection;
-            if (transaction != null)
                 command.Transaction = transaction;
 
             command.CommandText = commandText;
@@ -276,7 +275,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var command = connection.CreateCommand();
             command.Connection = connection;
-            if (transaction != null)
                 command.Transaction = transaction;
 
             command.CommandText = commandText;
@@ -305,7 +303,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var command = connection.CreateCommand();
             command.Connection = connection;
-            if (transaction != null)
                 command.Transaction = transaction;
 
             command.CommandText = stringBuilder.ToString();

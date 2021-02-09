@@ -35,7 +35,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
+        private Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
         private static string GetRandomString() =>
             Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
@@ -43,7 +43,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Ensure the relation name is correct to be created in MySql
         /// </summary>
-        public static string NormalizeRelationName(string relation)
+        public string NormalizeRelationName(string relation)
         {
             if (createdRelationNames.ContainsKey(relation))
                 return createdRelationNames[relation];

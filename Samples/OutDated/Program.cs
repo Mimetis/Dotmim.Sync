@@ -15,10 +15,7 @@ namespace OutDated
 
         static async Task Main(string[] args)
         {
-
             await OutDatedAsync();
-
-            Console.WriteLine("Hello World!");
         }
 
         private static async Task OutDatedAsync()

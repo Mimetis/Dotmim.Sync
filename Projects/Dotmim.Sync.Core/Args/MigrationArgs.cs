@@ -21,11 +21,12 @@ namespace Dotmim.Sync
             this.MigrationResults = migrationResults;
         }
 
+        public override string Source => Connection.Database;
 
         /// <summary>
         /// Gets message about migration
         /// </summary>
-        public override string Message => $"[{Connection.Database}] Applying Migration.";
+        public override string Message => $"Applying Migration.";
 
         /// <summary>
         /// Gets the schema used to apply migration
@@ -58,10 +59,11 @@ namespace Dotmim.Sync
             this.Migration = migration;
         }
 
+        public override string Source => Connection.Database;
         /// <summary>
         /// Gets message about migration
         /// </summary>
-        public override string Message => $"[{Connection.Database}] Migrated. Tables:{Setup.Tables.Count}.";
+        public override string Message => $"Migrated. Tables:{Setup.Tables.Count}.";
 
         /// <summary>
         /// Gets the schema currently used
