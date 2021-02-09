@@ -760,10 +760,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, wenClientOrchestrator, options);
 
                 // Interceptor on sending scopes
-                wenClientOrchestrator.OnHttpGettingScope(sra =>
+                wenClientOrchestrator.OnHttpGettingScopeResponse(sra =>
                 {
                     // check we a scope name
-                    Assert.NotNull(sra.Response.SyncContext);
+                    Assert.NotNull(sra.Context);
                 });
 
                 var s = await agent.SynchronizeAsync();
@@ -772,7 +772,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                wenClientOrchestrator.OnHttpGettingScope(null);
+                wenClientOrchestrator.OnHttpGettingScopeResponse(null);
             }
 
             // Insert one line on each client
@@ -799,7 +799,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Just before sending changes, get changes sent
-                webClientOrchestrator.OnHttpSendingChanges(sra =>
+                webClientOrchestrator.OnHttpSendingChangesRequest(sra =>
                 {
                     // check we have rows
                     Assert.True(sra.Request.Changes.HasRows);
@@ -812,7 +812,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                webClientOrchestrator.OnHttpSendingChanges(null);
+                webClientOrchestrator.OnHttpSendingChangesRequest(null);
             }
 
         }
@@ -1341,7 +1341,7 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnHttpSendingChanges(x =>
+                orch.OnHttpSendingChangesRequest(x =>
                 {
                     if (batchIndex == 1)
                     {
@@ -1435,11 +1435,11 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnHttpGettingChanges(x =>
+                orch.OnHttpGettingChangesResponse(x =>
                 {
                     if (batchIndex == 1)
                     {
-                        var sessionId = x.Response.SyncContext.SessionId.ToString();
+                        var sessionId = x.Context.SessionId.ToString();
 
                         if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
                             Assert.True(false, "sessionid was wrong. please fix this test!!");
@@ -1474,5 +1474,110 @@ namespace Dotmim.Sync.Tests
             }
 
         }
+
+        /// <summary>
+        /// Insert one row on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory, TestPriority(30)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Parallel_Sync_For_TwentyClients(SyncOptions options)
+        {
+            // create a server database
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Provision server, to be sure no clients will try to do something that could break server
+            var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options, new SyncSetup(Tables));
+ 
+            // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
+            var scope = await remoteOrchestrator.EnsureSchemaAsync();
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+
+            var providers = this.Clients.Select(c => c.ProviderType).Distinct();
+            var createdDatabases = new List<(ProviderType ProviderType, string DatabaseName)>();
+
+            var clientProviders = new List<CoreProvider>();
+            foreach (var provider in providers)
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    // Create the provider
+                    var dbCliName = HelperDatabase.GetRandomName("http_cli_");
+                    var localProvider = this.CreateProvider(provider, dbCliName);
+
+                    clientProviders.Add(localProvider);
+
+                    // Create the database
+                    await this.CreateDatabaseAsync(provider, dbCliName, true);
+                    createdDatabases.Add((provider, dbCliName));
+                }
+            }
+
+            var allTasks = new List<Task<SyncResult>>();
+
+            // Execute a sync on all clients and add the task to a list of tasks
+            foreach (var clientProvider in clientProviders)
+            {
+                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri), options);
+                allTasks.Add(agent.SynchronizeAsync());
+            }
+
+            // Await all tasks
+            await Task.WhenAll(allTasks);
+
+            foreach (var s in allTasks)
+            {
+                Assert.Equal(rowsCount, s.Result.TotalChangesDownloaded);
+                Assert.Equal(0, s.Result.TotalChangesUploaded);
+                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+            }
+
+
+            // Create a new product on server 
+            var name = HelperDatabase.GetRandomName();
+            var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+            var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            allTasks = new List<Task<SyncResult>>();
+
+            // Execute a sync on all clients to get the new server row
+            foreach (var clientProvider in clientProviders)
+            {
+                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri), options);
+                allTasks.Add(agent.SynchronizeAsync());
+            }
+
+            // Await all tasks
+            await Task.WhenAll(allTasks);
+
+            foreach (var s in allTasks)
+            {
+                Assert.Equal(1, s.Result.TotalChangesDownloaded);
+                Assert.Equal(0, s.Result.TotalChangesUploaded);
+                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+            }
+
+            foreach (var db in createdDatabases)
+            {
+                HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+            }
+
+        }
+
+
+
+
     }
 }

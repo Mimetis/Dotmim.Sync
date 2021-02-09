@@ -199,8 +199,7 @@ namespace Dotmim.Sync.MySql
                                         and ROUTINE_NAME = @procName limit 1";
 
 
-            if (transaction != null)
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             var p = command.CreateParameter();
             p.ParameterName = "@procName";
@@ -872,6 +871,15 @@ namespace Dotmim.Sync.MySql
         {
             var sqlCommand = new MySqlCommand();
 
+            var syncMinParameter = new MySqlParameter
+            {
+                ParameterName = "sync_min_timestamp",
+                MySqlDbType = MySqlDbType.Int64,
+                Value = 0
+            };
+
+            sqlCommand.Parameters.Add(syncMinParameter);
+
             // Add filter parameters
             if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
@@ -890,37 +898,50 @@ namespace Dotmim.Sync.MySql
             }
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
 
-            if (filter != null)
+            // ----------------------------------
+            // Make Left Join
+            // ----------------------------------
+            stringBuilder.Append($"LEFT JOIN {trackingName.Quoted().ToString()} `side` ON ");
+
+
+            string empty = "";
+            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
-                // ----------------------------------
-                // Custom Joins
-                // ----------------------------------
+                var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                stringBuilder.Append($"{empty}`base`.{pkColumnName} = `side`.{pkColumnName}");
+                empty = " AND ";
+            }
+
+            // ----------------------------------
+            // Custom Joins
+            // ----------------------------------
+            if (filter != null)
                 stringBuilder.Append(CreateFilterCustomJoins(filter));
 
-                // ----------------------------------
-                // Where filters on [side]
-                // ----------------------------------
 
-                var whereString = CreateFilterWhereSide(filter);
-                var customWhereString = CreateFilterCustomWheres(filter);
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("WHERE (");
 
-                if (!string.IsNullOrEmpty(whereString) || !string.IsNullOrEmpty(customWhereString))
-                {
-                    stringBuilder.AppendLine("WHERE");
+            // ----------------------------------
+            // Where filters and Custom Where string
+            // ----------------------------------
+            if (filter != null)
+            {
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                stringBuilder.Append(createFilterWhereSide);
 
-                    if (!string.IsNullOrEmpty(whereString))
-                        stringBuilder.AppendLine(whereString);
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
+                    stringBuilder.AppendLine($"AND ");
 
-                    if (!string.IsNullOrEmpty(whereString) && !string.IsNullOrEmpty(customWhereString))
-                        stringBuilder.AppendLine("AND");
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                stringBuilder.Append(createFilterCustomWheres);
 
-                    if (!string.IsNullOrEmpty(customWhereString))
-                        stringBuilder.AppendLine(customWhereString);
-                }
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
             }
             // ----------------------------------
 
-            stringBuilder.Append(";");
+            stringBuilder.AppendLine("\t(`side`.`timestamp` > sync_min_timestamp or sync_min_timestamp IS NULL));");
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;

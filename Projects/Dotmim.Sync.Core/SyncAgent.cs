@@ -359,9 +359,12 @@ namespace Dotmim.Sync
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
-
+            //await Task.Run(async () =>
+            //{
             try
             {
+
+
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -380,7 +383,7 @@ namespace Dotmim.Sync
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // On local orchestrator, get scope info
-                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(cancellationToken, progress);
+                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(default, default, cancellationToken, progress);
 
                 // Register local scope id
                 context.ClientScopeId = clientScopeInfo.Id;
@@ -394,7 +397,7 @@ namespace Dotmim.Sync
                     // if schema already exists on server, then the server setup will be compared with this one
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, progress);
+                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress);
                     clientScopeInfo.Schema = serverScopeInfo.Schema;
                     clientScopeInfo.Setup = serverScopeInfo.Setup;
                     clientScopeInfo.Version = serverScopeInfo.Version;
@@ -410,7 +413,7 @@ namespace Dotmim.Sync
 
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, cancellationToken, progress).ConfigureAwait(false);
+                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     // Set schema for agent, just to let the opportunity to user to use it.
                     this.Schema = serverScopeInfo.Schema;
@@ -420,7 +423,7 @@ namespace Dotmim.Sync
                     // on remote orchestrator get scope info as well
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(cancellationToken, progress);
+                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(default, default, cancellationToken, progress);
 
                     // compare local setup options with setup provided on SyncAgent constructor (check if pref / suf have changed)
                     var hasSameOptions = clientScopeInfo.Setup.HasSameOptions(this.Setup);
@@ -440,7 +443,7 @@ namespace Dotmim.Sync
                     else
                     {
                         // Get full schema from server
-                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(cancellationToken, progress);
+                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress);
 
                         // Set the correct schema
                         this.Schema = serverScopeInfo.Schema;
@@ -479,12 +482,17 @@ namespace Dotmim.Sync
                         Debug.WriteLine($"Client id outdated, but we change mode to {context.SyncType}");
                 }
 
-
+                context.ProgressPercentage = 0.1;
+                
                 // On local orchestrator, get local changes
-                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, cancellationToken, progress);
+                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, default, default, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
+
+                // Reinitialize timestamp is in Reinit Mode
+                if (context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload)
+                    clientScopeInfo.LastServerSyncTimestamp = null;
 
                 // Get if we need to get all rows from the datasource
                 var fromScratch = clientScopeInfo.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
@@ -503,6 +511,8 @@ namespace Dotmim.Sync
                     }
                 }
 
+                context.ProgressPercentage = 0.3;
+                // apply is 25%, get changes is 20%
                 var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
@@ -511,10 +521,12 @@ namespace Dotmim.Sync
                 // Policy is always Server policy, so reverse this policy to get the client policy
                 var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
+                // apply is 25%
+                context.ProgressPercentage = 0.75;
                 var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
                     clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
                     clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy,
-                    cancellationToken, progress);
+                    serverChanges.ServerChangesSelected, cancellationToken, progress);
 
                 completeTime = DateTime.UtcNow;
                 this.LocalOrchestrator.CompleteTime = completeTime;
@@ -529,12 +541,14 @@ namespace Dotmim.Sync
                 result.ChangesAppliedOnServer = serverChanges.ClientChangesApplied;
 
                 // Begin session
+                context.ProgressPercentage = 1;
                 await this.LocalOrchestrator.EndSessionAsync(cancellationToken, progress);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
             }
+
             catch (SyncException se)
             {
                 this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
@@ -551,8 +565,11 @@ namespace Dotmim.Sync
                 this.SessionState = SyncSessionState.Ready;
                 this.SessionStateChanged?.Invoke(this, this.SessionState);
                 // unlock sync since it's over
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
                 UnlockSync();
             }
+            //});
 
             return result;
         }

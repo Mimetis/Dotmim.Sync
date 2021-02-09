@@ -11,12 +11,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Current connection used 
         /// </summary>
-        public DbConnection Connection { get; }
+        public DbConnection Connection { get; internal set; }
 
         /// <summary>
         /// Current transaction used for the sync
         /// </summary>
-        public DbTransaction Transaction { get; }
+        public DbTransaction Transaction { get; internal set; }
 
         /// <summary>
         /// Gets the current context
@@ -46,21 +46,36 @@ namespace Dotmim.Sync
             this.Message = this.GetType().Name;
         }
 
-        public ProgressArgs(SyncContext context, string message, DbConnection connection, DbTransaction transaction)
-            : this(context, connection, transaction) => this.Message = message;
-
-
+ 
+        /// <summary>
+        /// Gets the args type
+        /// </summary>
+        public string TypeName => this.GetType().Name;
 
         /// <summary>
         /// return a global message about current progress
         /// </summary>
         public virtual string Message { get; } = string.Empty;
 
+        /// <summary>
+        /// return the progress initiator source
+        /// </summary>
+        public virtual string Source { get; } = string.Empty;
 
         /// <summary>
         /// Gets the event id, used for logging purpose
         /// </summary>
         public virtual int EventId { get; } = 1;
+
+        /// <summary>
+        /// Gets the overall percentage progress
+        /// </summary>
+        public double PogressPercentage => this.Context.ProgressPercentage;
+
+        /// <summary>
+        /// Gets the overall string percentage progress
+        /// </summary>
+        public string PogressPercentageString => $"{Math.Floor(this.Context.ProgressPercentage * 100)}%";
 
         public override string ToString()
         {
@@ -69,6 +84,8 @@ namespace Dotmim.Sync
 
             return base.ToString();
         }
+
+
 
     }
 }

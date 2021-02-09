@@ -76,7 +76,7 @@ namespace Dotmim.Sync
         {
             this.Tables = new SetupTables();
             this.Filters = new SetupFilters();
-            this.Version = "1";
+            this.Version = SyncVersion.Current.ToString();
         }
 
         /// <summary>

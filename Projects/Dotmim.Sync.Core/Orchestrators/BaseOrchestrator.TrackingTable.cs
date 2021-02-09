@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// Create a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTrackingTableAsync(SetupTable table, bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTrackingTableAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             bool hasBeenCreated = false;
@@ -57,14 +57,14 @@ namespace Dotmim.Sync
 
             return hasBeenCreated;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>
         /// Check if a tracking table exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, you want to check if the corresponding tracking table exists</param>
-        public Task<bool> ExistTrackingTableAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> ExistTrackingTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
         {
             // Fake sync table without column definitions. Not need for making a check exists call
@@ -77,13 +77,13 @@ namespace Dotmim.Sync
 
             return exists;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Create a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTrackingTablesAsync(bool overwrite = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> CreateTrackingTablesAsync(bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             var atLeastOneHasBeenCreated = false;
@@ -121,13 +121,13 @@ namespace Dotmim.Sync
 
             return atLeastOneHasBeenCreated;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Drop a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public Task<bool> DropTrackingTableAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropTrackingTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             bool hasBeenDropped = false;
@@ -145,13 +145,13 @@ namespace Dotmim.Sync
 
             return hasBeenDropped;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Drop all tracking tables
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> DropTrackingTablesAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> DropTrackingTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
             bool atLeastOneTrackingTableHasBeenDropped = false;
@@ -174,13 +174,13 @@ namespace Dotmim.Sync
 
             return atLeastOneTrackingTableHasBeenDropped;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Rename a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to rename the tracking table</param>
-        public Task<bool> RenameTrackingTableAsync(SyncTable syncTable, ParserName oldTrackingTableName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<bool> RenameTrackingTableAsync(SyncTable syncTable, ParserName oldTrackingTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             // Get table builder
@@ -190,7 +190,7 @@ namespace Dotmim.Sync
 
             return true;
 
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Internal create tracking table routine

@@ -16,6 +16,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class MySqlHttpTests : HttpTests
     {
+
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MySql,  ProviderType.MariaDB,  ProviderType.Sqlite,  ProviderType.Sql};
+
         public MySqlHttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -26,10 +30,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
-
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
-
 
         public override ProviderType ServerType => ProviderType.MySql;
 

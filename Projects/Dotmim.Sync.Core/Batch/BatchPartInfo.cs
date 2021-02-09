@@ -49,6 +49,8 @@ namespace Dotmim.Sync.Batch
         {
             if (this.Data != null)
                 this.Data.Dispose();
+
+            this.Data = null;
         }
 
         [DataMember(Name = "file", IsRequired = true, Order = 1)]
@@ -65,6 +67,12 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         [DataMember(Name = "tables", IsRequired = true, Order = 4)]
         public BatchPartTableInfo[] Tables { get; set; }
+
+        /// <summary>
+        /// Tables contained rows count
+        /// </summary>
+        [DataMember(Name = "rc", IsRequired = false, Order = 5)]
+        public int RowsCount { get; set; }
 
         /// <summary>
         /// Get a SyncSet corresponding to this batch part info
@@ -89,24 +97,24 @@ namespace Dotmim.Sync.Batch
             if (!File.Exists(fullPath))
                 throw new MissingFileException(fullPath);
 
-            var jsonConverter = new JsonConverter<ContainerSet>();
+            //var jsonConverter = new JsonConverter<ContainerSet>();
+            var jsonConverter = new Utf8JsonConverter<ContainerSet>();
 
-            using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read))
+            using var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+            
+            ContainerSet set = null;
+
+            if (orchestrator != null)
             {
-                ContainerSet set = null;
-
-                if (orchestrator != null)
-                {
-                    var interceptorArgs = new DeserializingSetArgs(orchestrator.GetContext(), fs, fileName, directoryFullPath);
-                    await orchestrator.InterceptAsync(interceptorArgs, default);
-                    set = interceptorArgs.Result;
-                }
-
-                if (set == null)
-                    set = await jsonConverter.DeserializeAsync(fs);
-
-                return set;
+                var interceptorArgs = new DeserializingSetArgs(orchestrator.GetContext(), fs, fileName, directoryFullPath);
+                await orchestrator.InterceptAsync(interceptorArgs, default);
+                set = interceptorArgs.Result;
             }
+
+            if (set == null)
+                set = await jsonConverter.DeserializeAsync(fs);
+
+            return set;
         }
 
         /// <summary>
@@ -125,7 +133,8 @@ namespace Dotmim.Sync.Batch
                 Directory.CreateDirectory(fi.Directory.FullName);
 
             // Serialize on disk.
-            var jsonConverter = new JsonConverter<ContainerSet>();
+            // var jsonConverter = new JsonConverter<ContainerSet>();
+            var jsonConverter = new Utf8JsonConverter<ContainerSet>();
 
             using var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
             
@@ -165,7 +174,10 @@ namespace Dotmim.Sync.Batch
 
             // Even if the set is empty (serialized on disk), we should retain the tables names
             if (set != null)
-                bpi.Tables = set.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName)).ToArray();
+            {
+                bpi.Tables = set.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName, t.Rows.Count)).ToArray();
+                bpi.RowsCount = set.Tables.Sum(t => t.Rows.Count);
+            }
 
             return bpi;
         }

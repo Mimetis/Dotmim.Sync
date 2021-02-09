@@ -231,6 +231,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
@@ -238,6 +239,37 @@ namespace Dotmim.Sync.Tests
         [Theory, TestPriority(1)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_IC_IS_ServerShouldWins(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // Execute a sync on all clients and check results
+            // Each client will upload its row (conflicting)
+            // then download the others client lines + the conflict (some Clients.count)
+            foreach (var client in Clients)
+            {
+                await Generate_InsertClient_InsertServer(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client, "SRV");
+            }
+
+        }
+
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Server should wins the conflict since it's the default behavior
+        /// </summary>
+        [Theory, TestPriority(1)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_IC_IS_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -309,6 +341,38 @@ namespace Dotmim.Sync.Tests
         [Theory, TestPriority(2)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // Execute a sync on all clients and check results
+            // Each client will upload its row (conflicting)
+            // then download the others client lines (and not the conflict since it's resolved)
+            foreach (var client in Clients)
+            {
+                await Generate_InsertClient_InsertServer(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client, "CLI");
+            }
+        }
+
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Client should wins the conflict because configuration set to ClientWins
+        /// </summary>
+        [Theory, TestPriority(2)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -501,6 +565,38 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client, "SRV");
+            }
+
+
+        }
+
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Server should wins the conflict because default behavior
+        /// </summary>
+        [Theory, TestPriority(4)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_UC_US_ServerShouldWins_CozHandler(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // Execute a sync on all clients and check results
+            // Each client will upload its row (conflicting)
+            // then download the others client lines + conflict that should be ovewritten on client
+            foreach (var client in Clients)
+            {
+                await Generate_UC_US_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
@@ -560,6 +656,37 @@ namespace Dotmim.Sync.Tests
         [Theory, TestPriority(5)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_ClientShouldWins_CozConfiguration(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // Execute a sync on all clients and check results
+            // Each client will upload its row (conflicting)
+            // then download the others client lines + conflict that should be ovewritten on client
+            foreach (var client in Clients)
+            {
+                var id = await Generate_UC_US_Conflict(client, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client, "CLI");
+            }
+        }
+
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Server should wins the conflict because default behavior
+        /// </summary>
+        [Theory, TestPriority(5)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_UC_US_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -805,6 +932,39 @@ namespace Dotmim.Sync.Tests
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client, "CLI");
+            }
+
+
+        }
+
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Server should wins the conflict since it's the default behavior
+        /// </summary>
+        [Theory, TestPriority(8)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_DC_US_ClientShouldWins_CozHandler(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // Execute a sync on all clients and check results
+            // Each client will upload its own deleted row (conflicting)
+            // then download the updated row from server 
+            foreach (var client in Clients)
+            {
+                var productId = await Generate_DC_US_Conflict(client, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
@@ -864,6 +1024,34 @@ namespace Dotmim.Sync.Tests
                 await Generate_DC_US_Conflict(client, options);
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client, "SRV");
+            }
+
+
+        }
+
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Server should wins the conflict since it's the default behavior
+        /// </summary>
+        [Theory, TestPriority(9)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_DC_US_ServerShouldWins_CozHandler(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                await Generate_DC_US_Conflict(client, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
@@ -906,7 +1094,6 @@ namespace Dotmim.Sync.Tests
 
 
         }
-
 
 
 
@@ -1027,6 +1214,7 @@ namespace Dotmim.Sync.Tests
 
                 var setup = new SyncSetup(Tables);
 
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -1130,6 +1318,32 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+        /// <summary>
+        /// </summary>
+        [Theory, TestPriority(12)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_UC_DS_ServerShouldWins_CozHandler(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                await Generate_UC_DS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
@@ -1184,6 +1398,36 @@ namespace Dotmim.Sync.Tests
         [Theory, TestPriority(13)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_DS_ClientShouldWins(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                var productCategoryId = await Generate_UC_DS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                // Resolution is set to client side
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+
+        /// <summary>
+        /// </summary>
+        [Theory, TestPriority(13)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_UC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1295,6 +1539,32 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+        /// <summary>
+        /// </summary>
+        [Theory, TestPriority(14)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_DC_DS_ServerShouldWins_CozHandler(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                await Generate_DC_DS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
@@ -1343,6 +1613,35 @@ namespace Dotmim.Sync.Tests
         [Theory, TestPriority(15)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_DS_ClientShouldWins(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                await Generate_DC_DS_Conflict(client, options); 
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+
+        /// <summary>
+        /// </summary>
+        [Theory, TestPriority(15)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_DC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1444,6 +1743,31 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+        /// </summary>
+        [Theory, TestPriority(16)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_DC_NULLS_ServerShouldWins_CozHandler (SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                await Generate_DC_NULLS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
@@ -1486,6 +1810,34 @@ namespace Dotmim.Sync.Tests
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
+            foreach (var client in Clients)
+            {
+                await Generate_DC_NULLS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                // Set conflict resolution to client
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+
+        /// </summary>
+        [Theory, TestPriority(17)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_DC_NULLS_ClientShouldWins_CozHandler(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             foreach (var client in Clients)
             {
@@ -1580,6 +1932,31 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+        [Theory, TestPriority(19)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_NULLC_DS_ServerShouldWins_CozHandler(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                await Generate_NULLC_DS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
@@ -1618,6 +1995,38 @@ namespace Dotmim.Sync.Tests
         [Theory, TestPriority(20)]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_NULLC_DS_ClientShouldWins(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+
+            foreach (var client in Clients)
+            {
+                await Generate_NULLC_DS_Conflict(client, options);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                // Set conflict resolution to client
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+
+                await CheckProductCategoryRows(client);
+            }
+
+        }
+
+
+        /// </summary>
+        [Theory, TestPriority(20)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Conflict_NULLC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);

@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.SnapshotCreating, async (ctx, connection, transaction) =>
         {
             if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
@@ -58,7 +58,7 @@ namespace Dotmim.Sync
 
 
             return batchInfo;
-        }, cancellationToken);
+        }, connection, transaction, cancellationToken);
 
 
         /// <summary>
@@ -68,16 +68,12 @@ namespace Dotmim.Sync
             GetSnapshotAsync(SyncSet schema = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
-            // TODO: Get snapshot based on version and scopename
-
             // Get context or create a new one
             var ctx = this.GetContext();
 
             BatchInfo serverBatchInfo = null;
             try
             {
-                var connection = this.Provider.CreateConnection();
-
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
                     return (0, null);
 
@@ -90,14 +86,12 @@ namespace Dotmim.Sync
                 // Get Schema from remote provider if no schema passed from args
                 if (schema == null)
                 {
-                    var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                    var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
                     schema = serverScopeInfo.Schema;
                 }
 
                 // When we get the changes from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                // TODO : Get a snapshot based on scope name
-
                 var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!string.IsNullOrEmpty(rootDirectory))
@@ -193,7 +187,7 @@ namespace Dotmim.Sync
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, this.Setup, true, connection, transaction);
 
                 // Set parameters
-                this.SetSelectChangesCommonParameters(context, table, null, true, 0, selectIncrementalChangesCommand);
+                this.SetSelectChangesCommonParameters(context, table, null, true, null, selectIncrementalChangesCommand);
 
                 // launch interceptor if any
                 var args = new TableChangesSelectingArgs(context, table, selectIncrementalChangesCommand, connection, transaction);
@@ -283,6 +277,9 @@ namespace Dotmim.Sync
             {
                 await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this).ConfigureAwait(false);
             }
+
+            //Set the total rows count contained in the batch info
+            batchInfo.RowsCount = changes.TotalChangesSelected;
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();

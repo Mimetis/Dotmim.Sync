@@ -41,6 +41,7 @@ namespace Dotmim.Sync
         public string DirectoryPath { get; }
         public override int EventId => SyncEventsId.SerializingSet.Id;
 
+        public override string Source => String.IsNullOrEmpty(DirectoryPath) ? "" : new DirectoryInfo(DirectoryPath).Name;
         public override string Message => $"[{FileName}] Serializing Set.";
 
     }
@@ -72,6 +73,7 @@ namespace Dotmim.Sync
         /// </summary>
         public string DirectoryPath { get; }
 
+        public override string Source => String.IsNullOrEmpty(DirectoryPath) ? "" : new DirectoryInfo(DirectoryPath).Name;
         public override string Message => $"[{FileName}] Deserializing Set.";
 
         /// <summary>
