@@ -192,64 +192,64 @@ internal class Program
 
     private static async Task SynchronizeAsync()
     {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("adv.db");
+// Create 2 Sql Sync providers
+var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+//var clientProvider = new SqliteSyncProvider("adv.db");
 
 
-        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
-            Console.ResetColor();
-        });
-        var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
+var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+{
+    Console.ForegroundColor = ConsoleColor.Blue;
+    Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+    Console.ResetColor();
+});
+var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-        var options = new SyncOptions { BatchSize = 1000, SnapshotsDirectory = snapshotDirectory };
+var options = new SyncOptions { BatchSize = 1000, SnapshotsDirectory = snapshotDirectory };
 
-        //Console.ForegroundColor = ConsoleColor.Gray;
-        //Console.WriteLine($"Creating snapshot");
-        //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
-        //remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
+//Console.ForegroundColor = ConsoleColor.Gray;
+//Console.WriteLine($"Creating snapshot");
+//var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
+//remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
 
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
-
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                // Upgrade to last version
-                if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
-                    await agent.RemoteOrchestrator.UpgradeAsync();
-
-                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                // Write results
-                Console.WriteLine(r);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+// Creating an agent that will handle all the process
+var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
 
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
-        Console.WriteLine("End");
+// Using the Progress pattern to handle progession during the synchronization
+var progress = new SynchronousProgress<ProgressArgs>(s =>
+{
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+    Console.ResetColor();
+});
+
+do
+{
+    // Console.Clear();
+    Console.WriteLine("Sync Start");
+    try
+    {
+        // Upgrade to last version
+        if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
+            await agent.RemoteOrchestrator.UpgradeAsync();
+
+        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+        // Write results
+        Console.WriteLine(r);
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e.Message);
+    }
+
+
+    //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+} while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+Console.WriteLine("End");
     }
 
     private static async Task CreateSnapshotAsync()

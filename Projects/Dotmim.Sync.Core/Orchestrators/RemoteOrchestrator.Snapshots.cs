@@ -68,8 +68,6 @@ namespace Dotmim.Sync
             GetSnapshotAsync(SyncSet schema = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
-            // TODO: Get snapshot based on version and scopename
-
             // Get context or create a new one
             var ctx = this.GetContext();
 
@@ -94,8 +92,6 @@ namespace Dotmim.Sync
 
                 // When we get the changes from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                // TODO : Get a snapshot based on scope name
-
                 var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!string.IsNullOrEmpty(rootDirectory))
