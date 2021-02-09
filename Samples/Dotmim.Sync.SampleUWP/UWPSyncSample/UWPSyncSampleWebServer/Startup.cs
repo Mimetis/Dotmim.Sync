@@ -36,7 +36,7 @@ namespace UWPSyncSampleWebServer
             services.AddMemoryCache();
 
             // Get a connection string for your server data source
-            var connectionString = Configuration.GetConnectionString("AdventureWorksConnection");
+            var connectionString = Configuration.GetConnectionString("OtherConnection");
 
             services.AddSingleton<ContosoContext>();
 
@@ -49,12 +49,12 @@ namespace UWPSyncSampleWebServer
             };
 
             // Create the setup used for your sync process
-            //var tables = new string[] { "Employees" };
+            var tables = new string[] { "SyncLog" };
 
-            var tables = new string[] {"ProductDescription", "ProductCategory",
-                                    "ProductModel", "Product",
-                                    "Address", "Customer", "CustomerAddress",
-                                    "SalesOrderHeader", "SalesOrderDetail" };
+            //var tables = new string[] {"ProductDescription", "ProductCategory",
+            //                        "ProductModel", "Product",
+            //                        "Address", "Customer", "CustomerAddress",
+            //                        "SalesOrderHeader", "SalesOrderDetail" };
 
             var setup = new SyncSetup(tables);
 

@@ -18,6 +18,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class MySqlTcpFilterTests : TcpFilterTests
     {
+
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MySql, ProviderType.Sqlite,  ProviderType.Sql};
+
         public MySqlTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -76,9 +80,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter),
         };
 
-
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql, ProviderType.Sqlite,  ProviderType.Sql};
 
         public override ProviderType ServerType =>
             ProviderType.MySql;
