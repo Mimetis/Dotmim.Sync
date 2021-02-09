@@ -72,7 +72,8 @@ namespace Dotmim.Sync
             }
             else if (typeOfT == typeof(Guid))
             {
-                if (Guid.TryParse(value.ToString(), out Guid j))
+                string valueStr = value.ToString();
+                if (Guid.TryParse(valueStr, out Guid j))
                     return (T)Convert.ChangeType(j, typeOfT, provider);
                 else if (value.GetType() == typeof(byte[]))
                     return (T)Convert.ChangeType(new Guid(value as byte[]), typeOfT, provider);

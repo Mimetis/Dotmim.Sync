@@ -36,8 +36,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 using (var reader = await dbCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
@@ -71,8 +70,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -103,8 +101,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
@@ -133,8 +130,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
@@ -180,8 +176,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+                sqlCommand.Transaction = transaction;
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
@@ -209,8 +204,7 @@ namespace Dotmim.Sync.MySql
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            if (transaction != null)
-                dbCommand.Transaction = transaction;
+            dbCommand.Transaction = transaction;
 
             await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -229,8 +223,7 @@ namespace Dotmim.Sync.MySql
                 await connection.OpenAsync().ConfigureAwait(false);
 
             dbCommand.CommandText = $"drop trigger {triggerName.Unquoted().ToString()}";
-            if (transaction != null)
-                dbCommand.Transaction = transaction;
+            dbCommand.Transaction = transaction;
 
             await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -252,8 +245,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 var sqlParameter = new MySqlParameter()
                 {
@@ -291,8 +283,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 triggerExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
 
@@ -323,8 +314,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                if (transaction != null)
-                    dbCommand.Transaction = transaction;
+                dbCommand.Transaction = transaction;
 
                 procExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
 

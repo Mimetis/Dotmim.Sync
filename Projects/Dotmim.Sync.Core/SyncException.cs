@@ -208,6 +208,16 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
+    /// Occurs when a scope info is needed, but does not exists
+    /// </summary>
+    public class MissingServerScopeInfoException : Exception
+    {
+        const string message = "The server scope info is invalid. You need to make a first sync before.";
+
+        public MissingServerScopeInfoException() : base(message) { }
+    }
+
+    /// <summary>
     /// Occurs when a scope info is not good, conflicting with the one from the orchestrator
     /// </summary>
     public class InvalidScopeInfoException : Exception
@@ -386,7 +396,7 @@ namespace Dotmim.Sync
     {
         const string message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
 
-        public OutOfDateException(long timestampLimit, long serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
+        public OutOfDateException(long? timestampLimit, long serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
     }
 
     /// <summary>

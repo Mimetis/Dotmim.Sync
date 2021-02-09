@@ -814,11 +814,13 @@ namespace Dotmim.Sync.Tests
                     Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
                     Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
 
+
                     if (client.ProviderType == ProviderType.Sql)
                     {
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
@@ -1214,7 +1216,7 @@ namespace Dotmim.Sync.Tests
 
                 // ON SERVER : When trying to get changes from the server, just replace the command with the Initialize command
                 // and get ALL the rows for the migrated new table
-                agent.RemoteOrchestrator.OnTableChangesSelecting(tcs =>
+                agent.RemoteOrchestrator.OnTableChangesSelecting(async tcs =>
                 {
                     if (tcs.Context.AdditionalProperties == null || tcs.Context.AdditionalProperties.Count <= 0)
                         return;
@@ -1225,10 +1227,7 @@ namespace Dotmim.Sync.Tests
                         if (addProp == "Reinitialize")
                         {
                             var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
-                            var command = adapter.GetCommand(DbCommandType.SelectInitializedChanges);
-                            command.Connection = tcs.Connection;
-                            command.Transaction = tcs.Transaction;
-
+                            var command = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.Table.GetFilter());
                             tcs.Command = command;
                         }
                     }
@@ -1269,8 +1268,7 @@ namespace Dotmim.Sync.Tests
                         var addProp = tca.Context.AdditionalProperties[tca.Table.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            var adapter = agent.LocalOrchestrator.GetSyncAdapter(tca.Table, setup);
-                            await adapter.ResetTableAsync(tca.Connection, tca.Transaction);
+                            await agent.LocalOrchestrator.ResetTableAsync(setup.Tables[tca.Table.TableName, tca.Table.SchemaName], tca.Connection, tca.Transaction);
                         }
                     }
                 });
@@ -1330,7 +1328,7 @@ namespace Dotmim.Sync.Tests
             Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
 
             await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
-            
+
             Assert.True(Directory.Exists(rootDirectory));
             Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
 
@@ -1374,6 +1372,152 @@ namespace Dotmim.Sync.Tests
             }
 
         }
+
+
+        /// <summary>
+        /// Insert one row in two tables on server, should be correctly sync on all clients
+        /// </summary>
+        [Fact, TestPriority(44)]
+        public async Task Snapshot_Initialize_ThenClientUploadSync_ThenReinitialize()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 200
+            };
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
+
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+
+            // ----------------------------------
+            // Add rows on server AFTER snapshot
+            // ----------------------------------
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+
+                var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var newAddress = new Address { AddressLine1 = addressLine1 };
+
+                ctx.Address.Add(newAddress);
+                await ctx.SaveChangesAsync();
+
+                var newCustomerAddress = new CustomerAddress
+                {
+                    AddressId = newAddress.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "OTH"
+                };
+
+                ctx.CustomerAddress.Add(newCustomerAddress);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // ----------------------------------
+            // Now add rows on client
+            // ----------------------------------
+
+            foreach (var client in Clients)
+            {
+                var name = HelperDatabase.GetRandomName();
+                var pn = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = Guid.NewGuid(), ProductCategoryId = "BIKES", Name = name, ProductNumber = pn };
+
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                ctx.Product.Add(product);
+                await ctx.SaveChangesAsync();
+            }
+
+            // Sync all clients
+            // First client  will upload one line and will download nothing
+            // Second client will upload one line and will download one line
+            // thrid client  will upload one line and will download two lines
+            int download = 0;
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // Get count of rows
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // ----------------------------------
+            // Now Reinitialize
+            // ----------------------------------
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+
+                agent.Parameters.AddRange(this.FilterParameters);
+
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+
 
     }
 }

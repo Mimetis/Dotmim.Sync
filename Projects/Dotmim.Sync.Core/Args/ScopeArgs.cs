@@ -23,7 +23,8 @@ namespace Dotmim.Sync
             this.ScopeName = scopeName;
         }
 
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Dropped.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Scope Table [{ScopeType}] Dropped.";
 
         public override int EventId => SyncEventsId.ScopeTableDropped.Id;
     }
@@ -39,6 +40,8 @@ namespace Dotmim.Sync
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
         public override int EventId => SyncEventsId.ScopeTableCreated.Id;
+        public override string Source => Connection.Database;
+        public override string Message => $"Scope Table [{ScopeType}] Created.";
     }
 
     public class ScopeTableDroppingArgs : ProgressArgs
@@ -55,7 +58,8 @@ namespace Dotmim.Sync
             this.ScopeType = scopeType;
             this.ScopeName = scopeName;
         }
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Dropping.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Scope Table [{ScopeType}] Dropping.";
         public override int EventId => SyncEventsId.ScopeTableDropping.Id;
 
     }
@@ -73,7 +77,8 @@ namespace Dotmim.Sync
             this.ScopeType = scopeType;
             this.ScopeName = scopeName;
         }
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Creating.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Scope Table [{ScopeType}] Creating.";
         public override int EventId => SyncEventsId.ScopeTableCreating.Id;
     }
 
@@ -86,14 +91,15 @@ namespace Dotmim.Sync
         {
             this.ScopeInfo = scopeInfo;
         }
+        public override string Source => Connection.Database;
 
         public override string Message {
             get
             {
                 return this.ScopeInfo switch
                 {
-                    ServerScopeInfo ssi => $"[{Connection.Database}] [{ssi?.Name}] [Version {ssi.Version}] Last cleanup Timestamp:{ssi?.LastCleanupTimestamp}.",
-                    ScopeInfo si => $"[{Connection.Database}] [{si?.Name}] [Version {si.Version}] Last sync:{si?.LastSync} Last sync duration:{si?.LastSyncDurationString}.",
+                    ServerScopeInfo ssi => $"[{ssi?.Name}] [Version {ssi.Version}] Last cleanup Timestamp:{ssi?.LastCleanupTimestamp}.",
+                    ScopeInfo si => $"[{si?.Name}] [Version {si.Version}] Last sync:{si?.LastSync} Last sync duration:{si?.LastSyncDurationString}.",
                     _ => base.Message
                 };
             }
@@ -116,7 +122,8 @@ namespace Dotmim.Sync
             this.ScopeName = scopeName;
         }
         public override int EventId => SyncEventsId.ScopeLoading.Id;
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Loading.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Scope Table [{ScopeType}] Loading.";
     }
 
     public class ScopeSavingArgs : ProgressArgs
@@ -133,7 +140,8 @@ namespace Dotmim.Sync
             this.ScopeType = scopeType;
             this.ScopeName = scopeName;
         }
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Saving.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Scope Table [{ScopeType}] Saving.";
 
         public object ScopeInfo { get; }
         public override int EventId => SyncEventsId.ScopeSaving.Id;
@@ -150,7 +158,8 @@ namespace Dotmim.Sync
             this.ScopeInfo = scopeInfo;
             this.ScopeName = scopeName;
         }
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Saved.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Scope Table [{ScopeType}] Saved.";
 
         public object ScopeInfo { get; }
         public override int EventId => SyncEventsId.ScopeSaved.Id;

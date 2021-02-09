@@ -43,7 +43,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Gets the number of batch to send
         /// </summary>
-        [DataMember(Name = "bc", IsRequired = true, Order = 4)]
+        [DataMember(Name = "bc", IsRequired = false, Order = 4)]
         public int BatchCount { get; set; }
 
         /// <summary>
@@ -136,7 +136,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Get the current batch count (if InMemory == false)
         /// </summary>
-        [DataMember(Name = "bc", IsRequired = true, Order = 4)]
+        [DataMember(Name = "bc", IsRequired = false, Order = 4)]
         public int BatchCount { get; set; }
 
         /// <summary>

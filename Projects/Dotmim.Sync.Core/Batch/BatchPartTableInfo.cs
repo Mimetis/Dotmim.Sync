@@ -13,10 +13,11 @@ namespace Dotmim.Sync.Batch
 
         }
 
-        public BatchPartTableInfo(string tableName, string schemaName = null)
+        public BatchPartTableInfo(string tableName, string schemaName = null, int rowsCount = 0)
         {
             this.TableName = tableName;
             this.SchemaName = schemaName;
+            this.RowsCount = rowsCount;
         }
 
         /// <summary>
@@ -30,6 +31,13 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string SchemaName { get; set; }
+
+
+        /// <summary>
+        /// Tables contained rows count
+        /// </summary>
+        [DataMember(Name = "rc", IsRequired = false, Order = 3)]
+        public int RowsCount { get; set; }
 
 
         public override IEnumerable<string> GetAllNamesProperties()

@@ -179,8 +179,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(");");
             return stringBuilder.ToString();
         }
-
-
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
 
         public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
@@ -212,7 +210,6 @@ namespace Dotmim.Sync.Sqlite
 
             return Task.FromResult(command);
         }
-
         public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
         public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {

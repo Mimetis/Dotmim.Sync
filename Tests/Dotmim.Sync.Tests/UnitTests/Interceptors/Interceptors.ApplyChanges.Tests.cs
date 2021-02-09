@@ -125,7 +125,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(2, onBatchApplied);
             Assert.Equal(1, onDatabaseApplying);
             Assert.Equal(1, onDatabaseApplied);
-            Assert.Equal(this.Tables.Length * 2, onApplying); // Deletes + Modified state = Table count * 2
+            Assert.Equal(4, onApplying); // Deletes + Modified state = Table count * 2
             Assert.Equal(2, onApplied); // Two tables applied
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);

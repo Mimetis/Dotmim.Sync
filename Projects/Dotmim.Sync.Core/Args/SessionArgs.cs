@@ -19,7 +19,8 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"[{Connection.Database}] Connection Opened.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Connection Opened.";
 
         public override int EventId => SyncEventsId.ConnectionOpen.Id;
     }
@@ -38,7 +39,8 @@ namespace Dotmim.Sync
         }
 
 
-        public override string Message => $"[{Connection.Database}] Trying Reconnection.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Trying to Reconnect";
 
         /// <summary>
         /// Gets the handled exception
@@ -67,7 +69,8 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"[{Connection.Database}] Connection Closed.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Connection Closed.";
 
         public override int EventId => SyncEventsId.ConnectionClose.Id;
     }
@@ -82,7 +85,8 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"[{Connection.Database}] Transaction Opened.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Transaction Opened.";
 
         public override int EventId => SyncEventsId.TransactionOpen.Id;
     }
@@ -97,7 +101,8 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"[{Connection.Database}] Transaction Commit.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Transaction Commit.";
 
         public override int EventId => SyncEventsId.TransactionCommit.Id;
     }
@@ -112,7 +117,8 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"Session Begins [{Context.SessionId}].";
+        public override string Source => Context.SessionId.ToString();
+        public override string Message => $"Session Begins.";
 
         public override int EventId => SyncEventsId.SessionBegin.Id;
     }
@@ -127,7 +133,8 @@ namespace Dotmim.Sync
         {
         }
 
-        public override string Message => $"Session Ended [{Context.SessionId}].";
+        public override string Source => Context.SessionId.ToString();
+        public override string Message => $"Session Ended.";
         public override int EventId => SyncEventsId.SessionEnd.Id;
     }
 
@@ -198,7 +205,8 @@ namespace Dotmim.Sync
             this.resolution = action;
             this.SenderScopeId = senderScopeId;
         }
-        public override string Message => $"[{Connection.Database}] Conflict {this.Conflict.Type} Happened.";
+        public override string Source => Connection.Database;
+        public override string Message => $"Conflict {this.Conflict.Type}.";
 
         public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
 

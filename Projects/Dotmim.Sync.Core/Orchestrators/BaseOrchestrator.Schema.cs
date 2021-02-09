@@ -20,20 +20,20 @@ namespace Dotmim.Sync
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual Task<SyncSet> GetSchemaAsync(CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
             {
                 var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 return schema;
 
-            });
+            }, connection, transaction, cancellationToken);
 
 
         /// <summary>
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual Task<SyncTable> GetTableSchemaAsync(SetupTable table, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
             {
                 var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -54,7 +54,7 @@ namespace Dotmim.Sync
                     schema.Filters.Add(filter);
 
                 return schemaTable;
-            });
+            }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// update configuration object with tables desc from server database

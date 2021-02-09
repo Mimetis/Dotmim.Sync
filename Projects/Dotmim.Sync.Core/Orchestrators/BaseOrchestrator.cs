@@ -29,6 +29,10 @@ namespace Dotmim.Sync
         private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
             = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
 
+        // Internal scope builder cache
+        private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
+            = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
+
         // Internal sync adapter cache
         private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
             = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
@@ -107,7 +111,6 @@ namespace Dotmim.Sync
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
-        [DebuggerStepThrough]
         internal async Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
         {
             if (this.interceptors == null)
@@ -132,6 +135,11 @@ namespace Dotmim.Sync
         /// </summary>
         [DebuggerStepThrough]
         internal void SetInterceptor<T>(Action<T> action) where T : ProgressArgs => this.On(action);
+
+        /// <summary>
+        /// Affect an interceptor
+        /// </summary>
+        [DebuggerStepThrough]
         internal void SetInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.On(action);
 
         /// <summary>
@@ -143,7 +151,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to report progress
         /// </summary>
-        [DebuggerStepThrough]
         internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             // Check logger, because we make some reflection here
@@ -165,11 +172,13 @@ namespace Dotmim.Sync
             if (transaction == null && args.Transaction != null)
                 transaction = args.Transaction;
 
-            var dt = DateTime.Now;
-            var message = $"{dt.ToLongTimeString()}.{dt.Millisecond}\t {args.Message}";
-            var progressArgs = new ProgressArgs(context, message, connection, transaction);
+            if (args.Connection == null || args.Connection != connection)
+                args.Connection = connection;
 
-            progress.Report(progressArgs);
+            if (args.Transaction== null || args.Transaction != transaction)
+                args.Transaction = transaction;
+
+            progress.Report(args);
         }
 
         /// <summary>
@@ -208,7 +217,10 @@ namespace Dotmim.Sync
                 return;
 
             if (connection != null && connection.State == ConnectionState.Open)
+            {
                 connection.Close();
+                connection.Dispose();
+            }
 
             if (!cancellationToken.IsCancellationRequested)
                 await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
@@ -237,7 +249,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter
         /// </summary>
-        internal DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
             var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -262,7 +274,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider table builder
         /// </summary>
-        internal DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
         {
             var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -275,7 +287,7 @@ namespace Dotmim.Sync
             var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
 
             // Get a lazy command instance
-            var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey, 
+            var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey,
                 k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
 
             // Get the concrete instance
@@ -284,6 +296,24 @@ namespace Dotmim.Sync
             return tableBuilder;
         }
 
+
+        /// <summary>
+        /// Get a provider scope builder by scope table name
+        /// </summary>
+        public DbScopeBuilder GetScopeBuilder(string scopeInfoTableName)
+        {
+            // Create the key
+            var commandKey = $"{scopeInfoTableName}-{this.Provider.ConnectionString}";
+
+            // Get a lazy command instance
+            var lazyScopeBuilder = scopeBuilders.GetOrAdd(commandKey,
+                k => new Lazy<DbScopeBuilder>(() => this.Provider.GetScopeBuilder(scopeInfoTableName)));
+
+            // Get the concrete instance
+            var scopeBuilder = lazyScopeBuilder.Value;
+
+            return scopeBuilder;
+        }
         /// <summary>
         /// Sets the current context
         /// </summary>
@@ -308,8 +338,6 @@ namespace Dotmim.Sync
         /// Check if the orchestrator database is outdated
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <param name="progress">Progress args</param>
         public virtual async Task<bool> IsOutDated(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
@@ -348,6 +376,9 @@ namespace Dotmim.Sync
             return isOutdated;
         }
 
+        /// <summary>
+        /// Get hello from database
+        /// </summary>
         public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -360,9 +391,9 @@ namespace Dotmim.Sync
         }
 
 
-        [DebuggerStepThrough]
-        internal async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-             CancellationToken cancellationToken = default)
+
+        public async Task<T> RunInTransactionAsync2<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+              DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -372,7 +403,52 @@ namespace Dotmim.Sync
 
             T result = default;
 
-            using var connection = this.Provider.CreateConnection();
+            using (var c = this.Provider.CreateConnection())
+            {
+                try
+                {
+                    await c.OpenAsync();
+
+                    using (var t = c.BeginTransaction())
+                    {
+                        if (actionTask != null)
+                            result = await actionTask(ctx, c, t);
+
+                        t.Commit();
+                    }
+                    c.Close();
+                    c.Dispose();
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(ex);
+                }
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// Run an actin inside a connection / transaction
+        /// </summary>
+        public async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+              DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
+        {
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Get context or create a new one
+            var ctx = this.GetContext();
+
+            T result = default;
+
+            if (connection == null)
+                connection = this.Provider.CreateConnection();
+
+            var alreadyOpened = connection.State == ConnectionState.Open;
+            var alreadyInTransaction = transaction != null && transaction.Connection == connection;
 
             try
             {
@@ -380,21 +456,28 @@ namespace Dotmim.Sync
                     ctx.SyncStage = stage;
 
                 // Open connection
-                await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                if (!alreadyOpened)
+                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
                 // Create a transaction
-                using var transaction = connection.BeginTransaction();
-
-                await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                if (!alreadyInTransaction)
+                {
+                    transaction = connection.BeginTransaction();
+                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                }
 
                 if (actionTask != null)
                     result = await actionTask(ctx, connection, transaction);
 
-                await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                if (!alreadyInTransaction)
+                {
+                    await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                    transaction.Commit();
+                    transaction.Dispose();
+                }
 
-                transaction.Commit();
-
-                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                if (!alreadyOpened)
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
 
                 return result;
             }
@@ -404,18 +487,17 @@ namespace Dotmim.Sync
             }
             finally
             {
-                await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                if (!alreadyOpened)
+                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
             }
+
             return default;
         }
-
-
 
         /// <summary>
         /// Get a snapshot root directory name and folder directory name
         /// </summary>
-        public virtual Task<(string DirectoryRoot, string DirectoryName)>
-            GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get context or create a new one
             var ctx = this.GetContext();
@@ -428,14 +510,13 @@ namespace Dotmim.Sync
             return this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress);
         }
 
-
         /// <summary>
         /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
         /// </summary>
         internal virtual async Task<bool> InternalCanCleanFolderAsync(SyncContext context, BatchInfo batchInfo,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-
+            // if in memory, the batch file is not actually serialized on disk
             if (batchInfo.InMemory)
                 return false;
 
@@ -443,18 +524,22 @@ namespace Dotmim.Sync
 
             var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync();
 
+            // if we don't have any snapshot configuration, we are sure that the current batchinfo is actually stored into a temp folder
             if (string.IsNullOrEmpty(snapshotRootDirectory))
                 return true;
 
             var snapInfo = Path.Combine(snapshotRootDirectory, snapshotNameDirectory);
             var snapshotDirectoryFullPath = new DirectoryInfo(snapInfo);
 
+            // check if the batch dir IS NOT the snapshot directory
             var canCleanFolder = batchInfoDirectoryFullPath.FullName != snapshotDirectoryFullPath.FullName;
 
             return canCleanFolder;
         }
 
-
+        /// <summary>
+        /// Internal routine to get the snapshot root directory and batch directory name
+        /// </summary>
         internal virtual Task<(string DirectoryRoot, string DirectoryName)> InternalGetSnapshotDirectoryAsync(SyncContext context,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {

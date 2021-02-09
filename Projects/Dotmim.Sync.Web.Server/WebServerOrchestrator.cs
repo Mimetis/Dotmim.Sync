@@ -311,7 +311,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.GetServerScopeAsync(cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Create http response
             var httpResponse = new HttpMessageEnsureScopesResponse(ctx, serverScopeInfo);
@@ -337,7 +337,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await base.EnsureSchemaAsync(connection:default, default, cancellationToken, progress).ConfigureAwait(false);
 
             this.Schema = serverScopeInfo.Schema;
             this.Schema.EnsureSchema();
@@ -368,7 +368,7 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
-            var changes = await base.GetChangesAsync(httpMessage.Scope, cancellationToken, progress);
+            var changes = await base.GetChangesAsync(httpMessage.Scope, default, default, cancellationToken, progress);
 
             // no changes applied to server
             var clientChangesApplied = new DatabaseChangesApplied();
@@ -398,7 +398,7 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
-            var changes = await base.GetEstimatedChangesCountAsync(httpMessage.Scope, cancellationToken, progress);
+            var changes = await base.GetEstimatedChangesCountAsync(httpMessage.Scope, default, default, cancellationToken, progress);
 
 
             var changesResponse = new HttpMessageSendChangesResponse(syncContext)
@@ -430,7 +430,7 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 this.Schema = serverScopeInfo.Schema;
                 this.Schema.EnsureSchema();
@@ -493,7 +493,7 @@ namespace Dotmim.Sync.Web.Server
             // If client has stored the schema, the EnsureScope will not be called on server.
             if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
             {
-                var serverScopeInfo = await this.EnsureSchemaAsync(cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 this.Schema = serverScopeInfo.Schema;
                 this.Schema.EnsureSchema();
@@ -544,7 +544,7 @@ namespace Dotmim.Sync.Web.Server
 
             // get changes
             var (remoteClientTimestamp, serverBatchInfo, _, clientChangesApplied, serverChangesSelected) =
-               await this.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
+               await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
 
 
             // Save the server batch info object to cache if not working in memory
@@ -634,12 +634,13 @@ namespace Dotmim.Sync.Web.Server
                 BeforeSerializeRows(batchPartInfo.Data, this.ClientConverter);
 
             changesResponse.Changes = batchPartInfo.Data.GetContainerSet();
-
             changesResponse.BatchIndex = batchIndexRequested;
             changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo.Count;
             changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
             changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
             changesResponse.ServerStep = batchPartInfo.IsLastBatch ? HttpStep.GetMoreChanges : HttpStep.GetChangesInProgress;
+
+            batchPartInfo.Clear();
 
             // If we have only one bpi, we can safely delete it
             if (batchPartInfo.IsLastBatch)

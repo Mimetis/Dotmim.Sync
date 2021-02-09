@@ -3282,5 +3282,245 @@ namespace Dotmim.Sync.Tests
         }
 
 
+        /// <summary>
+        /// Insert one row in two tables on server, should be correctly sync on all clients
+        /// </summary>
+        [Fact, TestPriority(44)]
+        public async Task Snapshot_Initialize_ThenClientUploadSync_ThenReinitialize()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var setup = new SyncSetup(Tables);
+
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 3000
+            };
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
+
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            await remoteOrchestrator.CreateSnapshotAsync();
+
+            // ----------------------------------
+            // Add rows on server AFTER snapshot
+            // ----------------------------------
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // ----------------------------------
+            // Now add rows on client
+            // ----------------------------------
+
+            foreach (var client in Clients)
+            {
+                var name = HelperDatabase.GetRandomName();
+                var pn = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = pn };
+
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                ctx.Product.Add(product);
+                await ctx.SaveChangesAsync();
+            }
+
+            // Sync all clients
+            // First client  will upload one line and will download nothing
+            // Second client will upload one line and will download one line
+            // thrid client  will upload one line and will download two lines
+            int download = 0;
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // Get count of rows
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // ----------------------------------
+            // Now Reinitialize
+            // ----------------------------------
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+
+        /// <summary>
+        /// Insert one row on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory, TestPriority(45)]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Parallel_Sync_For_TwentyClients(SyncOptions options)
+        {
+            // create a server database
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Provision server, to be sure no clients will try to do something that could break server
+            var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options, new SyncSetup(Tables));
+
+            // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
+            var scope = await remoteOrchestrator.EnsureSchemaAsync();
+
+            var providers = this.Clients.Select(c => c.ProviderType).Distinct();
+
+            var clientProviders = new List<CoreProvider>();
+            var createdDatabases = new List<(ProviderType ProviderType, string DatabaseName)>();
+            foreach (var provider in providers)
+            {
+                for (int i = 0; i < 10; i++)
+                {
+                    // Create the provider
+                    var dbCliName = HelperDatabase.GetRandomName("tcp_cli_");
+                    var localProvider = this.CreateProvider(provider, dbCliName);
+
+                    clientProviders.Add(localProvider);
+
+                    // Create the database
+                    await this.CreateDatabaseAsync(provider, dbCliName, true);
+
+                    createdDatabases.Add((provider, dbCliName));
+                }
+            }
+
+            var allTasks = new List<Task<SyncResult>>();
+
+            // Execute a sync on all clients and add the task to a list of tasks
+            foreach (var clientProvider in clientProviders)
+            {
+                var agent = new SyncAgent(clientProvider, Server.Provider, options, new SyncSetup(Tables));
+                allTasks.Add(agent.SynchronizeAsync());
+            }
+
+            // Await all tasks
+            await Task.WhenAll(allTasks);
+
+            foreach (var s in allTasks)
+            {
+                Assert.Equal(rowsCount, s.Result.TotalChangesDownloaded);
+                Assert.Equal(0, s.Result.TotalChangesUploaded);
+                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+            }
+
+
+            // Create a new product on server 
+            var name = HelperDatabase.GetRandomName();
+            var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+            var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            allTasks = new List<Task<SyncResult>>();
+
+            // Execute a sync on all clients to get the new server row
+            foreach (var clientProvider in clientProviders)
+            {
+                var agent = new SyncAgent(clientProvider, Server.Provider, options, new SyncSetup(Tables));
+                allTasks.Add(agent.SynchronizeAsync());
+            }
+
+            // Await all tasks
+            await Task.WhenAll(allTasks);
+
+            foreach (var s in allTasks)
+            {
+                Assert.Equal(1, s.Result.TotalChangesDownloaded);
+                Assert.Equal(0, s.Result.TotalChangesUploaded);
+                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+            }
+
+            foreach (var db in createdDatabases)
+            {
+                HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+            }
+        }
+
+
+
     }
 }

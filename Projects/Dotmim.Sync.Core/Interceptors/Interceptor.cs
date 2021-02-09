@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -9,26 +10,22 @@ namespace Dotmim.Sync
 
     public class Interceptors
     {
-        private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
+        // Internal table builder cache
+        private readonly ConcurrentDictionary<Type, Lazy<ISyncInterceptor>> dictionary
+            = new ConcurrentDictionary<Type, Lazy<ISyncInterceptor>>();
+
+        //private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
 
         [DebuggerStepThrough]
         public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs
         {
-            InterceptorWrapper<T> interceptor = null;
             var typeofT = typeof(T);
 
-            // try get the interceptor from the dictionary and cast it
-            if (this.dictionary.TryGetValue(typeofT, out var i))
-                interceptor = (InterceptorWrapper<T>)i;
+            // Get a lazy command instance
+            var lazyInterceptor = dictionary.GetOrAdd(typeofT,
+                k => new Lazy<ISyncInterceptor>(() => new InterceptorWrapper<T>()));
 
-            // if null, create a new one
-            if (interceptor == null)
-            {
-                interceptor = new InterceptorWrapper<T>();
-                this.dictionary.Add(typeofT, interceptor);
-            }
-
-            return interceptor;
+            return lazyInterceptor.Value as InterceptorWrapper<T>;
         }
 
         /// <summary>

@@ -124,7 +124,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Make a filter on primarykeys
         /// </summary>
-        public IEnumerable<SyncRow> GetRowsByPrimaryKeys(SyncRow criteria)
+        public SyncRow GetRowByPrimaryKeys(SyncRow criteria)
         {
             // Get the primarykeys to get the ordinal
             var primaryKeysColumn = Table.GetPrimaryKeysColumns().ToList();
@@ -134,7 +134,7 @@ namespace Dotmim.Sync
                 throw new ArgumentOutOfRangeException($"Can't make a query on primary keys since number of primary keys columns in criterias is not matching the number of primary keys columns in this table");
 
 
-            var filteredRows = this.rows.Where(itemRow =>
+            var filteredRow = this.rows.FirstOrDefault(itemRow =>
             {
                 for (int i = 0; i < primaryKeysColumn.Count; i++)
                 {
@@ -145,11 +145,15 @@ namespace Dotmim.Sync
 
                     if (!critValue.Equals(itemValue))
                         return false;
+
+                    //if (!criteria[syncColumn.ColumnName].Equals(itemRow[syncColumn.ColumnName]))
+                    //    return false;
+
                 }
                 return true;
             });
 
-            return filteredRows;
+            return filteredRow;
         }
 
 

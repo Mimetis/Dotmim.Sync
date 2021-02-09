@@ -20,7 +20,8 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
         }
 
-        public override string Message => $"[{Connection.Database}] [{this.Table.GetFullName()}] Trigger [{this.TriggerType}] Created.";
+        public override string Source => Connection.Database;
+        public override string Message => $"[{this.Table.GetFullName()}] Trigger [{this.TriggerType}] Created.";
 
         public override int EventId => SyncEventsId.TriggerCreated.Id;
     }
@@ -39,7 +40,8 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
             this.Command = command;
         }
-        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] Trigger [{this.TriggerType}] Creating.";
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Table.GetFullName()}] Trigger [{this.TriggerType}] Creating.";
 
         public override int EventId => SyncEventsId.TriggerCreating.Id;
     }
@@ -56,7 +58,8 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
         }
 
-        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] Trigger [{this.TriggerType}] Dropped.";
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Table.GetFullName()}] Trigger [{this.TriggerType}] Dropped.";
 
         public override int EventId => SyncEventsId.TriggerDropped.Id;
     }
@@ -76,7 +79,8 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
             this.Command = command;
         }
-        public override string Message => $"[{Connection.Database}] [{Table.GetFullName()}] Trigger [{this.TriggerType}] Dropping.";
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Table.GetFullName()}] Trigger [{this.TriggerType}] Dropping.";
 
         public override int EventId => SyncEventsId.TriggerDropping.Id;
     }
