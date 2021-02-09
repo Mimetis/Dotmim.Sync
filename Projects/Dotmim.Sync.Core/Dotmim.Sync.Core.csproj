@@ -29,6 +29,11 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Serialization\DmBinaryConverter\**" />
+    <EmbeddedResource Remove="Serialization\DmBinaryConverter\**" />
+    <None Remove="Serialization\DmBinaryConverter\**" />
+  </ItemGroup>
   
   <ItemGroup>
     <None Include="..\..\docs\assets\packageIcon.png">
