@@ -30,7 +30,7 @@ namespace XamSyncSample.ViewModels
 
         public Command SyncCommand { get; }
         public Command SyncReinitializeCommand { get; }
-        public Command AddRowsCommand { get; }
+        public Command CustomActionCommand { get; }
 
         public SyncViewModel()
         {
@@ -39,7 +39,7 @@ namespace XamSyncSample.ViewModels
             this.SyncCommandButtonEnabled = true;
             this.SyncCommand = new Command(async () => await ExecuteSyncCommand(SyncType.Normal));
             this.SyncReinitializeCommand = new Command(async () => await ExecuteSyncCommand(SyncType.Reinitialize));
-            this.AddRowsCommand = new Command(() => ExecuteAddRowsCommand());
+            this.CustomActionCommand = new Command(() => ExecuteCustomActionCommand());
 
             this.syncAgent = DependencyService.Get<ISyncServices>().GetSyncAgent();
             this.settings = DependencyService.Get<ISettingServices>();
@@ -94,64 +94,13 @@ namespace XamSyncSample.ViewModels
             }
         }
 
-        private void ExecuteAddRowsCommand()
+        private void ExecuteCustomActionCommand()
         {
             IsBusy = true;
 
             try
             {
-                using (var sqliteConnection = new SqliteConnection(this.settings.DataSource))
-                {
-                    var c = new SqliteCommand($"Insert into ProductCategory(Name, rowguid, ModifiedDate) Values (@name, @rowguid, @modifiedDate)")
-                    {
-                        Connection = sqliteConnection
-                    };
-
-                    var p = new SqliteParameter
-                    {
-                        DbType = DbType.String,
-                        Size = 50,
-                        ParameterName = "@name"
-                    };
-                    c.Parameters.Add(p);
-
-                    p = new SqliteParameter
-                    {
-                        DbType = DbType.String,
-                        Size = 36,
-                        ParameterName = "@rowguid"
-                    };
-                    c.Parameters.Add(p);
-
-                    p = new SqliteParameter
-                    {
-                        DbType = DbType.DateTime,
-                        ParameterName = "@modifiedDate"
-                    };
-                    c.Parameters.Add(p);
-
-                    sqliteConnection.Open();
-
-                    c.Prepare();
-
-                    using (var t = sqliteConnection.BeginTransaction())
-                    {
-
-                        for (var i = 0; i < 10000; i++)
-                        {
-                            c.Transaction = t;
-                            c.Parameters[0].Value = Guid.NewGuid().ToString();
-                            c.Parameters[1].Value = Guid.NewGuid().ToString();
-                            c.Parameters[2].Value = DateTime.Now;
-
-                            c.ExecuteNonQuery();
-                        }
-
-                        t.Commit();
-                    }
-
-                    sqliteConnection.Close();
-                }
+                CustomActionInsertSyncLogRow();
             }
             catch (Exception ex)
             {
@@ -163,7 +112,156 @@ namespace XamSyncSample.ViewModels
             }
         }
 
+        private void CustomActionInsertSyncLogRow()
+        {
+            var text = "insert into SyncLog([UID], [FelhasznaloKod], [pda_sync_scope_id], [AllapotKod], [Manual], [Interactive], [KezdoDatum])" +
+                        "values(@id, @fk, @pdascopeid, @ak, @m, @i, @kd)";
 
+
+            using (var sqliteConnection = new SqliteConnection(this.settings.DataSource))
+            {
+                var c = new SqliteCommand(text)
+                {
+                    Connection = sqliteConnection
+                };
+
+
+                var p = new SqliteParameter
+                {
+                    DbType = DbType.Guid,
+                    ParameterName = "@id",
+                    Value = Guid.NewGuid()
+
+                };
+                c.Parameters.Add(p);
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.Int32,
+                    ParameterName = "@fk",
+                    Value = 1
+                };
+                c.Parameters.Add(p);
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.Guid,
+                    ParameterName = "@pdascopeid",
+                    Value = new Guid("10c52a7a-2dd3-4503-8608-e5c614301387")
+
+                };
+                c.Parameters.Add(p);
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.String,
+                    ParameterName = "@ak",
+                    Value = "R"
+
+                };
+                c.Parameters.Add(p);
+
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.Boolean,
+                    ParameterName = "@m",
+                    Value = true
+
+                };
+                c.Parameters.Add(p);
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.Boolean,
+                    ParameterName = "@i",
+                    Value = true
+
+                };
+                c.Parameters.Add(p);
+
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.DateTime,
+                    ParameterName = "@kd",
+                    Value = DateTime.Now
+
+                };
+                c.Parameters.Add(p);
+                sqliteConnection.Open();
+
+                using (var t = sqliteConnection.BeginTransaction())
+                {
+                    c.Transaction = t;
+
+                    c.ExecuteNonQuery();
+
+                    t.Commit();
+                }
+
+                sqliteConnection.Close();
+
+            }
+        }
+
+
+        private void CustomActionInsertProductRow()
+        {
+            using (var sqliteConnection = new SqliteConnection(this.settings.DataSource))
+            {
+                var c = new SqliteCommand($"Insert into ProductCategory(Name, rowguid, ModifiedDate) Values (@name, @rowguid, @modifiedDate)")
+                {
+                    Connection = sqliteConnection
+                };
+
+                var p = new SqliteParameter
+                {
+                    DbType = DbType.String,
+                    Size = 50,
+                    ParameterName = "@name"
+                };
+                c.Parameters.Add(p);
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.String,
+                    Size = 36,
+                    ParameterName = "@rowguid"
+                };
+                c.Parameters.Add(p);
+
+                p = new SqliteParameter
+                {
+                    DbType = DbType.DateTime,
+                    ParameterName = "@modifiedDate"
+                };
+                c.Parameters.Add(p);
+
+                sqliteConnection.Open();
+
+                c.Prepare();
+
+                using (var t = sqliteConnection.BeginTransaction())
+                {
+
+                    for (var i = 0; i < 10000; i++)
+                    {
+                        c.Transaction = t;
+                        c.Parameters[0].Value = Guid.NewGuid().ToString();
+                        c.Parameters[1].Value = Guid.NewGuid().ToString();
+                        c.Parameters[2].Value = DateTime.Now;
+
+                        c.ExecuteNonQuery();
+                    }
+
+                    t.Commit();
+                }
+
+                sqliteConnection.Close();
+            }
+
+        }
         public void OnAppearing()
         {
             IsBusy = true;
