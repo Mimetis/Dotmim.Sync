@@ -17,6 +17,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class MySqlTcpConflictsTests : TcpConflictsTests
     {
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MySql,  ProviderType.MariaDB,  ProviderType.Sqlite,  ProviderType.Sql};
+
         public MySqlTcpConflictsTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -27,9 +30,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
-
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql,  ProviderType.MariaDB,  ProviderType.Sqlite,  ProviderType.Sql};
 
         public override ProviderType ServerType =>
             ProviderType.MySql;

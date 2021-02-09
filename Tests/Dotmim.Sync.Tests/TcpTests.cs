@@ -3445,6 +3445,7 @@ namespace Dotmim.Sync.Tests
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();
 
             var clientProviders = new List<CoreProvider>();
+            var createdDatabases = new List<(ProviderType ProviderType, string DatabaseName)>();
             foreach (var provider in providers)
             {
                 for (int i = 0; i < 10; i++)
@@ -3457,6 +3458,8 @@ namespace Dotmim.Sync.Tests
 
                     // Create the database
                     await this.CreateDatabaseAsync(provider, dbCliName, true);
+
+                    createdDatabases.Add((provider, dbCliName));
                 }
             }
 
@@ -3511,8 +3514,10 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.Result.TotalResolvedConflicts);
             }
 
-
-
+            foreach (var db in createdDatabases)
+            {
+                HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+            }
         }
 
 
