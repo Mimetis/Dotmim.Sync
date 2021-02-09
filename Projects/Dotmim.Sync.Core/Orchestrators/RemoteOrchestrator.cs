@@ -78,7 +78,6 @@ namespace Dotmim.Sync
 
                 // 1) Get Schema from remote provider
                 schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                schema.EnsureSchema();
 
                 // 2) Ensure databases are ready
                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
