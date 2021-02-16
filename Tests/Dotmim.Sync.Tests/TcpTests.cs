@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Theory, TestPriority(1)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task RowsCount(SyncOptions options)
         {
@@ -184,7 +184,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Theory, TestPriority(2)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task SchemaIsCreated(SyncOptions options)
         {
@@ -283,7 +283,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check a bad connection should raise correct error
         /// </summary>
-        [Fact, TestPriority(3)]
+        [Fact]
         public async Task Bad_ConnectionFromServer_ShouldRaiseError()
         {
             // create empty client databases
@@ -318,7 +318,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check a bad connection should raise correct error
         /// </summary>
-        [Fact, TestPriority(4)]
+        [Fact]
         public async Task Bad_ConnectionFromClient_ShouldRaiseError()
         {
             // Execute a sync on all clients and check results
@@ -347,7 +347,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        [Fact, TestPriority(5)]
+        [Fact]
         public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
         {
             string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
@@ -379,7 +379,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact, TestPriority(6)]
+        [Fact]
         public async Task Bad_ColumnSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
@@ -410,7 +410,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact, TestPriority(7)]
+        [Fact]
         public async Task Bad_TableSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
@@ -442,7 +442,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(9)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_FromServer(SyncOptions options)
         {
@@ -496,7 +496,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(11)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_ThenUpdate_FromServer(SyncOptions options)
         {
@@ -559,7 +559,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(12)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_FromClient(SyncOptions options)
         {
@@ -617,7 +617,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(13)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromServer(SyncOptions options)
         {
@@ -675,7 +675,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(14)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromClient(SyncOptions options)
         {
@@ -760,7 +760,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(15)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_OneTable_FromServer(SyncOptions options)
         {
@@ -838,7 +838,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on client, should be correctly sync on server then all clients
         /// </summary>
-        [Theory, TestPriority(16)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_OneTable_FromClient(SyncOptions options)
         {
@@ -941,7 +941,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on client, should be correctly sync on server then all clients
         /// </summary>
-        [Theory, TestPriority(17)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_NullValue_FromClient(SyncOptions options)
         {
@@ -1037,7 +1037,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Update one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(18)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Update_NullValue_FromServer(SyncOptions options)
         {
@@ -1131,7 +1131,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Delete rows on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(19)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Delete_OneTable_FromServer(SyncOptions options)
         {
@@ -1255,7 +1255,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Fact, TestPriority(29)]
+        [Fact]
         public async Task Using_ExistingClientDatabase_ProvisionDeprovision()
         {
             // create empty client databases
@@ -1369,7 +1369,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check foreign keys existence
         /// </summary>
-        [Fact, TestPriority(30)]
+        [Fact]
         public async Task Check_Composite_ForeignKey_Existence()
         {
             // create a server schema without seeding
@@ -1442,7 +1442,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Be sure we continue to trakc correctly rows even during a sync process
         /// </summary>
-        [Theory, TestPriority(31)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_Record_Then_Insert_During_GetChanges(SyncOptions options)
         {
@@ -1604,7 +1604,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert thousand or rows. Check if batch mode works correctly
         /// </summary>
-        [Theory, TestPriority(32)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_ThousandRows_FromClient(SyncOptions options)
         {
@@ -1669,7 +1669,7 @@ namespace Dotmim.Sync.Tests
         /// Force failing constraints.
         /// But since we set the correct options, shoudl work correctly
         /// </summary>
-        [Theory, TestPriority(33)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Force_Failing_Constraints_ButWorks_WithOptions(SyncOptions options)
         {
@@ -1772,7 +1772,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         /// <param name="options"></param>
         /// <returns></returns>
-        [Theory, TestPriority(34)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Force_Failing_Constraints_ButWorks_WithInterceptors(SyncOptions options)
         {
@@ -1971,7 +1971,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(35)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Reinitialize_Client(SyncOptions options)
         {
@@ -2036,7 +2036,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(36)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task ReinitializeWithUpload_Client(SyncOptions options)
         {
@@ -2110,7 +2110,7 @@ namespace Dotmim.Sync.Tests
         /// Configuring tables to be upload only
         /// Server should receive lines but will not send back its own lines
         /// </summary>
-        [Fact, TestPriority(37)]
+        [Fact]
         public async Task UploadOnly()
         {
             // create a server schema without seeding
@@ -2342,7 +2342,7 @@ namespace Dotmim.Sync.Tests
         /// Configuring tables to be upload only
         /// Server should receive lines but will not send back its own lines
         /// </summary>
-        [Fact, TestPriority(38)]
+        [Fact]
         public async Task DownloadOnly()
         {
             // create a server schema without seeding
@@ -2576,7 +2576,7 @@ namespace Dotmim.Sync.Tests
         /// Deleting a client row and sync, let the tracking table row on the client database
         /// When downloading the same row from server, the tracking table should be aligned with this new row
         /// </summary>
-        [Theory, TestPriority(39)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Delete_OneTable_FromClient(SyncOptions options)
         {
@@ -2746,7 +2746,7 @@ namespace Dotmim.Sync.Tests
 
 
 
-        [Fact, TestPriority(40)]
+        [Fact]
         public async Task Serialize_And_Deserialize()
         {
             // create a server schema without seeding
@@ -2844,7 +2844,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        [Fact, TestPriority(41)]
+        [Fact]
         public async Task IsOutdated_ShouldWork_If_Correct_Action()
         {
             // create a server schema without seeding
@@ -2930,7 +2930,7 @@ namespace Dotmim.Sync.Tests
         /// Configuring tables to be upload only
         /// Server should receive lines but will not send back its own lines
         /// </summary>
-        [Theory, TestPriority(42)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Change_Bidirectional_To_UploadOnly_ShouldWork(SyncOptions options)
         {
@@ -3198,7 +3198,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact, TestPriority(44)]
+        [Fact]
         public async Task Snapshot_Initialize_ThenClientUploadSync_ThenReinitialize()
         {
             // create a server schema with seeding
@@ -3344,7 +3344,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(45)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Parallel_Sync_For_TwentyClients(SyncOptions options)
         {

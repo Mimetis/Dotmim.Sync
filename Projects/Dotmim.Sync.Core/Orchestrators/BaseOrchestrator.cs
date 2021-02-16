@@ -25,13 +25,13 @@ namespace Dotmim.Sync
         internal SyncContext syncContext;
         internal ILogger logger;
 
-        // Internal table builder cache
-        private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
-            = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
+        //// Internal table builder cache
+        //private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
+        //    = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
 
-        // Internal scope builder cache
-        private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
-            = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
+        //// Internal scope builder cache
+        //private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
+        //    = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
 
         // Internal sync adapter cache
         private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
@@ -295,9 +295,7 @@ namespace Dotmim.Sync
 
             //return tableBuilder;
 
-            var tableBuilder = this.Provider.GetTableBuilder(tableDescription, setup);
-
-            return tableBuilder;
+            return this.Provider.GetTableBuilder(tableDescription, setup);
         }
 
 
@@ -318,10 +316,7 @@ namespace Dotmim.Sync
 
             //return scopeBuilder;
 
-            var scopeBuilder = this.Provider.GetScopeBuilder(scopeInfoTableName);
-
-            return scopeBuilder;
-
+            return this.Provider.GetScopeBuilder(scopeInfoTableName);
         }
         /// <summary>
         /// Sets the current context

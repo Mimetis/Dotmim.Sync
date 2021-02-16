@@ -121,7 +121,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// Therefore, those rows would be ignored during the current sync and in **all** future syncs!
         /// </summary>
         /// <returns></returns>
-        [Fact, TestPriority(1)]
+        [Fact]
         public async Task EnsureLocalSqliteProvier_DoesNotUseDeferredTransactions_WhenSelectingChanges()
         {
             // Arrange
