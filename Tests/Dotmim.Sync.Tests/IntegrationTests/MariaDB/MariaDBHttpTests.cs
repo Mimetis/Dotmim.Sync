@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
             "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
-            "PricesList", "PricesListCategory", "PricesListDetail"
+            "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>

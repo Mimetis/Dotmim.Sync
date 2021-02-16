@@ -276,22 +276,26 @@ namespace Dotmim.Sync
         /// </summary>
         public DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
         {
-            var p = this.Provider.GetParsers(tableDescription, setup);
+            //var p = this.Provider.GetParsers(tableDescription, setup);
 
-            var s = JsonConvert.SerializeObject(setup);
-            var data = Encoding.UTF8.GetBytes(s);
-            var hash = HashAlgorithm.SHA256.Create(data);
-            var hashString = Convert.ToBase64String(hash);
+            //var s = JsonConvert.SerializeObject(setup);
+            //var data = Encoding.UTF8.GetBytes(s);
+            //var hash = HashAlgorithm.SHA256.Create(data);
+            //var hashString = Convert.ToBase64String(hash);
 
-            // Create the key
-            var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+            //// Create the key
+            //var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
 
-            // Get a lazy command instance
-            var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey,
-                k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
+            //// Get a lazy command instance
+            //var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey,
+            //    k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
 
-            // Get the concrete instance
-            var tableBuilder = lazyTableBuilder.Value;
+            //// Get the concrete instance
+            //var tableBuilder = lazyTableBuilder.Value;
+
+            //return tableBuilder;
+
+            var tableBuilder = this.Provider.GetTableBuilder(tableDescription, setup);
 
             return tableBuilder;
         }
@@ -302,17 +306,22 @@ namespace Dotmim.Sync
         /// </summary>
         public DbScopeBuilder GetScopeBuilder(string scopeInfoTableName)
         {
-            // Create the key
-            var commandKey = $"{scopeInfoTableName}-{this.Provider.ConnectionString}";
+            //// Create the key
+            //var commandKey = $"{scopeInfoTableName}-{this.Provider.ConnectionString}";
 
-            // Get a lazy command instance
-            var lazyScopeBuilder = scopeBuilders.GetOrAdd(commandKey,
-                k => new Lazy<DbScopeBuilder>(() => this.Provider.GetScopeBuilder(scopeInfoTableName)));
+            //// Get a lazy command instance
+            //var lazyScopeBuilder = scopeBuilders.GetOrAdd(commandKey,
+            //    k => new Lazy<DbScopeBuilder>(() => this.Provider.GetScopeBuilder(scopeInfoTableName)));
 
-            // Get the concrete instance
-            var scopeBuilder = lazyScopeBuilder.Value;
+            //// Get the concrete instance
+            //var scopeBuilder = lazyScopeBuilder.Value;
+
+            //return scopeBuilder;
+
+            var scopeBuilder = this.Provider.GetScopeBuilder(scopeInfoTableName);
 
             return scopeBuilder;
+
         }
         /// <summary>
         /// Sets the current context
