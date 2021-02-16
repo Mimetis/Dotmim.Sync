@@ -26,7 +26,7 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
 
     public abstract class HttpFilterTests : IClassFixture<HelperProvider>, IDisposable
     {
@@ -192,7 +192,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Fact, TestPriority(1)]
+        [Fact]
         public virtual async Task SchemaIsCreated()
         {
             // create a server db without seed
@@ -217,7 +217,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Theory, TestPriority(2)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task RowsCount(SyncOptions options)
         {
@@ -251,7 +251,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert two rows on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(3)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromServer(SyncOptions options)
         {
@@ -322,7 +322,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert four rows on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(4)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromClient(SyncOptions options)
         {
@@ -423,7 +423,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact, TestPriority(5)]
+        [Fact]
         public async Task Snapshot_Initialize()
         {
             // create a server schema with seeding
@@ -511,7 +511,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert two rows on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(6)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task CustomSeriazlizer_MessagePack(SyncOptions options)
         {
@@ -588,7 +588,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact, TestPriority(7)]
+        [Fact]
         public async Task Snapshot_ShouldNot_Delete_Folders()
         {
             // create a server schema with seeding
