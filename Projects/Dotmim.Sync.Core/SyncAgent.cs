@@ -521,11 +521,14 @@ namespace Dotmim.Sync
                 // Policy is always Server policy, so reverse this policy to get the client policy
                 var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
+                // Get if we have already applied a snapshot, so far we don't need to reset table even if we are i Reinitialize Mode
+                var snapshotApplied = result.SnapshotChangesAppliedOnClient != null;
+
                 // apply is 25%
                 context.ProgressPercentage = 0.75;
                 var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
                     clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
-                    clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy,
+                    clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
                     serverChanges.ServerChangesSelected, cancellationToken, progress);
 
                 completeTime = DateTime.UtcNow;

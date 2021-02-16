@@ -77,7 +77,6 @@ namespace Dotmim.Sync
                 // Removing cached commands
                 var syncAdapter = this.GetSyncAdapter(schemaTable, oldSetup);
                 syncAdapter.RemoveCommands();
-
             }
 
             // Provision table (create or alter), tracking tables, stored procedures and triggers

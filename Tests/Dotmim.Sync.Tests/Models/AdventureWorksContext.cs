@@ -324,7 +324,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.Operation).HasMaxLength(50);
 
-                entity.Property(e => e.TimeStamp).HasColumnType("datetime");
+                entity.Property(e => e.TimeStampDate).HasColumnType("datetime");
             });
 
             modelBuilder.Entity<Product>(entity =>

@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
             "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
-            "PricesList", "PricesListCategory", "PricesListDetail"
+            "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
