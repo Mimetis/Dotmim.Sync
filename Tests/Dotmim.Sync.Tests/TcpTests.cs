@@ -27,7 +27,7 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public abstract class TcpTests : IClassFixture<HelperProvider>, IDisposable
     {
         private Stopwatch stopwatch;
@@ -180,6 +180,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
         }
 
@@ -208,75 +209,71 @@ namespace Dotmim.Sync.Tests
                 using var clientConnection = client.Provider.CreateConnection();
                 await clientConnection.OpenAsync();
 
+                var clientSchema = await agent.LocalOrchestrator.GetSchemaAsync();
+                var serverSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
+
                 foreach (var setupTable in agent.Setup.Tables)
                 {
-                    //var tableClientManagerFactory = client.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
-                    //var tableClientManager = tableClientManagerFactory.CreateManagerTable(clientConnection);
-                    //var clientColumns = await tableClientManager.GetColumnsAsync();
+                    var clientTable = client.ProviderType == ProviderType.Sql ? clientSchema.Tables[setupTable.TableName, setupTable.SchemaName] : clientSchema.Tables[setupTable.TableName];
+                    var serverTable = serverSchema.Tables[setupTable.TableName, setupTable.SchemaName];
 
-                    //using (var serverConnection = this.Server.Provider.CreateConnection())
-                    //{
-                    //    serverConnection.Open();
+                    Assert.Equal(clientTable.Columns.Count, serverTable.Columns.Count);
 
-                    //    var tableServerManagerFactory = this.Server.Provider.GetTableManagerFactory(setupTable.TableName, setupTable.SchemaName);
-                    //    var tableServerManager = tableServerManagerFactory.CreateManagerTable(serverConnection);
-                    //    var serverColumns = await tableServerManager.GetColumnsAsync();
 
-                    //    serverConnection.Close();
+                    foreach (var serverColumn in serverTable.Columns)
+                    {
+                        var clientColumn = clientTable.Columns.FirstOrDefault(c => c.ColumnName == serverColumn.ColumnName);
 
-                    //    var serverColumnsCount = serverColumns.Count();
-                    //    var clientColumnsCount = clientColumns.Count();
+                        Assert.NotNull(clientColumn);
 
-                    //    Assert.Equal(serverColumnsCount, clientColumnsCount);
+                        if (this.ServerType == client.ProviderType && this.ServerType == ProviderType.Sql)
+                        {
+                            Assert.Equal(serverColumn.DataType, clientColumn.DataType);
+                            Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
+                            Assert.Equal(serverColumn.IsUnsigned, clientColumn.IsUnsigned);
 
-                    //    // Check we have the same columns names
-                    //    foreach (var serverColumn in serverColumns)
-                    //    {
-                    //        var clientColumn = clientColumns.FirstOrDefault(c => c.ColumnName == serverColumn.ColumnName);
+                            var maxPrecision = Math.Min(SqlDbMetadata.PRECISION_MAX, serverColumn.Precision);
+                            var maxScale = Math.Min(SqlDbMetadata.SCALE_MAX, serverColumn.Scale);
 
-                    //        Assert.NotNull(clientColumn);
+                            // dont assert max length since numeric reset this value
+                            //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);
 
-                    //        if (this.ServerType == client.ProviderType && this.ServerType == ProviderType.Sql)
-                    //        {
-                    //            Assert.Equal(serverColumn.DataType, clientColumn.DataType);
-                    //            Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
-                    //            Assert.Equal(serverColumn.IsUnsigned, clientColumn.IsUnsigned);
+                            Assert.Equal(maxPrecision, clientColumn.Precision);
+                            Assert.Equal(serverColumn.PrecisionSpecified, clientColumn.PrecisionSpecified);
+                            Assert.Equal(maxScale, clientColumn.Scale);
+                            Assert.Equal(serverColumn.ScaleSpecified, clientColumn.ScaleSpecified);
 
-                    //            var maxPrecision = Math.Min(SqlDbMetadata.PRECISION_MAX, serverColumn.Precision);
-                    //            var maxScale = Math.Min(SqlDbMetadata.SCALE_MAX, serverColumn.Scale);
+                            Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
+                            Assert.Equal(serverColumn.OriginalDbType, clientColumn.OriginalDbType);
 
-                    //            // dont assert max length since numeric reset this value
-                    //            //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);
+                            // We don't replicate unique indexes
+                            //Assert.Equal(serverColumn.IsUnique, clientColumn.IsUnique);
 
-                    //            Assert.Equal(maxPrecision, clientColumn.Precision);
-                    //            Assert.Equal(serverColumn.PrecisionSpecified, clientColumn.PrecisionSpecified);
-                    //            Assert.Equal(maxScale, clientColumn.Scale);
-                    //            Assert.Equal(serverColumn.ScaleSpecified, clientColumn.ScaleSpecified);
+                            Assert.Equal(serverColumn.AutoIncrementSeed, clientColumn.AutoIncrementSeed);
+                            Assert.Equal(serverColumn.AutoIncrementStep, clientColumn.AutoIncrementStep);
+                            Assert.Equal(serverColumn.IsAutoIncrement, clientColumn.IsAutoIncrement);
 
-                    //            Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
-                    //            Assert.Equal(serverColumn.OriginalDbType, clientColumn.OriginalDbType);
+                            //Assert.Equal(serverColumn.OriginalTypeName, clientColumn.OriginalTypeName);
 
-                    //            // We don't replicate unique indexes
-                    //            //Assert.Equal(serverColumn.IsUnique, clientColumn.IsUnique);
+                            // IsCompute is not replicated, because we are not able to replicate formulat
+                            // Instead, we are allowing null for the column
+                            //Assert.Equal(serverColumn.IsCompute, clientColumn.IsCompute);
 
-                    //            Assert.Equal(serverColumn.AutoIncrementSeed, clientColumn.AutoIncrementSeed);
-                    //            Assert.Equal(serverColumn.AutoIncrementStep, clientColumn.AutoIncrementStep);
-                    //            Assert.Equal(serverColumn.IsAutoIncrement, clientColumn.IsAutoIncrement);
+                            // Readonly is not replicated, because we are not able to replicate formulat
+                            // Instead, we are allowing null for the column
+                            //Assert.Equal(serverColumn.IsReadOnly, clientColumn.IsReadOnly);
 
-                    //            //Assert.Equal(serverColumn.OriginalTypeName, clientColumn.OriginalTypeName);
+                            // Decimal is conflicting with Numeric
+                            //Assert.Equal(serverColumn.DbType, clientColumn.DbType);
 
-                    //            //Assert.Equal(serverColumn.IsCompute, clientColumn.IsCompute);
+                            Assert.Equal(serverColumn.Ordinal, clientColumn.Ordinal);
+                            Assert.Equal(serverColumn.AllowDBNull, clientColumn.AllowDBNull);
+                        }
 
-                    //            Assert.Equal(serverColumn.IsReadOnly, clientColumn.IsReadOnly);
-                    //            Assert.Equal(serverColumn.DbType, clientColumn.DbType);
-                    //            Assert.Equal(serverColumn.Ordinal, clientColumn.Ordinal);
-                    //            Assert.Equal(serverColumn.AllowDBNull, clientColumn.AllowDBNull);
-                    //        }
+                        Assert.Equal(serverColumn.ColumnName, clientColumn.ColumnName);
 
-                    //        Assert.Equal(serverColumn.ColumnName, clientColumn.ColumnName);
+                    }
 
-                    //    }
-                    //}
                 }
                 clientConnection.Close();
 
@@ -443,129 +440,6 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Check interceptors are correctly called
-        /// </summary>
-        [Fact, TestPriority(8)]
-        public virtual async Task Check_Interceptors()
-        {
-
-            await Task.Delay(100);
-            Assert.True(true);
-            //// create a server schema without seeding
-            //await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-            //// create empty client databases
-            //foreach (var client in this.Clients)
-            //    await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            //// replicate schema with a no rows sync
-            //foreach (var client in this.Clients)
-            //    await new SyncAgent(client.Provider, Server.Provider, Tables).SynchronizeAsync();
-
-            //var productId = Guid.NewGuid();
-            //var productName = HelperDatabase.GetRandomName();
-            //var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-            //var productCategoryName = HelperDatabase.GetRandomName();
-            //var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            //// insert 2 rows
-            //using (var serverDbCtx = new AdventureWorksContext(this.Server))
-            //{
-            //    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-            //    serverDbCtx.Add(pc);
-
-            //    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-            //    serverDbCtx.Add(product);
-
-            //    await serverDbCtx.SaveChangesAsync();
-            //}
-
-            //int productDownloads = 1;
-            //int productCategoryDownloads = 1;
-
-            //foreach (var client in this.Clients)
-            //{
-            //    var clientProductCategoryName = HelperDatabase.GetRandomName();
-            //    var clientProductCategoryId = clientProductCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            //    var clientProductId = Guid.NewGuid();
-            //    var clientProductName = HelperDatabase.GetRandomName();
-            //    var clientProductNumber = clientProductName.ToUpperInvariant().Substring(0, 10);
-
-            //    using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-            //    {
-            //        var pc = new ProductCategory { ProductCategoryId = clientProductCategoryId, Name = clientProductCategoryName };
-            //        ctx.Add(pc);
-            //        var product = new Product { ProductId = clientProductId, Name = clientProductName, ProductNumber = clientProductNumber, ProductCategoryId = clientProductCategoryId };
-            //        ctx.Add(product);
-
-            //        await ctx.SaveChangesAsync();
-            //    }
-
-            //    string sessionString = "";
-
-            //    var interceptors = new Interceptors();
-            //    interceptors.OnSessionBegin(sba => sessionString += "begin");
-            //    interceptors.OnSessionEnd(sea => sessionString += "end");
-            //    interceptors.OnTableChangesApplying(args =>
-            //    {
-            //        if (args.SchemaTable.TableName == "ProductCategory")
-            //            Assert.Equal(DataRowState.Modified, args.State);
-
-            //        if (args.SchemaTable.TableName == "Product")
-            //            Assert.Equal(DataRowState.Modified, args.State);
-            //    });
-            //    interceptors.OnTableChangesApplied(args =>
-            //    {
-            //        if (args.TableChangesApplied.TableName == "ProductCategory")
-            //        {
-            //            Assert.Equal(DataRowState.Modified, args.TableChangesApplied.State);
-            //            Assert.Equal(productCategoryDownloads, args.TableChangesApplied.Applied);
-            //        }
-
-            //        if (args.TableChangesApplied.TableName == "Product")
-            //        {
-            //            Assert.Equal(DataRowState.Modified, args.TableChangesApplied.State);
-            //            Assert.Equal(productDownloads, args.TableChangesApplied.Applied);
-            //        }
-            //    });
-
-            //    interceptors.OnTableChangesSelected(args =>
-            //    {
-            //        if (args.TableChangesSelected.TableName == "ProductCategory")
-            //            Assert.Equal(1, args.TableChangesSelected.Upserts);
-
-            //        if (args.TableChangesSelected.TableName == "Product")
-            //            Assert.Equal(1, args.TableChangesSelected.Upserts);
-            //    });
-
-            //    interceptors.OnSchema(args =>
-            //    {
-            //        Assert.True(args.Schema.HasTables);
-            //    });
-
-            //    var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
-
-            //    agent.SetInterceptors(interceptors);
-
-            //    var s = await agent.SynchronizeAsync();
-
-            //    Assert.Equal(productDownloads + productCategoryDownloads, s.TotalChangesDownloaded);
-            //    Assert.Equal(2, s.TotalChangesUploaded);
-            //    Assert.Equal(0, s.TotalResolvedConflicts);
-
-            //    productDownloads++;
-            //    productCategoryDownloads++;
-
-            //    Assert.Equal("beginend", sessionString);
-
-            //    agent.SetInterceptors(null);
-
-            //}
-        }
-
-        /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
         [Theory, TestPriority(9)]
@@ -613,6 +487,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(1, this.GetServerDatabaseRowsCount(client));
+
             }
         }
 
@@ -676,6 +552,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(1, this.GetServerDatabaseRowsCount(client));
             }
         }
 
@@ -732,8 +609,9 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(download++, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-            }
 
+                Assert.Equal(this.GetServerDatabaseRowsCount(Server), this.GetServerDatabaseRowsCount(client));
+            }
         }
 
         /// <summary>
@@ -790,6 +668,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(2, this.GetServerDatabaseRowsCount(client));
             }
         }
 
@@ -852,6 +731,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
                 download += 2;
+                Assert.Equal(this.GetServerDatabaseRowsCount(Server), this.GetServerDatabaseRowsCount(client));
             }
 
             // Now sync again to be sure all clients have all lines
@@ -908,6 +788,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
             int addressId;
@@ -945,6 +826,13 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(cityName, cliAddress.City);
                 Assert.Equal(addressLine, cliAddress.AddressLine1);
             }
+
+            // get rows count
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            foreach (var client in Clients)
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
         }
 
         /// <summary>
@@ -974,8 +862,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
-
 
 
             // Update one address on each client
@@ -1017,6 +905,9 @@ namespace Dotmim.Sync.Tests
                 await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
             }
 
+            // get rows count
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(this.Server))
             {
@@ -1025,6 +916,8 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
+                    Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
                     using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
@@ -1072,6 +965,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
             // Update one address on each client, with null value on addressline2 (which is not null when seed)
@@ -1110,6 +1004,7 @@ namespace Dotmim.Sync.Tests
                 await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
             }
 
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(this.Server))
@@ -1119,6 +1014,8 @@ namespace Dotmim.Sync.Tests
 
                 foreach (var client in Clients)
                 {
+                    Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
                     using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
@@ -1164,6 +1061,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
             // Update one address on server with a null value which was not null before
@@ -1222,6 +1120,11 @@ namespace Dotmim.Sync.Tests
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
                 Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
             }
+
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            foreach (var client in Clients)
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
 
         }
 
@@ -1296,6 +1199,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
 
                 // check rows are create on client
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
@@ -1340,9 +1244,14 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, finalAddressesCount);
                 Assert.Equal(0, finalEmployeeAddressesCount);
             }
+
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            foreach (var client in Clients)
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
+
         }
-
-
 
         /// <summary>
         /// </summary>
@@ -1481,49 +1390,52 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
+                using var connection = client.Provider.CreateConnection();
+                await connection.OpenAsync();
+                using var transaction = connection.BeginTransaction();
 
-                using var dbConnection = client.Provider.CreateConnection();
+                var schema = await agent.LocalOrchestrator.GetSchemaAsync(connection, transaction);
 
-                //var tablePricesListCategory = client.Provider.GetTableManagerFactory("PricesListCategory", "")?.CreateManagerTable(dbConnection);
+                var tablePricesListCategory = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["PricesListCategory"], agent.Setup);
+                Assert.NotNull(tablePricesListCategory);
 
-                //Assert.NotNull(tablePricesListCategory);
+                var relations = (await tablePricesListCategory.GetRelationsAsync(connection, transaction)).ToList();
+                Assert.Single(relations);
 
-                //var relations = (await tablePricesListCategory.GetRelationsAsync()).ToArray();
-                //Assert.Single(relations);
+                if (client.ProviderType != ProviderType.Sqlite)
+                    Assert.StartsWith("FK_PricesListCategory_PricesList_PriceListId", relations[0].ForeignKey);
 
-                //if (client.ProviderType != ProviderType.Sqlite)
-                //    Assert.StartsWith("FK_PricesListCategory_PricesList_PriceListId", relations[0].ForeignKey);
+                Assert.Single(relations[0].Columns);
 
-                //Assert.Single(relations[0].Columns);
+                var tablePricesListDetail = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["PricesListDetail"], agent.Setup);
 
-                //var tablePricesListDetail = client.Provider.GetTableManagerFactory("PricesListDetail", "")?.CreateManagerTable(dbConnection);
+                Assert.NotNull(tablePricesListDetail);
 
-                //Assert.NotNull(tablePricesListDetail);
+                var relations2 = (await tablePricesListDetail.GetRelationsAsync(connection, transaction)).ToArray();
+                Assert.Single(relations2);
 
-                //var relations2 = (await tablePricesListDetail.GetRelationsAsync()).ToArray();
-                //Assert.Single(relations2);
+                if (client.ProviderType != ProviderType.Sqlite)
+                    Assert.StartsWith("FK_PricesListDetail_PricesListCategory_PriceListId", relations2[0].ForeignKey);
 
-                //if (client.ProviderType != ProviderType.Sqlite)
-                //    Assert.StartsWith("FK_PricesListDetail_PricesListCategory_PriceListId", relations2[0].ForeignKey);
+                Assert.Equal(2, relations2[0].Columns.Count);
 
-                //Assert.Equal(2, relations2[0].Columns.Count);
+                var tableEmployeeAddress = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["EmployeeAddress"], agent.Setup);
+                Assert.NotNull(tableEmployeeAddress);
 
-                //var tableEmployeeAddress = client.Provider.GetTableManagerFactory("EmployeeAddress", "")?.CreateManagerTable(dbConnection);
-                //Assert.NotNull(tableEmployeeAddress);
+                var relations3 = (await tableEmployeeAddress.GetRelationsAsync(connection, transaction)).ToArray();
+                Assert.Equal(2, relations3.Count());
 
-                //var relations3 = (await tableEmployeeAddress.GetRelationsAsync()).ToArray();
-                //Assert.Equal(2, relations3.Count());
+                if (client.ProviderType != ProviderType.Sqlite)
+                {
+                    Assert.StartsWith("FK_EmployeeAddress_Address_AddressID", relations3[0].ForeignKey);
+                    Assert.StartsWith("FK_EmployeeAddress_Employee_EmployeeID", relations3[1].ForeignKey);
 
-                //if (client.ProviderType != ProviderType.Sqlite)
-                //{
-                //    Assert.StartsWith("FK_EmployeeAddress_Address_AddressID", relations3[0].ForeignKey);
-                //    Assert.StartsWith("FK_EmployeeAddress_Employee_EmployeeID", relations3[1].ForeignKey);
+                }
+                Assert.Single(relations3[0].Columns);
+                Assert.Single(relations3[1].Columns);
 
-                //}
-
-                //Assert.Single(relations3[0].Columns);
-                //Assert.Single(relations3[1].Columns);
-
+                transaction.Commit();
+                connection.Close();
             }
         }
 
@@ -1629,6 +1541,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(3, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
                 download += 3;
+
             }
 
             // CLI1 (6 rows) : CLI1 will upload 1 row and download 3 rows from CLI2 and 3 rows from CLI3
@@ -1647,6 +1560,7 @@ namespace Dotmim.Sync.Tests
                 download -= 2;
             }
 
+
             // CLI1 (6) : CLI1 will download 1 row from CLI3 and 1 rows from CLI2
             // CLI2 (4) : CLI2 will download 1 row from CLI3
             // CLI3 (2) : CLI3 will download nothing
@@ -1662,16 +1576,17 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
-
-
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(this.Server))
             {
                 var productRowCount = await ctx.Product.AsNoTracking().CountAsync();
                 var productCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
                 var priceListCount = await ctx.PricesList.AsNoTracking().CountAsync();
+                var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
                 foreach (var client in Clients)
                 {
+                    Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
                     using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
                     var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
                     Assert.Equal(productRowCount, pCount);
@@ -1737,8 +1652,17 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 download++;
+
+                var innerRowsCount = this.GetServerDatabaseRowsCount(this.Server);
+                Assert.Equal(innerRowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            foreach (var client in Clients)
+            {
+                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+            }
         }
 
         /// <summary>
@@ -1805,6 +1729,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(2, this.GetServerDatabaseRowsCount(client));
             }
 
             // Creating the fail constraint 
@@ -1824,7 +1749,7 @@ namespace Dotmim.Sync.Tests
 
             }
 
-            // Sync all clients. Should raise an error
+            // Sync all clients. Should not raise an error, because we disable constraint check
             foreach (var client in Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
@@ -1835,6 +1760,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
+                // we removed a product category
+                Assert.Equal(1, this.GetServerDatabaseRowsCount(client));
             }
         }
 
@@ -2035,7 +1962,9 @@ namespace Dotmim.Sync.Tests
 
             }
 
-
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            foreach (var client in Clients)
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
         }
 
 
@@ -2066,6 +1995,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
             // Insert one line on each client
@@ -2098,6 +2029,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
         }
 
@@ -2128,6 +2060,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
             // Insert one line on each client
@@ -2163,6 +2096,12 @@ namespace Dotmim.Sync.Tests
                 download += 2;
             }
 
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            foreach (var client in Clients)
+            {
+                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync().ConfigureAwait(false);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+            }
 
         }
 
@@ -2678,9 +2617,13 @@ namespace Dotmim.Sync.Tests
                 download++;
             }
 
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
             // Execute a sync on all clients to be sure all clients have download all others clients product
             foreach (var client in Clients)
+            {
                 await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+            }
 
 
             // Now delete rows on each client
@@ -2786,7 +2729,6 @@ namespace Dotmim.Sync.Tests
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
-
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
@@ -2797,6 +2739,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
         }
 
@@ -2975,9 +2919,11 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(c, r.TotalChangesDownloaded);
                 Assert.Equal(2, r.TotalChangesUploaded);
 
+                Assert.Equal(c, this.GetServerDatabaseRowsCount(client));
+
+
             }
         }
-
 
 
         /// <summary>
@@ -3024,15 +2970,14 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
-
 
             // Change Employee, Address, EmployeeAddress to Upload only
             // All others stay Bidirectional
             setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
             setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
             setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
-
 
             // Insert one line on each client
             int index = 10;
@@ -3193,10 +3138,6 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(3, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-
-                // Check setup on both side
-                var clientSetup = await agent.LocalOrchestrator.GetSchemaAsync();
-
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
@@ -3209,6 +3150,8 @@ namespace Dotmim.Sync.Tests
 
                 Assert.True(localScope.Setup.Equals(remoteScope.Setup));
             }
+
+
 
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(this.Server))
@@ -3228,6 +3171,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(addressesCount + Clients.Count + 1, addresses);
 
             }
+
             foreach (var client in Clients)
             {
                 using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
@@ -3247,38 +3191,7 @@ namespace Dotmim.Sync.Tests
                 var addresses = cliCtx.Address.AsNoTracking().Count();
                 Assert.Equal(addressesCount + 1, addresses);
             }
-        }
 
-
-        [Theory, TestPriority(43)]
-        [ClassData(typeof(SyncOptionsData))]
-        public virtual async Task Command_IsPrepared_ShouldBe_Called(SyncOptions options)
-        {
-            // create a server db and seed it
-            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-            // create empty client databases
-            foreach (var client in this.Clients)
-                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            // Get count of rows
-            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-            // Execute a sync on all clients and check results
-            foreach (var client in this.Clients)
-            {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options,
-                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
-
-                var s = await agent.SynchronizeAsync();
-
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-
-                s = await agent.SynchronizeAsync();
-
-                s = await agent.SynchronizeAsync();
-            }
         }
 
 
@@ -3368,6 +3281,9 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
             }
 
             // ----------------------------------
@@ -3419,6 +3335,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
         }
 
@@ -3481,7 +3399,6 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.Result.TotalChangesUploaded);
                 Assert.Equal(0, s.Result.TotalResolvedConflicts);
             }
-
 
             // Create a new product on server 
             var name = HelperDatabase.GetRandomName();

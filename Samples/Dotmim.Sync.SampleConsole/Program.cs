@@ -53,203 +53,200 @@ internal class Program
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
-        await Synchronize30ClientsAsync();
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
+
+        await Step01Async();
     }
 
-
-    private static Task ConnectionTransactionTask2()
+    private static async Task Step01Async()
     {
+        var clientFileName = "AdventureWorks.db";
+
+        var tables = new string[] { "Customer" };
+
+        var setup = new SyncSetup(tables)
+        {
+            // optional :
+            StoredProceduresPrefix = "ussp_",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "",
+            TrackingTablesSuffix = "_tracking"
+        };
+        setup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
+
+        var options = new SyncOptions();
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}"));
+
+        // Be sure client database file is deleted is already exists
+        if (File.Exists(clientFileName))
+            File.Delete(clientFileName);
+
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        var randomDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-        var dataSource = $"{randomDatabaseName}.db";
-        var clientProvider = new SqliteSyncProvider(dataSource);
-
-        var options = new SyncOptions { BatchSize = 1000};
-
-        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
-        agent.RemoteOrchestrator.OnConnectionOpen(coa =>
-        {
-            Console.WriteLine($"OPEN : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-        });
-        agent.RemoteOrchestrator.OnConnectionClose(coa =>
-        {
-            Console.WriteLine($"CLOSE : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-        });
-
-        return agent.RemoteOrchestrator.RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
-        {
-            var command = connection.CreateCommand();
-            command.CommandText = "Select top 1 * from Product";
-            command.Connection = connection;
-            command.Transaction = transaction;
-
-            var reader = await command.ExecuteReaderAsync();
-
-            while (reader.Read())
-                Console.WriteLine($"{reader[0]} {reader[1]} ");
-
-            reader.Close();
-            return true;
-        });
-
-    }
-    private static async Task ConnectionTransactionTask()
-    {
-        using var connection = new SqlConnection(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        await connection.OpenAsync();
-        Console.WriteLine($"OPEN : {connection.GetHashCode()} - {connection.ConnectionString}");
-
-        using var transaction = connection.BeginTransaction();
-
-        var command = connection.CreateCommand();
-        command.CommandText = "Select top 1 * from Product";
-        command.Connection = connection;
-        command.Transaction = transaction;
-
-        var reader = await command.ExecuteReaderAsync();
-
-        while (reader.Read())
-            Console.WriteLine($"{reader[0]} {reader[1]} ");
-
-        transaction.Commit();
-
-        await connection.CloseAsync();
-        Console.WriteLine($"CLOSE : {connection.GetHashCode()} - {connection.ConnectionString}");
-    }
-
-
-    private static async Task Synchronize30ClientsAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        var clients = new List<SqliteSyncProvider>();
-
-        int maxClients = 30;
-
-        var allTasks = new List<Task<SyncResult>>();
-        //var allTasks = new List<Task>();
+        // sql with change tracking enabled
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqliteSyncProvider(clientFileName);
 
         // Creating an agent that will handle all the process
-        for (var i = 0; i < maxClients; i++)
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("0 - Initiliaze");
+
+        // First sync to initialize
+        var r = await agent.SynchronizeAsync(progress);
+
+        Console.WriteLine("First Sync. Initialize Client database and get all Customers");
+        Console.WriteLine(r);
+
+
+        // DeprovisionAsync
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("1 - Deprovision");
+
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        // We are in change tracking mode, so no need to deprovision triggers and tracking table. But it's part of the sample
+        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
+
+        var serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
+
+        serverScope.Setup = null;
+        serverScope.Schema = null;
+
+        // save the server scope
+        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
+
+
+        // DeprovisionAsync
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("2 - Provision again with new setup");
+
+        tables = new string[] { "Customer", "ProductCategory" };
+
+        setup = new SyncSetup(tables)
         {
-            var randomDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-            var dataSource = $"{randomDatabaseName}.db";
-            var clientProvider = new SqliteSyncProvider(dataSource);
+            // optional :
+            StoredProceduresPrefix = "ussp_",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "",
+            TrackingTablesSuffix = "_tracking"
+        };
+        setup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
+        setup.Tables["ProductCategory"].SyncDirection = SyncDirection.DownloadOnly;
 
-            var options = new SyncOptions { BatchSize = 1000 };
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
 
-            var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+        var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
 
-            agent.RemoteOrchestrator.OnConnectionOpen(coa =>
-            {
-                Console.WriteLine($"OPEN : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-            });
-            agent.RemoteOrchestrator.OnConnectionClose(coa =>
-            {
-                Console.WriteLine($"CLOSE : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-            });
+        serverScope.Setup = setup;
+        serverScope.Schema = newSchema;
 
-            //agent.RemoteOrchestrator.OnTransactionOpen(toa =>
-            //{
-            //    var command = toa.Connection.CreateCommand();
-            //    command.Connection = toa.Connection;
-            //    command.Transaction = toa.Transaction;
+        // save the server scope
+        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
 
-            //    // Set transaction level for the session
-            //    command.CommandText = "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;";
-            //    command.ExecuteNonQuery();
-            //    Console.WriteLine($"ISOL LEVEL RU : {toa.Connection.GetHashCode()} - {toa.Connection.ConnectionString}");
-            //});
+        // Snapshot
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("3 - Create Snapshot");
 
-            // Using the Progress pattern to handle progession during the synchronization
-            var progress = new SynchronousProgress<ProgressArgs>(s =>
-            {
-                //Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"{randomDatabaseName}:{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-                //Console.ResetColor();
-            });
+        var snapshotDirctory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-            var t = agent.SynchronizeAsync();
-
-            allTasks.Add(t);
-        }
-
-        await Task.WhenAll(allTasks);
-
-        foreach (var t in allTasks)
+        options = new SyncOptions
         {
-            Console.WriteLine(t.Result);
-        }
+            SnapshotsDirectory = snapshotDirctory,
+            BatchSize = 5000
+        };
+
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        // Create a snapshot
+        var bi = await remoteOrchestrator.CreateSnapshotAsync(progress: progress);
+
+        Console.WriteLine("Create snapshot done.");
+        Console.WriteLine($"Row count in the snapshot:{bi.RowsCount}");
+        foreach (var bpi in bi.BatchPartsInfo)
+            foreach (var table in bpi.Tables)
+                Console.WriteLine($"File: {bpi.FileName}. Table {table.TableName}: {table.RowsCount}");
+
+        // Snapshot
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("4 - Sync again with Reinitialize Mode");
+
+
+        agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+        Console.WriteLine(r);
+
     }
 
 
     private static async Task SynchronizeAsync()
     {
-// Create 2 Sql Sync providers
-var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-//var clientProvider = new SqliteSyncProvider("adv.db");
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("adv.db");
 
 
-var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
-{
-    Console.ForegroundColor = ConsoleColor.Blue;
-    Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
-    Console.ResetColor();
-});
-var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
+        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.ResetColor();
+        });
+        var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-var options = new SyncOptions { BatchSize = 1000, SnapshotsDirectory = snapshotDirectory };
+        var options = new SyncOptions { BatchSize = 1000, SnapshotsDirectory = snapshotDirectory };
 
-//Console.ForegroundColor = ConsoleColor.Gray;
-//Console.WriteLine($"Creating snapshot");
-//var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
-//remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
+        //Console.ForegroundColor = ConsoleColor.Gray;
+        //Console.WriteLine($"Creating snapshot");
+        //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
+        //remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
 
-// Creating an agent that will handle all the process
-var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
-
-
-// Using the Progress pattern to handle progession during the synchronization
-var progress = new SynchronousProgress<ProgressArgs>(s =>
-{
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-    Console.ResetColor();
-});
-
-do
-{
-    // Console.Clear();
-    Console.WriteLine("Sync Start");
-    try
-    {
-        // Upgrade to last version
-        if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
-            await agent.RemoteOrchestrator.UpgradeAsync();
-
-        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-        // Write results
-        Console.WriteLine(r);
-    }
-    catch (Exception e)
-    {
-        Console.WriteLine(e.Message);
-    }
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
 
-    //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-} while (Console.ReadKey().Key != ConsoleKey.Escape);
 
-Console.WriteLine("End");
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Upgrade to last version
+                if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
+                    await agent.RemoteOrchestrator.UpgradeAsync();
+
+                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                // Write results
+                Console.WriteLine(r);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
     }
 
     private static async Task CreateSnapshotAsync()

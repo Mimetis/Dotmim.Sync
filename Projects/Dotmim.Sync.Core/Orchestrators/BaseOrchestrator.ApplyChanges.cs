@@ -43,9 +43,9 @@ namespace Dotmim.Sync
                         await this.InternalDisableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
                 // -----------------------------------------------------
-                // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server)
+                // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server, then check if we don't have already applied a snapshot)
                 // -----------------------------------------------------
-                if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
+                if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
                     foreach (var table in message.Schema.Tables)
                         await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
