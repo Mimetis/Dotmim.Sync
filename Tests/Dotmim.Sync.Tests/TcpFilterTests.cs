@@ -164,9 +164,6 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        // TODO : Test with provision and deprovision and ensure everything is correctly created/ dropped
-
-
         [Fact, TestPriority(1)]
         public virtual async Task SchemaIsCreated()
         {
@@ -260,6 +257,8 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
             }
         }
 
@@ -294,6 +293,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
             // Create a new address & customer address on server
@@ -330,6 +330,9 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(rowsCount + 2, this.GetServerDatabaseRowsCount(client));
+
             }
         }
 
@@ -432,6 +435,10 @@ namespace Dotmim.Sync.Tests
 
                 await agent.SynchronizeAsync();
             }
+
+            rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            foreach (var client in Clients)
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
         }
 
 

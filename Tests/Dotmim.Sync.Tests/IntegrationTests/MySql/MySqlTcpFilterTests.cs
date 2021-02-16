@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             int totalCountRows = 0;
 
-            using (var serverDbCtx = new AdventureWorksContext(t))
+            using (var serverDbCtx = new AdventureWorksContext(t, false))
             {
                 totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
                 totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
