@@ -25,8 +25,7 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-
+    //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public abstract class TcpFilterTests : IClassFixture<HelperProvider>, IDisposable
     {
         private Stopwatch stopwatch;
@@ -164,7 +163,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        [Fact, TestPriority(1)]
+        [Fact]
         public virtual async Task SchemaIsCreated()
         {
             // create a server db without seed
@@ -232,7 +231,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Theory, TestPriority(2)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task RowsCount(SyncOptions options)
         {
@@ -266,7 +265,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert two rows on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(3)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromServer(SyncOptions options)
         {
@@ -340,7 +339,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert four rows on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(4)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_FromClient(SyncOptions options)
         {
@@ -445,7 +444,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert four rows on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(5)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Delete_TwoTables_FromClient(SyncOptions options)
         {
@@ -568,7 +567,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact, TestPriority(6)]
+        [Fact]
         public async Task Snapshot_Initialize()
         {
             // create a server schema with seeding
@@ -650,7 +649,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert rows on server, and ensure DISTINCT is applied correctly 
         /// </summary>
-        [Theory, TestPriority(7)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_TwoTables_EnsureDistinct(SyncOptions options)
         {
@@ -738,7 +737,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(8)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Using_ExistingClientDatabase_ProvisionDeprovision(SyncOptions options)
         {
@@ -850,7 +849,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(9)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Using_ExistingClientDatabase_Filter_With_NotSyncedColumn(SyncOptions options)
         {
@@ -898,7 +897,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(10)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Migration_Adding_Table(SyncOptions options)
         {
@@ -948,7 +947,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(11)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Migration_Modifying_Table(SyncOptions options)
         {
@@ -1020,7 +1019,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(12)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Migration_Removing_Table(SyncOptions options)
         {
@@ -1070,7 +1069,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(13)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Deprovision_Should_Remove_Filtered_StoredProcedures(SyncOptions options)
         {
@@ -1131,7 +1130,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(14)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Migration_Rename_TrackingTable(SyncOptions options)
         {
@@ -1182,7 +1181,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(15)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Migration_Adding_Table_AndReinitialize_TableOnly(SyncOptions options)
         {
@@ -1303,7 +1302,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact, TestPriority(16)]
+        [Fact]
         public async Task Snapshot_ShouldNot_Delete_Folders()
         {
             // create a server schema with seeding
@@ -1384,7 +1383,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Fact, TestPriority(44)]
+        [Fact]
         public async Task Snapshot_Initialize_ThenClientUploadSync_ThenReinitialize()
         {
             // create a server schema with seeding

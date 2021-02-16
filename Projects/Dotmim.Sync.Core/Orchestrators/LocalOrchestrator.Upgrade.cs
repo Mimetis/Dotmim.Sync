@@ -101,16 +101,13 @@ namespace Dotmim.Sync
             {
                 // Migrate from 0.5.x to 0.6.0
                 if (version.Minor <= 5)
-                {
                     version = await UpgdrateTo600Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
 
-                // Migrate from 0.6.0 to 0.6.1
-                if (version.Minor <= 6 && version.Build <= 0)
-                {
+                if (version.Minor <= 6 && version.Build == 0)
                     version = await UpgdrateTo601Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
 
+                if (version.Minor <= 6 && version.Build == 1)
+                    version = await UpgdrateTo602Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
@@ -164,6 +161,15 @@ namespace Dotmim.Sync
             }
 
             return new Version(0, 6, 1);
+        }
+
+
+        private Task<Version> UpgdrateTo602Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            var newVersion = new Version(0, 6, 2);
+
+            return Task.FromResult(newVersion);
         }
     }
 }

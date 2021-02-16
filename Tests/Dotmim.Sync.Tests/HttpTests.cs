@@ -42,7 +42,7 @@ namespace Dotmim.Sync.Tests
         {
         }
 
-        [Fact, TestPriority(1)]
+        [Fact]
         public virtual async Task SchemaIsCreated()
         {
             // create a server db without seed
@@ -70,7 +70,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        [Theory, TestPriority(2)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task RowsCount(SyncOptions options)
         {
@@ -102,7 +102,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check a bad connection should raise correct error
         /// </summary>
-        [Fact, TestPriority(3)]
+        [Fact]
         public async Task Bad_ConnectionFromServer_ShouldRaiseError()
         {
 
@@ -136,7 +136,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact, TestPriority(4)]
+        [Fact]
         public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
         {
             string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
@@ -171,7 +171,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact, TestPriority(5)]
+        [Fact]
         public async Task Bad_ColumnSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
@@ -201,7 +201,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact, TestPriority(6)]
+        [Fact]
         public async Task Bad_TableSetup_DoesNotExistInSchema_ShouldRaiseError()
         {
             // create a server db without seed
@@ -234,7 +234,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(7)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_FromServer(SyncOptions options)
         {
@@ -288,7 +288,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(8)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_OneTable_FromClient(SyncOptions options)
         {
@@ -347,7 +347,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Delete rows on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(9)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Delete_OneTable_FromServer(SyncOptions options)
         {
@@ -467,7 +467,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert thousand or rows. Check if batch mode works correctly
         /// </summary>
-        [Theory, TestPriority(14)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Insert_ThousandRows_FromClient(SyncOptions options)
         {
@@ -526,7 +526,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(15)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Reinitialize_Client(SyncOptions options)
         {
@@ -590,7 +590,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(16)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task ReinitializeWithUpload_Client(SyncOptions options)
         {
@@ -656,7 +656,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(17)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Bad_Converter_NotRegisteredOnServer_ShouldRaiseError(SyncOptions options)
         {
@@ -695,7 +695,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check web interceptors are working correctly
         /// </summary>
-        [Theory, TestPriority(18)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Check_Interceptors_WebServerOrchestrator(SyncOptions options)
         {
@@ -740,7 +740,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check web interceptors are working correctly
         /// </summary>
-        [Theory, TestPriority(19)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Check_Interceptors_WebClientOrchestrator(SyncOptions options)
         {
@@ -820,7 +820,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(20)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Converter_Registered_ShouldConvertDateTime(SyncOptions options)
         {
@@ -884,7 +884,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(21)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Snapshot_Initialize(SyncOptions options)
         {
@@ -949,7 +949,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory, TestPriority(22)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task IsOutdated_ShouldWork_If_Correct_Action(SyncOptions options)
         {
@@ -1026,7 +1026,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Theory, TestPriority(23)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task Handling_DifferentScopeNames(SyncOptions options)
         {
@@ -1056,12 +1056,10 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-
-
         /// <summary>
         /// Try to get changes from server without making a first sync
         /// </summary>
-        [Theory, TestPriority(24)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task GetChanges_BeforeServerIsInitialized(SyncOptions options)
         {
@@ -1100,7 +1098,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Try to get changes from server without making a first sync
         /// </summary>
-        [Theory, TestPriority(25)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task GetChanges_AfterServerIsInitialized(SyncOptions options)
         {
@@ -1175,7 +1173,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Try to get changes from server without making a first sync
         /// </summary>
-        [Theory, TestPriority(26)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task GetEstimatedChangesCount_BeforeServerIsInitialized(SyncOptions options)
         {
@@ -1214,7 +1212,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Try to get changes from server without making a first sync
         /// </summary>
-        [Theory, TestPriority(27)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task GetEstimatedChangesCount_AfterServerIsInitialized(SyncOptions options)
         {
@@ -1285,7 +1283,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact, TestPriority(28)]
+        [Fact]
         public async Task WithBatchingEnabled_WhenSessionIsLostDuringApplyChanges_ChangesAreNotLost()
         {
             // Arrange
@@ -1383,7 +1381,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Fact, TestPriority(29)]
+        [Fact]
         public async Task WithBatchingEnabled_WhenSessionIsLostDuringGetChanges_ChangesAreNotLost()
         {
             // Arrange
@@ -1478,7 +1476,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Theory, TestPriority(30)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Parallel_Sync_For_TwentyClients(SyncOptions options)
         {

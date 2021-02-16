@@ -56,10 +56,10 @@ internal class Program
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
 
-        await Step01Async();
+        await Snapshot_Then_ReinitializeAsync();
     }
 
-    private static async Task Step01Async()
+    private static async Task Snapshot_Then_ReinitializeAsync()
     {
         var clientFileName = "AdventureWorks.db";
 
@@ -94,19 +94,17 @@ internal class Program
 
         Console.WriteLine();
         Console.WriteLine("----------------------");
-        Console.WriteLine("0 - Initiliaze");
+        Console.WriteLine("0 - Initiliaze. Initialize Client database and get all Customers");
 
         // First sync to initialize
         var r = await agent.SynchronizeAsync(progress);
-
-        Console.WriteLine("First Sync. Initialize Client database and get all Customers");
         Console.WriteLine(r);
 
 
         // DeprovisionAsync
         Console.WriteLine();
         Console.WriteLine("----------------------");
-        Console.WriteLine("1 - Deprovision");
+        Console.WriteLine("1 - Deprovision The Server");
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
         // We are in change tracking mode, so no need to deprovision triggers and tracking table. But it's part of the sample
@@ -124,7 +122,7 @@ internal class Program
         // DeprovisionAsync
         Console.WriteLine();
         Console.WriteLine("----------------------");
-        Console.WriteLine("2 - Provision again with new setup");
+        Console.WriteLine("2 - Provision Again With New Setup");
 
         tables = new string[] { "Customer", "ProductCategory" };
 
@@ -168,10 +166,10 @@ internal class Program
         var bi = await remoteOrchestrator.CreateSnapshotAsync(progress: progress);
 
         Console.WriteLine("Create snapshot done.");
-        Console.WriteLine($"Row count in the snapshot:{bi.RowsCount}");
+        Console.WriteLine($"Rows Count in the snapshot:{bi.RowsCount}");
         foreach (var bpi in bi.BatchPartsInfo)
             foreach (var table in bpi.Tables)
-                Console.WriteLine($"File: {bpi.FileName}. Table {table.TableName}: {table.RowsCount}");
+                Console.WriteLine($"File: {bpi.FileName}. Table {table.TableName}: Rows Count:{table.RowsCount}");
 
         // Snapshot
         Console.WriteLine();
@@ -183,6 +181,26 @@ internal class Program
 
         r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
         Console.WriteLine(r);
+
+
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("5 - Check client rows");
+
+        using var sqliteConnection = new SqliteConnection(clientProvider.ConnectionString);
+
+        sqliteConnection.Open();
+
+        var command = new SqliteCommand("Select count(*) from Customer", sqliteConnection);
+        var customerCount = (long)command.ExecuteScalar();
+
+        command = new SqliteCommand("Select count(*) from ProductCategory", sqliteConnection);
+        var productCategoryCount = (long)command.ExecuteScalar();
+
+        Console.WriteLine($"Customer Rows Count on Client Database:{customerCount} rows");
+        Console.WriteLine($"ProductCategory Rows Count on Client Database:{productCategoryCount} rows");
+
+        sqliteConnection.Close();
 
     }
 
