@@ -399,7 +399,7 @@ namespace Dotmim.Sync.Sqlite
         private DbCommand CreateUpdateTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
             var updTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Update), TableName.Unquoted().ToString());
-
+            
             StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {TableName.Quoted().ToString()} ");
             createTrigger.AppendLine();
 
@@ -452,40 +452,40 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine($"; ");
 
 
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderArguments2 = new StringBuilder();
-            var stringPkAreNull = new StringBuilder();
-            string argComma = string.Empty;
-            string argAnd = string.Empty;
+            //var stringBuilderArguments = new StringBuilder();
+            //var stringBuilderArguments2 = new StringBuilder();
+            //var stringPkAreNull = new StringBuilder();
+            //string argComma = string.Empty;
+            //string argAnd = string.Empty;
 
-            createTrigger.AppendLine($"\tINSERT OR IGNORE INTO {TrackingTableName.Quoted().ToString()} (");
-            foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+            //createTrigger.AppendLine($"\tINSERT OR IGNORE INTO {TrackingTableName.Quoted().ToString()} (");
+            //foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            //{
+            //    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
-                argComma = ",";
-                argAnd = " AND ";
-            }
+            //    stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
+            //    stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
+            //    stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
+            //    argComma = ",";
+            //    argAnd = " AND ";
+            //}
 
-            createTrigger.Append(stringBuilderArguments.ToString());
-            createTrigger.AppendLine("\t\t,[update_scope_id]");
-            createTrigger.AppendLine("\t\t,[timestamp]");
-            createTrigger.AppendLine("\t\t,[sync_row_is_tombstone]");
-            createTrigger.AppendLine("\t\t,[last_change_datetime]");
+            //createTrigger.Append(stringBuilderArguments.ToString());
+            //createTrigger.AppendLine("\t\t,[update_scope_id]");
+            //createTrigger.AppendLine("\t\t,[timestamp]");
+            //createTrigger.AppendLine("\t\t,[sync_row_is_tombstone]");
+            //createTrigger.AppendLine("\t\t,[last_change_datetime]");
 
-            createTrigger.AppendLine("\t) ");
-            createTrigger.AppendLine("\tVALUES (");
-            createTrigger.Append(stringBuilderArguments2.ToString());
-            createTrigger.AppendLine("\t\t,NULL");
-            createTrigger.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
-            createTrigger.AppendLine("\t\t,0");
-            createTrigger.AppendLine("\t\t,datetime('now')");
-            createTrigger.AppendLine("\t);");
+            //createTrigger.AppendLine("\t) ");
+            //createTrigger.AppendLine("\tVALUES (");
+            //createTrigger.Append(stringBuilderArguments2.ToString());
+            //createTrigger.AppendLine("\t\t,NULL");
+            //createTrigger.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
+            //createTrigger.AppendLine("\t\t,0");
+            //createTrigger.AppendLine("\t\t,datetime('now')");
+            //createTrigger.AppendLine("\t);");
 
-            createTrigger.AppendLine($"End; ");
+            createTrigger.AppendLine($"End ");
 
             return new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);
         }
