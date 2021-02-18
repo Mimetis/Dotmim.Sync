@@ -33,6 +33,9 @@ namespace Dotmim.Sync.MySql
 
         }
 
+        public override IEnumerable<DbTriggerType> SupportedTriggers =>
+            new[] {DbTriggerType.Insert, DbTriggerType.Update, DbTriggerType.Delete};
+
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetCreateSchemaCommandAsync(connection, transaction);
         public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)

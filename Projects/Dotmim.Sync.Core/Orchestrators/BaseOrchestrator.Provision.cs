@@ -261,7 +261,7 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.Triggers))
                 {
-                    foreach (DbTriggerType triggerType in Enum.GetValues(typeof(DbTriggerType)))
+                    foreach (DbTriggerType triggerType in tableBuilder.SupportedTriggers)
                     {
                         var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

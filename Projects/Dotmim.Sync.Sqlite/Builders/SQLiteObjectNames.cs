@@ -15,6 +15,7 @@ namespace Dotmim.Sync.Sqlite
 
         internal const string insertTriggerName = "[{0}_insert_trigger]";
         internal const string updateTriggerName = "[{0}_update_trigger]";
+        internal const string upsertTriggerName = "[{0}_upsert_trigger]";
         internal const string deleteTriggerName = "[{0}_delete_trigger]";
 
         private Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
@@ -90,6 +91,7 @@ namespace Dotmim.Sync.Sqlite
 
             this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
             this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddTriggerName(DbTriggerType.Upsert, string.Format(upsertTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
             this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
 
             // Check if we have mutables columns

@@ -14,6 +14,7 @@ namespace Dotmim.Sync.Builders
 {
     public abstract partial class DbTableBuilder
     {
+        public abstract IEnumerable<DbTriggerType> SupportedTriggers { get; }
 
         /// <summary>
         /// Gets the table description for the current DbBuilder

@@ -177,7 +177,7 @@ namespace Dotmim.Sync
         {
             var hasCreatedAtLeastOneTrigger = false;
 
-            var listTriggerType = Enum.GetValues(typeof(DbTriggerType));
+            var listTriggerType = tableBuilder.SupportedTriggers;
 
             foreach (DbTriggerType triggerType in listTriggerType)
             {
@@ -231,7 +231,7 @@ namespace Dotmim.Sync
         {
             var hasDroppeAtLeastOneTrigger = false;
 
-            var listTriggerType = Enum.GetValues(typeof(DbTriggerType));
+            var listTriggerType = tableBuilder.SupportedTriggers;
 
             foreach (DbTriggerType triggerType in listTriggerType)
             {

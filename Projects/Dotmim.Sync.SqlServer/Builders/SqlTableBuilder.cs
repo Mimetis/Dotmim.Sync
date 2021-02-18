@@ -26,6 +26,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlBuilderTrackingTable = new SqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
             this.sqlBuilderTrigger = new SqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
         }
+        public override IEnumerable<DbTriggerType> SupportedTriggers =>
+            new[] { DbTriggerType.Insert, DbTriggerType.Update, DbTriggerType.Delete };
 
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetCreateSchemaCommandAsync(connection, transaction);

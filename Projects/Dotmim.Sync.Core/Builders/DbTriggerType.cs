@@ -8,6 +8,7 @@ namespace Dotmim.Sync.Builders
     {
         Insert,
         Update,
+        Upsert,
         Delete
     }
 }
