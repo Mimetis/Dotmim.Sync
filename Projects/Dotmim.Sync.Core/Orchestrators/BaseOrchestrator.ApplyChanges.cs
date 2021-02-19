@@ -42,29 +42,34 @@ namespace Dotmim.Sync
                     foreach (var table in message.Schema.Tables.Reverse())
                         await this.InternalDisableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
-                // -----------------------------------------------------
-                // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server)
-                // -----------------------------------------------------
-                if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
-                    foreach (var table in message.Schema.Tables)
-                        await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
+                foreach (var table in message.Schema.Tables)
+                {
+                    // -----------------------------------------------------
+                    // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server)
+                    // -----------------------------------------------------
+                    if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal)
+                            await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
-                // -----------------------------------------------------
-                // 1) Applying deletes. Do not apply deletes if we are in a new database
-                // -----------------------------------------------------
-                if (!message.IsNew && hasChanges)
-                    foreach (var table in message.Schema.Tables.Reverse())
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
-                            transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                    // -----------------------------------------------------
+                    // 2) Applying Inserts and Updates. Apply in table order
+                    // -----------------------------------------------------
+                    if (hasChanges)
+                            await this.InternalApplyTableChangesAsync(context, table, message, connection,
+                                transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
 
-                // -----------------------------------------------------
-                // 2) Applying Inserts and Updates. Apply in table order
-                // -----------------------------------------------------
-                if (hasChanges)
-                    foreach (var table in message.Schema.Tables)
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
-                            transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                }
 
+                // apply deletes in reverse order
+                foreach (var table in message.Schema.Tables.Reverse())
+                {
+                    // -----------------------------------------------------
+                    // 2) Applying deletes. Do not apply deletes if we are in a new database
+                    // -----------------------------------------------------
+                    if (!message.IsNew && hasChanges)
+                            await this.InternalApplyTableChangesAsync(context, table, message, connection,
+                                transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                }
+                
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
                     foreach (var table in message.Schema.Tables)
