@@ -1074,7 +1074,7 @@ namespace Dotmim.Sync.Tests
 
                 await serverDbCtx.SaveChangesAsync();
             }
-
+                
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
