@@ -49,21 +49,24 @@ namespace Dotmim.Sync
                     foreach (var table in message.Schema.Tables)
                         await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
-                // -----------------------------------------------------
-                // 1) Applying deletes. Do not apply deletes if we are in a new database
-                // -----------------------------------------------------
-                if (!message.IsNew && hasChanges)
-                    foreach (var table in message.Schema.Tables.Reverse())
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
-                            transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                // Trying to change order (from deletes-upserts to upserts-deletes)
+                // see https://github.com/Mimetis/Dotmim.Sync/discussions/453#discussioncomment-380530
 
                 // -----------------------------------------------------
-                // 2) Applying Inserts and Updates. Apply in table order
+                // 1) Applying Inserts and Updates. Apply in table order
                 // -----------------------------------------------------
                 if (hasChanges)
                     foreach (var table in message.Schema.Tables)
                         await this.InternalApplyTableChangesAsync(context, table, message, connection,
                             transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+
+                // -----------------------------------------------------
+                // 2) Applying Deletes. Do not apply deletes if we are in a new database
+                // -----------------------------------------------------
+                if (!message.IsNew && hasChanges)
+                    foreach (var table in message.Schema.Tables.Reverse())
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
+                            transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
 
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)

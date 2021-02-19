@@ -55,8 +55,8 @@ internal class Program
         //await CreateSnapshotAsync();
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
-
-        await Snapshot_Then_ReinitializeAsync();
+        await SynchronizeAsync();
+        //await Snapshot_Then_ReinitializeAsync();
     }
 
     private static async Task Snapshot_Then_ReinitializeAsync()
@@ -209,8 +209,8 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("adv.db");
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("advdazdazd.db");
 
 
         var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
@@ -232,7 +232,6 @@ internal class Program
         var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
 
-
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
@@ -247,9 +246,9 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
-                // Upgrade to last version
-                if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
-                    await agent.RemoteOrchestrator.UpgradeAsync();
+                //// Upgrade to last version
+                //if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
+                //    await agent.RemoteOrchestrator.UpgradeAsync();
 
                 var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
                 // Write results
