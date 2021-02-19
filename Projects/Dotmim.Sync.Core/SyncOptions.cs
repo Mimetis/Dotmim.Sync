@@ -66,9 +66,11 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Gets or Sets if we should disable constraints before making apply changes 
-        /// Default value is true
+        /// Default value is false
         /// </summary>
-        public bool DisableConstraintsOnApplyChanges { get; set; } = true;
+        
+        // trying false by default : https://github.com/Mimetis/Dotmim.Sync/discussions/453#discussioncomment-380530
+        public bool DisableConstraintsOnApplyChanges { get; set; } = false; 
 
         /// <summary>
         /// Gets or Sets the scope_info table name. Default is scope_info
