@@ -405,13 +405,16 @@ namespace Dotmim.Sync.Sqlite
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE (");
-            stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
+            //stringBuilder.AppendLine("WHERE (");
+            //stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
+            //stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
+            //stringBuilder.AppendLine(")");
 
-            //stringBuilder.AppendLine("\tAND (([side].[sync_row_is_frozen] = 0 AND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL))");
-            //stringBuilder.AppendLine("\tOR ([side].[sync_row_is_frozen] = 1 AND [side].[update_scope_id] <> @sync_scope_id AND [side].[update_scope_id] IS NOT NULL))");
-            stringBuilder.AppendLine(")");
+            // Looking at discussion https://github.com/Mimetis/Dotmim.Sync/discussions/453, trying to remove ([side].[update_scope_id] <> @sync_scope_id)
+            // since we are sure that sqlite will never be a server side database
+
+            stringBuilder.AppendLine("WHERE ([side].[timestamp] > @sync_min_timestamp AND [side].[update_scope_id] IS NULL)");
+
 
             this.AddCommandName(DbCommandType.SelectChanges, stringBuilder.ToString());
             this.AddCommandName(DbCommandType.SelectChangesWithFilters, stringBuilder.ToString());
