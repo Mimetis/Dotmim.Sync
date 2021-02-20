@@ -27,7 +27,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         public override string[] Tables => new string[]
         {
             "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
@@ -134,8 +134,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
 
             var script = $"ALTER DATABASE {dbName} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 2 DAYS, AUTO_CLEANUP = ON)";
-            
-            
+
+
             masterConnection.Open();
 
             using (var cmdCT = new SqlCommand(script, masterConnection))
@@ -170,13 +170,30 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 totalCountRows += serverDbCtx.ProductModel.Count();
                 totalCountRows += serverDbCtx.SalesOrderDetail.Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Count();
-                totalCountRows += serverDbCtx.Sql.Count();
+                //totalCountRows += serverDbCtx.Sql.Count();
                 totalCountRows += serverDbCtx.Tags.Count();
             }
 
             return totalCountRows;
         }
 
+
+        /// <summary>
+        /// Since we do not have control on the change tracking mechanism, any row updated will be marked as updated
+        /// Even if the value is the same or if the column is not part of sync setup
+        /// </summary>
+        public override Task OneColumn_NotInSetup_AfterCleanMetadata_ShouldNotBe_Tracked_AND_ShouldNotBe_UploadedToServer(SyncOptions options)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Since we do not have control on the change tracking mechanism, any row updated will be marked as updated
+        /// Even if the value is the same or if the column is not part of sync setup
+        /// </summary>
+        public override Task OneColumn_NotInSetup_ShouldNotBe_UploadToServer(SyncOptions options) {
+            return Task.CompletedTask;
+        }
 
     }
 }

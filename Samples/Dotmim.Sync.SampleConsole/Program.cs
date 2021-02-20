@@ -55,7 +55,7 @@ internal class Program
         //await CreateSnapshotAsync();
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
-        await SynchronizeAsync();
+        await SynchronizeComputedColumnAsync();
         //await Snapshot_Then_ReinitializeAsync();
     }
 
@@ -204,6 +204,54 @@ internal class Program
 
     }
 
+
+    private static async Task SynchronizeComputedColumnAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("tcp_sv_yq0h0pxbfu3"));
+        var clientProvider = new SqliteSyncProvider("sv0DAD1.db");
+        var tables = new string[] { "PricesListDetail" };
+
+        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.ResetColor();
+        });
+
+        var options = new SyncOptions { BatchSize = 1000 };
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, tables);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                // Write results
+                Console.WriteLine(r);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
     private static async Task SynchronizeAsync()
     {
