@@ -116,7 +116,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctx.Database.EnsureCreatedAsync();
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "dbo.Sql", "Posts" });
+            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -134,8 +134,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await localOrchestrator.CreateTrackingTablesAsync();
 
-            Assert.Equal(5, onCreating);
-            Assert.Equal(5, onCreated);
+            Assert.Equal(4, onCreating);
+            Assert.Equal(4, onCreated);
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 
@@ -158,10 +158,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await localOrchestrator.CreateTrackingTablesAsync(true);
 
-            Assert.Equal(5, onCreating);
-            Assert.Equal(5, onCreated);
-            Assert.Equal(5, onDropping);
-            Assert.Equal(5, onDropped);
+            Assert.Equal(4, onCreating);
+            Assert.Equal(4, onCreated);
+            Assert.Equal(4, onDropping);
+            Assert.Equal(4, onDropped);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -287,7 +287,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctx.Database.EnsureCreatedAsync();
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "dbo.Sql", "Posts" });
+            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -303,8 +303,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             await localOrchestrator.DropTrackingTablesAsync();
 
 
-            Assert.Equal(5, onDropping);
-            Assert.Equal(5, onDropped);
+            Assert.Equal(4, onDropping);
+            Assert.Equal(4, onDropped);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
