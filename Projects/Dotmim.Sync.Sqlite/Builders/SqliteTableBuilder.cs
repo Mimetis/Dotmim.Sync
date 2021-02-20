@@ -415,7 +415,6 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.Append($"\tWhere ");
             createTrigger.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, TrackingTableName.Quoted().ToString(), "new"));
 
-
             if (this.TableDescription.GetMutableColumns().Count() > 0)
             {
                 createTrigger.AppendLine();
@@ -484,8 +483,8 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,datetime('now')");
-            createTrigger.Append($"\tWHERE (SELECT COUNT(*) FROM {TrackingTableName.Quoted().ToString()} WHERE ");
 
+            createTrigger.Append($"\tWHERE (SELECT COUNT(*) FROM {TrackingTableName.Quoted().ToString()} WHERE ");
             var pkeys = this.TableDescription.GetPrimaryKeysColumns();
             var str1 = "";
             foreach (var pkey in pkeys)
@@ -494,8 +493,41 @@ namespace Dotmim.Sync.Sqlite
                 createTrigger.Append($"{str1}{quotedColumn}=new.{quotedColumn}");
                 str1 = " AND ";
             }
-            createTrigger.AppendLine(")=0;");
+            createTrigger.AppendLine(")=0");
+            if (this.TableDescription.GetMutableColumns().Count() > 0)
+            {
+                createTrigger.AppendLine("\t AND (");
+                string or = "    ";
+                foreach (var column in this.TableDescription.GetMutableColumns())
+                {
+                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
+                    createTrigger.Append("\t");
+                    createTrigger.Append(or);
+                    createTrigger.Append("IFNULL(");
+                    createTrigger.Append("NULLIF(");
+                    createTrigger.Append("[old].");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(", ");
+                    createTrigger.Append("[new].");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(")");
+                    createTrigger.Append(", ");
+                    createTrigger.Append("NULLIF(");
+                    createTrigger.Append("[new].");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(", ");
+                    createTrigger.Append("[old].");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(")");
+                    createTrigger.AppendLine(") IS NOT NULL");
+
+                    or = " OR ";
+                }
+                createTrigger.AppendLine("\t ) ");
+            }
+
+            createTrigger.AppendLine($"; ");
 
             createTrigger.AppendLine($"End; ");
 

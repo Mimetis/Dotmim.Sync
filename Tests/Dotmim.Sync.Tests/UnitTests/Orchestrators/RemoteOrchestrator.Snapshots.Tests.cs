@@ -400,7 +400,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 totalCountRows += serverDbCtx.ProductModel.Count();
                 totalCountRows += serverDbCtx.SalesOrderDetail.Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Count();
-                totalCountRows += serverDbCtx.Sql.Count();
+                //totalCountRows += serverDbCtx.Sql.Count();
                 totalCountRows += serverDbCtx.Tags.Count();
             }
 

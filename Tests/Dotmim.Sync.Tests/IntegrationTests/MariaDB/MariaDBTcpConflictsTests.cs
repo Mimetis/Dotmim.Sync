@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         public override string[] Tables => new string[]
         {
             "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesOrderHeader", "SalesOrderDetail", "Sql", "Posts", "Tags", "PostTag",
+            "SalesOrderHeader", "SalesOrderDetail", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 totalCountRows += serverDbCtx.ProductModel.Count();
                 totalCountRows += serverDbCtx.SalesOrderDetail.Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Count();
-                totalCountRows += serverDbCtx.Sql.Count();
+                //totalCountRows += serverDbCtx.Sql.Count();
                 totalCountRows += serverDbCtx.Tags.Count();
             }
 

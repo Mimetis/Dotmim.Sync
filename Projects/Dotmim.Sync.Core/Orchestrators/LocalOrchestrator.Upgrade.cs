@@ -86,7 +86,7 @@ namespace Dotmim.Sync
             var version = SyncVersion.EnsureVersion(scopeInfo.Version);
 
             return version < SyncVersion.Current;
-                
+
         }
 
         internal virtual async Task<bool> InternalUpgradeAsync(SyncContext context, SyncSet schema, ScopeInfo scopeInfo, DbScopeBuilder builder, DbConnection connection, DbTransaction transaction,
@@ -164,12 +164,29 @@ namespace Dotmim.Sync
         }
 
 
-        private Task<Version> UpgdrateTo602Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task<Version> UpgdrateTo602Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var newVersion = new Version(0, 6, 2);
+            // Update the "Update trigger" for all tables
 
-            return Task.FromResult(newVersion);
+            // Sorting tables based on dependencies between them
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            foreach (var schemaTable in schemaTables)
+            {
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+
+                // Upgrade Select Initial Changes
+                var exists = await InternalExistsTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (exists)
+                    await InternalDropTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await InternalCreateTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
+
+
+            return new Version(0, 6, 2);
         }
     }
 }
