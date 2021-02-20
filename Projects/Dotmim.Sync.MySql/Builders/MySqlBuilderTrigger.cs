@@ -249,20 +249,54 @@ namespace Dotmim.Sync.MySql
             var filterColumnsString3 = new StringBuilder();
 
             createTrigger.AppendLine("\t) ");
-            createTrigger.AppendLine("\tVALUES (");
+            createTrigger.AppendLine("\tSELECT ");
             createTrigger.Append(stringBuilderArguments2.ToString());
             createTrigger.AppendLine("\t\t,NULL");
             createTrigger.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,utc_timestamp()");
 
+            if (this.tableDescription.GetMutableColumns().Count() > 0)
+            {
+                createTrigger.AppendLine();
+                createTrigger.AppendLine("\t WHERE (");
+                string or = "    ";
+                foreach (var column in this.tableDescription.GetMutableColumns())
+                {
+                    var quotedColumn = ParserName.Parse(column, "`").Quoted().ToString();
 
-            createTrigger.AppendLine("\t)");
+                    createTrigger.Append("\t");
+                    createTrigger.Append(or);
+                    createTrigger.Append("IFNULL(");
+                    createTrigger.Append("NULLIF(");
+                    createTrigger.Append("`old`.");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(", ");
+                    createTrigger.Append("`new`.");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(")");
+                    createTrigger.Append(", ");
+                    createTrigger.Append("NULLIF(");
+                    createTrigger.Append("`new`.");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(", ");
+                    createTrigger.Append("`old`.");
+                    createTrigger.Append(quotedColumn);
+                    createTrigger.Append(")");
+                    createTrigger.AppendLine(") IS NOT NULL");
+
+                    or = " OR ";
+                }
+                createTrigger.AppendLine("\t ) ");
+            }
             createTrigger.AppendLine("ON DUPLICATE KEY UPDATE");
             createTrigger.AppendLine("\t`update_scope_id` = NULL, ");
             createTrigger.AppendLine("\t`sync_row_is_tombstone` = 0, ");
             createTrigger.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
-            createTrigger.AppendLine("\t`last_change_datetime` = utc_timestamp();");
+            createTrigger.AppendLine("\t`last_change_datetime` = utc_timestamp()");
+
+          
+            createTrigger.AppendLine(";");
 
             createTrigger.AppendLine("END IF;");
 

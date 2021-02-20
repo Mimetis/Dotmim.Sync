@@ -420,6 +420,10 @@ namespace Dotmim.Sync
                 }
                 else
                 {
+                    // Do we need to upgrade ?
+                    if (this.LocalOrchestrator.InternalNeedsToUpgrade(context, clientScopeInfo))
+                        await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress);
+
                     // on remote orchestrator get scope info as well
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
