@@ -3452,8 +3452,6 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
-            // get rows count
-            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // this Guid will be updated on the client
             var clientGuid = Guid.NewGuid();
@@ -3470,7 +3468,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var setup = new SyncSetup(Tables);
+                var setup = new SyncSetup(new string[] { "Address" });
 
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
@@ -3479,15 +3477,10 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
-
                 // Editing Rowguid on client. This column is not part of the setup
                 // So far, it should not be uploaded to server
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-                
+
                 var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
 
                 // Now Update on client this address with a rowGuid
@@ -3499,8 +3492,12 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var setup = new SyncSetup(new string[] { "Address" });
 
+                // Add all columns to address except Rowguid and ModifiedDate
+                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
@@ -3513,7 +3510,7 @@ namespace Dotmim.Sync.Tests
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
 
-                Assert.Equal(clientGuid, cliAddress.Rowguid );
+                Assert.Equal(clientGuid, cliAddress.Rowguid);
             }
 
 
@@ -3542,9 +3539,6 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
-            // get rows count
-            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
             // this Guid will be updated on the client
             var clientGuid = Guid.NewGuid();
 
@@ -3559,7 +3553,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var setup = new SyncSetup(Tables);
+                var setup = new SyncSetup(new string[] { "Address" });
 
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
@@ -3567,11 +3561,6 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
 
                 var s = await agent.SynchronizeAsync();
-
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
 
                 // call CleanMetadata to be sure we don't have row in tracking
                 var ts = await agent.LocalOrchestrator.GetLocalTimestampAsync();
@@ -3592,7 +3581,7 @@ namespace Dotmim.Sync.Tests
                 await connection.CloseAsync();
 
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-                
+
                 // Editing Rowguid on client. This column is not part of the setup
                 // So far, it should not be uploaded to server
                 var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
@@ -3617,9 +3606,12 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
+                var setup = new SyncSetup(new string[] { "Address" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                // Add all columns to address except Rowguid and ModifiedDate
+                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
 
                 var s = await agent.SynchronizeAsync();
 
