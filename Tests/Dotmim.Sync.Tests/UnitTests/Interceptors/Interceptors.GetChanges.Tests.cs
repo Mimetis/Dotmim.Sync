@@ -208,7 +208,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var changes = await localOrchestrator.GetChangesAsync();
 
             Assert.Equal(this.Tables.Length, onSelecting);
-            Assert.Equal(55, onSelected);
+            Assert.Equal(54, onSelected);
             Assert.Equal(1, onDatabaseSelected);
             Assert.Equal(1, onDatabaseSelecting);
 
