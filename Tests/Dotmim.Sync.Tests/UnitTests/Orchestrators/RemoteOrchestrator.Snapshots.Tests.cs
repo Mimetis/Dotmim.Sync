@@ -323,7 +323,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, (int)summaryObject["parts"][0]["index"]);
             Assert.NotNull(summaryObject["parts"][0]["last"]);
             Assert.True((bool)summaryObject["parts"][0]["last"]);
-            Assert.Equal(17, summaryObject["parts"][0]["tables"].Count());
+            Assert.Equal(16, summaryObject["parts"][0]["tables"].Count());
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
