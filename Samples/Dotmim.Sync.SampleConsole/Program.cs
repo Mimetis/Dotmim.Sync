@@ -55,7 +55,7 @@ internal class Program
         //await CreateSnapshotAsync();
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
-        await SynchronizeComputedColumnAsync();
+        await SynchronizeWithFiltersAsync();
         //await Snapshot_Then_ReinitializeAsync();
     }
 
@@ -2138,45 +2138,7 @@ internal class Program
     }
 
 
-    private static async Task TestAvbAsync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("TestAvg"));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setup = new SyncSetup(new String[] { "avb.avb", "avb.avbg" });
-
-        // filter on table avb.avbg
-        var avbGFilter = new SetupFilter("avbg", "avb");
-
-        // add parameter from table avb.avb Column avb.avb.UserId
-        avbGFilter.AddParameter("UserId", "avb", "avb");
-
-        // join to table avb.avbg
-        avbGFilter.AddJoin(Join.Left, "avb.avb").On("avb.avb", "Id", "avb.avbg", "avbId");
-        avbGFilter.AddWhere("UserId", "avb", "UserId", "avb");
-
-        setup.Filters.Add(avbGFilter);
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        Guid userId = new Guid("a7ca90ef-f6b1-4a19-9e31-01a215abbb95");
-
-        agent.Parameters.Add("UserId", userId);
-
-        var s1 = await agent.SynchronizeAsync(progress);
-
-        Console.WriteLine(s1);
-    }
-
+  
     private static async Task SynchronizeWithFiltersAsync()
     {
         // Create 2 Sql Sync providers
@@ -2184,43 +2146,79 @@ internal class Program
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        var setup = new SyncSetup(new string[] {"ProductCategory",
+                  "ProductModel", "Product",
+                  "Address", "Customer", "CustomerAddress",
+                  "SalesOrderHeader", "SalesOrderDetail" });
 
-        setup.Filters.Add("Customer", "CompanyName");
+        // ----------------------------------------------------
+        // Horizontal Filter: On rows. Removing rows from source
+        // ----------------------------------------------------
+        // Over all filter : "we Want only customer from specific city and specific postal code"
+        // First level table : Address
+        // Second level tables : CustomerAddress
+        // Third level tables : Customer, SalesOrderHeader
+        // Fourth level tables : SalesOrderDetail
 
-        var addressCustomerFilter = new SetupFilter("CustomerAddress");
-        addressCustomerFilter.AddParameter("CompanyName", "Customer");
-        addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(addressCustomerFilter);
-
+        // Create a filter on table Address on City Washington
+        // Optional : Sub filter on PostalCode, for testing purpose
         var addressFilter = new SetupFilter("Address");
-        addressFilter.AddParameter("CompanyName", "Customer");
-        addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+
+        // For each filter, you have to provider all the input parameters
+        // A parameter could be a parameter mapped to an existing colum : That way you don't have to specify any type, length and so on ...
+        // We can specify if a null value can be passed as parameter value : That way ALL addresses will be fetched
+        // A default value can be passed as well, but works only on SQL Server (MySql is a damn shity thing)
+        addressFilter.AddParameter("City", "Address", true);
+
+        // Or a parameter could be a random parameter bound to anything. In that case, you have to specify everything
+        // (This parameter COULD BE bound to a column, like City, but for the example, we go for a custom parameter)
+        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // Then you map each parameter on wich table / column the "where" clause should be applied
+        addressFilter.AddWhere("City", "Address", "City");
+        addressFilter.AddWhere("PostalCode", "Address", "postal");
         setup.Filters.Add(addressFilter);
 
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("City", "Address", true);
+        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // You can join table to go from your table up (or down) to your filter table
+        addressCustomerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+
+        // And then add your where clauses
+        addressCustomerFilter.AddWhere("City", "Address", "City");
+        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressCustomerFilter);
+
+        var customerFilter = new SetupFilter("Customer");
+        customerFilter.AddParameter("City", "Address", true);
+        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
+        customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        customerFilter.AddWhere("City", "Address", "City");
+        customerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(customerFilter);
+
         var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        orderHeaderFilter.AddParameter("CompanyName", "Customer");
+        orderHeaderFilter.AddParameter("City", "Address", true);
+        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
         orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        orderHeaderFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderHeaderFilter.AddWhere("City", "Address", "City");
+        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
         setup.Filters.Add(orderHeaderFilter);
 
         var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-        orderDetailsFilter.AddParameter("CompanyName", "Customer");
-        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+        orderDetailsFilter.AddParameter("City", "Address", true);
+        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
         orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderDetailsFilter.AddWhere("City", "Address", "City");
+        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
         setup.Filters.Add(orderDetailsFilter);
 
-        // Add pref suf
-        //setup.StoredProceduresPrefix = "s";
-        //setup.StoredProceduresSuffix = "";
-        //setup.TrackingTablesPrefix = "t";
-        //setup.TrackingTablesSuffix = "";
 
         var options = new SyncOptions();
 
@@ -2241,11 +2239,15 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
-                // Launch the sync process
-                if (!agent.Parameters.Contains("CompanyName"))
-                    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                if (!agent.Parameters.Contains("City"))
+                    agent.Parameters.Add("City", "Toronto");
+
+                // Because I've specified that "postal" could be null, I can set the value to DBNull.Value (and then get all postal code in Toronto city)
+                if (!agent.Parameters.Contains("postal"))
+                    agent.Parameters.Add("postal", DBNull.Value);
+
+                var s1 = await agent.SynchronizeAsync();
 
                 // Write results
                 Console.WriteLine(s1);
