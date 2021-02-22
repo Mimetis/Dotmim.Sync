@@ -195,5 +195,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Since we do not have control on the change tracking mechanism, any row updated will be marked as updated
+        /// Even if the value is the same or if the column is not part of sync setup
+        /// </summary>
+        public override Task OneColumn_NotInSetup_IfServerSendsChanges_UpdatesLocalRow_AndDoesNotClear_OneColumn(SyncOptions options)
+        {
+            return Task.CompletedTask;
+        }
+
     }
 }

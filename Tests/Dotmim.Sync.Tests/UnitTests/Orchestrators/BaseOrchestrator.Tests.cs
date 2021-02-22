@@ -205,7 +205,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Equal(17, args.Schema.Tables.Count);
+                Assert.Equal(16, args.Schema.Tables.Count);
                 onSchemaRead = true;
 
             });
