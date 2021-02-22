@@ -1488,7 +1488,7 @@ namespace Dotmim.Sync.Tests
 
             // Provision server, to be sure no clients will try to do something that could break server
             var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options, new SyncSetup(Tables));
- 
+
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
             var scope = await remoteOrchestrator.EnsureSchemaAsync();
 
@@ -1575,6 +1575,227 @@ namespace Dotmim.Sync.Tests
         }
 
 
+
+        /// <summary>
+        /// Insert one row on server, should be correctly sync on all clients
+        /// </summary>
+        [Fact]
+        public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpGettingRequest_ShouldWork()
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            var interrupted = new Dictionary<HttpStep, bool>();
+
+            // When Server Orchestrator send back the response, we will make an interruption
+            this.WebServerOrchestrator.OnHttpGettingRequest(args =>
+            {
+                if (!interrupted.ContainsKey(args.HttpStep))
+                    interrupted.Add(args.HttpStep, false);
+
+                // interrupt each step to see if it's working
+                if (!interrupted[args.HttpStep])
+                {
+                    interrupted[args.HttpStep] = true;
+                    throw new TimeoutException($"Timeout excecption raised on step {args.HttpStep}");
+                }
+
+            });
+
+
+            SyncOptions options = new SyncOptions { BatchSize = 10 };
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+
+                var policyRetries = 0;
+                webClientOrchestrator.OnHttpPolicyRetrying(args =>
+                {
+                    policyRetries++;
+                });
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(3, policyRetries);
+            }
+
+
+        }
+
+        /// <summary>
+        /// On Intermittent connection, should work even if server has done its part
+        /// </summary>
+        [Fact]
+        public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpSendingResponse_ShouldWork()
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            var interrupted = new Dictionary<HttpStep, bool>();
+
+            // When Server Orchestrator send back the response, we will make an interruption
+            this.WebServerOrchestrator.OnHttpSendingResponse(args =>
+            {
+                if (!interrupted.ContainsKey(args.HttpStep))
+                    interrupted.Add(args.HttpStep, false);
+
+                // interrupt each step to see if it's working
+                if (!interrupted[args.HttpStep])
+                {
+                    interrupted[args.HttpStep] = true;
+                    throw new TimeoutException($"Timeout excecption raised on step {args.HttpStep}");
+                }
+
+            });
+
+
+            SyncOptions options = new SyncOptions { BatchSize = 10 };
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+
+                var policyRetries = 0;
+                webClientOrchestrator.OnHttpPolicyRetrying(args =>
+                {
+                    policyRetries++;
+                });
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(3, policyRetries);
+            }
+
+
+        }
+
+
+        /// <summary>
+        /// On Intermittent connection, should work even if server has done its part
+        /// </summary>
+        [Fact]
+        public async Task Intermitent_Connection_SyncPolicy_InsertClientRow_ShouldWork()
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+
+            SyncOptions options = new SyncOptions { BatchSize = 10 };
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+
+            // Insert one line on each client
+            foreach (var client in Clients)
+            {
+                using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                for (var i = 0; i < 1000; i++)
+                {
+                    var name = HelperDatabase.GetRandomName();
+                    var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                    var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+
+                    serverDbCtx.Product.Add(product);
+                }
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+
+
+
+
+            // Sync all clients
+            // First client  will upload one line and will download nothing
+            // Second client will upload one line and will download one line
+            // thrid client  will upload one line and will download two lines
+            int download = 0;
+            foreach (var client in Clients)
+            {
+                var interruptedBatch = 0;
+                // When Server Orchestrator send back the response, we will make an interruption
+                this.WebServerOrchestrator.OnHttpSendingResponse(args =>
+                {
+                    interruptedBatch++;
+                    // Throw error when sending changes to server
+                    if (args.HttpStep == HttpStep.SendChanges && interruptedBatch == 3)
+                    {
+                        throw new TimeoutException($"Timeout excecption raised on step {args.HttpStep}");
+                    }
+
+                });
+
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download, s.TotalChangesDownloaded);
+                Assert.Equal(1000, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // We have one batch that has been sent 2 times; it will be merged correctly on server
+                Assert.Equal(1037, s.ChangesAppliedOnServer.TotalAppliedChanges);
+                Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
+
+                download += 1000;
+            }
+        }
 
 
     }

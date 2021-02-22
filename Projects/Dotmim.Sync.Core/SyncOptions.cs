@@ -70,7 +70,7 @@ namespace Dotmim.Sync
         /// </summary>
         
         // trying false by default : https://github.com/Mimetis/Dotmim.Sync/discussions/453#discussioncomment-380530
-        public bool DisableConstraintsOnApplyChanges { get; set; } = false; 
+        public bool DisableConstraintsOnApplyChanges { get; set; } 
 
         /// <summary>
         /// Gets or Sets the scope_info table name. Default is scope_info
@@ -98,7 +98,7 @@ namespace Dotmim.Sync
             this.CleanMetadatas = true;
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
-            this.DisableConstraintsOnApplyChanges = true;
+            this.DisableConstraintsOnApplyChanges = false;
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();

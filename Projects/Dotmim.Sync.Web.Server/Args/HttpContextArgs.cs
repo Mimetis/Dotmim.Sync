@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Server;
+﻿using Dotmim.Sync.Web.Client;
+using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System;
@@ -15,16 +16,18 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpGettingRequestArgs : ProgressArgs
     {
-        public HttpGettingRequestArgs(HttpContext httpContext, SyncContext context, SessionCache sessionCache)
+        public HttpGettingRequestArgs(HttpContext httpContext, SyncContext context, SessionCache sessionCache, HttpStep httpStep)
             : base(context, null, null)
         {
             this.HttpContext = httpContext;
             this.SessionCache = sessionCache;
+            this.HttpStep = httpStep;
         }
         public override int EventId => HttpServerSyncEventsId.HttpGettingRequest.Id;
 
         public HttpContext HttpContext { get; }
         public SessionCache SessionCache { get; }
+        public HttpStep HttpStep { get; }
     }
 
     /// <summary>
@@ -32,16 +35,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpSendingResponseArgs : ProgressArgs
     {
-        public HttpSendingResponseArgs(HttpContext httpContext, SyncContext context, SessionCache sessionCache)
+        public HttpSendingResponseArgs(HttpContext httpContext, SyncContext context, SessionCache sessionCache, 
+            byte[] data, HttpStep httpStep)
             : base(context, null, null)
         {
             this.HttpContext = httpContext;
             this.SessionCache = sessionCache;
+            this.Data = data;
+            this.HttpStep = httpStep;
         }
         public override int EventId => HttpServerSyncEventsId.HttpSendingResponse.Id;
 
         public HttpContext HttpContext { get; }
         public SessionCache SessionCache { get; }
+        public byte[] Data { get; }
+        public HttpStep HttpStep { get; }
     }
 
 
