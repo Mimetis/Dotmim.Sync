@@ -6,6 +6,8 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using UWPSyncSampleWebServer.Context;
+using Microsoft.Extensions.Caching.Memory;
+using Dotmim.Sync.Web.Client;
 
 namespace UWPSyncSampleWebServer.Controllers
 {
@@ -27,6 +29,9 @@ namespace UWPSyncSampleWebServer.Controllers
         [HttpPost]
         public async Task Post()
         {
+
+       
+
             await manager.HandleRequestAsync(this.HttpContext);
         }
         [HttpGet]
@@ -58,7 +63,7 @@ namespace UWPSyncSampleWebServer.Controllers
             stringBuilder.AppendLine("<body>");
             stringBuilder.AppendLine("<h2>Generating Snapshot</h2>");
 
-            var snap = await orchestrator.CreateSnapshotAsync(progress:progress);
+            var snap = await orchestrator.CreateSnapshotAsync(progress: progress);
 
             stringBuilder.AppendLine("</div>");
             stringBuilder.AppendLine("</body>");
