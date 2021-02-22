@@ -889,7 +889,7 @@ namespace Dotmim.Sync.Web.Client
             (retryNumber) =>
             {
                 return TimeSpan.FromMilliseconds(500 * retryNumber);
-            },    
+            },
             (ex, arg) =>
             {
                 var webEx = ex as SyncException;
@@ -901,7 +901,7 @@ namespace Dotmim.Sync.Web.Client
             {
                 SyncContext syncContext = this.GetContext();
                 IProgress<ProgressArgs> progressArgs = arg as IProgress<ProgressArgs>;
-                var args = new HttpSyncPolicyArgs(syncContext, 10, cpt, ts); 
+                var args = new HttpSyncPolicyArgs(syncContext, 10, cpt, ts);
                 await this.InterceptAsync(args, default).ConfigureAwait(false);
                 this.ReportProgress(syncContext, progressArgs, args, null, null);
             });

@@ -98,7 +98,7 @@ namespace Dotmim.Sync
             this.CleanMetadatas = true;
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
-            this.DisableConstraintsOnApplyChanges = false;
+            this.DisableConstraintsOnApplyChanges = true;
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();

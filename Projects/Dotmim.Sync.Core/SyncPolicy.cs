@@ -18,7 +18,15 @@ namespace Dotmim.Sync
 
         private SyncPolicy() { }
 
+        /// <summary>
+        /// Gets or Sets the max retry iteration count
+        /// </summary>
         public int RetryCount { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the Function that will define the duration to wait for the retry iteration N
+        /// </summary>
+        public Func<int, TimeSpan> SleepDuration { get; set; }
 
         // function that will say if the exception is transient like, and we can retry
         private Func<Exception, object, bool> isRetriable;
@@ -26,8 +34,6 @@ namespace Dotmim.Sync
         // function that will be called when we are going to retry
         private Func<Exception, int, TimeSpan, object, Task> onRetryAsync;
 
-        // function that will return a new TimeSpan, based on the retry current index
-        private Func<int, TimeSpan> sleepDurationProvider;
 
         /// <summary>
         /// Execute an operation based on a retry policy, synchronously
@@ -111,7 +117,7 @@ namespace Dotmim.Sync
                     if (tryCount < int.MaxValue)
                         tryCount++;
 
-                    TimeSpan waitDuration = this.sleepDurationProvider?.Invoke(tryCount) ?? TimeSpan.Zero;
+                    TimeSpan waitDuration = this.SleepDuration?.Invoke(tryCount) ?? TimeSpan.Zero;
 
                     if (onRetryAsync != null)
                         await onRetryAsync(handledException, tryCount, waitDuration, arg);
@@ -187,7 +193,7 @@ namespace Dotmim.Sync
             var policy = new SyncPolicy { RetryCount = retryCount };
 
             policy.isRetriable = isRetriable ?? new Func<Exception, object, bool>((ex,arg) => true);
-            policy.sleepDurationProvider = sleepDurationProvider ?? new Func<int, TimeSpan>(_ => TimeSpan.Zero);
+            policy.SleepDuration = sleepDurationProvider ?? new Func<int, TimeSpan>(_ => TimeSpan.Zero);
             policy.onRetryAsync = onRetry ?? new Func<Exception, int, TimeSpan, object, Task>((ex, rc, waitDuration, arg) => Task.CompletedTask);
             return policy;
         }
