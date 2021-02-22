@@ -24,18 +24,12 @@ namespace HelloWebSyncClient
 
             var serverOrchestrator = new WebClientOrchestrator("https://localhost.fiddler:44342/api/sync");
 
-
-
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-            var options = new SyncOptions
-            {
-                BatchSize = 100
-            };
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverOrchestrator, options);
+            var agent = new SyncAgent(clientProvider, serverOrchestrator);
 
             do
             {
