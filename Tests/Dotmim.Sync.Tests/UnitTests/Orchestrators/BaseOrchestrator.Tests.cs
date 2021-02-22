@@ -216,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(schema);
             Assert.Equal(SyncStage.SchemaReading, localOrchestrator.GetContext().SyncStage);
-            Assert.Equal(17, schema.Tables.Count);
+            Assert.Equal(16, schema.Tables.Count);
             Assert.True(onSchemaRead);
             Assert.True(onSchemaReading);
 
