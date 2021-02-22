@@ -188,14 +188,14 @@ namespace Dotmim.Sync
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
             // Make an interceptor when retrying to connect
-            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
                 this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), cancellationToken));
 
             // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
                                 3,
                                 retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt),
-                                ex => this.Provider.ShouldRetryOn(ex),
+                                (ex, arg) => this.Provider.ShouldRetryOn(ex),
                                 onRetry);
 
             // Execute my OpenAsync in my policy context
