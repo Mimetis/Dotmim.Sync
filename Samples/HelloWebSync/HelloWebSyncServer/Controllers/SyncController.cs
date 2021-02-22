@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace HelloWebSyncServer.Controllers
 {
@@ -23,7 +25,31 @@ namespace HelloWebSyncServer.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost]
-        public async Task Post() => await webServerManager.HandleRequestAsync(this.HttpContext);
+        public async Task Post()
+        {
+            WebServerOrchestrator.TryGetHeaderValue(this.HttpContext.Request.Headers, "dotmim-sync-session-id", out var sessionId);
+
+            var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
+
+
+            // try get session cache from current sessionId
+            if (webServerManager.Cache.TryGetValue<SessionCache>(sessionId, out var sessionCache))
+            {
+                WebServerOrchestrator.TryGetHeaderValue(this.HttpContext.Request.Headers, "dotmim-sync-step", out string iStep);
+
+                var step = (HttpStep)Convert.ToInt32(iStep);
+
+                if (step == HttpStep.GetMoreChanges)
+                {
+                    var random = new Random().Next(100);
+                    if (random > 50)
+                        throw new TimeoutException("Error waiting");
+                }
+
+            }
+
+            await webServerManager.HandleRequestAsync(this.HttpContext);
+        }
 
         /// <summary>
         /// This GET handler is optional. It allows you to see the configuration hosted on the server

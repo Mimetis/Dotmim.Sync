@@ -18,13 +18,13 @@ namespace Dotmim.Sync
 
         private SyncPolicy() { }
 
-        public int RetryCount { get; private set; }
+        public int RetryCount { get; set; }
 
         // function that will say if the exception is transient like, and we can retry
-        private Func<Exception, bool> isRetriable;
+        private Func<Exception, object, bool> isRetriable;
 
         // function that will be called when we are going to retry
-        private Func<Exception, int, TimeSpan, Task> onRetryAsync;
+        private Func<Exception, int, TimeSpan, object, Task> onRetryAsync;
 
         // function that will return a new TimeSpan, based on the retry current index
         private Func<int, TimeSpan> sleepDurationProvider;
@@ -56,15 +56,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Execute an operation based on a retry policy, asynchronously, and return the result
         /// </summary>
-        public Task<TResult> ExecuteAsync<TResult>(Func<CancellationToken, Task<TResult>> operation, CancellationToken cancellationToken = default)
-        => InternalExecuteAsync(new Func<Task<TResult>>(() => operation(cancellationToken)), cancellationToken);
+        public Task<TResult> ExecuteAsync<TResult>(Func<CancellationToken, Task<TResult>> operation, 
+            CancellationToken cancellationToken = default, object arg = default)
+        => InternalExecuteAsync(new Func<Task<TResult>>(() => operation(cancellationToken)), cancellationToken, arg);
 
         /// <summary>
         /// Execute an operation based on a retry policy, asynchronously, and return the result
         /// </summary>
         private async Task<TResult> InternalExecuteAsync<TResult>(
             Func<Task<TResult>> operation,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            object arg = default)
         {
             if (operation == null)
                 return default;
@@ -97,10 +99,8 @@ namespace Dotmim.Sync
 
                         // Do we have a Func that explicitely say if we can retry or not
                         if (this.isRetriable != null)
-                            canRetry = isRetriable(ex);
-
-                        Console.WriteLine($"[SyncPolicy] Retry N°{tryCount}. Exception:{ex.Message}. CanRetry: {canRetry}");
-
+                            canRetry = isRetriable(ex, arg);
+                        
                         if (!canRetry)
                             throw ex;
 
@@ -114,7 +114,7 @@ namespace Dotmim.Sync
                     TimeSpan waitDuration = this.sleepDurationProvider?.Invoke(tryCount) ?? TimeSpan.Zero;
 
                     if (onRetryAsync != null)
-                        await onRetryAsync(handledException, tryCount, waitDuration);
+                        await onRetryAsync(handledException, tryCount, waitDuration, arg);
 
                     if (waitDuration > TimeSpan.Zero)
                         await Task.Delay(waitDuration, cancellationToken).ConfigureAwait(false);
@@ -133,7 +133,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a policy retrying forever with no delay and a predicate used to define whether a policy handles a given exception
         /// </summary>
-        public static SyncPolicy RetryForever(Func<Exception, bool> isRetriable, Func<Exception, int, TimeSpan, Task> onRetry = null)
+        public static SyncPolicy RetryForever(Func<Exception, object, bool> isRetriable, 
+                                              Func<Exception, int, TimeSpan, object, Task> onRetry = null)
             => WaitAndRetry(-1, null, isRetriable, onRetry);
 
         /// <summary>
@@ -144,7 +145,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a policy retrying for a defined number of iterations, with no delay, and a predicate used to define whether a policy handles a given exception
         /// </summary>
-        public static SyncPolicy Retry(int retryCount, Func<Exception, bool> isRetriable, Func<Exception, int, TimeSpan, Task> onRetry = null)
+        public static SyncPolicy Retry(int retryCount, Func<Exception, object, bool> isRetriable, 
+                                                       Func<Exception, int, TimeSpan, object, Task> onRetry = null)
             => WaitAndRetry(retryCount, new Func<int, TimeSpan>(_ => TimeSpan.Zero), isRetriable, onRetry);
 
         /// <summary>
@@ -156,33 +158,37 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a policy retrying forever with a predicate defining a delay between each iteration, based on the iteration index, and a predicate used to define whether a policy handles a given exception
         /// </summary>
-        public static SyncPolicy WaitAndRetryForever(Func<int, TimeSpan> sleepDurationProvider, Func<Exception, bool> isRetriable, Func<Exception, int, TimeSpan, Task> onRetry = null)
+        public static SyncPolicy WaitAndRetryForever(Func<int, TimeSpan> sleepDurationProvider, 
+                                                    Func<Exception, object, bool> isRetriable, 
+                                                    Func<Exception, int, TimeSpan, object, Task> onRetry = null)
             => WaitAndRetry(-1, sleepDurationProvider, isRetriable, onRetry);
 
         /// <summary>
         /// Gets a policy retrying for a defined number of iterations, a specified constant delay between each iteration
         /// </summary>
         public static SyncPolicy WaitAndRetry(int retryCount, TimeSpan sleepDuration = default)
-            => WaitAndRetry(retryCount, new Func<int, TimeSpan>(_ => sleepDuration), new Func<Exception, bool>(_ => true), null);
+            => WaitAndRetry(retryCount, new Func<int, TimeSpan>(_ => sleepDuration), new Func<Exception, object, bool>((ex, arg) => true), null);
 
         /// <summary>
         /// Gets a policy retrying for a defined number of iterations, a specified constant delay between each iteration, and a predicate used to define whether a policy handles a given exception
         /// </summary>
-        public static SyncPolicy WaitAndRetry(int retryCount, TimeSpan sleepDuration, Func<Exception, bool> isRetriable, Func<Exception, int, TimeSpan, Task> onRetry = null)
+        public static SyncPolicy WaitAndRetry(int retryCount, TimeSpan sleepDuration, 
+                                Func<Exception, object, bool> isRetriable, 
+                                Func<Exception, int, TimeSpan, object, Task> onRetry = null)
             => WaitAndRetry(retryCount, new Func<int, TimeSpan>(_ => sleepDuration), isRetriable, onRetry);
 
         /// <summary>
         /// Gets a policy retrying for a defined number of iterations, with a predicate defining a delay between each iteration, based on the iteration index, and a predicate used to define whether a policy handles a given exception
         /// </summary>
         public static SyncPolicy WaitAndRetry(int retryCount, Func<int, TimeSpan> sleepDurationProvider,
-                                                              Func<Exception, bool> isRetriable,
-                                                              Func<Exception, int, TimeSpan, Task> onRetry = null)
+                                                              Func<Exception, object, bool> isRetriable,
+                                                              Func<Exception, int, TimeSpan, object, Task> onRetry = null)
         {
             var policy = new SyncPolicy { RetryCount = retryCount };
 
-            policy.isRetriable = isRetriable ?? new Func<Exception, bool>(_ => true);
+            policy.isRetriable = isRetriable ?? new Func<Exception, object, bool>((ex,arg) => true);
             policy.sleepDurationProvider = sleepDurationProvider ?? new Func<int, TimeSpan>(_ => TimeSpan.Zero);
-            policy.onRetryAsync = onRetry ?? new Func<Exception, int, TimeSpan, Task>((ex, rc, waitDuration) => Task.CompletedTask);
+            policy.onRetryAsync = onRetry ?? new Func<Exception, int, TimeSpan, object, Task>((ex, rc, waitDuration, arg) => Task.CompletedTask);
             return policy;
         }
     }
