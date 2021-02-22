@@ -1635,6 +1635,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
                 Assert.Equal(3, policyRetries);
+                interrupted.Clear();
             }
 
 
@@ -1790,7 +1791,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server
-                Assert.Equal(1037, s.ChangesAppliedOnServer.TotalAppliedChanges);
+                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1050);
                 Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
 
                 download += 1000;
