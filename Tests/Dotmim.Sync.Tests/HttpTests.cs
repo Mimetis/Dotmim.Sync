@@ -1700,6 +1700,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
                 Assert.Equal(3, policyRetries);
+                interrupted.Clear();
             }
 
 
