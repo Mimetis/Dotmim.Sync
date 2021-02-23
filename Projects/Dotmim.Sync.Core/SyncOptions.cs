@@ -52,17 +52,17 @@ namespace Dotmim.Sync
         /// Gets or Sets if we should use the bulk operations. Default is true.
         /// If provider does not support bulk operations, this option is overrided to false.
         /// </summary>
-        public bool UseBulkOperations { get; set; } = true;
+        public bool UseBulkOperations { get; set; }
 
         /// <summary>
         /// Gets or Sets if we should clean tracking table metadatas.
         /// </summary>
-        public bool CleanMetadatas { get; set; } = true;
+        public bool CleanMetadatas { get; set; }
 
         /// <summary>
         /// Gets or Sets if we should cleaning tmp dir files after sync.
         /// </summary>
-        public bool CleanFolder { get; set; } = true;
+        public bool CleanFolder { get; set; }
 
         /// <summary>
         /// Gets or Sets if we should disable constraints before making apply changes 
@@ -96,9 +96,10 @@ namespace Dotmim.Sync
             this.BatchDirectory = GetDefaultUserBatchDiretory();
             this.BatchSize = 0;
             this.CleanMetadatas = true;
+            this.CleanFolder = true;
             this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
-            this.DisableConstraintsOnApplyChanges = true;
+            this.DisableConstraintsOnApplyChanges = false;
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();
