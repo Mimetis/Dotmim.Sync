@@ -56,8 +56,8 @@ internal class Program
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
         //await SynchronizeWithFiltersAsync();
-        await CreateSnapshotAsync();
-        //await SynchronizeAsync();
+        //await CreateSnapshotAsync();
+        await SynchronizeAsync();
     }
 
     private static async Task Snapshot_Then_ReinitializeAsync()
@@ -257,15 +257,12 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
         var options = new SyncOptions()
         {
             BatchSize = 1000,
-            SnapshotsDirectory = snapshotDirectory,
             DisableConstraintsOnApplyChanges = false
         };
 
@@ -284,8 +281,6 @@ internal class Program
         {
             try
             {
-
-
                 var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
                 Console.WriteLine(r);
             }
