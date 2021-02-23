@@ -27,7 +27,7 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public abstract class TcpConflictsTests : IClassFixture<HelperProvider>, IDisposable
     {
         private Stopwatch stopwatch;
@@ -236,7 +236,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory, TestPriority(1)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_IC_IS_ServerShouldWins(SyncOptions options)
         {
@@ -267,7 +267,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory, TestPriority(1)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_IC_IS_ServerShouldWins_CozHandler(SyncOptions options)
         {
@@ -338,7 +338,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins the conflict because configuration set to ClientWins
         /// </summary>
-        [Theory, TestPriority(2)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration(SyncOptions options)
         {
@@ -370,7 +370,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins the conflict because configuration set to ClientWins
         /// </summary>
-        [Theory, TestPriority(2)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
         {
@@ -432,7 +432,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins the conflict because we have an event raised
         /// </summary>
-        [Theory, TestPriority(3)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_IC_IS_ClientShouldWins_CozHandler(SyncOptions options)
         {
@@ -494,8 +494,6 @@ namespace Dotmim.Sync.Tests
 
         }
 
-
-
         // ------------------------------------------------------------------------
         // Update Client - Update Server
         // ------------------------------------------------------------------------
@@ -549,7 +547,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict because default behavior
         /// </summary>
-        [Theory, TestPriority(4)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_ServerShouldWins(SyncOptions options)
         {
@@ -581,7 +579,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict because default behavior
         /// </summary>
-        [Theory, TestPriority(4)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_ServerShouldWins_CozHandler(SyncOptions options)
         {
@@ -653,7 +651,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict because default behavior
         /// </summary>
-        [Theory, TestPriority(5)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_ClientShouldWins_CozConfiguration(SyncOptions options)
         {
@@ -684,7 +682,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict because default behavior
         /// </summary>
-        [Theory, TestPriority(5)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
         {
@@ -743,7 +741,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins coz handler
         /// </summary>
-        [Theory, TestPriority(6)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_ClientShouldWins_CozHandler(SyncOptions options)
         {
@@ -789,7 +787,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Client should wins coz handler
         /// </summary>
-        [Theory, TestPriority(7)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_Resolved_ByMerge(SyncOptions options)
         {
@@ -915,7 +913,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory, TestPriority(8)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_US_ClientShouldWins(SyncOptions options)
         {
@@ -948,7 +946,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory, TestPriority(8)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_US_ClientShouldWins_CozHandler(SyncOptions options)
         {
@@ -1012,7 +1010,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory, TestPriority(9)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_US_ServerShouldWins(SyncOptions options)
         {
@@ -1040,7 +1038,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict since it's the default behavior
         /// </summary>
-        [Theory, TestPriority(9)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_US_ServerShouldWins_CozHandler(SyncOptions options)
         {
@@ -1145,7 +1143,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on client and server then server purged metadata.
         /// Should have an outdated situation, resolved by a reinitialize action
         /// </summary>
-        [Theory, TestPriority(10)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_OUTDATED_ServerShouldWins(SyncOptions options)
         {
@@ -1199,7 +1197,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on client and server then server purged metadata.
         /// Should have an outdated situation, resolved by a reinitialize action
         /// </summary>
-        [Theory, TestPriority(11)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_OUTDATED_ServerShouldWins_EvenIf_ResolutionIsClientWins(SyncOptions options)
         {
@@ -1305,7 +1303,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(12)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_DS_ServerShouldWins(SyncOptions options)
         {
@@ -1331,7 +1329,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(12)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_DS_ServerShouldWins_CozHandler(SyncOptions options)
         {
@@ -1395,7 +1393,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(13)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_DS_ClientShouldWins(SyncOptions options)
         {
@@ -1425,7 +1423,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(13)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
@@ -1526,7 +1524,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(14)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_DS_ServerShouldWins(SyncOptions options)
         {
@@ -1552,7 +1550,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(14)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_DS_ServerShouldWins_CozHandler(SyncOptions options)
         {
@@ -1610,7 +1608,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(15)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_DS_ClientShouldWins(SyncOptions options)
         {
@@ -1639,7 +1637,7 @@ namespace Dotmim.Sync.Tests
 
         /// <summary>
         /// </summary>
-        [Theory, TestPriority(15)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
@@ -1730,7 +1728,7 @@ namespace Dotmim.Sync.Tests
         }
 
         /// </summary>
-        [Theory, TestPriority(16)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_NULLS_ServerShouldWins(SyncOptions options)
         {
@@ -1755,7 +1753,7 @@ namespace Dotmim.Sync.Tests
         }
 
         /// </summary>
-        [Theory, TestPriority(16)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_NULLS_ServerShouldWins_CozHandler (SyncOptions options)
         {
@@ -1803,7 +1801,7 @@ namespace Dotmim.Sync.Tests
         }
 
         /// </summary>
-        [Theory, TestPriority(17)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_NULLS_ClientShouldWins(SyncOptions options)
         {
@@ -1832,7 +1830,7 @@ namespace Dotmim.Sync.Tests
 
 
         /// </summary>
-        [Theory, TestPriority(17)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_DC_NULLS_ClientShouldWins_CozHandler(SyncOptions options)
         {
@@ -1882,9 +1880,6 @@ namespace Dotmim.Sync.Tests
 
         }
 
-
-
-
         /// <summary>
         /// Generate a deleted row on Server, that does not exists on Client, it's resolved as:
         /// </summary>
@@ -1919,7 +1914,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        [Theory, TestPriority(19)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_NULLC_DS_ServerShouldWins(SyncOptions options)
         {
@@ -1944,7 +1939,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Theory, TestPriority(19)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_NULLC_DS_ServerShouldWins_CozHandler(SyncOptions options)
         {
@@ -1992,7 +1987,7 @@ namespace Dotmim.Sync.Tests
         }
 
         /// </summary>
-        [Theory, TestPriority(20)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_NULLC_DS_ClientShouldWins(SyncOptions options)
         {
@@ -2024,7 +2019,7 @@ namespace Dotmim.Sync.Tests
 
 
         /// </summary>
-        [Theory, TestPriority(20)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_NULLC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
@@ -2081,7 +2076,7 @@ namespace Dotmim.Sync.Tests
         /// Generate a conflict when inserting one row on server and the same row on each client
         /// Server should wins the conflict because default behavior
         /// </summary>
-        [Theory, TestPriority(21)]
+        [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Conflict_UC_US_ClientChoosedTheWinner(SyncOptions options)
         {

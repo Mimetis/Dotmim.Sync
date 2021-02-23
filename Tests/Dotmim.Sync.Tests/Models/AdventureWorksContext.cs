@@ -86,7 +86,7 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<ProductModel> ProductModel { get; set; }
         public virtual DbSet<SalesOrderDetail> SalesOrderDetail { get; set; }
         public virtual DbSet<SalesOrderHeader> SalesOrderHeader { get; set; }
-        public virtual DbSet<Sql> Sql { get; set; }
+        //public virtual DbSet<Sql> Sql { get; set; }
         public virtual DbSet<Posts> Posts { get; set; }
         public virtual DbSet<PostTag> PostTag { get; set; }
         public virtual DbSet<Tags> Tags { get; set; }
@@ -324,7 +324,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.Operation).HasMaxLength(50);
 
-                entity.Property(e => e.TimeStamp).HasColumnType("datetime");
+                entity.Property(e => e.TimeStampDate).HasColumnType("datetime");
             });
 
             modelBuilder.Entity<Product>(entity =>
@@ -670,19 +670,20 @@ namespace Dotmim.Sync.Tests.Models
                     .HasConstraintName("FK_SalesOrderHeader_Address_ShipTo_AddressID");
             });
 
-            modelBuilder.Entity<Sql>(entity =>
-            {
-                entity.Property(e => e.SqlId).ValueGeneratedNever();
+            //modelBuilder.Entity<Sql>(entity =>
+            //{
+            //    entity.Property(e => e.SqlId).ValueGeneratedNever();
 
-                entity.Property(e => e.File).IsRequired();
+            //    entity.Property(e => e.File).IsRequired();
 
-                // since mysql ef provider does not support Object as type in a property
-                // just ignore it for this provider
-                if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Sqlite)
-                    entity.Ignore(e => e.Value);
-                else
-                    entity.Property(e => e.Value).HasColumnType("sql_variant");
-            });
+            //    // since mysql ef provider does not support Object as type in a property
+            //    // just ignore it for this provider
+            //    if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Sqlite)
+            //        //entity.Ignore(e => e.Value);
+            //        entity.Property(e => e.Value).HasColumnType("TEXT");
+            //    else
+            //        entity.Property(e => e.Value).HasColumnType("sql_variant");
+            //});
 
             modelBuilder.Entity<Posts>(entity =>
             {

@@ -172,7 +172,6 @@ namespace Dotmim.Sync.Sqlite
 
             string str1 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
             string str2 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
-            string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
 
             // Generate Update command
             var stringBuilder = new StringBuilder();
@@ -181,24 +180,56 @@ namespace Dotmim.Sync.Sqlite
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var columnParameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+
                 stringBuilderParametersValues.Append($"{empty}@{columnParameterName} as {columnName}");
                 stringBuilderArguments.Append($"{empty}{columnName}");
                 stringBuilderParameters.Append($"{empty}[c].{columnName}");
-                empty = ", ";
+                empty = "\n, ";
             }
 
-            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
-            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+            // create update statement without PK
+            var emptyUpdate = string.Empty;
+            var columnsToUpdate = false;
+            var stringBuilderUpdateSet = new StringBuilder();
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, false))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                stringBuilderUpdateSet.Append($"{emptyUpdate}{columnName}=excluded.{columnName}");
+                emptyUpdate = "\n, ";
+
+                columnsToUpdate = true;
+            }
+
+            var primaryKeys = string.Join(",",
+                this.TableDescription.PrimaryKeys.Select(name => ParserName.Parse(name).Quoted().ToString()));
+
+            // add CTE
+            stringBuilder.AppendLine($"WITH CHANGESET as (SELECT {stringBuilderParameters.ToString()} ");
             stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
             stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
-
-            stringBuilder.Append($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
+            stringBuilder.AppendLine($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
             stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
             stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
             stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
-            stringBuilder.AppendLine($"OR @sync_force_write = 1;");
+            stringBuilder.AppendLine($"OR @sync_force_write = 1)");
+
+            stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            // use CTE here. The CTE is required in order to make the "ON CONFLICT" statement work. Otherwise SQLite cannot parse it
+            // Note, that we have to add the pseudo WHERE TRUE clause here, as otherwise the SQLite parser may confuse the following ON
+            // with a join clause, thus, throwing a parsing error
+            // See a detailed explanation here at the official SQLite documentation: "Parsing Ambiguity" on page https://www.sqlite.org/lang_UPSERT.html
+            stringBuilder.AppendLine($" SELECT * from CHANGESET WHERE TRUE");
+            if (columnsToUpdate)
+            {
+                stringBuilder.AppendLine($" ON CONFLICT ({primaryKeys}) DO UPDATE SET ");
+                stringBuilder.Append(stringBuilderUpdateSet.ToString()).AppendLine(";");
+            }
+            else
+                stringBuilder.AppendLine($" ON CONFLICT ({primaryKeys}) DO NOTHING; ");
+
+            stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
             stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
@@ -405,13 +436,16 @@ namespace Dotmim.Sync.Sqlite
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE (");
-            stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tAND [side].[update_scope_id] IS NULL");
+            //stringBuilder.AppendLine("WHERE (");
+            //stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
+            //stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
+            //stringBuilder.AppendLine(")");
 
-            //stringBuilder.AppendLine("\tAND (([side].[sync_row_is_frozen] = 0 AND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL))");
-            //stringBuilder.AppendLine("\tOR ([side].[sync_row_is_frozen] = 1 AND [side].[update_scope_id] <> @sync_scope_id AND [side].[update_scope_id] IS NOT NULL))");
-            stringBuilder.AppendLine(")");
+            // Looking at discussion https://github.com/Mimetis/Dotmim.Sync/discussions/453, trying to remove ([side].[update_scope_id] <> @sync_scope_id)
+            // since we are sure that sqlite will never be a server side database
+
+            stringBuilder.AppendLine("WHERE ([side].[timestamp] > @sync_min_timestamp AND [side].[update_scope_id] IS NULL)");
+
 
             this.AddCommandName(DbCommandType.SelectChanges, stringBuilder.ToString());
             this.AddCommandName(DbCommandType.SelectChangesWithFilters, stringBuilder.ToString());

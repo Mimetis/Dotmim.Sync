@@ -12,8 +12,11 @@ namespace Dotmim.Sync.SqlServer.Manager
     {
 
         // Even if precision max can be 38 on SQL Server, prefer go for 28, to not having a truncation
-        public const Byte PRECISION_MAX = 28;
-        public const Byte SCALE_MAX = 18;
+        // public const Byte PRECISION_MAX = 28;
+        // 2021/02/16 : Trying to resverse back to 38
+        public const byte PRECISION_MAX = 38;
+
+        public const byte SCALE_MAX = 18;
 
         /// <summary>
         /// Gets the DbType issue from the server type name

@@ -22,7 +22,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public string[] Tables => new string[]
         {
             "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail",  "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
 
@@ -205,7 +205,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Equal(17, args.Schema.Tables.Count);
+                Assert.Equal(16, args.Schema.Tables.Count);
                 onSchemaRead = true;
 
             });
@@ -216,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(schema);
             Assert.Equal(SyncStage.SchemaReading, localOrchestrator.GetContext().SyncStage);
-            Assert.Equal(17, schema.Tables.Count);
+            Assert.Equal(16, schema.Tables.Count);
             Assert.True(onSchemaRead);
             Assert.True(onSchemaReading);
 
@@ -374,7 +374,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var tables = new string[]
             {
                 "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-                "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+                "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
                 "PricesList", "PricesListCategory", "PricesListDetail", "WRONGTABLE"
             };
             var setup = new SyncSetup(tables);

@@ -54,20 +54,44 @@ namespace Dotmim.Sync
         public override int EventId => SyncEventsId.Provisioning.Id;
     }
 
-    public class DeprovisionedArgs : ProvisionedArgs
+    public class DeprovisionedArgs : ProgressArgs
     {
+        public SyncProvision Provision { get; }
+        public SyncSet Schema { get; }
+
+
         public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, provision, schema, connection, transaction)
+        : base(context, connection, transaction)
         {
+            Provision = provision;
+            Schema = schema;
         }
+        public override string Source => Connection.Database;
+        public override string Message => $"Deprovisioned {Schema.Tables.Count} Tables. Provision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioned.Id;
     }
 
-    public class DeprovisioningArgs : ProvisioningArgs
+    public class DeprovisioningArgs : ProgressArgs
     {
-        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction) : base(context, provision, schema, connection, transaction)
+        /// <summary>
+        /// Get the provision type (Flag enum)
+        /// </summary>
+        public SyncProvision Provision { get; }
+
+        /// <summary>
+        /// Gets the schema to be applied in the database
+        /// </summary>
+        public SyncSet Schema { get; }
+        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        : base(context, connection, transaction)
+
         {
+            Provision = provision;
+            Schema = schema;
         }
+        public override string Source => Connection.Database;
+
+        public override string Message => $"Deprovisioning {Schema.Tables.Count} Tables. Provision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioning.Id;
     }
 

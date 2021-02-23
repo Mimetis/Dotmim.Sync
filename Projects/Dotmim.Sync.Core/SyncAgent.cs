@@ -114,12 +114,12 @@ namespace Dotmim.Sync
 
         // 1
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="serverProvider">local provider to your server database</param>
-        /// <param name="tables">tables list</param>
-        /// <param name="scopeName">scope name</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="serverProvider">Local Provider connecting to your server database</param>
+        /// <param name="tables">Tables list to synchronize</param>
+        /// <param name="scopeName">Scope Name</param>
         public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, serverProvider, new SyncOptions(), new SyncSetup(tables), scopeName)
         {
@@ -127,10 +127,10 @@ namespace Dotmim.Sync
 
         // 2
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="serverProvider">local provider to your server database</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="serverProvider">Local Provider connecting to your server database</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, serverProvider, new SyncOptions(), new SyncSetup(), scopeName)
@@ -139,11 +139,11 @@ namespace Dotmim.Sync
 
         // 3
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="serverProvider">local provider to your server database</param>
-        /// <param name="options">sync options</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="serverProvider">Local Provider connecting to your server database</param>
+        /// <param name="options">Sync Options defining options used by your local and remote provider</param>
         /// <param name="tables">tables list</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, SyncOptions options, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
@@ -151,14 +151,27 @@ namespace Dotmim.Sync
         {
         }
 
+        // 3.5
+        /// <summary>
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
+        /// </summary>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="serverProvider">Local Provider connecting to your server database</param>
+        /// <param name="setup">Sync Setup containing your tables and columns list.</param>
+        /// <param name="scopeName">scope name</param>
+        public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+            : this(clientProvider, serverProvider, new SyncOptions(), setup, scopeName)
+        {
+        }
+
         // 4
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="serverProvider">local provider to your server database</param>
-        /// <param name="options">Sync options.</param>
-        /// <param name="setup">Contains list of your tables.</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="serverProvider">Local Provider connecting to your server database</param>
+        /// <param name="options">Sync Options defining options used by your local and remote provider</param>
+        /// <param name="setup">Sync Setup containing the definition of your tables, columns, filters and naming conventions.</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, CoreProvider serverProvider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
             : this(scopeName)
@@ -181,10 +194,10 @@ namespace Dotmim.Sync
 
         // 5
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="remoteOrchestrator">remote orchestrator</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
         /// <param name="tables">tables list</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
@@ -195,10 +208,10 @@ namespace Dotmim.Sync
 
         // 6
         /// <summary>
-        /// Create an agent that will manages a complete sync between one client and one server
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="remoteOrchestrator">remote orchestrator</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, remoteOrchestrator, new SyncOptions(), new SyncSetup(), scopeName)
@@ -209,11 +222,11 @@ namespace Dotmim.Sync
 
         // 7
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="remoteOrchestrator">remote orchestrator</param>
-        /// <param name="options">sync options</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
+        /// <param name="options">Sync Options defining options used by your local provider (and remote provider if remoteOrchestrator is not a WebClientOrchestrator)</param>
         /// <param name="tables">tables list</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
@@ -223,26 +236,38 @@ namespace Dotmim.Sync
 
         // 8
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="remoteOrchestrator">remote orchestrator</param>
-        /// <param name="options">sync options</param>
-        /// <param name="tables">tables list</param>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
+        /// <param name="options">Sync Options defining options used by your local provider (and remote provider if remoteOrchestrator is not a WebClientOrchestrator)</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
             : this(clientProvider, remoteOrchestrator, options, new SyncSetup(), scopeName)
         {
         }
 
+        // 8.5
+        /// <summary>
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
+        /// </summary>
+        /// <param name="clientProvider">Local Provider connecting to your client database</param>
+        /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
+        /// <param name="options">Sync Options defining options used by your local provider (and remote provider if remoteOrchestrator is not a WebClientOrchestrator)</param>
+        /// <param name="scopeName">scope name</param>
+        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+            : this(clientProvider, remoteOrchestrator, new SyncOptions(), setup, scopeName)
+        {
+        }
+
         // 9
         /// <summary>
-        /// Create an agent based on TCP connection
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
         /// <param name="clientProvider">local provider to your client database</param>
-        /// <param name="remoteOrchestrator">remote orchestrator</param>
-        /// <param name="options">Sync options.</param>
-        /// <param name="setup">Contains list of your tables.</param>
+        /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
+        /// <param name="options">Sync Options defining options used by your local provider (and remote provider if remoteOrchestrator is not a WebClientOrchestrator)</param>
+        /// <param name="setup">Sync Setup containing the definition of your tables, columns, filters and naming conventions.</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
             : this(scopeName)
@@ -268,12 +293,13 @@ namespace Dotmim.Sync
 
             this.EnsureOptionsAndSetupInstances();
         }
+
         // 10
         /// <summary>
-        /// Create an agent based on 2 orchestrators
+        /// Creates a synchronization agent that will handle a full synchronization between a client and a server.
         /// </summary>
-        /// <param name="localOrchestrator">local orchestrator</param>
-        /// <param name="remoteOrchestrator">remote orchestrator</param>
+        /// <param name="localOrchestrator">Local Orchestrator already configured with a SyncProvider</param>
+        /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
         /// <param name="scopeName">scope name</param>
         public SyncAgent(LocalOrchestrator localOrchestrator, RemoteOrchestrator remoteOrchestrator, string scopeName = SyncOptions.DefaultScopeName)
             : this(scopeName)
@@ -420,6 +446,10 @@ namespace Dotmim.Sync
                 }
                 else
                 {
+                    // Do we need to upgrade ?
+                    if (this.LocalOrchestrator.InternalNeedsToUpgrade(context, clientScopeInfo))
+                        await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress);
+
                     // on remote orchestrator get scope info as well
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
@@ -521,11 +551,14 @@ namespace Dotmim.Sync
                 // Policy is always Server policy, so reverse this policy to get the client policy
                 var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
+                // Get if we have already applied a snapshot, so far we don't need to reset table even if we are i Reinitialize Mode
+                var snapshotApplied = result.SnapshotChangesAppliedOnClient != null;
+
                 // apply is 25%
                 context.ProgressPercentage = 0.75;
                 var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
                     clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
-                    clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy,
+                    clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
                     serverChanges.ServerChangesSelected, cancellationToken, progress);
 
                 completeTime = DateTime.UtcNow;

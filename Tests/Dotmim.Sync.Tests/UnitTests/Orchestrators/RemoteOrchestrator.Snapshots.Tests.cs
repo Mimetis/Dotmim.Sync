@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public string[] Tables => new string[]
         {
             "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
+            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail"
         };
 
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(finalDirectoryFullName, args.BatchInfo.DirectoryRoot);
                 Assert.Equal("ALL", args.BatchInfo.DirectoryName);
                 Assert.Single(args.BatchInfo.BatchPartsInfo);
-                Assert.Equal(17, args.BatchInfo.BatchPartsInfo[0].Tables.Length);
+                Assert.Equal(16, args.BatchInfo.BatchPartsInfo[0].Tables.Length);
                 Assert.True(args.BatchInfo.BatchPartsInfo[0].IsLastBatch);
 
                 onSnapshotCreated = true;
@@ -202,7 +202,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(finalDirectoryFullName, bi.DirectoryRoot);
             Assert.Equal("ALL", bi.DirectoryName);
             Assert.Single(bi.BatchPartsInfo);
-            Assert.Equal(17, bi.BatchPartsInfo[0].Tables.Length);
+            Assert.Equal(16, bi.BatchPartsInfo[0].Tables.Length);
             Assert.True(bi.BatchPartsInfo[0].IsLastBatch);
             Assert.Equal(rowsCount, bi.RowsCount);
 
@@ -226,7 +226,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, (int)summaryObject["parts"][0]["index"]);
             Assert.NotNull(summaryObject["parts"][0]["last"]);
             Assert.True((bool)summaryObject["parts"][0]["last"]);
-            Assert.Equal(17, summaryObject["parts"][0]["tables"].Count());
+            Assert.Equal(16, summaryObject["parts"][0]["tables"].Count());
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -300,7 +300,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(finalDirectoryFullName, bi.DirectoryRoot);
             Assert.Equal("CompanyName_ABikeStore", bi.DirectoryName);
             Assert.Single(bi.BatchPartsInfo);
-            Assert.Equal(17, bi.BatchPartsInfo[0].Tables.Length);
+            Assert.Equal(16, bi.BatchPartsInfo[0].Tables.Length);
             Assert.True(bi.BatchPartsInfo[0].IsLastBatch);
 
             // Check summary.json exists.
@@ -323,7 +323,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, (int)summaryObject["parts"][0]["index"]);
             Assert.NotNull(summaryObject["parts"][0]["last"]);
             Assert.True((bool)summaryObject["parts"][0]["last"]);
-            Assert.Equal(17, summaryObject["parts"][0]["tables"].Count());
+            Assert.Equal(16, summaryObject["parts"][0]["tables"].Count());
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -400,7 +400,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 totalCountRows += serverDbCtx.ProductModel.Count();
                 totalCountRows += serverDbCtx.SalesOrderDetail.Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Count();
-                totalCountRows += serverDbCtx.Sql.Count();
+                //totalCountRows += serverDbCtx.Sql.Count();
                 totalCountRows += serverDbCtx.Tags.Count();
             }
 

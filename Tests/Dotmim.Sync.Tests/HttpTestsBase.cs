@@ -13,7 +13,7 @@ using Xunit.Abstractions;
 namespace Dotmim.Sync.Tests
 {
 
-    [TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
+    //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public abstract class HttpTestsBase : IClassFixture<HelperProvider>, IDisposable
     {
         private Stopwatch stopwatch;

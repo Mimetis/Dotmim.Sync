@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class SqlServerTcpTests : TcpTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            {ProviderType.Sql, ProviderType.MariaDB,  ProviderType.Sqlite};
+            { ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql};
 
         public SqlServerTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
@@ -28,8 +28,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         public override string[] Tables => new string[]
         {
             "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
-            "PricesList", "PricesListCategory", "PricesListDetail"
+            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
+            "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
         public override ProviderType ServerType => ProviderType.Sql;
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 totalCountRows += serverDbCtx.ProductModel.Count();
                 totalCountRows += serverDbCtx.SalesOrderDetail.Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Count();
-                totalCountRows += serverDbCtx.Sql.Count();
+                //totalCountRows += serverDbCtx.Sql.Count();
                 totalCountRows += serverDbCtx.Tags.Count();
             }
 

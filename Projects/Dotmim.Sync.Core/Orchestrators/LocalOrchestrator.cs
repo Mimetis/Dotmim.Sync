@@ -184,7 +184,7 @@ namespace Dotmim.Sync
         /// Apply changes locally
         /// </summary>
         internal Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)> ApplyChangesAsync(ScopeInfo scope, SyncSet schema, BatchInfo serverBatchInfo,
-                              long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, DatabaseChangesSelected allChangesSelected,
+                              long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, bool snapshotApplied, DatabaseChangesSelected allChangesSelected,
                               CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.ChangesApplying, async (ctx, connection, transaction) =>
         {
@@ -201,7 +201,7 @@ namespace Dotmim.Sync
             // Create the message containing everything needed to apply changes
             var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, this.Setup, policy,
                             this.Options.DisableConstraintsOnApplyChanges,
-                            this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder,
+                            this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
                             serverBatchInfo);
 
 
@@ -259,7 +259,7 @@ namespace Dotmim.Sync
 
             // Applying changes and getting the new client scope info
             var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, clientScopeInfo.Schema, serverBatchInfo,
-                    clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, new DatabaseChangesSelected(), cancellationToken, progress).ConfigureAwait(false);
+                    clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, new DatabaseChangesSelected(), cancellationToken, progress).ConfigureAwait(false);
 
             var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx, changesApplied);
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
