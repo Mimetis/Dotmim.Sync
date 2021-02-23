@@ -979,11 +979,11 @@ namespace Dotmim.Sync.Tests.Models
             });
 
             modelBuilder.Entity<PriceListCategory>()
-                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES" }
-                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "BIKES", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "COMPT", }
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_BIKES" }
+                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_BIKES", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_COMPT", }
                     );
 
 
@@ -995,7 +995,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "BIKES",
+                    PriceCategoryId = "_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1005,11 +1005,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "CLOTHE")
+                .Where(p => p.ProductCategoryId == "_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "CLOTHE",
+                    PriceCategoryId = "_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1024,7 +1024,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "BIKES",
+                    PriceCategoryId = "_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
@@ -1033,11 +1033,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "CLOTHE")
+                .Where(p => p.ProductCategoryId == "_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "CLOTHE",
+                    PriceCategoryId = "_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
