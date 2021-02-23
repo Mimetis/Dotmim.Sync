@@ -432,10 +432,6 @@ namespace Dotmim.Sync.Tests.Models
                     .HasColumnName("Name")
                     .HasMaxLength(50);
 
-                entity.Property(e => e.ParentProductCategoryId)
-                    .HasColumnName("ParentProductCategoryID")
-                    .HasMaxLength(12);
-
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
 
@@ -446,11 +442,6 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
-
-                //entity.HasOne(d => d.ParentProductCategory)
-                //    .WithMany(p => p.InverseParentProductCategory)
-                //    .HasForeignKey(d => d.ParentProductCategoryId)
-                //    .HasConstraintName("FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID");
             });
 
             modelBuilder.Entity<ProductModel>(entity =>
@@ -829,13 +820,13 @@ namespace Dotmim.Sync.Tests.Models
                 new ProductCategory { ProductCategoryId = "_COMPT", Name = "Components" },
                 new ProductCategory { ProductCategoryId = "_CLOTHE", Name = "Clothing" },
                 new ProductCategory { ProductCategoryId = "_ACCESS", Name = "Accessories" },
-                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes", ParentProductCategoryId = "_BIKES" },
-                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes", ParentProductCategoryId = "_BIKES" },
-                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames", ParentProductCategoryId = "_COMPT" },
-                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes", ParentProductCategoryId = "_BIKES" },
-                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars", ParentProductCategoryId = "_COMPT" },
-                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets", ParentProductCategoryId = "_COMPT" },
-                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes", ParentProductCategoryId = "_COMPT" }
+                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes"},
+                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames" },
+                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes"},
+                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars"},
+                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets" },
+                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes"}
 
             );
 
