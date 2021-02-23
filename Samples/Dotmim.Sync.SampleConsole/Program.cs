@@ -56,7 +56,8 @@ internal class Program
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
         //await SynchronizeWithFiltersAsync();
-        await SynchronizeAsync();
+        await CreateSnapshotAsync();
+        //await SynchronizeAsync();
     }
 
     private static async Task Snapshot_Then_ReinitializeAsync()
@@ -258,27 +259,18 @@ internal class Program
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("advdazdazd.db");
 
+        var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        var options = new SyncOptions()
         {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
-            Console.ResetColor();
-        });
-        //var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
-
-        var options = new SyncOptions { BatchSize = 1000 };
-
-        //Console.ForegroundColor = ConsoleColor.Gray;
-        //Console.WriteLine($"Creating snapshot");
-        //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
-        //remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
+            BatchSize = 1000,
+            SnapshotsDirectory = snapshotDirectory,
+            DisableConstraintsOnApplyChanges = false
+        };
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -290,15 +282,11 @@ internal class Program
 
         do
         {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
             try
             {
-                // Upgrade to last version
-                //if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
-                //    await agent.RemoteOrchestrator.UpgradeAsync(progress:progress);
 
-                var r = await agent.SynchronizeAsync(progress);
+
+                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
                 Console.WriteLine(r);
             }
             catch (Exception e)
@@ -306,16 +294,11 @@ internal class Program
                 Console.WriteLine(e.Message);
             }
 
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
     }
 
     private static async Task CreateSnapshotAsync()
     {
-        // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
 
         var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
@@ -328,26 +311,27 @@ internal class Program
 
         var options = new SyncOptions() { BatchSize = 1000, SnapshotsDirectory = snapshotDirectory };
 
-        Console.ForegroundColor = ConsoleColor.Gray;
-        Console.WriteLine($"Creating snapshot ");
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
-        var stopwatch = Stopwatch.StartNew();
+        Console.WriteLine($"Creating snapshot for each customer");
 
-        remoteOrchestrator.OnTableChangesSelected(args =>
+        var setup = new SyncSetup(new string[] { "Customer" });
+        setup.Filters.Add("Customer", "CustomerID");
+
+        // creating a snapshot for each customerId (that is my filter)
+        for (int customerId = 1; customerId <= 10; customerId++)
         {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{args.PogressPercentageString}\t {args.Message}");
-            Console.ResetColor();
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+            var stopwatch = Stopwatch.StartNew();
 
-        });
+            var parameters = new SyncParameters {
+        { "CustomerID", customerId }
+    };
 
-        await remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress);
-        stopwatch.Stop();
-
-        var str = $"Snapshot created: {stopwatch.Elapsed.Minutes}:{stopwatch.Elapsed.Seconds}.{stopwatch.Elapsed.Milliseconds}";
-
-
-        Console.WriteLine(str);
+            await remoteOrchestrator.CreateSnapshotAsync(syncParameters: parameters,
+                                                            progress: snapshotProgress);
+            stopwatch.Stop();
+            var str = $"Snapshot for customer {customerId} created: {stopwatch.Elapsed.Minutes}:{stopwatch.Elapsed.Seconds}.{stopwatch.Elapsed.Milliseconds}";
+            Console.WriteLine(str);
+        }
     }
 
 
@@ -777,7 +761,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-   
+
     private static async Task SynchronizeWithFiltersAsync()
     {
         // Create 2 Sql Sync providers
