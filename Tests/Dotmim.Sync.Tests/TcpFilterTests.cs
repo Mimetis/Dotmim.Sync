@@ -1473,7 +1473,7 @@ namespace Dotmim.Sync.Tests
                 var name = HelperDatabase.GetRandomName();
                 var pn = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
 
-                var product = new Product { ProductId = Guid.NewGuid(), ProductCategoryId = "BIKES", Name = name, ProductNumber = pn };
+                var product = new Product { ProductId = Guid.NewGuid(), ProductCategoryId = "_BIKES", Name = name, ProductNumber = pn };
 
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
                 ctx.Product.Add(product);
