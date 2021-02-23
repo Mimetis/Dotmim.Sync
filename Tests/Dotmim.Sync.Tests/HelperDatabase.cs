@@ -98,7 +98,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static async Task CreateSqlServerDatabaseAsync(string dbName, bool recreateDb = true)
         {
-            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
             {
                 Console.WriteLine($"Creating SQL Server database failed when connecting to master ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
                 return Task.CompletedTask;
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static async Task CreateMySqlDatabaseAsync(string dbName, bool recreateDb = true)
         {
-            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
             {
                 Console.WriteLine($"Creating MySql database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
                 return Task.CompletedTask;
@@ -154,11 +154,11 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static async Task CreateMariaDBDatabaseAsync(string dbName, bool recreateDb = true)
         {
-            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
-            {
-                Console.WriteLine($"Creating MariaDB database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
-                return Task.CompletedTask;
-            });
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+             {
+                 Console.WriteLine($"Creating MariaDB database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                 return Task.CompletedTask;
+             });
 
             SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
 
@@ -388,7 +388,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
-    
+
         /// <summary>
         /// Gets the Create or Re-create a database script text
         /// </summary>

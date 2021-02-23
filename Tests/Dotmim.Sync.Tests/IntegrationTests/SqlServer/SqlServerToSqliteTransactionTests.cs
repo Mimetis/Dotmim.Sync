@@ -32,8 +32,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         public override string[] Tables => new string[]
         {
             "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "dbo.Sql", "Posts", "Tags", "PostTag",
-            "PricesList", "PricesListCategory", "PricesListDetail"
+            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
+            "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
@@ -108,7 +108,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 totalCountRows += serverDbCtx.ProductModel.Count();
                 totalCountRows += serverDbCtx.SalesOrderDetail.Count();
                 totalCountRows += serverDbCtx.SalesOrderHeader.Count();
-                totalCountRows += serverDbCtx.Sql.Count();
+                //totalCountRows += serverDbCtx.Sql.Count();
                 totalCountRows += serverDbCtx.Tags.Count();
             }
 
@@ -121,7 +121,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// Therefore, those rows would be ignored during the current sync and in **all** future syncs!
         /// </summary>
         /// <returns></returns>
-        [Fact, TestPriority(1)]
+        [Fact]
         public async Task EnsureLocalSqliteProvier_DoesNotUseDeferredTransactions_WhenSelectingChanges()
         {
             // Arrange

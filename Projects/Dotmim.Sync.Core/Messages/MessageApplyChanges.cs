@@ -16,7 +16,7 @@ namespace Dotmim.Sync
         /// </summary>
         public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
-                                    bool useBulkOperations, bool cleanMetadatas, bool cleanFolder, BatchInfo changes)
+                                    bool useBulkOperations, bool cleanMetadatas, bool cleanFolder, bool snapshotApplied, BatchInfo changes)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
@@ -30,6 +30,7 @@ namespace Dotmim.Sync
             this.CleanMetadatas = cleanMetadatas;
             this.CleanFolder = cleanFolder;
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
+            this.SnapshoteApplied = snapshotApplied;
         }
 
 
@@ -94,5 +95,9 @@ namespace Dotmim.Sync
         /// </summary>
         public BatchInfo Changes { get; set; }
 
+        /// <summary>
+        /// Gets or Sets if we have already applied a snapshot. So far, we don't reset the tables, even if we are in reinit mode.
+        /// </summary>
+        public bool SnapshoteApplied { get; }
     }
 }

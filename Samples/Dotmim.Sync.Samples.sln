@@ -73,7 +73,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamAppSync.Android", "XamAp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SqliteEncryption", "SqliteEncryption\SqliteEncryption.csproj", "{36722BB9-F9BA-4B91-A575-8DE10430CACC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Conflict", "Conflict\Conflict.csproj", "{42407D52-4928-43DD-BBFE-D01E868CDA32}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Conflict", "Conflict\Conflict.csproj", "{42407D52-4928-43DD-BBFE-D01E868CDA32}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

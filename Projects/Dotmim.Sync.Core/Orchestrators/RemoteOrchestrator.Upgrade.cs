@@ -116,15 +116,15 @@ namespace Dotmim.Sync
             {
                 // Migrate from 0.5.x to 0.6.0
                 if (version.Minor <= 5)
-                {
                     version = await UpgdrateTo600Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
 
                 // Migrate from 0.6.0 to 0.6.1
-                if (version.Minor <= 6 && version.Build <= 0)
-                {
+                if (version.Minor <= 6 && version.Build == 0)
                     version = await UpgdrateTo601Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
+
+                // Migrate from 0.6.0 to 0.6.1
+                if (version.Minor <= 6 && version.Build == 1)
+                    version = await UpgdrateTo602Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             }
 
@@ -147,6 +147,11 @@ namespace Dotmim.Sync
 
             var newVersion = new Version(0, 6, 0);
 
+            var message = "Upgrade to 0.6.0 done";
+            var args = new UpgradeProgressArgs(context, message, newVersion,   connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction );
+
+
             return Task.FromResult(newVersion);
         }
 
@@ -154,10 +159,16 @@ namespace Dotmim.Sync
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
+            var newVersion = new Version(0, 6, 1);
             // Sorting tables based on dependencies between them
             var schemaTables = schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
+
+            var message = "Upgrade to 0.6.1:";
+            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
 
             foreach (var schemaTable in schemaTables)
             {
@@ -170,6 +181,8 @@ namespace Dotmim.Sync
                     await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                args = new UpgradeProgressArgs(context, $"SelectInitializedChanges stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                this.ReportProgress(context, progress, args, connection, transaction);
 
                 // Upgrade Select Initial Changes With Filter
                 if (tableBuilder.TableDescription.GetFilter() != null)
@@ -179,11 +192,59 @@ namespace Dotmim.Sync
                         await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChangesWithFilters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChangesWithFilters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                    args = new UpgradeProgressArgs(context, $"SelectInitializedChangesWithFilters stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                    this.ReportProgress(context, progress, args, connection, transaction);
                 }
 
             }
 
-            return new Version(0, 6, 1);
+            message = "Upgrade to 0.6.1 done.";
+            args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+            return newVersion;
+        }
+
+
+        private async Task<Version> UpgdrateTo602Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            var newVersion = new Version(0, 6, 2);
+
+            var message = $"Upgrade to {newVersion}:";
+            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+
+            // Update the "Update trigger" for all tables
+
+
+            // Sorting tables based on dependencies between them
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            foreach (var schemaTable in schemaTables)
+            {
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+
+                // Upgrade Select Initial Changes
+                var exists = await InternalExistsTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (exists)
+                    await InternalDropTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await InternalCreateTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                args = new UpgradeProgressArgs(context, $"Update Trigger for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                this.ReportProgress(context, progress, args, connection, transaction);
+
+            }
+
+            message = $"Upgrade to {newVersion} done.";
+            args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+
+
+            return newVersion;
         }
     }
 }

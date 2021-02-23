@@ -1,11 +1,5 @@
 # Filters
 
-## Vertical filter
-
-[TODO]
-
-## Horizontal filter
-
 You can apply a filter on any table, even if the filtered column belongs to another table.
 For instance, you can apply a filter on the **Customer** table, even if the filter is on the **Address** table (for example, filtering on the **City**)
 
@@ -212,7 +206,7 @@ setup.Filters.Add(orderHeaderFilter);
 var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
 orderDetailsFilter.AddParameter("City", "Address", true);
 orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
-orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
 orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
 orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
 orderDetailsFilter.AddWhere("City", "Address", "City");
@@ -233,6 +227,9 @@ if (!agent.Parameters.Contains("City"))
 // Because I've specified that "postal" could be null, I can set the value to DBNull.Value (and the get all postal code in Toronto city)
 if (!agent.Parameters.Contains("postal"))
     agent.Parameters.Add("postal", DBNull.Value);
+
+// [Optional]: Get some progress event during the sync process
+var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}"));
 
 var s1 = await agent.SynchronizeAsync(progress);
 
@@ -320,7 +317,7 @@ public void ConfigureServices(IServiceCollection services)
     var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
     orderDetailsFilter.AddParameter("City", "Address", true);
     orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
-    orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+    orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
     orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
     orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
     orderDetailsFilter.AddWhere("City", "Address", "City");
@@ -349,7 +346,7 @@ var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/
 var agent = new SyncAgent(clientProvider, proxyClientProvider, tables);
 
 // [Optional]: Get some progress event during the sync process
-var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}"));
 
 if (!agent.Parameters.Contains("City"))
     agent.Parameters.Add("City", "Toronto");
