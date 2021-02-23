@@ -272,10 +272,6 @@ namespace Dotmim.Sync.Tests.Models
                     .HasColumnName("Name")
                     .HasMaxLength(50);
 
-                entity.Property(e => e.ParentProductCategoryId)
-                    .HasColumnName("ParentProductCategoryID")
-                    .HasMaxLength(6);
-
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
 
@@ -509,13 +505,13 @@ namespace Dotmim.Sync.Tests.Models
                 new ProductCategory { ProductCategoryId = "COMPT", Name = "Components" },
                 new ProductCategory { ProductCategoryId = "CLOTHE", Name = "Clothing" },
                 new ProductCategory { ProductCategoryId = "ACCESS", Name = "Accessories" },
-                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes", ParentProductCategoryId = "BIKES" },
-                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes", ParentProductCategoryId = "BIKES" },
-                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames", ParentProductCategoryId = "COMPT" },
-                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes", ParentProductCategoryId = "BIKES" },
-                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars", ParentProductCategoryId = "COMPT" },
-                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets", ParentProductCategoryId = "COMPT" },
-                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes", ParentProductCategoryId = "COMPT" }
+                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes"},
+                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames"},
+                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes" },
+                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars"},
+                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets" },
+                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes" }
 
             );
 
