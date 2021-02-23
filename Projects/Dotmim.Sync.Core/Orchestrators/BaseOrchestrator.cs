@@ -25,13 +25,13 @@ namespace Dotmim.Sync
         internal SyncContext syncContext;
         internal ILogger logger;
 
-        // Internal table builder cache
-        private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
-            = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
+        //// Internal table builder cache
+        //private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
+        //    = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
 
-        // Internal scope builder cache
-        private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
-            = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
+        //// Internal scope builder cache
+        //private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
+        //    = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
 
         // Internal sync adapter cache
         private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
@@ -188,14 +188,14 @@ namespace Dotmim.Sync
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
             // Make an interceptor when retrying to connect
-            var onRetry = new Func<Exception, int, TimeSpan, Task>((ex, cpt, ts) =>
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
                 this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), cancellationToken));
 
             // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
                                 3,
                                 retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt),
-                                ex => this.Provider.ShouldRetryOn(ex),
+                                (ex, arg) => this.Provider.ShouldRetryOn(ex),
                                 onRetry);
 
             // Execute my OpenAsync in my policy context
@@ -276,24 +276,26 @@ namespace Dotmim.Sync
         /// </summary>
         public DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
         {
-            var p = this.Provider.GetParsers(tableDescription, setup);
+            //var p = this.Provider.GetParsers(tableDescription, setup);
 
-            var s = JsonConvert.SerializeObject(setup);
-            var data = Encoding.UTF8.GetBytes(s);
-            var hash = HashAlgorithm.SHA256.Create(data);
-            var hashString = Convert.ToBase64String(hash);
+            //var s = JsonConvert.SerializeObject(setup);
+            //var data = Encoding.UTF8.GetBytes(s);
+            //var hash = HashAlgorithm.SHA256.Create(data);
+            //var hashString = Convert.ToBase64String(hash);
 
-            // Create the key
-            var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+            //// Create the key
+            //var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
 
-            // Get a lazy command instance
-            var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey,
-                k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
+            //// Get a lazy command instance
+            //var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey,
+            //    k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
 
-            // Get the concrete instance
-            var tableBuilder = lazyTableBuilder.Value;
+            //// Get the concrete instance
+            //var tableBuilder = lazyTableBuilder.Value;
 
-            return tableBuilder;
+            //return tableBuilder;
+
+            return this.Provider.GetTableBuilder(tableDescription, setup);
         }
 
 
@@ -302,17 +304,19 @@ namespace Dotmim.Sync
         /// </summary>
         public DbScopeBuilder GetScopeBuilder(string scopeInfoTableName)
         {
-            // Create the key
-            var commandKey = $"{scopeInfoTableName}-{this.Provider.ConnectionString}";
+            //// Create the key
+            //var commandKey = $"{scopeInfoTableName}-{this.Provider.ConnectionString}";
 
-            // Get a lazy command instance
-            var lazyScopeBuilder = scopeBuilders.GetOrAdd(commandKey,
-                k => new Lazy<DbScopeBuilder>(() => this.Provider.GetScopeBuilder(scopeInfoTableName)));
+            //// Get a lazy command instance
+            //var lazyScopeBuilder = scopeBuilders.GetOrAdd(commandKey,
+            //    k => new Lazy<DbScopeBuilder>(() => this.Provider.GetScopeBuilder(scopeInfoTableName)));
 
-            // Get the concrete instance
-            var scopeBuilder = lazyScopeBuilder.Value;
+            //// Get the concrete instance
+            //var scopeBuilder = lazyScopeBuilder.Value;
 
-            return scopeBuilder;
+            //return scopeBuilder;
+
+            return this.Provider.GetScopeBuilder(scopeInfoTableName);
         }
         /// <summary>
         /// Sets the current context

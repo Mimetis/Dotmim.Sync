@@ -2,6 +2,7 @@
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace HelloWebSyncClient
@@ -21,20 +22,30 @@ namespace HelloWebSyncClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync");
+            var serverOrchestrator = new WebClientOrchestrator("https://localhost.fiddler:44342/api/sync");
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqlSyncProvider(clientConnectionString);
+
 
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverOrchestrator);
 
             do
             {
-                // Launch the sync process
-                var s1 = await agent.SynchronizeAsync();
-                // Write results
-                Console.WriteLine(s1);
+                try
+                {
+                    var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.PogressPercentageString}:\t{args.Message}"));
+                    // Launch the sync process
+                    var s1 = await agent.SynchronizeAsync(progress);
+                    // Write results
+                    Console.WriteLine(s1);
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
 
             } while (Console.ReadKey().Key != ConsoleKey.Escape);
 

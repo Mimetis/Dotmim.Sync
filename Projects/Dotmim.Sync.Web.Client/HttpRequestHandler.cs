@@ -40,7 +40,8 @@ namespace Dotmim.Sync.Web.Client
         /// Process a request message with HttpClient object. 
         /// </summary>
         public async Task<U> ProcessRequestAsync<U>(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId, string scopeName,
-            ISerializerFactory serializerFactory, IConverter converter, int batchSize, CancellationToken cancellationToken)
+            ISerializerFactory serializerFactory, IConverter converter, int batchSize, SyncPolicy policy, 
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (client is null)
                 throw new ArgumentNullException(nameof(client));
@@ -78,57 +79,26 @@ namespace Dotmim.Sync.Web.Client
                 // Check if data is null
                 data = data == null ? new byte[] { } : data;
 
-                // get byte array content
-                var arrayContent = new ByteArrayContent(data);
-
-                // reinit client
-                // client.DefaultRequestHeaders.Clear();
-
-                // Create the request message
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri.ToString()) { Content = arrayContent };
-
-                // Adding the serialization format used and session id and scope name
-                requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
-                requestMessage.Headers.Add("dotmim-sync-scope-name", scopeName);
-                requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
-
-                // serialize the serialization format and the batchsize we want.
-                var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
-                requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
-
-                // if client specifies a converter, add it as header
-                if (converter != null)
-                    requestMessage.Headers.Add("dotmim-sync-converter", converter.Key);
-
                 // calculate hash
                 var hash = HashAlgorithm.SHA256.Create(data);
                 var hashString = Convert.ToBase64String(hash);
 
-                requestMessage.Headers.Add("dotmim-sync-hash", hashString);
+                // get byte array content
+                var arrayContent = new ByteArrayContent(data);
 
-                // Adding others headers
-                if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
-                    foreach (var kvp in this.CustomHeaders)
-                        if (!requestMessage.Headers.Contains(kvp.Key))
-                            requestMessage.Headers.Add(kvp.Key, kvp.Value);
-
+                string contentType = null;
                 // If Json, specify header
-                if (serializerFactory.Key == SerializersCollection.JsonSerializer.Key && !requestMessage.Content.Headers.Contains("content-type"))
-                    requestMessage.Content.Headers.Add("content-type", "application/json");
+                if (serializerFactory.Key == SerializersCollection.JsonSerializer.Key)
+                    contentType = "application/json";
 
-                var args = new HttpSendingRequestMessageArgs(requestMessage, this.orchestrator.GetContext()); 
-                await this.orchestrator.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                // serialize the serialization format and the batchsize we want.
+                var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
 
-                // Eventually, send the request
-                response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+                //// Execute my OpenAsync in my policy context
+                response = await policy.ExecuteAsync(ct => this.SendAsync(client, requestUri.ToString(),
+                    sessionId.ToString(), scopeName, step, arrayContent, ser, converter, hashString, contentType,
+                    ct), cancellationToken, progress);
 
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // throw exception if response is not successfull
-                // get response from server
-                if (!response.IsSuccessStatusCode && response.Content != null)
-                    await HandleSyncError(response);
 
                 // try to set the cookie for http session
                 var headers = response?.Headers;
@@ -196,6 +166,57 @@ namespace Dotmim.Sync.Web.Client
             }
         }
 
+
+        private async Task<HttpResponseMessage> SendAsync(HttpClient client, string requestUri,
+            string sessionId, string scopeName, HttpStep step,
+            ByteArrayContent arrayContent, string ser, IConverter converter, string hashString, string contentType, CancellationToken cancellationToken)
+        {
+
+            // Create the request message
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri) { Content = arrayContent };
+
+            // Adding the serialization format used and session id and scope name
+            requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
+            requestMessage.Headers.Add("dotmim-sync-scope-name", scopeName);
+            requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
+
+            requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
+
+            // if client specifies a converter, add it as header
+            if (converter != null)
+                requestMessage.Headers.Add("dotmim-sync-converter", converter.Key);
+
+
+            requestMessage.Headers.Add("dotmim-sync-hash", hashString);
+
+            // Adding others headers
+            if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
+                foreach (var kvp in this.CustomHeaders)
+                    if (!requestMessage.Headers.Contains(kvp.Key))
+                        requestMessage.Headers.Add(kvp.Key, kvp.Value);
+
+            // If Json, specify header
+            if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
+                requestMessage.Content.Headers.Add("content-type", contentType);
+
+            var args = new HttpSendingRequestMessageArgs(requestMessage, this.orchestrator.GetContext());
+            await this.orchestrator.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+
+            // Eventually, send the request
+            var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
+
+            // throw exception if response is not successfull
+            // get response from server
+            if (!response.IsSuccessStatusCode && response.Content != null)
+                await HandleSyncError(response);
+
+            return response;
+
+        }
+
         /// <summary>
         /// Handle a request error
         /// </summary>
@@ -218,7 +239,7 @@ namespace Dotmim.Sync.Web.Client
                 else
                 {
                     using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                    
+
                     if (streamResponse.CanRead && streamResponse.Length > 0)
                     {
                         // Error are always json formatted

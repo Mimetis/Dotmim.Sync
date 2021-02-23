@@ -53,203 +53,264 @@ internal class Program
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
-        await Synchronize30ClientsAsync();
         // await SyncHttpThroughKestrellAsync();
         // await SyncThroughWebApiAsync();
+        //await SynchronizeWithFiltersAsync();
+        await SynchronizeAsync();
     }
 
-
-    private static Task ConnectionTransactionTask2()
+    private static async Task Snapshot_Then_ReinitializeAsync()
     {
+        var clientFileName = "AdventureWorks.db";
+
+        var tables = new string[] { "Customer" };
+
+        var setup = new SyncSetup(tables)
+        {
+            // optional :
+            StoredProceduresPrefix = "ussp_",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "",
+            TrackingTablesSuffix = "_tracking"
+        };
+        setup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
+
+        var options = new SyncOptions();
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}"));
+
+        // Be sure client database file is deleted is already exists
+        if (File.Exists(clientFileName))
+            File.Delete(clientFileName);
+
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        var randomDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-        var dataSource = $"{randomDatabaseName}.db";
-        var clientProvider = new SqliteSyncProvider(dataSource);
-
-        var options = new SyncOptions { BatchSize = 1000};
-
-        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
-        agent.RemoteOrchestrator.OnConnectionOpen(coa =>
-        {
-            Console.WriteLine($"OPEN : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-        });
-        agent.RemoteOrchestrator.OnConnectionClose(coa =>
-        {
-            Console.WriteLine($"CLOSE : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-        });
-
-        return agent.RemoteOrchestrator.RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
-        {
-            var command = connection.CreateCommand();
-            command.CommandText = "Select top 1 * from Product";
-            command.Connection = connection;
-            command.Transaction = transaction;
-
-            var reader = await command.ExecuteReaderAsync();
-
-            while (reader.Read())
-                Console.WriteLine($"{reader[0]} {reader[1]} ");
-
-            reader.Close();
-            return true;
-        });
-
-    }
-    private static async Task ConnectionTransactionTask()
-    {
-        using var connection = new SqlConnection(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        await connection.OpenAsync();
-        Console.WriteLine($"OPEN : {connection.GetHashCode()} - {connection.ConnectionString}");
-
-        using var transaction = connection.BeginTransaction();
-
-        var command = connection.CreateCommand();
-        command.CommandText = "Select top 1 * from Product";
-        command.Connection = connection;
-        command.Transaction = transaction;
-
-        var reader = await command.ExecuteReaderAsync();
-
-        while (reader.Read())
-            Console.WriteLine($"{reader[0]} {reader[1]} ");
-
-        transaction.Commit();
-
-        await connection.CloseAsync();
-        Console.WriteLine($"CLOSE : {connection.GetHashCode()} - {connection.ConnectionString}");
-    }
-
-
-    private static async Task Synchronize30ClientsAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        var clients = new List<SqliteSyncProvider>();
-
-        int maxClients = 30;
-
-        var allTasks = new List<Task<SyncResult>>();
-        //var allTasks = new List<Task>();
+        // sql with change tracking enabled
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqliteSyncProvider(clientFileName);
 
         // Creating an agent that will handle all the process
-        for (var i = 0; i < maxClients; i++)
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("0 - Initiliaze. Initialize Client database and get all Customers");
+
+        // First sync to initialize
+        var r = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(r);
+
+
+        // DeprovisionAsync
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("1 - Deprovision The Server");
+
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        // We are in change tracking mode, so no need to deprovision triggers and tracking table. But it's part of the sample
+        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
+
+        var serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
+
+        serverScope.Setup = null;
+        serverScope.Schema = null;
+
+        // save the server scope
+        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
+
+
+        // DeprovisionAsync
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("2 - Provision Again With New Setup");
+
+        tables = new string[] { "Customer", "ProductCategory" };
+
+        setup = new SyncSetup(tables)
         {
-            var randomDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-            var dataSource = $"{randomDatabaseName}.db";
-            var clientProvider = new SqliteSyncProvider(dataSource);
+            // optional :
+            StoredProceduresPrefix = "ussp_",
+            StoredProceduresSuffix = "",
+            TrackingTablesPrefix = "",
+            TrackingTablesSuffix = "_tracking"
+        };
+        setup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
+        setup.Tables["ProductCategory"].SyncDirection = SyncDirection.DownloadOnly;
 
-            var options = new SyncOptions { BatchSize = 1000 };
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
 
-            var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+        var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
 
-            agent.RemoteOrchestrator.OnConnectionOpen(coa =>
-            {
-                Console.WriteLine($"OPEN : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-            });
-            agent.RemoteOrchestrator.OnConnectionClose(coa =>
-            {
-                Console.WriteLine($"CLOSE : {coa.Connection.GetHashCode()} - {coa.Connection.ConnectionString}");
-            });
+        serverScope.Setup = setup;
+        serverScope.Schema = newSchema;
 
-            //agent.RemoteOrchestrator.OnTransactionOpen(toa =>
-            //{
-            //    var command = toa.Connection.CreateCommand();
-            //    command.Connection = toa.Connection;
-            //    command.Transaction = toa.Transaction;
+        // save the server scope
+        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
 
-            //    // Set transaction level for the session
-            //    command.CommandText = "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;";
-            //    command.ExecuteNonQuery();
-            //    Console.WriteLine($"ISOL LEVEL RU : {toa.Connection.GetHashCode()} - {toa.Connection.ConnectionString}");
-            //});
+        // Snapshot
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("3 - Create Snapshot");
 
-            // Using the Progress pattern to handle progession during the synchronization
-            var progress = new SynchronousProgress<ProgressArgs>(s =>
-            {
-                //Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"{randomDatabaseName}:{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-                //Console.ResetColor();
-            });
+        var snapshotDirctory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-            var t = agent.SynchronizeAsync();
-
-            allTasks.Add(t);
-        }
-
-        await Task.WhenAll(allTasks);
-
-        foreach (var t in allTasks)
+        options = new SyncOptions
         {
-            Console.WriteLine(t.Result);
-        }
+            SnapshotsDirectory = snapshotDirctory,
+            BatchSize = 5000
+        };
+
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        // Create a snapshot
+        var bi = await remoteOrchestrator.CreateSnapshotAsync(progress: progress);
+
+        Console.WriteLine("Create snapshot done.");
+        Console.WriteLine($"Rows Count in the snapshot:{bi.RowsCount}");
+        foreach (var bpi in bi.BatchPartsInfo)
+            foreach (var table in bpi.Tables)
+                Console.WriteLine($"File: {bpi.FileName}. Table {table.TableName}: Rows Count:{table.RowsCount}");
+
+        // Snapshot
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("4 - Sync again with Reinitialize Mode");
+
+
+        agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+        Console.WriteLine(r);
+
+
+        Console.WriteLine();
+        Console.WriteLine("----------------------");
+        Console.WriteLine("5 - Check client rows");
+
+        using var sqliteConnection = new SqliteConnection(clientProvider.ConnectionString);
+
+        sqliteConnection.Open();
+
+        var command = new SqliteCommand("Select count(*) from Customer", sqliteConnection);
+        var customerCount = (long)command.ExecuteScalar();
+
+        command = new SqliteCommand("Select count(*) from ProductCategory", sqliteConnection);
+        var productCategoryCount = (long)command.ExecuteScalar();
+
+        Console.WriteLine($"Customer Rows Count on Client Database:{customerCount} rows");
+        Console.WriteLine($"ProductCategory Rows Count on Client Database:{productCategoryCount} rows");
+
+        sqliteConnection.Close();
+
     }
 
+
+    private static async Task SynchronizeComputedColumnAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("tcp_sv_yq0h0pxbfu3"));
+        var clientProvider = new SqliteSyncProvider("sv0DAD1.db");
+        var tables = new string[] { "PricesListDetail" };
+
+        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.ResetColor();
+        });
+
+        var options = new SyncOptions { BatchSize = 1000 };
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, tables);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                // Write results
+                Console.WriteLine(r);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
     private static async Task SynchronizeAsync()
     {
-// Create 2 Sql Sync providers
-var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-//var clientProvider = new SqliteSyncProvider("adv.db");
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("advdazdazd.db");
 
 
-var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
-{
-    Console.ForegroundColor = ConsoleColor.Blue;
-    Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
-    Console.ResetColor();
-});
-var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
+        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.ResetColor();
+        });
+        //var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-var options = new SyncOptions { BatchSize = 1000, SnapshotsDirectory = snapshotDirectory };
+        var options = new SyncOptions { BatchSize = 1000 };
 
-//Console.ForegroundColor = ConsoleColor.Gray;
-//Console.WriteLine($"Creating snapshot");
-//var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
-//remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
+        //Console.ForegroundColor = ConsoleColor.Gray;
+        //Console.WriteLine($"Creating snapshot");
+        //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
+        //remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress).GetAwaiter().GetResult();
 
-// Creating an agent that will handle all the process
-var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
-
-
-// Using the Progress pattern to handle progession during the synchronization
-var progress = new SynchronousProgress<ProgressArgs>(s =>
-{
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-    Console.ResetColor();
-});
-
-do
-{
-    // Console.Clear();
-    Console.WriteLine("Sync Start");
-    try
-    {
-        // Upgrade to last version
-        if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
-            await agent.RemoteOrchestrator.UpgradeAsync();
-
-        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-        // Write results
-        Console.WriteLine(r);
-    }
-    catch (Exception e)
-    {
-        Console.WriteLine(e.Message);
-    }
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
 
 
-    //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-} while (Console.ReadKey().Key != ConsoleKey.Escape);
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
 
-Console.WriteLine("End");
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Upgrade to last version
+                //if (await agent.RemoteOrchestrator.NeedsToUpgradeAsync())
+                //    await agent.RemoteOrchestrator.UpgradeAsync(progress:progress);
+
+                var r = await agent.SynchronizeAsync(progress);
+                Console.WriteLine(r);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
     }
 
     private static async Task CreateSnapshotAsync()
@@ -716,1405 +777,7 @@ Console.WriteLine("End");
         Console.WriteLine("End");
     }
 
-    public static async Task TestHelloKestrellAsync()
-    {
-
-        var hostBuilder = new WebHostBuilder()
-            .UseKestrel()
-            .UseUrls("http://127.0.0.1:0/");
-
-        hostBuilder.Configure(app =>
-        {
-            app.Run(async context => await context.Response.WriteAsync("Hello world"));
-
-        });
-
-        var host = hostBuilder.Build();
-        host.Start();
-        string serviceUrl = $"http://localhost:{host.GetPort()}/";
-
-        var client = new HttpClient();
-        var s = await client.GetAsync(serviceUrl);
-
-        Console.WriteLine(await s.Content.ReadAsStringAsync());
-
-    }
-
-    public static async Task TestWebSendAsync()
-    {
-        // server provider
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqliteSyncProvider("testblob2.db");
-
-        var configureServices = new Action<IServiceCollection>(services =>
-        {
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, new string[] { "Product" });
-
-        });
-
-        var serverHandler = new RequestDelegate(async context =>
-        {
-            await context.Response.WriteAsync("Hello");
-        });
-
-        using var server = new KestrellTestServer(configureServices);
-
-        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        {
-            var client = new HttpClient();
-            var s = await client.GetAsync(serviceUri);
-
-        });
-        await server.Run(serverHandler, clientHandler);
-
-    }
-
-
-    private static async Task SynchronizeWithFiltersAndCustomerSerializerAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new MySqlSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("clientX.db");
-
-
-        var configureServices = new Action<IServiceCollection>(services =>
-        {
-            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
-
-            setup.Filters.Add("Customer", "CompanyName");
-
-            var addressCustomerFilter = new SetupFilter("CustomerAddress");
-            addressCustomerFilter.AddParameter("CompanyName", "Customer");
-            addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-            addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-            setup.Filters.Add(addressCustomerFilter);
-
-            var addressFilter = new SetupFilter("Address");
-            addressFilter.AddParameter("CompanyName", "Customer");
-            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-            addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-            addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-            setup.Filters.Add(addressFilter);
-
-            var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-            orderHeaderFilter.AddParameter("CompanyName", "Customer");
-            orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-            orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-            orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-            setup.Filters.Add(orderHeaderFilter);
-
-            var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-            orderDetailsFilter.AddParameter("CompanyName", "Customer");
-            orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
-            orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-            orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-            orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-            setup.Filters.Add(orderDetailsFilter);
-
-            // Add pref suf
-            setup.StoredProceduresPrefix = "s";
-            setup.StoredProceduresSuffix = "";
-            setup.TrackingTablesPrefix = "t";
-            setup.TrackingTablesSuffix = "";
-
-            var options = new SyncOptions();
-
-            // To add a converter, create an instance and add it to the special WebServerOptions
-            var webServerOptions = new WebServerOptions();
-            webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
-
-
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, options, webServerOptions);
-
-        });
-
-        var serverHandler = new RequestDelegate(async context =>
-        {
-            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-
-            var progress = new SynchronousProgress<ProgressArgs>(pa =>
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
-                Console.ResetColor();
-            });
-
-            await webServerManager.HandleRequestAsync(context, default, progress);
-        });
-
-
-        using var server = new KestrellTestServer(configureServices);
-
-        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        {
-            do
-            {
-                Console.Clear();
-                Console.WriteLine("Web sync start");
-                try
-                {
-                    var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new CustomMessagePackSerializerFactory());
-                    var agent = new SyncAgent(clientProvider, webClientOrchestrator);
-
-                    // Launch the sync process
-                    if (!agent.Parameters.Contains("CompanyName"))
-                        agent.Parameters.Add("CompanyName", "Professional Sales and Service");
-
-                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}"));
-
-                    var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                    Console.WriteLine(s);
-                }
-                catch (SyncException e)
-                {
-                    Console.WriteLine(e.ToString());
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                }
-
-
-                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-
-        });
-        await server.Run(serverHandler, clientHandler);
-    }
-
-
-    public static async Task SyncBlobTypeToSqliteThroughKestrellAsync()
-    {
-        // server provider
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqliteSyncProvider("testblob2.db");
-
-        var configureServices = new Action<IServiceCollection>(services =>
-        {
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, new string[] { "Product" });
-
-        });
-
-        var serverHandler = new RequestDelegate(async context =>
-        {
-            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-
-            var progress = new SynchronousProgress<ProgressArgs>(pa =>
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
-                Console.ResetColor();
-            });
-
-            await webServerManager.HandleRequestAsync(context, default, progress);
-        });
-
-        using var server = new KestrellTestServer(configureServices);
-
-        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        {
-            do
-            {
-                Console.Clear();
-                Console.WriteLine("Web sync start");
-                try
-                {
-                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri));
-                    var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}"));
-                    var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                    Console.WriteLine(s);
-                }
-                catch (SyncException e)
-                {
-                    Console.WriteLine(e.ToString());
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                }
-
-
-                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-
-        });
-        await server.Run(serverHandler, clientHandler);
-
-    }
-
-
-    private static async Task TestSqlSyncBlobAsync()
-    {
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("AdventureWorks"));
-        var clientProvider = new SqliteSyncProvider("testblob.db");
-
-        var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins };
-        // adding 2 new tables
-        var tables = new string[] { "Product" };
-
-        var agent = new SyncAgent(clientProvider, serverProvider, tables);
-
-        var progress = new SynchronousProgress<ProgressArgs>(args =>
-                Console.WriteLine($"{args.PogressPercentageString}:{args.Message} "));
-
-        do
-        {
-            // Launch the sync process
-            var s1 = await agent.SynchronizeAsync(progress);
-            // Write results
-            Console.WriteLine(s1);
-
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-
-    }
-
-    private static async Task SynchronizeHeavyTableAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("HeavyTables"));
-        var clientProvider = new SqliteSyncProvider("heavyTwo.db");
-
-        var setup = new SyncSetup(new string[] { "Customer" });
-
-        var options = new SyncOptions();
-        options.BatchSize = 4000;
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var r = await agent.SynchronizeAsync(progress);
-                // Write results
-                Console.WriteLine(r);
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-    private static async Task TestRemovingAColumnWithInterceptorAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
-
-        var options = new SyncOptions();
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-
-        agent.RemoteOrchestrator.OnProvisioning(args =>
-        {
-            var schema = args.Schema;
-
-            foreach (var table in schema.Tables)
-            {
-                var columnsToRemove = new string[] { "ModifiedDate", "rowguid" };
-                foreach (var columnName in columnsToRemove)
-                {
-                    var column = table.Columns[columnName];
-
-                    if (column != null)
-                        table.Columns.Remove(column);
-                }
-            }
-
-        });
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var s1 = await agent.SynchronizeAsync();
-
-                // Write results
-                Console.WriteLine(s1);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-    private static async Task TestMySqlToSqliteSyncAsync()
-    {
-        // Create Sqlite database and table
-        CreateSqliteDatabaseAndTable("Scenario01", "Customer");
-
-        // Create MySql database and table
-        CreateMySqlDatabase("Scenario01", null);
-        CreateMySqlTable("Scenario01", "Customer", null);
-
-        // Add one mysql record
-        AddMySqlRecord("Scenario01", "Customer");
-
-        // Add one record in sqlite
-        AddSqliteRecord("Scenario01", "Customer");
-
-        // sync with a client database with rows, before sync is enabled, and who needs to be sent to server anyway
-        await TestSyncAsync("Scenario01", "Scenario01", "Customer", false);
-
-        // Add two records in sqlite
-        AddSqliteRecord("Scenario01", "Customer");
-        AddSqliteRecord("Scenario01", "Customer");
-
-        // Add two records in mysql
-        AddMySqlRecord("Scenario01", "Customer");
-        AddMySqlRecord("Scenario01", "Customer");
-
-        await TestSyncAsync("Scenario01", "Scenario01", "Customer", true);
-    }
-
-    private static void CreateMySqlTable(string databaseName, string tableName, MySqlConnection mySqlConnection)
-    {
-
-        string sql = $"DROP TABLE IF EXISTS `{tableName}`; " +
-            $" CREATE TABLE `F` (" +
-            $" `ID` char(36) NOT NULL " +
-            $",`F1` int NULL" +
-            $",`F2` longtext NOT NULL" +
-            $",`F3` longtext NULL" +
-            $", PRIMARY KEY(`ID`))";
-
-        var cmd = new MySqlCommand(sql, mySqlConnection);
-        cmd.ExecuteNonQuery();
-    }
-    private static void CreateSqliteDatabaseAndTable(string fileName, string tableName)
-    {
-
-        // Delete sqlite database
-        string filePath = null;
-        try
-        {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            filePath = Path.Combine(Directory.GetCurrentDirectory(), $"{fileName}.db");
-
-            if (File.Exists(filePath))
-                File.Delete(filePath);
-
-        }
-        catch (Exception)
-        {
-        }
-
-
-
-        var builder = new SqliteConnectionStringBuilder();
-        builder.DataSource = $"{fileName}.db";
-
-        if (!File.Exists(fileName))
-        {
-            string sql = $"CREATE TABLE [{tableName}] (" +
-                        " [ID] text NOT NULL UNIQUE" +
-                        ",[F1] integer NULL" +
-                        ",[F2] text NOT NULL COLLATE NOCASE" +
-                        ",[F3] text NULL COLLATE NOCASE" +
-                        ", PRIMARY KEY([ID]))";
-
-            using SqliteConnection dBase = new SqliteConnection(builder.ConnectionString);
-            try
-            {
-                dBase.Open();
-                SqliteCommand cmd = new SqliteCommand(sql, dBase);
-                cmd.ExecuteNonQuery();
-                dBase.Close();
-                Console.WriteLine("Database created: " + fileName);
-            }
-            catch (SqliteException ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-        }
-
-    }
-
-
-    private static MySqlConnection GetMyConnection(string databaseName = null)
-    {
-        var builder = new MySqlConnectionStringBuilder();
-
-        if (!string.IsNullOrEmpty(databaseName))
-            builder.Database = databaseName;
-
-        builder.Port = 3307;
-        builder.UserID = "root";
-        builder.Password = "Password12!";
-
-        var mySqlConnection = new MySqlConnection(builder.ConnectionString);
-        return mySqlConnection;
-
-    }
-
-    private static void BugExecutingProcedureMySql()
-    {
-        var databaseName = "test";
-
-        // creating database
-        using (var connection = GetMyConnection())
-        {
-            connection.Open();
-            CreateMySqlDatabase(databaseName, connection);
-            connection.Close();
-        }
-
-        // creating 1st version of table and stored proc (then call it)
-        using (var connection = GetMyConnection(databaseName))
-        {
-            connection.Open();
-
-            CreateMySqlTable(databaseName, connection);
-            CreateMySqlProcedure(databaseName, connection);
-            // call 1st version of my stored procedure
-            InsertMySqlRecord(connection);
-
-            connection.Close();
-        }
-
-        // creating 2nd version of table and stored proc (then call it)
-        using (var connection = GetMyConnection(databaseName))
-        {
-            connection.Open();
-            // Adding one column to table
-            AlterMySqlTable(databaseName, connection);
-            // Creating 2nd version of my stored procedure
-            CreateMySqlProcedure2(databaseName, connection);
-            // FAIL: Trying to call this new stored procedure
-            InsertMySqlRecord2(connection);
-
-            connection.Close();
-        }
-
-    }
-
-    // Creating my database
-    private static void CreateMySqlDatabase(string databaseName, MySqlConnection mySqlConnection)
-    {
-        string sqlDB = $"DROP DATABASE IF EXISTS `{databaseName}`; CREATE DATABASE `{databaseName}`;";
-        var cmd = new MySqlCommand(sqlDB, mySqlConnection);
-        cmd.ExecuteNonQuery();
-
-    }
-
-    // Creating my table
-    private static void CreateMySqlTable(string databaseName, MySqlConnection mySqlConnection)
-    {
-
-        string sql = $"DROP TABLE IF EXISTS `F`; " +
-            $" CREATE TABLE `F` (" +
-            $" `ID` char(36) NOT NULL " +
-            $",`F1` int NULL" +
-            $",`F2` longtext NOT NULL" +
-            $",`F3` longtext NULL" +
-            $", PRIMARY KEY(`ID`))";
-
-        var cmd = new MySqlCommand(sql, mySqlConnection);
-        cmd.ExecuteNonQuery();
-    }
-
-    // Adding new column to my table
-    private static void AlterMySqlTable(string databaseName, MySqlConnection mySqlConnection)
-    {
-        var cmd = new MySqlCommand($"ALTER TABLE `F` ADD `F4` longtext NULL;", mySqlConnection);
-        cmd.ExecuteNonQuery();
-    }
-
-    // Creating 1st version of the stored procedure
-    private static void CreateMySqlProcedure(string databaseName, MySqlConnection mySqlConnection)
-    {
-        var procedure = new StringBuilder();
-        procedure.AppendLine($"DROP PROCEDURE IF EXISTS `insert`;");
-        procedure.AppendLine($"CREATE PROCEDURE `insert` (");
-        procedure.AppendLine($" in_ID char(36)");
-        procedure.AppendLine($",in_F1 int");
-        procedure.AppendLine($",in_F2 longtext");
-        procedure.AppendLine($",in_F3 longtext)");
-        procedure.AppendLine($"BEGIN");
-        procedure.AppendLine($"  INSERT INTO `F` (");
-        procedure.AppendLine($"  `ID`, `F1`, `F2`, `F3`) ");
-        procedure.AppendLine($"VALUES (");
-        procedure.AppendLine($"  in_ID, in_F1, in_F2, in_F3);");
-        procedure.AppendLine($"END;");
-
-        var cmd = new MySqlCommand(procedure.ToString(), mySqlConnection);
-
-        cmd.ExecuteNonQuery();
-    }
-
-    // Creating 2nd version of the stored procedure
-    private static void CreateMySqlProcedure2(string databaseName, MySqlConnection mySqlConnection)
-    {
-        var procedure = new StringBuilder();
-        procedure.AppendLine($"DROP PROCEDURE IF EXISTS `insert`;");
-        procedure.AppendLine($"CREATE PROCEDURE `insert` (");
-        procedure.AppendLine($" in_ID char(36)");
-        procedure.AppendLine($",in_F1 int");
-        procedure.AppendLine($",in_F2 longtext");
-        procedure.AppendLine($",in_F3 longtext");
-        procedure.AppendLine($",in_F4 longtext)");
-        procedure.AppendLine($"BEGIN");
-        procedure.AppendLine($"  INSERT INTO `F` (");
-        procedure.AppendLine($"  `ID`, `F1`, `F2`, `F3`, `F4`) ");
-        procedure.AppendLine($"VALUES (");
-        procedure.AppendLine($"  in_ID, in_F1, in_F2, in_F3, in_F4);");
-        procedure.AppendLine($"END;");
-
-        var cmd = new MySqlCommand(procedure.ToString(), mySqlConnection);
-
-        cmd.ExecuteNonQuery();
-    }
-
-    // Executing 1st version of the stored procedure
-    private static void InsertMySqlRecord(MySqlConnection mySqlConnection)
-    {
-        var cmd = new MySqlCommand
-        {
-            CommandText = "`insert`",
-            CommandType = CommandType.StoredProcedure,
-            Connection = mySqlConnection
-        };
-
-        cmd.Parameters.AddWithValue("in_ID", Guid.NewGuid().ToString());
-        cmd.Parameters.AddWithValue("in_F1", 1);
-        cmd.Parameters.AddWithValue("in_F2", "Hello");
-        cmd.Parameters.AddWithValue("in_F3", "world");
-
-        cmd.ExecuteNonQuery();
-    }
-
-    // Executing 2nd version of the stored procedure
-    private static void InsertMySqlRecord2(MySqlConnection mySqlConnection)
-    {
-        var cmd = new MySqlCommand
-        {
-            CommandText = "`insert`",
-            CommandType = CommandType.StoredProcedure,
-            Connection = mySqlConnection
-        };
-
-        cmd.Parameters.AddWithValue("in_ID", Guid.NewGuid().ToString());
-        cmd.Parameters.AddWithValue("in_F1", 1);
-        cmd.Parameters.AddWithValue("in_F2", "Hello");
-        cmd.Parameters.AddWithValue("in_F3", "world");
-        cmd.Parameters.AddWithValue("in_F4", "again !");
-
-        cmd.ExecuteNonQuery();
-    }
-
-
-    private static void AddMySqlRecord(string databaseName, string tableName)
-    {
-
-        var builder = new MySqlConnectionStringBuilder();
-
-        builder.Database = databaseName;
-        builder.Port = 3307;
-        builder.UserID = "root";
-        builder.Password = "Password12!";
-
-        string sql = $"INSERT INTO `{tableName}` (ID,F1,F2,F3) VALUES (@ID, 2, '2st2tem', '1111111')";
-
-        using MySqlConnection dBase = new MySqlConnection(builder.ConnectionString);
-        try
-        {
-            MySqlCommand cmd = new MySqlCommand(sql, dBase);
-            var parameter = new MySqlParameter("@ID", Guid.NewGuid());
-            cmd.Parameters.Add(parameter);
-
-            dBase.Open();
-            cmd.ExecuteNonQuery();
-            dBase.Close();
-            Console.WriteLine("Record added into table " + tableName);
-        }
-        catch (SqliteException ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-    }
-    private static void AddSqliteRecord(string fileName, string tableName)
-    {
-
-        var builder = new SqliteConnectionStringBuilder();
-        builder.DataSource = $"{fileName}.db";
-
-        string sql = $"INSERT INTO [{tableName}] (ID,F1,F2,F3) VALUES ( @ID, 1, '1stItem', '1111111')";
-
-        using SqliteConnection dBase = new SqliteConnection(builder.ConnectionString);
-        try
-        {
-            SqliteCommand cmd = new SqliteCommand(sql, dBase);
-            var parameter = new SqliteParameter("@ID", Guid.NewGuid());
-            cmd.Parameters.Add(parameter);
-
-
-            dBase.Open();
-            cmd.ExecuteNonQuery();
-            dBase.Close();
-            Console.WriteLine("Record added into table " + tableName);
-        }
-        catch (SqliteException ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-    }
-
-
-    private static async Task TestSyncAsync(string mySqlDatabaseName, string sqliteFileName, string tableName, bool uploadOnly = false)
-    {
-        var builder = new MySqlConnectionStringBuilder();
-
-        builder.Database = mySqlDatabaseName;
-        builder.Port = 3307;
-        builder.UserID = "root";
-        builder.Password = "Password12!";
-
-        var serverProvider = new MySqlSyncProvider(builder.ConnectionString);
-
-        var sqlitebuilder = new SqliteConnectionStringBuilder();
-        sqlitebuilder.DataSource = $"{sqliteFileName}.db";
-
-        var clientProvider = new SqliteSyncProvider(sqlitebuilder.ConnectionString);
-
-        var setup = new SyncSetup(new string[] { tableName });
-        setup.Tables[tableName].SyncDirection = uploadOnly ? SyncDirection.UploadOnly : SyncDirection.Bidirectional;
-
-        var options = new SyncOptions();
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-
-                var s = await agent.SynchronizeAsync();
-                Console.WriteLine(s);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-    private static async Task TestClientHasRowsToSyncAnywayAsync(string mySqlDatabaseName, string sqliteFileName, string tableName)
-    {
-        var builder = new MySqlConnectionStringBuilder();
-
-        builder.Database = mySqlDatabaseName;
-        builder.Port = 3307;
-        builder.UserID = "root";
-        builder.Password = "Password12!";
-
-        var serverProvider = new MySqlSyncProvider(builder.ConnectionString);
-
-        var sqlitebuilder = new SqliteConnectionStringBuilder();
-        sqlitebuilder.DataSource = $"{sqliteFileName}.db";
-
-        var clientProvider = new SqliteSyncProvider(sqlitebuilder.ConnectionString);
-
-        var setup = new SyncSetup(new string[] { tableName });
-
-        var options = new SyncOptions { ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-
-                //var s = await agent.SynchronizeAsync();
-                //Console.WriteLine(s);
-
-                var schema = await agent.RemoteOrchestrator.GetSchemaAsync();
-
-                await agent.LocalOrchestrator.UpdateUntrackedRowsAsync(schema);
-
-                var s2 = await agent.SynchronizeAsync();
-                Console.WriteLine(s2);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-
-    private static async Task TestInsertJsonArrayPostgreSqlAsync()
-    {
-        var connection = new NpgsqlConnection("Host=localhost;Database=Client;User ID=postgres;Password=azerty31*;");
-
-        var lstscopes = new List<scope>
-        {
-            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope1" },
-            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope2" },
-            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope3" },
-            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope4" },
-            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope5" },
-            new scope { sync_scope_id = Guid.NewGuid(), sync_scope_name = "jsonscope6" }
-        };
-
-
-        var p = new NpgsqlParameter
-        {
-            ParameterName = "scopes",
-            NpgsqlDbType = NpgsqlDbType.Json,
-            NpgsqlValue = JsonConvert.SerializeObject(lstscopes)
-        };
-
-        try
-        {
-            using var command = new NpgsqlCommand("fn_upsert_scope_info_json", connection);
-            command.Parameters.Add(p);
-            command.CommandType = CommandType.StoredProcedure;
-
-            await connection.OpenAsync().ConfigureAwait(false);
-
-            await command.ExecuteNonQueryAsync();
-
-
-
-            connection.Close();
-        }
-        catch (Exception)
-        {
-
-            throw;
-        }
-
-    }
-
-
-
-    private static async Task TestNpgsqlAsync()
-    {
-        var commandText = $"SELECT * " +
-               " FROM information_schema.tables " +
-               " WHERE table_type = 'BASE TABLE' " +
-               " AND table_schema != 'pg_catalog' AND table_schema != 'information_schema' " +
-               " AND table_name=@tableName AND table_schema=@schemaName " +
-               " ORDER BY table_schema, table_name " +
-               " LIMIT 1";
-
-        var schemaNameString = "public";
-        var tableNameString = "actor";
-
-        var connection = new NpgsqlConnection(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
-
-        using var command = new NpgsqlCommand(commandText, connection);
-        command.Parameters.AddWithValue("@tableName", tableNameString);
-        command.Parameters.AddWithValue("@schemaName", schemaNameString);
-
-        await connection.OpenAsync().ConfigureAwait(false);
-
-        using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
-        {
-            while (reader.Read())
-            {
-                Console.WriteLine(reader["table_schema"].ToString() + "." + reader["table_name"].ToString());
-            }
-        }
-
-        connection.Close();
-    }
-
-
-    private static async Task LongTransactionBeforeRuningSyncAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqliteSyncProvider("longrunning.sqlite");
-
-        // Create standard Setup and Options
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-        var options = new SyncOptions();
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        // First Sync
-        // ----------------------
-        Console.WriteLine("FIRST INITIALIZE SYNC");
-        Console.WriteLine("--------------------");
-        var s1 = await agent.SynchronizeAsync();
-        Console.WriteLine(s1);
-
-        // Second Sync
-        // ----------------------
-        Console.WriteLine();
-        Console.WriteLine("SECOND PARALLEL SYNC");
-        Console.WriteLine("--------------------");
-
-
-        agent.LocalOrchestrator.OnDatabaseChangesSelecting(dcsa =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[{DateTime.Now:ss.ms}] - Last Sync TS start (T0) : " + dcsa.ChangesRequest.LastTimestamp.ToString().Substring(dcsa.ChangesRequest.LastTimestamp.ToString().Length - 4, 4));
-            Console.ResetColor();
-            //await InsertIntoSqliteWithCurrentTransactionAsync(dcsa.Connection, dcsa.Transaction);
-        });
-
-        agent.LocalOrchestrator.OnDatabaseChangesSelected(dcsa =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[{DateTime.Now:ss.ms}] - Last Sync TS for next run (T10) : " + dcsa.Timestamp.ToString().Substring(dcsa.Timestamp.ToString().Length - 4, 4));
-            Console.ResetColor();
-        });
-
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[{DateTime.Now:ss.ms}] - {s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var t1 = LongInsertIntoSqliteAsync(clientProvider.CreateConnection());
-        var t2 = agent.SynchronizeAsync(progress);
-
-        await Task.WhenAll(t1, t2);
-        Console.WriteLine(t2.Result);
-
-        Console.WriteLine();
-        Console.WriteLine("THIRD FINAL SYNC");
-        Console.WriteLine("--------------------");
-
-        agent.LocalOrchestrator.OnDatabaseChangesSelecting(null);
-        agent.LocalOrchestrator.OnDatabaseChangesSelected(null);
-        // Third Sync
-        // ----------------------
-        // First Sync
-        var s3 = await agent.SynchronizeAsync();
-        Console.WriteLine(s3);
-
-    }
-
-
-
-    private static async Task LongInsertIntoSqliteAsync(DbConnection connection)
-    {
-        var addressline1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-
-        var command = connection.CreateCommand();
-        command.CommandText =
-            $"Insert into Address (AddressLine1, City, StateProvince, CountryRegion, PostalCode, rowguid, ModifiedDate) Values ('{addressline1}', 'Toulouse', 'Haute Garonne', 'Occitanie', '31000', '{Guid.NewGuid()}', '2020-02-02');" +
-            $"Select timestamp from Address_tracking where AddressID = (Select AddressID from Address where AddressLine1 = '{addressline1}')";
-
-        connection.Open();
-
-        using (var transaction = connection.BeginTransaction())
-        {
-            command.Transaction = transaction;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[{DateTime.Now:ss.ms}] - Inserting row ");
-            var ts = await command.ExecuteScalarAsync();
-            Console.WriteLine($"[{DateTime.Now:ss.ms}] - SQLite Timestamp inserted (T9) : " + ts.ToString().Substring(ts.ToString().Length - 4, 4));
-
-            Console.WriteLine($"[{DateTime.Now:ss.ms}] - Waiting 10 sec before commit");
-            await Task.Delay(10000);
-
-            transaction.Commit();
-            Console.WriteLine($"[{DateTime.Now:ss.ms}] - Transaction commit");
-            Console.ResetColor();
-
-        }
-        connection.Close();
-    }
-
-    private static async Task InsertIntoSqliteWithCurrentTransactionAsync(DbConnection connection, DbTransaction transaction)
-    {
-
-
-        try
-        {
-            var addressline1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-
-            var command = connection.CreateCommand();
-            command.CommandText =
-                $"Insert into Address (AddressLine1, City, StateProvince, CountryRegion, PostalCode, rowguid, ModifiedDate) Values ('{addressline1}', 'Toulouse', 'Haute Garonne', 'Occitanie', '31000', '{Guid.NewGuid()}', '2020-02-02');" +
-                $"Select timestamp from Address_tracking where AddressID = (Select AddressID from Address where AddressLine1 = '{addressline1}')";
-
-            command.Transaction = transaction;
-            Console.WriteLine("Inserting row ");
-
-            var ts = await command.ExecuteScalarAsync();
-
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("SQLite Timestamp inserted: " + ts.ToString().Substring(ts.ToString().Length - 4, 4));
-            Console.ResetColor();
-        }
-        catch (Exception)
-        {
-
-            throw;
-        }
-
-    }
-
-
-    private static async Task SynchronizeThenDeprovisionThenProvisionAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        // Create standard Setup and Options
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-        var options = new SyncOptions();
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}"));
-
-        // First sync to have a starting point
-        var s1 = await agent.SynchronizeAsync(progress);
-
-        Console.WriteLine(s1);
-
-        // -----------------------------------------------------------------
-        // Migrating a table by adding a new column
-        // -----------------------------------------------------------------
-
-        // Adding a new column called CreatedDate to Address table, on the server, and on the client.
-        await AddNewColumnToAddressAsync(serverProvider.CreateConnection());
-        await AddNewColumnToAddressAsync(clientProvider.CreateConnection());
-
-        // -----------------------------------------------------------------
-        // Server side
-        // -----------------------------------------------------------------
-
-        // Creating a setup regarding only the table Address
-        var setupAddress = new SyncSetup(new string[] { "Address" });
-
-        // Create a server orchestrator used to Deprovision and Provision only table Address
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setupAddress);
-
-        // Unprovision the Address triggers / stored proc. 
-        // We can conserve the Address tracking table, since we just add a column, 
-        // that is not a primary key used in the tracking table
-        // That way, we are preserving historical data
-        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
-
-        // Provision the Address triggers / stored proc again, 
-        // This provision method will fetch the address schema from the database, 
-        // so it will contains all the columns, including the new Address column added
-        await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
-
-        // Now we need the full setup to get the full schema.
-        // Setup includes [Address] [Customer] and [CustomerAddress]
-        remoteOrchestrator.Setup = setup;
-        var newSchema = await remoteOrchestrator.GetSchemaAsync();
-
-        // Now we need to save this new schema to the serverscope table
-        // get the server scope again
-        var serverScope = await remoteOrchestrator.GetServerScopeAsync();
-
-        // affect good values
-        serverScope.Setup = setup;
-        serverScope.Schema = newSchema;
-
-        // save it
-        await remoteOrchestrator.SaveServerScopeAsync(serverScope);
-
-        // -----------------------------------------------------------------
-        // Client side
-        // -----------------------------------------------------------------
-
-        // Now go for local orchestrator
-        var localOrchestrator = new LocalOrchestrator(clientProvider, options, setupAddress);
-
-        // Unprovision the Address triggers / stored proc. We can conserve tracking table, since we just add a column, that is not a primary key used in the tracking table
-        // In this case, we will 
-        await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
-
-        // Provision the Address triggers / stored proc again, 
-        // This provision method will fetch the address schema from the database, so it will contains all the columns, including the new one added
-        await localOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
-
-        // Now we need to save this to clientscope
-        // get the server scope again
-        var clientScope = await localOrchestrator.GetClientScopeAsync();
-
-        // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
-        // You can create a WebClientOrchestrator and get the schema as well
-        // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
-        // var newSchema = proxyClientProvider.GetSchemaAsync();
-
-        // affect good values
-        clientScope.Setup = setup;
-        clientScope.Schema = newSchema;
-
-        // save it
-        await localOrchestrator.SaveClientScopeAsync(clientScope);
-
-
-
-
-
-        // Now test a new sync, everything should work as expected.
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var s2 = await agent.SynchronizeAsync();
-
-                // Write results
-                Console.WriteLine(s2);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-
-    }
-
-    private static void TestSqliteDoubleStatement()
-    {
-        var clientProvider = new SqliteSyncProvider(@"C:\PROJECTS\DOTMIM.SYNC\Tests\Dotmim.Sync.Tests\bin\Debug\netcoreapp2.0\st_r55jmmolvwg.db");
-        var clientConnection = new SqliteConnection(clientProvider.ConnectionString);
-
-        var commandText = "Update ProductCategory Set Name=@Name Where ProductCategoryId=@Id; " +
-                          "Select * from ProductCategory Where ProductCategoryId=@Id;";
-
-        using DbCommand command = clientConnection.CreateCommand();
-        command.Connection = clientConnection;
-        command.CommandText = commandText;
-        var p = command.CreateParameter();
-        p.ParameterName = "@Id";
-        p.DbType = DbType.String;
-        p.Value = "FTNLBJ";
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.ParameterName = "@Name";
-        p.DbType = DbType.String;
-        p.Value = "Awesome Bike";
-        command.Parameters.Add(p);
-
-        clientConnection.Open();
-
-        using (var reader = command.ExecuteReader())
-        {
-            while (reader.Read())
-            {
-                var name = reader["Name"];
-                Console.WriteLine(name);
-            }
-        }
-
-        clientConnection.Close();
-
-    }
-    private static async Task TestDeleteWithoutBulkAsync()
-    {
-        var cs = DBHelper.GetDatabaseConnectionString(serverProductCategoryDbName);
-        var cc = DBHelper.GetDatabaseConnectionString(clientDbName);
-
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(cs);
-        var serverConnection = new SqlConnection(cs);
-
-        //var clientProvider = new SqlSyncProvider(cc);
-        //var clientConnection = new SqlConnection(cc);
-
-        var clientProvider = new SqliteSyncProvider("advworks2.db");
-        var clientConnection = new SqliteConnection(clientProvider.ConnectionString);
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new string[] { "ProductCategory" });
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-        // agent.AddRemoteProgress(remoteProgress);
-
-        agent.Options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "sync");
-        agent.Options.BatchSize = 0;
-        agent.Options.UseBulkOperations = false;
-        agent.Options.DisableConstraintsOnApplyChanges = false;
-        agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-
-        Console.WriteLine("Sync Start");
-        var s1 = await agent.SynchronizeAsync(progress);
-        Console.WriteLine(s1);
-
-        Console.WriteLine("Insert product category on Server");
-        var id = InsertOneProductCategoryId(serverConnection, "GLASSES");
-        Console.WriteLine("Update Done.");
-
-        Console.WriteLine("Update product category on Server");
-        UpdateOneProductCategoryId(serverConnection, id, "OVERGLASSES");
-        Console.WriteLine("Update Done.");
-
-        Console.WriteLine("Sync Start");
-        s1 = await agent.SynchronizeAsync(progress);
-        Console.WriteLine(s1);
-
-        Console.WriteLine("End");
-    }
-
-    private static async Task AddNewColumnToAddressAsync(DbConnection c)
-    {
-        using var command = c.CreateCommand();
-        command.CommandText = "ALTER TABLE dbo.Address ADD CreatedDate datetime NULL;";
-        c.Open();
-        await command.ExecuteNonQueryAsync();
-        c.Close();
-    }
-    private static int InsertOneProductCategoryId(IDbConnection c, string updatedName)
-    {
-        using var command = c.CreateCommand();
-        command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
-        var p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.Value = updatedName;
-        p.ParameterName = "@Name";
-        command.Parameters.Add(p);
-
-        c.Open();
-        var id = command.ExecuteScalar();
-        c.Close();
-
-        return Convert.ToInt32(id);
-    }
-    private static void UpdateOneProductCategoryId(IDbConnection c, int productCategoryId, string updatedName)
-    {
-        using var command = c.CreateCommand();
-        command.CommandText = "Update ProductCategory Set Name = @Name Where ProductCategoryId = @Id";
-        var p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.Value = updatedName;
-        p.ParameterName = "@Name";
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Int32;
-        p.Value = productCategoryId;
-        p.ParameterName = "@Id";
-        command.Parameters.Add(p);
-
-        c.Open();
-        command.ExecuteNonQuery();
-        c.Close();
-    }
-    private static void DeleteOneLine(DbConnection c, int productCategoryId)
-    {
-        using var command = c.CreateCommand();
-        command.CommandText = "Delete from ProductCategory Where ProductCategoryId = @Id";
-
-        var p = command.CreateParameter();
-        p.DbType = DbType.Int32;
-        p.Value = productCategoryId;
-        p.ParameterName = "@Id";
-        command.Parameters.Add(p);
-
-        c.Open();
-        command.ExecuteNonQuery();
-        c.Close();
-    }
-
-
-    private static async Task SynchronizeMultiScopesAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        // Create 2 tables list (one for each scope)
-        string[] productScopeTables = new string[] { "ProductCategory", "ProductModel", "Product" };
-        string[] customersScopeTables = new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
-
-        // Create 2 sync setup with named scope 
-        var setupProducts = new SyncSetup(productScopeTables);
-        var setupCustomers = new SyncSetup(customersScopeTables);
-
-        var syncOptions = new SyncOptions();
-
-        // Create 2 agents, one for each scope
-        var agentProducts = new SyncAgent(clientProvider, serverProvider, syncOptions, setupProducts, "productScope");
-        var agentCustomers = new SyncAgent(clientProvider, serverProvider, syncOptions, setupCustomers, "customerScope");
-
-        // Using the Progress pattern to handle progession during the synchronization
-        // We can use the same progress for each agent
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                Console.WriteLine("Hit 1 for sync Products. Hit 2 for sync customers and sales");
-                var k = Console.ReadKey().Key;
-
-                if (k == ConsoleKey.D1)
-                {
-                    Console.WriteLine("Sync Products:");
-                    var s1 = await agentProducts.SynchronizeAsync(progress);
-                    Console.WriteLine(s1);
-                }
-                else
-                {
-                    Console.WriteLine("Sync Customers and Sales:");
-                    var s1 = await agentCustomers.SynchronizeAsync(progress);
-                    Console.WriteLine(s1);
-                }
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-
-    private static async Task TestAvbAsync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("TestAvg"));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setup = new SyncSetup(new String[] { "avb.avb", "avb.avbg" });
-
-        // filter on table avb.avbg
-        var avbGFilter = new SetupFilter("avbg", "avb");
-
-        // add parameter from table avb.avb Column avb.avb.UserId
-        avbGFilter.AddParameter("UserId", "avb", "avb");
-
-        // join to table avb.avbg
-        avbGFilter.AddJoin(Join.Left, "avb.avb").On("avb.avb", "Id", "avb.avbg", "avbId");
-        avbGFilter.AddWhere("UserId", "avb", "UserId", "avb");
-
-        setup.Filters.Add(avbGFilter);
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        Guid userId = new Guid("a7ca90ef-f6b1-4a19-9e31-01a215abbb95");
-
-        agent.Parameters.Add("UserId", userId);
-
-        var s1 = await agent.SynchronizeAsync(progress);
-
-        Console.WriteLine(s1);
-    }
-
+   
     private static async Task SynchronizeWithFiltersAsync()
     {
         // Create 2 Sql Sync providers
@@ -2122,43 +785,79 @@ Console.WriteLine("End");
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqliteSyncProvider("clientX.db");
 
-        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        var setup = new SyncSetup(new string[] {"ProductCategory",
+                  "ProductModel", "Product",
+                  "Address", "Customer", "CustomerAddress",
+                  "SalesOrderHeader", "SalesOrderDetail" });
 
-        setup.Filters.Add("Customer", "CompanyName");
+        // ----------------------------------------------------
+        // Horizontal Filter: On rows. Removing rows from source
+        // ----------------------------------------------------
+        // Over all filter : "we Want only customer from specific city and specific postal code"
+        // First level table : Address
+        // Second level tables : CustomerAddress
+        // Third level tables : Customer, SalesOrderHeader
+        // Fourth level tables : SalesOrderDetail
 
-        var addressCustomerFilter = new SetupFilter("CustomerAddress");
-        addressCustomerFilter.AddParameter("CompanyName", "Customer");
-        addressCustomerFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        addressCustomerFilter.AddWhere("CompanyName", "Customer", "CompanyName");
-        setup.Filters.Add(addressCustomerFilter);
-
+        // Create a filter on table Address on City Washington
+        // Optional : Sub filter on PostalCode, for testing purpose
         var addressFilter = new SetupFilter("Address");
-        addressFilter.AddParameter("CompanyName", "Customer");
-        addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        addressFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        addressFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+
+        // For each filter, you have to provider all the input parameters
+        // A parameter could be a parameter mapped to an existing colum : That way you don't have to specify any type, length and so on ...
+        // We can specify if a null value can be passed as parameter value : That way ALL addresses will be fetched
+        // A default value can be passed as well, but works only on SQL Server (MySql is a damn shity thing)
+        addressFilter.AddParameter("City", "Address", true);
+
+        // Or a parameter could be a random parameter bound to anything. In that case, you have to specify everything
+        // (This parameter COULD BE bound to a column, like City, but for the example, we go for a custom parameter)
+        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // Then you map each parameter on wich table / column the "where" clause should be applied
+        addressFilter.AddWhere("City", "Address", "City");
+        addressFilter.AddWhere("PostalCode", "Address", "postal");
         setup.Filters.Add(addressFilter);
 
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("City", "Address", true);
+        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // You can join table to go from your table up (or down) to your filter table
+        addressCustomerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+
+        // And then add your where clauses
+        addressCustomerFilter.AddWhere("City", "Address", "City");
+        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressCustomerFilter);
+
+        var customerFilter = new SetupFilter("Customer");
+        customerFilter.AddParameter("City", "Address", true);
+        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
+        customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        customerFilter.AddWhere("City", "Address", "City");
+        customerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(customerFilter);
+
         var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        orderHeaderFilter.AddParameter("CompanyName", "Customer");
+        orderHeaderFilter.AddParameter("City", "Address", true);
+        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
         orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderHeaderFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        orderHeaderFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        orderHeaderFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderHeaderFilter.AddWhere("City", "Address", "City");
+        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
         setup.Filters.Add(orderHeaderFilter);
 
         var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-        orderDetailsFilter.AddParameter("CompanyName", "Customer");
-        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderDetail", "SalesOrderID", "SalesOrderHeader", "SalesOrderID");
+        orderDetailsFilter.AddParameter("City", "Address", true);
+        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
         orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderDetailsFilter.AddJoin(Join.Left, "Customer").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        orderDetailsFilter.AddWhere("CompanyName", "Customer", "CompanyName");
+        orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderDetailsFilter.AddWhere("City", "Address", "City");
+        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
         setup.Filters.Add(orderDetailsFilter);
 
-        // Add pref suf
-        //setup.StoredProceduresPrefix = "s";
-        //setup.StoredProceduresSuffix = "";
-        //setup.TrackingTablesPrefix = "t";
-        //setup.TrackingTablesSuffix = "";
 
         var options = new SyncOptions();
 
@@ -2179,11 +878,15 @@ Console.WriteLine("End");
             Console.WriteLine("Sync Start");
             try
             {
-                // Launch the sync process
-                if (!agent.Parameters.Contains("CompanyName"))
-                    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
 
-                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                if (!agent.Parameters.Contains("City"))
+                    agent.Parameters.Add("City", "Toronto");
+
+                // Because I've specified that "postal" could be null, I can set the value to DBNull.Value (and then get all postal code in Toronto city)
+                if (!agent.Parameters.Contains("postal"))
+                    agent.Parameters.Add("postal", DBNull.Value);
+
+                var s1 = await agent.SynchronizeAsync();
 
                 // Write results
                 Console.WriteLine(s1);
@@ -2313,94 +1016,4 @@ Console.WriteLine("End");
     }
 
 
-    private static async Task SynchronizeThenChangeSetupAsync2()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("client.db");
-
-        var setup = new SyncSetup(new string[] { "Customer" });
-        setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName", "EmailAddress" });
-
-        // Add pref suf
-        setup.StoredProceduresPrefix = "s";
-        setup.StoredProceduresSuffix = "";
-        setup.TrackingTablesPrefix = "t";
-        setup.TrackingTablesSuffix = "";
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-
-        Console.WriteLine(s1);
-
-    }
-
-    private static async Task SynchronizeThenChangeSetupAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("client.db");
-
-        var setup = new SyncSetup(new string[] { "Customer" });
-        setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
-
-        // Add pref suf
-        setup.StoredProceduresPrefix = "s";
-        setup.StoredProceduresSuffix = "";
-        setup.TrackingTablesPrefix = "t";
-        setup.TrackingTablesSuffix = "";
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, new SyncOptions(), setup);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var s1 = await agent.SynchronizeAsync(progress);
-
-        Console.WriteLine(s1);
-
-        // Adding a new column to Customer
-        setup.Tables["Customer"].Columns.Add("EmailAddress");
-
-        // fake old setup
-        var oldSetup = new SyncSetup(new string[] { "Customer" });
-        oldSetup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
-
-        await agent.RemoteOrchestrator.MigrationAsync(oldSetup);
-        var newSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
-
-        await agent.LocalOrchestrator.MigrationAsync(oldSetup, newSchema);
-
-
-        //var r1 = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-
-        Console.WriteLine("End");
-    }
-
-}
-
-internal class scope
-{
-    public Guid sync_scope_id { get; set; }
-    public string sync_scope_name { get; set; }
 }

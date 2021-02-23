@@ -70,7 +70,7 @@
 //        }
 
 
-//        [Fact, TestPriority(1)]
+//        [Fact]
 //        public virtual async Task Variant_Server_Insert()
 //        {
 //            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, ServerDatabaseName, true);
@@ -101,7 +101,7 @@
 //            Assert.Equal(0, s.TotalChangesUploaded);
 //        }
 
-//        [Fact, TestPriority(2)]
+//        [Fact]
 //        public virtual async Task Variant_Client_Insert()
 //        {
 //            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, ServerDatabaseName, true);
@@ -141,7 +141,7 @@
 //            Assert.Equal(1, s.TotalChangesUploaded);
 //        }
 
-//        [Fact, TestPriority(3)]
+//        [Fact]
 //        public virtual async Task Variant_Update()
 //        {
 //            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, ServerDatabaseName, true);
@@ -178,7 +178,7 @@
 //            Assert.Equal(0, s.TotalChangesUploaded);
 //        }
 
-//        [Fact, TestPriority(4)]
+//        [Fact]
 //        public virtual async Task Variant_Delete()
 //        {
 //            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, ServerDatabaseName, true);
@@ -215,7 +215,7 @@
 //            Assert.Equal(0, s.TotalChangesUploaded);
 //        }
 
-//        [Fact, TestPriority(5)]
+//        [Fact]
 //        public virtual async Task Variant_Snapshot_Server_Insert()
 //        {
 //            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, ServerDatabaseName, true);

@@ -227,10 +227,45 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM INSERTED [i]");
+            stringBuilder.Append($"JOIN DELETED AS [d] ON ");
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
             stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
+
+            if (this.tableDescription.GetMutableColumns().Count() > 0)
+            {
+                stringBuilder.AppendLine("AND (");
+                string or = "";
+                foreach (var column in this.tableDescription.GetMutableColumns())
+                {
+                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+
+                    stringBuilder.Append("\t");
+                    stringBuilder.Append(or);
+                    stringBuilder.Append("ISNULL(");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("[d].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("[i].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("NULLIF(");
+                    stringBuilder.Append("[i].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(", ");
+                    stringBuilder.Append("[d].");
+                    stringBuilder.Append(quotedColumn);
+                    stringBuilder.Append(")");
+                    stringBuilder.AppendLine(") IS NOT NULL");
+
+                    or = " OR ";
+                }
+                stringBuilder.AppendLine(") ");
+            }
 
             return stringBuilder.ToString();
 
