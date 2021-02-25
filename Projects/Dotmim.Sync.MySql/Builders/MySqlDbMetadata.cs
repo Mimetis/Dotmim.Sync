@@ -12,7 +12,7 @@ namespace Dotmim.Sync.MySql.Builders
     {
         public override int GetMaxLengthFromDbType(DbType dbType, int maxLength)
         {
-            var typeName = GetStringFromDbType(dbType);
+            var typeName = GetStringFromDbType(dbType, maxLength);
             if (IsTextType(typeName))
             {
                 string lowerType = typeName.ToLowerInvariant();
@@ -136,7 +136,8 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override (byte precision, byte scale) GetPrecisionFromDbType(DbType dbType, byte precision, byte scale)
         {
-            var typeName = GetStringFromDbType(dbType);
+            // don't care about max length, because binary do not have precision scale
+            var typeName = GetStringFromDbType(dbType, 8000);
             if (IsNumericType(typeName) && precision == 0)
             {
                 precision = 10;
@@ -167,7 +168,7 @@ namespace Dotmim.Sync.MySql.Builders
             if (dbType == DbType.Guid)
                 return "(36)";
 
-            var typeName = GetStringFromDbType(dbType);
+            var typeName = GetStringFromDbType(dbType, maxLength);
             if (IsTextType(typeName))
             {
                 string lowerType = typeName.ToLowerInvariant();
@@ -272,13 +273,16 @@ namespace Dotmim.Sync.MySql.Builders
             return String.Format("({0},{1})", precision, scale);
         }
 
-        public override string GetStringFromDbType(DbType dbType)
+        public override string GetStringFromDbType(DbType dbType, int maxLength)
         {
             string mySqlType = string.Empty;
             switch (dbType)
             {
                 case DbType.Binary:
-                    mySqlType = "VARBINARY";
+                    if (maxLength <= 0 || maxLength > 8000)
+                        mySqlType = "LONGBLOB";
+                    else
+                        mySqlType = "VARBINARY";
                     break;
                 case DbType.Boolean:
                 case DbType.Byte:
@@ -583,7 +587,7 @@ namespace Dotmim.Sync.MySql.Builders
                 case "longtext":
                 case "json":
                 case "tinytext":
-                        return isUnicode ? DbType.String : DbType.AnsiString;
+                    return isUnicode ? DbType.String : DbType.AnsiString;
                 case "text":
                 case "nchar":
                 case "nvarchar":
@@ -631,6 +635,14 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
         {
+            // blob
+            if (typeName.ToLowerInvariant() == "longblob" || typeName.ToLowerInvariant() == "mediumblob" || typeName.ToLowerInvariant() == "tinyblob")
+                return 0;
+
+            // text
+            if (typeName.ToLowerInvariant() == "longtext" || typeName.ToLowerInvariant() == "mediumtext" || typeName.ToLowerInvariant() == "tinytext")
+                return 0;
+
             Int32 iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
             return iMaxLength;
         }

@@ -3522,9 +3522,6 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-
-
-
         /// <summary>
         /// Testing an insert / update on a table where a column is not part of the sync setup, and should stay alive after a sync
         /// </summary>
@@ -3729,6 +3726,107 @@ namespace Dotmim.Sync.Tests
             {
                 var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
                 Assert.Equal(serverGuid, address.Rowguid);
+            }
+        }
+
+
+        /// <summary>
+        /// Testing if blob are consistent across sync
+        /// </summary>
+        [Fact]
+        public virtual async Task Blob_ShouldBeConsistent_AndSize_ShouldBeMaintained()
+        {
+            // create a server db and seed it
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Execute a sync to initialize all clients
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(),
+                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+
+                var s = await agent.SynchronizeAsync();
+            }
+
+            // Create a new product on server with a big thumbnail photo
+            var name = HelperDatabase.GetRandomName();
+            var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+            var product = new Product
+            {
+                ProductId = Guid.NewGuid(),
+                Name = name,
+                ProductNumber = productNumber,
+                ThumbNailPhoto = new byte[20000]
+            };
+
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Create a new product on client with a big thumbnail photo
+            foreach (var client in this.Clients)
+            {
+                var clientName = HelperDatabase.GetRandomName();
+                var clientProductNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var clientProduct = new Product
+                {
+                    ProductId = Guid.NewGuid(),
+                    Name = clientName,
+                    ProductNumber = clientProductNumber,
+                    ThumbNailPhoto = new byte[20000]
+                };
+
+                using (var clientDbCtx = new AdventureWorksContext(client, UseFallbackSchema))
+                {
+                    clientDbCtx.Product.Add(product);
+                    await clientDbCtx.SaveChangesAsync();
+                }
+            }
+            // Two sync to be sure all clients have all rows from all
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(),
+                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+
+                await agent.SynchronizeAsync();
+            }
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(),
+                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+
+                await agent.SynchronizeAsync();
+            }
+
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var products = await ctx.Product.AsNoTracking().ToListAsync();
+                foreach (var p in products)
+                {
+                    Assert.Equal(20000, p.ThumbNailPhoto.Length);
+                }
+
+            }
+            
+            foreach (var client in Clients)
+            {
+                using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+
+                var products = await cliCtx.Product.AsNoTracking().ToListAsync();
+                foreach (var p in products)
+                {
+                    Assert.Equal(20000, p.ThumbNailPhoto.Length);
+                }
             }
         }
 
