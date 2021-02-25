@@ -23,9 +23,9 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class SqlServerToSqliteTransactionTests : HttpTestsBase
+    public class SqlServerHttpToSqliteTransactionTests : HttpTestsBase
     {
-        public SqlServerToSqliteTransactionTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public SqlServerHttpToSqliteTransactionTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
