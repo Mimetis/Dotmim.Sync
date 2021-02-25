@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Sqlite
             return GetPrecisionStringFromDbType((DbType)dbType, maxLength, precision, scale);
         }
 
-        public override string GetStringFromDbType(DbType dbType)
+        public override string GetStringFromDbType(DbType dbType, int maxlength)
         {
             switch (dbType)
             {
@@ -87,7 +87,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override string GetStringFromOwnerDbType(object ownerType)
         {
-            return GetStringFromDbType((DbType)ownerType);
+            return GetStringFromDbType((DbType)ownerType, 8000);
         }
 
         public override bool IsNumericType(string typeName)

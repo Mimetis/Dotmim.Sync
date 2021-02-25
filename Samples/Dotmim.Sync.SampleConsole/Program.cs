@@ -57,7 +57,154 @@ internal class Program
         // await SyncThroughWebApiAsync();
         //await SynchronizeWithFiltersAsync();
         //await CreateSnapshotAsync();
-        await SynchronizeAsync();
+        await TestLongBlobToSqliteAsync();
+    }
+
+
+    private static async Task TestLongBlobToSqliteAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("longblobdb"));
+        var clientProvider = new SqliteSyncProvider("longblobdb.db");
+
+        var options = new SyncOptions()
+        {
+            BatchSize = 1000,
+            DisableConstraintsOnApplyChanges = false
+        };
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, new string[] { "Customer" });
+
+        await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.Triggers |
+            SyncProvision.TrackingTable | SyncProvision.StoredProcedures |
+            SyncProvision.ServerScope | SyncProvision.ServerHistoryScope);
+
+        await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.Triggers |
+            SyncProvision.TrackingTable | SyncProvision.ClientScope);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        // First Sync to init sqlite db
+        var r = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(r);
+
+        // Insert one record with data > 8Ko in sqlite
+        using (var c = clientProvider.CreateConnection())
+        {
+            var command = c.CreateCommand();
+            command.Connection = c;
+            command.CommandText = "Insert Into Customer (FirstName, LastName, Image) Values (@FirstName, @LastName, @Image)";
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@FirstName";
+            p.Value = "Sébastien";
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@LastName";
+            p.Value = "Sqlite";
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Binary;
+            p.ParameterName = "@Image";
+            p.Value = new byte[20000];
+            command.Parameters.Add(p);
+
+            c.Open();
+            command.ExecuteNonQuery();
+            c.Close();
+
+        }
+        // Insert one record with data > 8Ko in mysql
+        using (var c = serverProvider.CreateConnection())
+        {
+            var command = c.CreateCommand();
+            command.Connection = c;
+            command.CommandText = "Insert Into Customer (FirstName, LastName, Image) Values (@FirstName, @LastName, @Image)";
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@FirstName";
+            p.Value = "Sébastien";
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@LastName";
+            p.Value = "MySql";
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Binary;
+            p.ParameterName = "@Image";
+            p.Value = new byte[20000];
+            command.Parameters.Add(p);
+
+            c.Open();
+            command.ExecuteNonQuery();
+            c.Close();
+
+        }
+
+        // Make a second sync
+        r = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(r);
+
+        // Check all rows have the correct size for the blob
+        using (var c = clientProvider.CreateConnection())
+        {
+            var command = c.CreateCommand();
+            command.Connection = c;
+            command.CommandText = "Select * from Customer";
+
+            c.Open();
+            using (var dr = command.ExecuteReader())
+            {
+                while (dr.Read())
+                {
+                    var image = (byte[])dr["Image"];
+
+                    Console.WriteLine($"Client Image Size:{image.Length}");
+                }
+                dr.Close();
+            }
+            c.Close();
+
+        }
+        // Check all rows have the correct size for the blob
+        using (var c = serverProvider.CreateConnection())
+        {
+            var command = c.CreateCommand();
+            command.Connection = c;
+            command.CommandText = "Select * from Customer";
+
+            c.Open();
+            using (var dr = command.ExecuteReader())
+            {
+                while (dr.Read())
+                {
+                    var image = (byte[])dr["Image"];
+
+                    Console.WriteLine($"Server Image Size:{image.Length}");
+                }
+                dr.Close();
+            }
+            c.Close();
+
+        }
+
+
+
     }
 
     private static async Task Snapshot_Then_ReinitializeAsync()
