@@ -16,7 +16,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Get the datastore type name from a DbType for generating scripts
         /// </summary>
-        public abstract string GetStringFromDbType(DbType dbType);
+        public abstract string GetStringFromDbType(DbType dbType, int maxLength);
 
         /// <summary>
         /// Get the datastore type name from a provider dbType for generating scripts
@@ -134,7 +134,7 @@ namespace Dotmim.Sync.Manager
             }
 
             // if it's not the same provider, fallback on DbType instead.
-            return GetStringFromDbType(fallbackDbType);
+            return GetStringFromDbType(fallbackDbType, Convert.ToInt32(maxLength));
         }
 
         public string TryGetOwnerDbTypePrecision(string originalDbType, DbType fallbackDbType, bool isUnsigned, bool isUnicode, int maxLength, byte precision, byte scale, string fromProviderType, string ownerProviderType)

@@ -92,7 +92,7 @@ namespace Dotmim.Sync.MySql
         internal string CreateParameterDeclaration(MySqlParameter param)
         {
             var stringBuilder3 = new StringBuilder();
-            var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType);
+            var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType, param.Size);
             string precision = this.mySqlDbMetadata.GetPrecisionStringFromDbType(param.DbType, param.Size, param.Precision, param.Scale);
             string output = string.Empty;
             string isNull = string.Empty;
