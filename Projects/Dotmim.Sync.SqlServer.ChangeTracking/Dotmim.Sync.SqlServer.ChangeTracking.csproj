@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
     <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
@@ -48,17 +47,14 @@
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNet5)"  />
     <ProjectReference Include="..\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" TargetFramework="$(TargetFrameworkNet5)"  />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetCore)"  />
     <ProjectReference Include="..\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" TargetFramework="$(TargetFrameworkNetCore)"  />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetStandard)"  />
     <ProjectReference Include="..\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" TargetFramework="$(TargetFrameworkNetStandard)"  />
   </ItemGroup>
 </Project>
