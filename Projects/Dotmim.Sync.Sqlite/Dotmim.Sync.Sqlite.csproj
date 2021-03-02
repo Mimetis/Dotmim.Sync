@@ -48,19 +48,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SQLite" Version="5.0.3" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
   </ItemGroup>
 
-
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNet5)"  />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetCore)"  />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetStandard)"  />
-  </ItemGroup>
 </Project>
 

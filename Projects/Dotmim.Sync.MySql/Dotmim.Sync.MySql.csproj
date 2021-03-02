@@ -53,17 +53,17 @@
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
     <PackageReference Include="MySqlConnector" Version="1.2.1" />
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNet5)"  />
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
     <PackageReference Include="MySqlConnector" Version="1.2.1" />
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetCore)"  />
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
     <PackageReference Include="MySqlConnector" Version="0.69.10"  />
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetStandard)"  />
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
   </ItemGroup>
 
 
