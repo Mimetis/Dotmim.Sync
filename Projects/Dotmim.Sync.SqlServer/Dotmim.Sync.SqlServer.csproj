@@ -44,9 +44,13 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.1" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
   </ItemGroup>
-  
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' Or '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNet5)"  />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetCore)"  />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
