@@ -5,7 +5,7 @@
     <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
     <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5)</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore)</TargetFrameworks>
 
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
