@@ -405,41 +405,49 @@ jobs:
           includePreviewVersions: 'true'
 
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
         displayName: "Compile binaries for Dotmim.Sync.Core"
         continueOnError: true
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer
         displayName: "Compile binaries for Dotmim.Sync.SqlServer"
         continueOnError: true
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking
         displayName: "Compile binaries for Dotmim.Sync.SqlServerChangeTracking"
         continueOnError: true
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql
         displayName: "Compile binaries for Dotmim.Sync.MySql"
         continueOnError: true
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB
         displayName: "Compile binaries for Dotmim.Sync.MariaDB"
         continueOnError: true
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite
         displayName: "Compile binaries for Dotmim.Sync.Sqlite"
         continueOnError: true
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client
         displayName: "Compile binaries for Dotmim.Sync.Web.Client"
         continueOnError: true
       - script: |
+          dotnet nuget locals all --clear
           dotnet clean -c $(buildConfiguration) 
           dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server
         displayName: "Compile binaries for Dotmim.Sync.Web.Server"
