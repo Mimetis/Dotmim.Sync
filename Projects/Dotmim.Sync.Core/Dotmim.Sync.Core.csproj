@@ -40,7 +40,7 @@
     <EmbeddedResource Remove="Serialization\DmBinaryConverter\**" />
     <None Remove="Serialization\DmBinaryConverter\**" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <None Include="..\..\docs\assets\packageIcon.png">
       <Pack>True</Pack>
@@ -48,9 +48,8 @@
     </None>
   </ItemGroup>
 
-  
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
@@ -66,6 +65,7 @@
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
   </ItemGroup>
 
 </Project>
