@@ -54,11 +54,16 @@ namespace Dotmim.Sync.Tests.Models
                             optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.MySql:
+                        if (this.Connection != null)
+                            optionsBuilder.UseMySql(this.Connection, new MySqlServerVersion(new Version(8, 0, 21)), options => options.EnableRetryOnFailure(5));
+                        else
+                            optionsBuilder.UseMySql(this.ConnectionString, new MySqlServerVersion(new Version(8, 0, 21)), options => options.EnableRetryOnFailure(5));
+                        break;
                     case ProviderType.MariaDB:
                         if (this.Connection != null)
-                            optionsBuilder.UseMySql(this.Connection, ServerVersion.AutoDetect(this.Connection as MySqlConnection), options => options.EnableRetryOnFailure(5));
+                            optionsBuilder.UseMySql(this.Connection, new MariaDbServerVersion(new Version(10, 5, 5)), options => options.EnableRetryOnFailure(5));
                         else
-                            optionsBuilder.UseMySql(this.ConnectionString,  ServerVersion.AutoDetect(this.Connection as MySqlConnection), options => options.EnableRetryOnFailure(5));
+                            optionsBuilder.UseMySql(this.ConnectionString, new MariaDbServerVersion(new Version(10, 5, 5)), options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.Sqlite:
                         if (this.Connection != null)
