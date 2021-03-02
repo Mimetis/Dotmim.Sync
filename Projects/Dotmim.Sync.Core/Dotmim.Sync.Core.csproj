@@ -68,7 +68,8 @@
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
+    <!--<PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />-->
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
   </ItemGroup>
 
