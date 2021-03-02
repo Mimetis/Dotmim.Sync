@@ -35,11 +35,6 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="SyncMemoryProvider.cs" />
-  </ItemGroup>
-
-
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
