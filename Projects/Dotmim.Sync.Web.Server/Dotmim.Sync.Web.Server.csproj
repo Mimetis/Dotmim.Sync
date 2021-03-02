@@ -4,7 +4,7 @@
     <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
     <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore)</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5)</TargetFrameworks>
 
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
@@ -33,10 +33,6 @@
     <IncludeSource>True</IncludeSource>
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
-    <DefineConstants />
   </PropertyGroup>
 
   <ItemGroup>
