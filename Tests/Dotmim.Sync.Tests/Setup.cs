@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Tests.Core;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System;
 using Microsoft.Data.SqlClient;
 using System.Runtime.InteropServices;

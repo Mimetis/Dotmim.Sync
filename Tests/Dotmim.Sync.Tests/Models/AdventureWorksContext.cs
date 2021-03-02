@@ -2,7 +2,7 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -56,9 +56,9 @@ namespace Dotmim.Sync.Tests.Models
                     case ProviderType.MySql:
                     case ProviderType.MariaDB:
                         if (this.Connection != null)
-                            optionsBuilder.UseMySql(this.Connection, options => options.EnableRetryOnFailure(5));
+                            optionsBuilder.UseMySql(this.Connection, ServerVersion.AutoDetect(this.Connection as MySqlConnection), options => options.EnableRetryOnFailure(5));
                         else
-                            optionsBuilder.UseMySql(this.ConnectionString,  options => options.EnableRetryOnFailure(5));
+                            optionsBuilder.UseMySql(this.ConnectionString,  ServerVersion.AutoDetect(this.Connection as MySqlConnection), options => options.EnableRetryOnFailure(5));
                         break;
                     case ProviderType.Sqlite:
                         if (this.Connection != null)
@@ -335,11 +335,11 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.ProductId);
 
                 entity.HasIndex(e => e.Name)
-                    .HasName("AK_Product_Name")
+                    .HasDatabaseName("AK_Product_Name")
                     .IsUnique();
 
                 entity.HasIndex(e => e.ProductNumber)
-                    .HasName("AK_Product_ProductNumber")
+                    .HasDatabaseName("AK_Product_ProductNumber")
                     .IsUnique();
 
                 entity.Property(e => e.ProductId)
@@ -411,7 +411,7 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.HasIndex(e => e.Name)
-                    .HasName("AK_ProductCategory_Name")
+                    .HasDatabaseName("AK_ProductCategory_Name")
                     .IsUnique();
 
                 entity.Property(e => e.ProductCategoryId)
@@ -450,7 +450,7 @@ namespace Dotmim.Sync.Tests.Models
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
-                    .HasName("AK_ProductModel_Name")
+                    .HasDatabaseName("AK_ProductModel_Name")
                     .IsUnique();
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
