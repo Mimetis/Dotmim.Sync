@@ -1,5 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
+#if NET5_0
+using MySqlConnector;
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
+#endif
 using System;
 using System.Data;
 using System.Data.Common;

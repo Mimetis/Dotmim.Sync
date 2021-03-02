@@ -8,14 +8,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Microsoft.AspNetCore.Http;
-using System.Net.Http.Headers;
-
-#if NETSTANDARD
 using Microsoft.Net.Http.Headers;
-#else
 using System.Net.Http.Headers;
-#endif
 
 namespace Dotmim.Sync.Web.Client
 {

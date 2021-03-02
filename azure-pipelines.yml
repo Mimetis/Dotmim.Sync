@@ -252,7 +252,7 @@ jobs:
           testResultsFiles: "**/*.trx"
   
   - job: testmariadbhttp        
-    displayName: "Tests MariaDB"
+    displayName: "Tests MariaDB HTTP"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -287,6 +287,7 @@ jobs:
           testResultsFiles: "**/*.trx"
         
   - job: Beta
+    displayName: "Create Beta Nuget Packages"
 
     # dependsOn: Tests
     # condition: succeeded('Tests')
@@ -336,6 +337,7 @@ jobs:
           artifactName: $(artifactName)
 
   - job: Release
+    displayName: "Create Release Nuget Packages"
 
     # dependsOn: Tests
     # condition: succeeded('Tests')
