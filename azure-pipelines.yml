@@ -301,6 +301,17 @@ jobs:
       artifactName: "drop"
 
     steps:
+      - task: UseDotNet@2
+        displayName: 'Use .Net Core sdk'
+        inputs:
+          version: 3.x
+
+      # Use the latest .NET SDK
+      - task: UseDotNet@2
+        displayName: 'Use .Net Core sdk 5.x'
+        inputs:
+          version: 5.x
+      
       - bash: |
           build=$(Build.BuildId)
           lenbuild=${#build}
@@ -317,6 +328,7 @@ jobs:
           echo $(buildIdString)
           echo $(buildBetaId)
           dotnet --version
+          dotnet --info
         displayName: Get dotnet version
 
       - script: |
@@ -364,6 +376,17 @@ jobs:
       artifactName: "release"
 
     steps:
+      - task: UseDotNet@2
+        displayName: 'Use .Net Core sdk'
+        inputs:
+          version: 3.x
+
+      # Use the latest .NET SDK
+      - task: UseDotNet@2
+        displayName: 'Use .Net Core sdk 5.x'
+        inputs:
+          version: 5.x
+
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
         displayName: "Compile binaries for Dotmim.Sync.Core"
