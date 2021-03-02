@@ -292,9 +292,8 @@ jobs:
     # dependsOn: Tests
     # condition: succeeded('Tests')
 
-    # Pool on a VS 2017 image to be able to compile for .Net 4.6
     pool:
-      vmImage: "VS2017-Win2016"
+      vmImage: "Ubuntu 18.04"
 
     variables:
       buildConfiguration: "Release"
@@ -344,7 +343,7 @@ jobs:
 
     # Pool on a VS 2017 image to be able to compile for .Net 4.6
     pool:
-      vmImage: "VS2017-Win2016"
+      vmImage: "Ubuntu 18.04"
 
     variables:
       buildConfiguration: "Release"
