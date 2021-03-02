@@ -30,7 +30,12 @@ using Dotmim.Sync.MySql;
 using System.Linq;
 using System.Transactions;
 using System.Threading;
+#if NET5_0
+using MySqlConnector;
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
+#endif
+
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using System.Text;
@@ -57,155 +62,194 @@ internal class Program
         // await SyncThroughWebApiAsync();
         //await SynchronizeWithFiltersAsync();
         //await CreateSnapshotAsync();
-        await TestLongBlobToSqliteAsync();
+        await SyncHttpThroughKestrellAndTestDateTimeSerializationAsync();
     }
 
 
-    private static async Task TestLongBlobToSqliteAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("longblobdb"));
-        var clientProvider = new SqliteSyncProvider("longblobdb.db");
 
-        var options = new SyncOptions()
+    public static async Task SyncHttpThroughKestrellAndTestDateTimeSerializationAsync()
+    {
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("AdvProductCategory"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("AdvHugeD.db");
+
+        // ----------------------------------
+        // Client & Server side
+        // ----------------------------------
+        // snapshot directory
+        // Sync options
+        var options = new SyncOptions
         {
-            BatchSize = 1000,
-            DisableConstraintsOnApplyChanges = false
+            BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Tmp"),
+            BatchSize = 10000,
         };
 
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, new string[] { "Customer" });
+        // Create the setup used for your sync process
+        //var tables = new string[] { "Employees" };
 
-        await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.Triggers |
-            SyncProvision.TrackingTable | SyncProvision.StoredProcedures |
-            SyncProvision.ServerScope | SyncProvision.ServerHistoryScope);
 
-        await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.Triggers |
-            SyncProvision.TrackingTable | SyncProvision.ClientScope);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        var localProgress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
             Console.ResetColor();
         });
 
-        // First Sync to init sqlite db
-        var r = await agent.SynchronizeAsync(progress);
-        Console.WriteLine(r);
-
-        // Insert one record with data > 8Ko in sqlite
-        using (var c = clientProvider.CreateConnection())
+        var configureServices = new Action<IServiceCollection>(services =>
         {
-            var command = c.CreateCommand();
-            command.Connection = c;
-            command.CommandText = "Insert Into Customer (FirstName, LastName, Image) Values (@FirstName, @LastName, @Image)";
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, new string[] { "ProductCategory" }, options);
 
-            var p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.ParameterName = "@FirstName";
-            p.Value = "Sébastien";
-            command.Parameters.Add(p);
+        });
 
-            p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.ParameterName = "@LastName";
-            p.Value = "Sqlite";
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.DbType = DbType.Binary;
-            p.ParameterName = "@Image";
-            p.Value = new byte[20000];
-            command.Parameters.Add(p);
-
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-
-        }
-        // Insert one record with data > 8Ko in mysql
-        using (var c = serverProvider.CreateConnection())
+        var serverHandler = new RequestDelegate(async context =>
         {
-            var command = c.CreateCommand();
-            command.Connection = c;
-            command.CommandText = "Insert Into Customer (FirstName, LastName, Image) Values (@FirstName, @LastName, @Image)";
+            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
 
-            var p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.ParameterName = "@FirstName";
-            p.Value = "Sébastien";
-            command.Parameters.Add(p);
+            var webServerOrchestrator = webServerManager.GetOrchestrator(context);
 
-            p = command.CreateParameter();
-            p.DbType = DbType.String;
-            p.ParameterName = "@LastName";
-            p.Value = "MySql";
-            command.Parameters.Add(p);
+            await webServerManager.HandleRequestAsync(context);
 
-            p = command.CreateParameter();
-            p.DbType = DbType.Binary;
-            p.ParameterName = "@Image";
-            p.Value = new byte[20000];
-            command.Parameters.Add(p);
+        });
 
-            c.Open();
-            command.ExecuteNonQuery();
-            c.Close();
-
-        }
-
-        // Make a second sync
-        r = await agent.SynchronizeAsync(progress);
-        Console.WriteLine(r);
-
-        // Check all rows have the correct size for the blob
-        using (var c = clientProvider.CreateConnection())
+        using var server = new KestrellTestServer(configureServices);
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
-            var command = c.CreateCommand();
-            command.Connection = c;
-            command.CommandText = "Select * from Customer";
-
-            c.Open();
-            using (var dr = command.ExecuteReader())
+            Console.WriteLine("First Sync. Web sync start");
+            try
             {
-                while (dr.Read())
-                {
-                    var image = (byte[])dr["Image"];
 
-                    Console.WriteLine($"Client Image Size:{image.Length}");
-                }
+                var localDateTime = DateTime.Now;
+                var utcDateTime = DateTime.UtcNow;
+
+                var localOrchestrator = new WebClientOrchestrator(serviceUri, SerializersCollection.JsonSerializer);
+
+                var agent = new SyncAgent(clientProvider, localOrchestrator, options);
+                await agent.SynchronizeAsync(localProgress);
+
+
+                string commandText = "Insert into ProductCategory (Name, ModifiedDate) Values (@Name, @ModifiedDate)";
+                var connection = clientProvider.CreateConnection();
+
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+
+                var p = command.CreateParameter();
+                p.DbType = DbType.String;
+                p.ParameterName = "@Name";
+                p.Value = "TestUTC";
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
+                // Change DbTtpe to String for testing purpose
+                p.DbType = DbType.String;
+                p.ParameterName = "@ModifiedDate";
+                p.Value = utcDateTime;
+                command.Parameters.Add(p);
+
+
+                command.ExecuteNonQuery();
+
+                command.Parameters["@Name"].Value = "TestLocal";
+                command.Parameters["@ModifiedDate"].Value = localDateTime;
+
+                command.ExecuteNonQuery();
+
+
+                connection.Close();
+
+                // check
+                connection.Open();
+
+                commandText = "Select * from ProductCategory where Name='TestUTC'";
+                command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+
+                var dr = command.ExecuteReader();
+                dr.Read();
+
+                Console.WriteLine($"UTC : {utcDateTime} - {dr["ModifiedDate"]}");
+
                 dr.Close();
+
+
+                commandText = "Select * from ProductCategory where Name='TestLocal'";
+                command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+
+                dr = command.ExecuteReader();
+                dr.Read();
+
+                Console.WriteLine($"Local : {localDateTime} - {dr["ModifiedDate"]}");
+
+                dr.Close();
+
+                connection.Close();
+
+                Console.WriteLine("Sync");
+
+                var s = await agent.SynchronizeAsync(localProgress);
+                Console.WriteLine(s);
+
+                // check results on server
+                connection = serverProvider.CreateConnection();
+
+                // check
+                connection.Open();
+
+                commandText = "Select * from ProductCategory where Name='TestUTC'";
+                command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+
+                dr = command.ExecuteReader();
+                dr.Read();
+
+                Console.WriteLine($"UTC : {utcDateTime} - {dr["ModifiedDate"]}");
+
+                dr.Close();
+
+
+                commandText = "Select * from ProductCategory where Name='TestLocal'";
+                command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+
+                dr = command.ExecuteReader();
+                dr.Read();
+
+                Console.WriteLine($"Local : {localDateTime} - {dr["ModifiedDate"]}");
+
+                dr.Close();
+
+                connection.Close();
+
+
+
             }
-            c.Close();
-
-        }
-        // Check all rows have the correct size for the blob
-        using (var c = serverProvider.CreateConnection())
-        {
-            var command = c.CreateCommand();
-            command.Connection = c;
-            command.CommandText = "Select * from Customer";
-
-            c.Open();
-            using (var dr = command.ExecuteReader())
+            catch (SyncException e)
             {
-                while (dr.Read())
-                {
-                    var image = (byte[])dr["Image"];
-
-                    Console.WriteLine($"Server Image Size:{image.Length}");
-                }
-                dr.Close();
+                Console.WriteLine(e.ToString());
             }
-            c.Close();
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
 
-        }
 
 
+        });
+        await server.Run(serverHandler, clientHandler);
 
     }
+
+
 
     private static async Task Snapshot_Then_ReinitializeAsync()
     {
@@ -591,6 +635,102 @@ internal class Program
 
     }
 
+
+    public static async Task MultiScopesAsync()
+    {
+
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Create 2 tables list (one for each scope)
+        string[] productScopeTables = new string[] { "ProductCategory", "ProductModel", "Product" };
+        string[] customersScopeTables = new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+
+        // Create 2 sync setup with named scope 
+        //var setupProducts = new SyncSetup(productScopeTables, "productScope");
+        //var setupCustomers = new SyncSetup(customersScopeTables, "customerScope");
+
+        var setupProducts = new SyncSetup(productScopeTables);
+        var setupCustomers = new SyncSetup(customersScopeTables);
+
+        // Create 2 agents, one for each scope
+        var agentProducts = new SyncAgent(clientProvider, serverProvider, setupProducts, "productScope");
+        var agentCustomers = new SyncAgent(clientProvider, serverProvider, setupCustomers, "customerScope");
+
+        // Using the Progress pattern to handle progession during the synchronization
+        // We can use the same progress for each agent
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                Console.WriteLine("Hit 1 for sync Products. Hit 2 for sync customers and sales. 3 for upgrade");
+                var k = Console.ReadKey().Key;
+
+                if (k == ConsoleKey.D1)
+                {
+                    Console.WriteLine(": Sync Products:");
+                    var s1 = await agentProducts.SynchronizeAsync(progress);
+                    Console.WriteLine(s1);
+                }
+                else if (k == ConsoleKey.D2)
+                {
+                    Console.WriteLine(": Sync Customers and Sales:");
+                    var s1 = await agentCustomers.SynchronizeAsync(progress);
+                    Console.WriteLine(s1);
+                }
+                else
+                {
+                    Console.WriteLine(": Upgrade local orchestrator :");
+                    if (await agentCustomers.LocalOrchestrator.NeedsToUpgradeAsync(progress: progress))
+                    {
+                        Console.WriteLine("Upgrade on local orchestrator customerScope:");
+                        await agentCustomers.LocalOrchestrator.UpgradeAsync(progress: progress);
+                    }
+                    if (await agentProducts.LocalOrchestrator.NeedsToUpgradeAsync(progress: progress))
+                    {
+                        Console.WriteLine("Upgrade on local orchestrator productScope:");
+                        await agentProducts.LocalOrchestrator.UpgradeAsync(progress: progress);
+                    }
+                    Console.WriteLine(": Upgrade remote orchestrator :");
+                    if (await agentCustomers.RemoteOrchestrator.NeedsToUpgradeAsync(progress: progress))
+                    {
+                        Console.WriteLine("Upgrade on remote orchestrator customerScope:");
+                        await agentCustomers.RemoteOrchestrator.UpgradeAsync(progress: progress);
+                    }
+                    if (await agentProducts.RemoteOrchestrator.NeedsToUpgradeAsync(progress: progress))
+                    {
+                        Console.WriteLine("Upgrade on remote orchestrator productScope:");
+                        await agentProducts.RemoteOrchestrator.UpgradeAsync(progress: progress);
+                    }
+                }
+
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
 
     /// <summary>

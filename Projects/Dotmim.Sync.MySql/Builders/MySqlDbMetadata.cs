@@ -3,7 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
+#if NET5_0
+using MySqlConnector;
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
+#endif
 
 
 namespace Dotmim.Sync.MySql.Builders
