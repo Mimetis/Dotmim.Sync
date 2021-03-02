@@ -362,26 +362,37 @@ jobs:
         displayName: "Compile binaries for .Net 5"
 
       - script: |
-          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core -f netcoreapp3.1
-          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer -f netcoreapp3.1
-          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking -f netcoreapp3.1
-          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql -f netcoreapp3.1
-          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB -f netcoreapp3.1
-          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite -f netcoreapp3.1
-          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client -f netcoreapp3.1
-          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.Core -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.SqlServer -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.SqlServerChangeTracking -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.MySql -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.MariaDB -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.Sqlite -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.Web.Client -f netcoreapp3.1
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netcore/Dotmim.Sync.Web.Server -f netcoreapp3.1
         displayName: "Compile binaries for .Net Core 3.1"
 
       - script: |
-          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core -f netstandard2.0
-          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer -f netstandard2.0
-          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking -f netstandard2.0
-          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql -f netstandard2.0
-          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB -f netstandard2.0
-          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite -f netstandard2.0
-          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client -f netstandard2.0
-          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.Core -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.SqlServer -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.SqlServerChangeTracking -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.MySql -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.MariaDB -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.Sqlite -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.Web.Client -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/netstandard/Dotmim.Sync.Web.Server -f netstandard2.0
         displayName: "Compile binaries for .Net Standard"
+
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --force
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --force
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking --force
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --force
+          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --force
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --force
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --force
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --force
+        displayName: "Compile binaries for all with force restore"
 
 
     # Publish Build Artifacts
