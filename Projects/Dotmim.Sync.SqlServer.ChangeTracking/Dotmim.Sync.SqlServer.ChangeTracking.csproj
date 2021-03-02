@@ -43,6 +43,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Runtime" Version="4.3.1" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     <ProjectReference Include="..\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj"  Version="$(Version)"  />
   </ItemGroup>
