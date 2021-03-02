@@ -62,11 +62,21 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-    <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNet5)"  />
+    <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" TargetFramework="$(TargetFrameworkNet5)"  />
   </ItemGroup>
 
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetCore)"  />
+    <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" TargetFramework="$(TargetFrameworkNetCore)"  />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" TargetFramework="$(TargetFrameworkNetStandard)"  />
+    <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" TargetFramework="$(TargetFrameworkNetStandard)"  />
+  </ItemGroup>  
+  
   <ItemGroup>
     <None Include="..\..\docs\assets\packageIcon.png">
       <Pack>True</Pack>
