@@ -610,7 +610,7 @@ internal class Program
                 try
                 {
 
-                    var localOrchestrator = new WebClientOrchestrator(serviceUri, SerializersCollection.Utf8JsonSerializer);
+                    var localOrchestrator = new WebClientOrchestrator(serviceUri, SerializersCollection.JsonSerializer);
 
                     var agent = new SyncAgent(clientProvider, localOrchestrator, options);
                     var s = await agent.SynchronizeAsync(SyncType.Reinitialize, localProgress);

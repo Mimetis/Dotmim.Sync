@@ -120,9 +120,9 @@ namespace Dotmim.Sync.Web.Client
 
                 return responseMessage;
             }
-            catch (SyncException ex)
+            catch (SyncException)
             {
-                throw ex;
+                throw;
             }
             catch (Exception e)
             {
@@ -272,9 +272,9 @@ namespace Dotmim.Sync.Web.Client
 
 
             }
-            catch (SyncException sexc)
+            catch (SyncException)
             {
-                throw sexc;
+                throw;
             }
             catch (Exception ex)
             {
