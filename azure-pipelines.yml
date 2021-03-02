@@ -1,339 +1,339 @@
 jobs:
-  - job: testbasics
-    displayName: "Tests Basics"
+  # - job: testbasics
+  #   displayName: "Tests Basics"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx
-        name: standalonetests
-        displayName: "Standalone Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx
+  #       name: standalonetests
+  #       displayName: "Standalone Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx
-        name: unittests
-        displayName: "Unit Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx
+  #       name: unittests
+  #       displayName: "Unit Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
 
-  - job: testssqlservertcp
-    displayName: "Tests Sql Server TCP"
+  # - job: testssqlservertcp
+  #   displayName: "Tests Sql Server TCP"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcp --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Tcp Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcp --logger trx
+  #       name: sqlservertcptests
+  #       displayName: "SQL Server Tcp Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
 
-  - job: testssqlserverhttp
-    displayName: "Tests Sql Server HTTP"
+  # - job: testssqlserverhttp
+  #   displayName: "Tests Sql Server HTTP"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttp --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Http Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttp --logger trx
+  #       name: sqlservertcptests
+  #       displayName: "SQL Server Http Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
 
-  - job: testssqlserverct
-    displayName: "Tests Sql Server Change Tracking"
+  # - job: testssqlserverct
+  #   displayName: "Tests Sql Server Change Tracking"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTracking --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Change Tracking Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTracking --logger trx
+  #       name: sqlservertcptests
+  #       displayName: "SQL Server Change Tracking Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
 
-  - job: testsmysqltcp
-    displayName: "Tests MySql TCP"
+  # - job: testsmysqltcp
+  #   displayName: "Tests MySql TCP"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlTcp --logger trx
-        name: mysqlintegrationtests
-        displayName: "MySql Tcp Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlTcp --logger trx
+  #       name: mysqlintegrationtests
+  #       displayName: "MySql Tcp Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
 
-  - job: testsmysqlhttp
-    displayName: "Tests MySql HTTP"
+  # - job: testsmysqlhttp
+  #   displayName: "Tests MySql HTTP"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlHttp --logger trx
-        name: mysqlintegrationtests
-        displayName: "MySql Http Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlHttp --logger trx
+  #       name: mysqlintegrationtests
+  #       displayName: "MySql Http Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
 
-  - job: testmariadbtcp        
-    displayName: "Tests MariaDB TCP"
+  # - job: testmariadbtcp        
+  #   displayName: "Tests MariaDB TCP"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBTcp --logger trx
-        name: mariadbintegrationtests
-        displayName: "MariaDB Tcp Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBTcp --logger trx
+  #       name: mariadbintegrationtests
+  #       displayName: "MariaDB Tcp Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
   
-  - job: testmariadbhttp        
-    displayName: "Tests MariaDB HTTP"
+  # - job: testmariadbhttp        
+  #   displayName: "Tests MariaDB HTTP"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "Ubuntu 18.04" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #   steps:
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBHttp --logger trx
-        name: mariadbintegrationtests
-        displayName: "MariaDB Http Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBHttp --logger trx
+  #       name: mariadbintegrationtests
+  #       displayName: "MariaDB Http Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
         
-  - job: Beta
-    displayName: "Create Beta Nuget Packages"
+  # - job: Beta
+  #   displayName: "Create Beta Nuget Packages"
 
-    # dependsOn: Tests
-    # condition: succeeded('Tests')
+  #   # dependsOn: Tests
+  #   # condition: succeeded('Tests')
 
-    pool:
-      vmImage: "Ubuntu 18.04"
+  #   pool:
+  #     vmImage: "Ubuntu 18.04"
 
-    variables:
-      buildConfiguration: "Release"
-      buildBetaId: "beta-"
-      artifactName: "drop"
+  #   variables:
+  #     buildConfiguration: "Release"
+  #     buildBetaId: "beta-"
+  #     artifactName: "drop"
 
-    steps:
-      - bash: |
-          build=$(Build.BuildId)
-          lenbuild=${#build}
-          if [ $lenbuild -eq 1 ]; then
-            build="000$build"
-          elif [ $lenbuild -eq 2 ]; then
-            build="00$build"
-          elif [ $lenbuild -eq 3 ]; then
-            build="0$build"
-          fi
-          echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$build"
+  #   steps:
+  #     - bash: |
+  #         build=$(Build.BuildId)
+  #         lenbuild=${#build}
+  #         if [ $lenbuild -eq 1 ]; then
+  #           build="000$build"
+  #         elif [ $lenbuild -eq 2 ]; then
+  #           build="00$build"
+  #         elif [ $lenbuild -eq 3 ]; then
+  #           build="0$build"
+  #         fi
+  #         echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$build"
 
-      - script: |
-          echo $(buildIdString)
-          echo $(buildBetaId)
-          dotnet --version
-        displayName: Get dotnet version
+  #     - script: |
+  #         echo $(buildIdString)
+  #         echo $(buildBetaId)
+  #         dotnet --version
+  #       displayName: Get dotnet version
 
-      - script: |
-          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId) 
-          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId) 
-        displayName: "Compile binaries and get beta nuget packages"
+  #     - script: |
+  #         dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId) 
+  #         dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --version-suffix $(buildBetaId) 
+  #         dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking --version-suffix $(buildBetaId) 
+  #         dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
+  #         dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --version-suffix $(buildBetaId) 
+  #         dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
+  #         dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId) 
+  #         dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId) 
+  #       displayName: "Compile binaries and get beta nuget packages"
 
-      # Publish Build Artifacts
-      - task: PublishBuildArtifacts@1
-        inputs:
-          artifactName: $(artifactName)
+  #     # Publish Build Artifacts
+  #     - task: PublishBuildArtifacts@1
+  #       inputs:
+  #         artifactName: $(artifactName)
 
   - job: Release
     displayName: "Create Release Nuget Packages"
@@ -352,7 +352,9 @@ jobs:
     steps:
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core 
-          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer 
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer -f netstandard2.0
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer -f net5.0
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer -f netcoreapp3.1
           dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking
           dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql 
           dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB 
