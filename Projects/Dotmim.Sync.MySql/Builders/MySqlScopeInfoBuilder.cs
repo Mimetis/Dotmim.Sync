@@ -6,7 +6,7 @@ using System.Data;
 using System.Data.Common;
 #if NET5_0
 using MySqlConnector;
-#elif NETSTANDARD
+#elif NETSTANDARD || NETCOREAPP3_1
 using MySql.Data.MySqlClient;
 #endif
 using System.Diagnostics;
