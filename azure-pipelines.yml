@@ -293,7 +293,7 @@ jobs:
     # condition: succeeded('Tests')
 
     pool:
-      vmImage: "Ubuntu 18.04"
+      vmImage: "windows-latest"
 
     variables:
       buildConfiguration: "Release"
