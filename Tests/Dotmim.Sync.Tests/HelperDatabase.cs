@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Tests;
 using Dotmim.Sync.Tests.Core;
 using Microsoft.Data.Sqlite;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using System;
 using System.Data;
 using Microsoft.Data.SqlClient;

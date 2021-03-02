@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Server;
 using Microsoft.Data.SqlClient;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using Xunit;
 using Xunit.Abstractions;
 

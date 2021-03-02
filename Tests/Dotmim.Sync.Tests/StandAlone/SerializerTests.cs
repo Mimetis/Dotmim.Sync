@@ -45,35 +45,35 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assertions(outSchema);
         }
 
-        [Fact]
-        public void Test_Schema_BinarryFormatter()
-        {
-            var inSchema = CreateSchema();
-            byte[] bin = null;
-            SyncSet outSchema;
+        //[Fact]
+        //public void Test_Schema_BinarryFormatter()
+        //{
+        //    var inSchema = CreateSchema();
+        //    byte[] bin = null;
+        //    SyncSet outSchema;
 
-            var schemaSerializer = new BinaryFormatter
-            {
-                TypeFormat = FormatterTypeStyle.TypesAlways
-            };
-            using (var ms = new MemoryStream())
-            {
-                schemaSerializer.Serialize(ms, inSchema);
-                bin = ms.ToArray();
-            }
+        //    var schemaSerializer = new BinaryFormatter
+        //    {
+        //        TypeFormat = FormatterTypeStyle.TypesAlways
+        //    };
+        //    using (var ms = new MemoryStream())
+        //    {
+        //        schemaSerializer.Serialize(ms, inSchema);
+        //        bin = ms.ToArray();
+        //    }
 
-            using (var fs = new FileStream("Binary_Schema.bin", FileMode.Create))
-            {
-                fs.Write(bin, 0, bin.Length);
-            }
+        //    using (var fs = new FileStream("Binary_Schema.bin", FileMode.Create))
+        //    {
+        //        fs.Write(bin, 0, bin.Length);
+        //    }
 
-            using (var ms = new MemoryStream(bin))
-            {
-                outSchema = schemaSerializer.Deserialize(ms) as SyncSet;
-            }
+        //    using (var ms = new MemoryStream(bin))
+        //    {
+        //        outSchema = schemaSerializer.Deserialize(ms) as SyncSet;
+        //    }
 
-            Assertions(outSchema);
-        }
+        //    Assertions(outSchema);
+        //}
 
 
         [Fact]

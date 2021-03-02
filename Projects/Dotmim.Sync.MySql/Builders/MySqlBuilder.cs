@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
-#if NET5_0
+#if NETCOREAPP
 using MySqlConnector;
-#elif NETSTANDARD || NETCOREAPP3_1
+#elif NETSTANDARD 
 using MySql.Data.MySqlClient;
 #endif
 using System;
