@@ -61,11 +61,11 @@
   </ItemGroup>
 
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' Or '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
     <PackageReference Include="MySqlConnector" Version="1.2.1" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' Or '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
     <PackageReference Include="MySqlConnector" Version="0.69.10" />
   </ItemGroup>
 

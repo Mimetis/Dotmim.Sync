@@ -17,7 +17,7 @@ using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Web.Client;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using Xunit;
 using Xunit.Abstractions;
 
