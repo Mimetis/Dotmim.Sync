@@ -386,6 +386,7 @@ jobs:
         displayName: 'Use .Net Core sdk 5.x'
         inputs:
           version: 5.x
+          includePreviewVersions: 'true'
 
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
