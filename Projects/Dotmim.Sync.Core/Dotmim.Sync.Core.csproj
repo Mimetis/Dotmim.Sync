@@ -2,8 +2,9 @@
   <PropertyGroup>
     <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
     <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
+    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5)</TargetFrameworks>
+    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore)</TargetFrameworks>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <RootNamespace>Dotmim.Sync</RootNamespace>
@@ -63,7 +64,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' Or '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
   </ItemGroup>
 
