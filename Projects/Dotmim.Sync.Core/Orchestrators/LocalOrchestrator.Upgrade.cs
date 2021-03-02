@@ -44,7 +44,7 @@ namespace Dotmim.Sync
                 throw new MissingTablesException();
 
             var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
+             
             var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!exists)
@@ -55,7 +55,7 @@ namespace Dotmim.Sync
             if (scope == null)
                 throw new MissingClientScopeInfoException();
 
-            return await this.InternalUpgradeAsync(ctx, schema, scope, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            return await this.InternalUpgradeAsync(ctx, scope.Schema, scope, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
         }, connection, transaction, cancellationToken);
 

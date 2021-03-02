@@ -4,7 +4,11 @@ using System.Text;
 using System.Data.Common;
 using System.Data;
 using System.Linq;
+#if NET5_0
+using MySqlConnector;
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
+#endif
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
 using System.Collections.Generic;

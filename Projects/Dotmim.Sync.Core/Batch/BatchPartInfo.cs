@@ -97,11 +97,11 @@ namespace Dotmim.Sync.Batch
             if (!File.Exists(fullPath))
                 throw new MissingFileException(fullPath);
 
-            //var jsonConverter = new JsonConverter<ContainerSet>();
-            var jsonConverter = new Utf8JsonConverter<ContainerSet>();
+            var jsonConverter = new JsonConverter<ContainerSet>();
+            //var jsonConverter = new Utf8JsonConverter<ContainerSet>();
 
             using var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-            
+
             ContainerSet set = null;
 
             if (orchestrator != null)
@@ -133,11 +133,11 @@ namespace Dotmim.Sync.Batch
                 Directory.CreateDirectory(fi.Directory.FullName);
 
             // Serialize on disk.
-            // var jsonConverter = new JsonConverter<ContainerSet>();
-            var jsonConverter = new Utf8JsonConverter<ContainerSet>();
+            var jsonConverter = new JsonConverter<ContainerSet>();
+            //var jsonConverter = new Utf8JsonConverter<ContainerSet>();
 
             using var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
-            
+
             byte[] serializedBytes = null;
 
             if (orchestrator != null)
