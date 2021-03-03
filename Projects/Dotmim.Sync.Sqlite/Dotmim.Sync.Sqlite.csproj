@@ -46,10 +46,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Runtime" Version="4.3.1" />
     <PackageReference Include="Microsoft.Data.SQLite" Version="5.0.3" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
   </ItemGroup>
 
 </Project>

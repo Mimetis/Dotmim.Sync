@@ -2,7 +2,11 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+#if NET5_0 || NETCOREAPP3_1
 using MySqlConnector;
+#elif NETCOREAPP2_1
+using MySql.Data.MySqlClient;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -53,6 +57,7 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
+#if NET5_0 || NETCOREAPP3_1
                     case ProviderType.MySql:
                         if (this.Connection != null)
                             optionsBuilder.UseMySql(this.Connection, new MySqlServerVersion(new Version(8, 0, 21)), options => options.EnableRetryOnFailure(5));
@@ -65,6 +70,15 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseMySql(this.ConnectionString, new MariaDbServerVersion(new Version(10, 5, 5)), options => options.EnableRetryOnFailure(5));
                         break;
+#elif NETCOREAPP2_1
+                    case ProviderType.MySql:
+                    case ProviderType.MariaDB:
+                        if (this.Connection != null)
+                            optionsBuilder.UseMySql(this.Connection, options => options.EnableRetryOnFailure(5));
+                        else
+                            optionsBuilder.UseMySql(this.ConnectionString, options => options.EnableRetryOnFailure(5));
+                        break;
+#endif
                     case ProviderType.Sqlite:
                         if (this.Connection != null)
                             optionsBuilder.UseSqlite(this.Connection);
@@ -340,11 +354,19 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.ProductId);
 
                 entity.HasIndex(e => e.Name)
+#if NET5_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_Product_Name")
+#elif NETCOREAPP2_1
+                    .HasName("AK_Product_Name")
+#endif
                     .IsUnique();
 
                 entity.HasIndex(e => e.ProductNumber)
+#if NET5_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_Product_ProductNumber")
+#elif NETCOREAPP2_1
+                    .HasName("AK_Product_ProductNumber")
+#endif
                     .IsUnique();
 
                 entity.Property(e => e.ProductId)
@@ -416,7 +438,11 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.HasIndex(e => e.Name)
+#if NET5_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_ProductCategory_Name")
+#elif NETCOREAPP2_1
+                    .HasName("AK_ProductCategory_Name")
+#endif
                     .IsUnique();
 
                 entity.Property(e => e.ProductCategoryId)
@@ -455,7 +481,11 @@ namespace Dotmim.Sync.Tests.Models
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
+#if NET5_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_ProductModel_Name")
+#elif NETCOREAPP2_1
+                    .HasName("AK_ProductModel_Name")
+#endif
                     .IsUnique();
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
