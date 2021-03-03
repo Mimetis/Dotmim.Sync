@@ -34,16 +34,12 @@
   </PropertyGroup>
   
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj"  Version="$(Version)"  />
     <PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.8" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.2.0" />
   </ItemGroup>
@@ -51,7 +47,7 @@
 
 
   <ItemGroup>
-    <PackageReference Include="System.Runtime" Version="4.3.1" />
+    <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
   </ItemGroup>
 

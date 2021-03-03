@@ -10,7 +10,11 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+#if NET5_0 || NETCOREAPP3_1
 using MySqlConnector;
+#elif NETCOREAPP2_1
+using MySql.Data.MySqlClient;
+#endif
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -3575,7 +3579,7 @@ namespace Dotmim.Sync.Tests
                 var count = await command.ExecuteScalarAsync();
                 var countRows = Convert.ToInt32(count);
                 Assert.Equal(0, countRows);
-                await connection.CloseAsync();
+                connection.Close();
 
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
 
@@ -3595,7 +3599,7 @@ namespace Dotmim.Sync.Tests
                 count = await command.ExecuteScalarAsync();
                 countRows = Convert.ToInt32(count);
                 Assert.Equal(0, countRows);
-                await connection.CloseAsync();
+                connection.Close();
 
 
             }
