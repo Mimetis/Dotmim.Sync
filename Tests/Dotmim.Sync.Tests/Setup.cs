@@ -1,5 +1,10 @@
 ﻿using Dotmim.Sync.Tests.Core;
+#if NET5_0 || NETCOREAPP3_1
 using MySqlConnector;
+#elif NETCOREAPP2_1
+using MySql.Data.MySqlClient;
+#endif
+
 using System;
 using Microsoft.Data.SqlClient;
 using System.Runtime.InteropServices;
