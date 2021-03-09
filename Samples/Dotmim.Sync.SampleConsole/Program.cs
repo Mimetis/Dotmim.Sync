@@ -24,8 +24,6 @@ using Microsoft.Extensions.Configuration;
 using NpgsqlTypes;
 using Newtonsoft.Json;
 using System.Collections.Generic;
-using Dotmim.Sync.Postgres;
-using Dotmim.Sync.Postgres.Builders;
 using Dotmim.Sync.MySql;
 using System.Linq;
 using System.Transactions;
@@ -62,9 +60,65 @@ internal class Program
         // await SyncThroughWebApiAsync();
         //await SynchronizeWithFiltersAsync();
         //await CreateSnapshotAsync();
-        await SyncHttpThroughKestrellAndTestDateTimeSerializationAsync();
+        await SynchronizeAsyncThenAddFilterAsync();
     }
 
+
+    private static async Task SynchronizeAsyncThenAddFilterAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        // ------------------------------------------
+        // Step 1 : We want all the Customer rows
+        // ------------------------------------------
+
+        // Create a Setup for table customer only
+        var setup = new SyncSetup(new string[] { "Customer" });
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+        Console.WriteLine(r);
+
+        // ------------------------------------------
+        // Step 2 : We want to add a filter to Customer
+        // ------------------------------------------
+
+
+        // Deprovision everything
+
+        //// On server since it's change tracking, just remove the stored procedures and scope / scope history
+        //await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+        //    | SyncProvision.ServerScope | SyncProvision.ServerHistoryScope);
+
+        //// On client, remove everything
+        //await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+        //    | SyncProvision.Triggers | SyncProvision.TrackingTable
+        //    | SyncProvision.ClientScope);
+
+        // Add filter
+
+        setup.Filters.Add("Customer", "CompanyName");
+
+        if (!agent.Parameters.Contains("CompanyName"))
+            agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+
+        r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+
+        Console.WriteLine(r);
+
+    }
 
 
     public static async Task SyncHttpThroughKestrellAndTestDateTimeSerializationAsync()
