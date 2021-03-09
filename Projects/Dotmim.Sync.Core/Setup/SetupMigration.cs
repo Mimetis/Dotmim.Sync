@@ -209,6 +209,42 @@ namespace Dotmim.Sync
                 if (migrationSetupTable.ShouldMigrate)
                     migrationSetup.Tables.Add(migrationSetupTable);
             }
+
+
+            // Search for deleted filters
+            // TODO : what's the problem if we still have filters, even if not existing ?
+
+            // Search for new filters
+            // If we have any filter, just recreate them, just in case
+            if (newSetup.Filters != null && newSetup.Filters.Count > 0)
+            {
+                foreach (var filter in newSetup.Filters)
+                {
+                    var setupTable = newSetup.Tables[filter.TableName, filter.SchemaName];
+
+                    if (setupTable == null)
+                        continue;
+
+                    var migrationTable = migrationSetup.Tables.FirstOrDefault(ms => ms.SetupTable.EqualsByName(setupTable));
+
+                    if (migrationTable == null)
+                    {
+                        migrationTable = new MigrationSetupTable(setupTable)
+                        {
+                            StoredProcedures = MigrationAction.Create,
+                            Table = MigrationAction.None,
+                            TrackingTable = MigrationAction.None,
+                            Triggers = MigrationAction.None,
+                        };
+                        migrationSetup.Tables.Add(migrationTable);
+                    }
+
+                    migrationTable.StoredProcedures = MigrationAction.Create;
+                }
+
+            }
+
+
             return migrationSetup;
 
         }
