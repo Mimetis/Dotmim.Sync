@@ -39,6 +39,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
 
+            //var text = "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 as ISEXISTING ELSE SELECT 0 as ISEXISTING";
+
+            //if (storedProcedureType == DbStoredProcedureType.BulkTableType)
+            //    text = "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @procName AND s.name = @schemaName) SELECT 1 as ISEXISTING ELSE SELECT 0 as ISEXISTING";
+
             var text = "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
 
             if (storedProcedureType == DbStoredProcedureType.BulkTableType)
