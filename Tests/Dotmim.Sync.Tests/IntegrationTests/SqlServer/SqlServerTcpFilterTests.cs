@@ -51,8 +51,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // 2) Same, but decomposed in 3 Steps
 
                 var customerFilter = new SetupFilter("Customer");
-                customerFilter.AddParameter("CustomerId", "Customer", true);
-                customerFilter.AddWhere("CustomerId", "Customer", "CustomerId");
+                customerFilter.AddParameter("CustomerID", "Customer", true);
+                customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
                 setup.Filters.Add(customerFilter);
 
                 // 3) Create your own filter
@@ -61,7 +61,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var addressFilter = new SetupFilter("Address");
                 addressFilter.AddParameter("CustomerID", "Customer");
                 addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-                addressFilter.AddWhere("CustomerId", "CustomerAddress", "CustomerId");
+                addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
                 setup.Filters.Add(addressFilter);
                 // ----------------------------------------------------
 
@@ -69,8 +69,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", "SalesLT");
                 salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
                 salesOrderDetailFilter.AddJoin(Join.Left, "SalesLT.SalesOrderHeader").On("SalesLT.SalesOrderHeader", "SalesOrderId", "SalesLT.SalesOrderDetail", "SalesOrderId");
-                salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesLT.SalesOrderHeader", "CustomerId");
-                salesOrderDetailFilter.AddWhere("CustomerId", "CustomerAddress", "CustomerId");
+                salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", "SalesLT.SalesOrderHeader", "CustomerID");
+                salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
                 setup.Filters.Add(salesOrderDetailFilter);
                 // ----------------------------------------------------
 
