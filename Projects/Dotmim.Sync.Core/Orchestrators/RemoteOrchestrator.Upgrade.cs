@@ -123,8 +123,9 @@ namespace Dotmim.Sync
                 if (version.Minor == 6 && version.Build == 1)
                     version = await UpgdrateTo602Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (version.Minor == 6 && version.Build == 2)
-                    version = await UpgdrateTo603Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // last version of 0.6 Can be 0.6.2 or beta version 0.6.3 (that will never be released but still in the nuget packages available)
+                if (version.Minor == 6 && version.Build >= 2)
+                    version = await UpgdrateTo700Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             }
 
@@ -245,11 +246,11 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo603Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo700Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var newVersion = new Version(0, 6, 3);
+            var newVersion = new Version(0, 7, 0);
             // Sorting tables based on dependencies between them
 
             var schemaTables = schema.Tables
