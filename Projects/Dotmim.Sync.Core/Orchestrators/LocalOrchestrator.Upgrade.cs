@@ -24,11 +24,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Upgrade the database structure to reach the last DMS version
         /// </summary>
-        public virtual Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        public virtual Task<ScopeInfo> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync<ScopeInfo>(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             if (this.Setup == null)
-                return false;
+                return null;
 
             // get Database builder
             var dbBuilder = this.Provider.GetDatabaseBuilder();
@@ -48,7 +48,7 @@ namespace Dotmim.Sync
             var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!exists)
-                return false;
+                return null;
 
             var scope = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -89,7 +89,7 @@ namespace Dotmim.Sync
 
         }
 
-        internal virtual async Task<bool> InternalUpgradeAsync(SyncContext context, SyncSet schema, ScopeInfo scopeInfo, DbScopeBuilder builder, DbConnection connection, DbTransaction transaction,
+        internal virtual async Task<ScopeInfo> InternalUpgradeAsync(SyncContext context, SyncSet schema, ScopeInfo scopeInfo, DbScopeBuilder builder, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -108,16 +108,17 @@ namespace Dotmim.Sync
                 if (version.Minor == 6 && version.Build == 1)
                     version = await UpgdrateTo602Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (version.Minor == 6 && version.Build == 2)
-                    version = await UpgdrateTo603Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // last version of 0.6 Can be 0.6.2 or beta version 0.6.3 (that will never be released but still in the nuget packages available)
+                if (version.Minor == 6 && version.Build >= 2)
+                    version = await UpgdrateTo700Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
             {
                 scopeInfo.Version = version.ToString();
-                await this.InternalSaveScopeAsync(context, DbScopeType.Client, scopeInfo, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                scopeInfo = await this.InternalSaveScopeAsync(context, DbScopeType.Client, scopeInfo, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
-            return version == SyncVersion.Current;
+            return scopeInfo;
 
         }
 
@@ -219,11 +220,11 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo603Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo700Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var newVersion = new Version(0, 6, 3);
+            var newVersion = new Version(0, 7, 0);
             // Sorting tables based on dependencies between them
 
             var schemaTables = schema.Tables

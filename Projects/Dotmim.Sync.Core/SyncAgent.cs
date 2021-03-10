@@ -389,8 +389,6 @@ namespace Dotmim.Sync
             //{
             try
             {
-
-
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -448,7 +446,11 @@ namespace Dotmim.Sync
                 {
                     // Do we need to upgrade ?
                     if (this.LocalOrchestrator.InternalNeedsToUpgrade(context, clientScopeInfo))
-                        await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress);
+                    {
+                        var newScope = await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress);
+                        if (newScope != null)
+                            clientScopeInfo = newScope;
+                    }
 
                     // on remote orchestrator get scope info as well
                     // if setup is different, it will be migrated.
@@ -482,7 +484,7 @@ namespace Dotmim.Sync
                     // Affect local setup (equivalent to this.Setup)
                     this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
                     this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
-                    this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
+                    //this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
 
                     // If one of the comparison is false, we make a migration
                     if (!hasSameOptions || !hasSameStructure)
@@ -495,7 +497,7 @@ namespace Dotmim.Sync
                     // get scope again
                     clientScopeInfo.Schema = serverScopeInfo.Schema;
                     clientScopeInfo.Setup = serverScopeInfo.Setup;
-                    clientScopeInfo.Version = serverScopeInfo.Version;
+                    //clientScopeInfo.Version = serverScopeInfo.Version;
                 }
 
                 if (cancellationToken.IsCancellationRequested)
