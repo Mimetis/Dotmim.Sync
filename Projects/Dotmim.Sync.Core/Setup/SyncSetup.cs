@@ -58,11 +58,11 @@ namespace Dotmim.Sync
         [DataMember(Name = "tts", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public string TrackingTablesSuffix { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the current Setup version.
-        /// </summary>
-        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public string Version { get; set; }
+        ///// <summary>
+        ///// Gets or Sets the current Setup version.
+        ///// </summary>
+        //[DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        //public string Version { get; set; }
 
         /// <summary>
         /// Create a list of tables to be added to the sync process
@@ -76,7 +76,7 @@ namespace Dotmim.Sync
         {
             this.Tables = new SetupTables();
             this.Filters = new SetupFilters();
-            this.Version = SyncVersion.Current.ToString();
+            //this.Version = SyncVersion.Current.ToString();
         }
 
         /// <summary>
@@ -105,8 +105,7 @@ namespace Dotmim.Sync
                 !string.Equals(this.TrackingTablesPrefix, otherSetup.TrackingTablesPrefix, sc) ||
                 !string.Equals(this.TrackingTablesSuffix, otherSetup.TrackingTablesSuffix, sc) ||
                 !string.Equals(this.TriggersPrefix, otherSetup.TriggersPrefix, sc) ||
-                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc) ||
-                !string.Equals(this.Version, otherSetup.Version, sc))
+                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc)) 
                 return false;
 
             return true;

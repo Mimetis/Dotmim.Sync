@@ -424,7 +424,6 @@ namespace Dotmim.Sync
                     serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress);
                     clientScopeInfo.Schema = serverScopeInfo.Schema;
                     clientScopeInfo.Setup = serverScopeInfo.Setup;
-                    clientScopeInfo.Version = serverScopeInfo.Version;
 
                     // Affect local setup since the setup could potentially comes from Web server
                     // Affect local setup (equivalent to this.Setup)
@@ -432,7 +431,7 @@ namespace Dotmim.Sync
                     {
                         this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
                         this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
-                        this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
+                        //this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
                     }
 
                     // Provision local database
@@ -497,7 +496,6 @@ namespace Dotmim.Sync
                     // get scope again
                     clientScopeInfo.Schema = serverScopeInfo.Schema;
                     clientScopeInfo.Setup = serverScopeInfo.Setup;
-                    //clientScopeInfo.Version = serverScopeInfo.Version;
                 }
 
                 if (cancellationToken.IsCancellationRequested)
