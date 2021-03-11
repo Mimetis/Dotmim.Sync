@@ -53,6 +53,7 @@ internal class Program
     public static string[] oneTable = new string[] { "ProductCategory" };
     private static async Task Main(string[] args)
     {
+        await SynchronizeAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
@@ -60,7 +61,7 @@ internal class Program
         // await SyncThroughWebApiAsync();
         //await SynchronizeWithFiltersAsync();
         //await CreateSnapshotAsync();
-        await SynchronizeAsyncThenAddFilterAsync();
+        // await SynchronizeAsyncThenAddFilterAsync();
     }
 
 
@@ -502,7 +503,7 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var options = new SyncOptions()
