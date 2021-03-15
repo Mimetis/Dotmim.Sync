@@ -150,8 +150,8 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public override Task<bool> IsOutDated(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => base.IsOutDated(clientScopeInfo, serverScopeInfo, cancellationToken, progress);
+        public override Task<bool> IsOutDatedAsync(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => base.IsOutDatedAsync(clientScopeInfo, serverScopeInfo, cancellationToken, progress);
 
         /// <summary>
         /// Get server scope from server, by sending an http request to the server 

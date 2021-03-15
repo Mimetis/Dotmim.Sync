@@ -51,6 +51,8 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
 
     public static string[] oneTable = new string[] { "ProductCategory" };
+
+
     private static async Task Main(string[] args)
     {
         await SynchronizeAsync();
@@ -512,13 +514,8 @@ internal class Program
             DisableConstraintsOnApplyChanges = false
         };
 
-        var setup = new SyncSetup(new string[] { "Accounts", "AccountSettings", "Companies" })
-        {
-            StoredProceduresPrefix = "Sync",
-            TrackingTablesPrefix = "Sync",
-            TriggersPrefix = "Sync",
-        };
-
+        var setup = new SyncSetup(allTables);
+      
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
@@ -530,19 +527,19 @@ internal class Program
             Console.ResetColor();
         });
 
-        do
-        {
-            try
-            {
-                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                Console.WriteLine(r);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+        Console.WriteLine(r);
 
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+        await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+        await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable );
+
+        setup = new SyncSetup(allTables)
+        {
+            StoredProceduresPrefix = "Sync",
+            TrackingTablesPrefix = "Sync",
+            TriggersPrefix = "Sync",
+        };
+
     }
 
     private static async Task CreateSnapshotAsync()

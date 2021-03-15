@@ -409,11 +409,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup();
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
+            var orchestrator = new RemoteOrchestrator(sqlProvider, options, setup, scopeName);
 
             var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.ProvisionAsync(provision));
+            var se = await Assert.ThrowsAsync<SyncException>(async () => await orchestrator.ProvisionAsync(provision));
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
             Assert.Equal(SyncSide.ClientSide, se.Side);
