@@ -17,69 +17,8 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        /// <summary>
-        /// Deprovision the orchestrator database based on the Setup table argument, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SetupTable table, SyncProvision provision, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var setup = new SyncSetup();
-            setup.Tables.Add(table);
-
-            // using a fake SyncTable based on oldSetup, since we don't need columns, but we need to have the filters
-            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
-
-            // Create a temporary SyncSet for attaching to the schemaTable
-            var tmpSchema = new SyncSet();
-
-            // Add this table to schema
-            tmpSchema.Tables.Add(schemaTable);
-
-            tmpSchema.EnsureSchema();
-
-            // copy filters from old setup
-            foreach (var filter in this.Setup.Filters)
-                tmpSchema.Filters.Add(filter);
-
-
-            return this.DeprovisionAsync(tmpSchema, provision, connection, transaction, cancellationToken, progress);
-        }
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncProvision provision, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            // Create a temporary SyncSet for attaching to the schemaTable
-            var tmpSchema = new SyncSet();
-
-            // Add this table to schema
-            foreach (var table in this.Setup.Tables)
-                tmpSchema.Tables.Add(new SyncTable(table.TableName, table.SchemaName));
-
-            tmpSchema.EnsureSchema();
-
-            // copy filters from old setup
-            foreach (var filter in this.Setup.Filters)
-                tmpSchema.Filters.Add(filter);
-
-            return this.DeprovisionAsync(tmpSchema, provision, connection, transaction, cancellationToken, progress);
-        }
-
-        /// <summary>
-        /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
-        /// </summary>
-        /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncSet schema, SyncProvision provision, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Deprovisioning, (ctx, connection, transaction) =>
-        {
-            return InternalDeprovisionAsync(ctx, schema, provision, connection, transaction, cancellationToken, progress);
-
-        }, connection, transaction, cancellationToken);
-
-        internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+   
+        internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // If schema does not have any table, raise an exception
             if (schema == null || schema.Tables == null || !schema.HasTables)
@@ -166,6 +105,25 @@ namespace Dotmim.Sync
 
             }
 
+            // save scope
+            if (this is LocalOrchestrator)
+            {
+                var clientScopeInfo = scope as ScopeInfo;
+                clientScopeInfo.Schema = schema;
+                clientScopeInfo.Setup = this.Setup;
+
+                await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
+            else
+            {
+                var serverScopeInfo = scope as ServerScopeInfo;
+                serverScopeInfo.Schema = schema;
+                serverScopeInfo.Setup = this.Setup;
+
+                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
+
+
             var args = new ProvisionedArgs(ctx, provision, schema, connection);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, args);
@@ -173,7 +131,7 @@ namespace Dotmim.Sync
             return schema;
         }
 
-        internal async Task<bool> InternalDeprovisionAsync(SyncContext ctx, SyncSet schema, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<bool> InternalDeprovisionAsync(SyncContext ctx, SyncSet schema, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             await this.InterceptAsync(new DeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -268,12 +226,17 @@ namespace Dotmim.Sync
             // Get Scope Builder
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
+            bool hasDeleteClientScopeTable = false;
+            bool hasDeleteServerScopeTable = false;
             if (provision.HasFlag(SyncProvision.ClientScope))
             {
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
+                {
                     await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasDeleteClientScopeTable = true;
+                }
             }
 
             if (provision.HasFlag(SyncProvision.ServerScope))
@@ -281,7 +244,10 @@ namespace Dotmim.Sync
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
+                {
                     await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasDeleteServerScopeTable = true;
+                }
             }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
@@ -290,6 +256,30 @@ namespace Dotmim.Sync
 
                 if (exists)
                     await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
+
+            // save scope
+            if (this is LocalOrchestrator && !hasDeleteClientScopeTable)
+            {
+                var clientScopeInfo = scope as ScopeInfo;
+                clientScopeInfo.Schema = null;
+                clientScopeInfo.Setup = null;
+
+                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (exists)
+                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
+            else if (!hasDeleteServerScopeTable)
+            {
+                var serverScopeInfo = scope as ServerScopeInfo;
+                serverScopeInfo.Schema = schema;
+                serverScopeInfo.Setup = this.Setup;
+
+                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (exists)
+                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             var args = new DeprovisionedArgs(ctx, provision, schema, connection);

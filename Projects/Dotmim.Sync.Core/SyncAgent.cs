@@ -422,8 +422,6 @@ namespace Dotmim.Sync
                     // if setup is different, it will be migrated.
                     // so serverScopeInfo.Setup MUST be equal to this.Setup
                     serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-                    clientScopeInfo.Schema = serverScopeInfo.Schema;
-                    clientScopeInfo.Setup = serverScopeInfo.Setup;
 
                     // Affect local setup since the setup could potentially comes from Web server
                     // Affect local setup (equivalent to this.Setup)

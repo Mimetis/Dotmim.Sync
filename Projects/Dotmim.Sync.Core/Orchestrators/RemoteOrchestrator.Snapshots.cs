@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
@@ -41,15 +42,18 @@ namespace Dotmim.Sync
             // 2) Ensure databases are ready
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            // Provision everything
-            schema = await InternalProvisionAsync(ctx, false, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            // 3) Provision everything
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            // 3) Getting the most accurate timestamp
+            schema = await InternalProvisionAsync(ctx, false, schema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            // 4) Getting the most accurate timestamp
             var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
 
             await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
 
-            // 4) Create the snapshot
+            // 5) Create the snapshot
             var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
             var snapshotCreated = new SnapshotCreatedArgs(ctx, batchInfo, connection);
