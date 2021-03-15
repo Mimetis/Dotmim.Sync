@@ -23,7 +23,6 @@ namespace Dotmim.Sync
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
         internal SyncContext syncContext;
-        internal ILogger logger;
 
         //// Internal table builder cache
         //private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
@@ -34,8 +33,8 @@ namespace Dotmim.Sync
         //    = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
 
         // Internal sync adapter cache
-        private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
-            = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
+        //private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
+        //    = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -72,6 +71,11 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual DateTime? CompleteTime { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the logger used by this orchestrator
+        /// </summary>
+        public virtual ILogger Logger { get; set; }
+
 
         /// <summary>
         /// Create a local orchestrator, used to orchestrates the whole sync on the client side
@@ -84,7 +88,7 @@ namespace Dotmim.Sync
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             this.Provider.Orchestrator = this;
-            this.logger = options.Logger;
+            this.Logger = options.Logger;
         }
 
         /// <summary>
@@ -119,12 +123,12 @@ namespace Dotmim.Sync
             var interceptor = this.interceptors.GetInterceptor<T>();
 
             // Check logger, because we make some reflection here
-            if (this.logger.IsEnabled(LogLevel.Debug))
+            if (this.Logger.IsEnabled(LogLevel.Debug))
             {
                 //for example, getting DatabaseChangesSelectingArgs and transform to DatabaseChangesSelecting
                 var argsTypeName = args.GetType().Name.Replace("Args", "");
 
-                this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
+                this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
             }
 
             await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
@@ -154,13 +158,13 @@ namespace Dotmim.Sync
         internal void ReportProgress(SyncContext context, IProgress<ProgressArgs> progress, ProgressArgs args, DbConnection connection = null, DbTransaction transaction = null)
         {
             // Check logger, because we make some reflection here
-            if (this.logger.IsEnabled(LogLevel.Information))
+            if (this.Logger.IsEnabled(LogLevel.Information))
             {
                 var argsTypeName = args.GetType().Name.Replace("Args", ""); ;
-                if (this.logger.IsEnabled(LogLevel.Debug))
-                    this.logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
+                if (this.Logger.IsEnabled(LogLevel.Debug))
+                    this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
                 else
-                    this.logger.LogInformation(new EventId(args.EventId, argsTypeName), args);
+                    this.Logger.LogInformation(new EventId(args.EventId, argsTypeName), args);
             }
 
             if (progress == null)
@@ -241,7 +245,7 @@ namespace Dotmim.Sync
             this.Provider.EnsureSyncException(syncException);
             syncException.Side = this.Side;
 
-            this.logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
+            this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 
             throw syncException;
         }

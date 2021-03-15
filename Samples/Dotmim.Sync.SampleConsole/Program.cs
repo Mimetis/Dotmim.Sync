@@ -503,7 +503,7 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var options = new SyncOptions()
@@ -512,8 +512,15 @@ internal class Program
             DisableConstraintsOnApplyChanges = false
         };
 
+        var setup = new SyncSetup(new string[] { "Accounts", "AccountSettings", "Companies" })
+        {
+            StoredProceduresPrefix = "Sync",
+            TrackingTablesPrefix = "Sync",
+            TriggersPrefix = "Sync",
+        };
+
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
