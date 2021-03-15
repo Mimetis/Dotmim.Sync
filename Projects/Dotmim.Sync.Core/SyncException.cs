@@ -375,6 +375,15 @@ namespace Dotmim.Sync
 
         public UnsupportedColumnTypeException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
     }
+    /// <summary>
+    /// Occurs when a column name is not supported by the Dotmim.Sync framework
+    /// </summary>
+    public class UnsupportedColumnNameException : Exception
+    {
+        const string message = "The Column name {0} is not allowed. Please consider to change the column name.";
+
+        public UnsupportedColumnNameException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
+    }
 
 
     /// <summary>

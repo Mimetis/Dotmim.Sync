@@ -461,10 +461,10 @@ namespace Dotmim.Sync
 
                     if (hasSameStructure)
                     {
-                        // Sett schema & setup
+                        // Set schema & setup
                         this.Schema = clientScopeInfo.Schema;
 
-                        //schema could be null if from web server 
+                        // Schema could be null if from web server 
                         if (serverScopeInfo.Schema == null)
                             serverScopeInfo.Schema = clientScopeInfo.Schema;
                     }
@@ -480,19 +480,10 @@ namespace Dotmim.Sync
                     // Affect local setup (equivalent to this.Setup)
                     this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
                     this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
-                    //this.LocalOrchestrator.Setup.Version = serverScopeInfo.Setup.Version;
 
                     // If one of the comparison is false, we make a migration
                     if (!hasSameOptions || !hasSameStructure)
-                    {
-                        await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress).ConfigureAwait(false);
-                        clientScopeInfo.Setup = this.Setup;
-                        clientScopeInfo.Schema = serverScopeInfo.Schema;
-                    }
-
-                    // get scope again
-                    clientScopeInfo.Schema = serverScopeInfo.Schema;
-                    clientScopeInfo.Setup = serverScopeInfo.Setup;
+                        clientScopeInfo = await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (cancellationToken.IsCancellationRequested)
