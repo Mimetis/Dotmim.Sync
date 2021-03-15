@@ -19,6 +19,17 @@ namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator : BaseOrchestrator
     {
+        /// <summary>
+        /// Provision the local database based on the orchestrator setup, and the provision enumeration
+        /// </summary>
+        /// <param name="overwrite">Overwrite existing objects</param>
+        public virtual Task<SyncSet> ProvisionAsync(bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var provision = SyncProvision.ClientScope | SyncProvision.Table |
+                            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+
+            return this.ProvisionAsync(provision, overwrite, null, connection, transaction, cancellationToken, progress);
+        }
 
         /// <summary>
         /// Provision the local database based on the orchestrator setup, and the provision enumeration
@@ -63,7 +74,18 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Deprovision the orchestrator database based on the orchestrator Setup instance, provided on constructor, and the provision enumeration
+        /// Deprovision the local database
+        /// </summary>
+        public virtual Task DeprovisionAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var provision = SyncProvision.ClientScope | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+
+            return this.DeprovisionAsync(provision, null, connection, transaction, cancellationToken, progress);
+        }
+
+
+        /// <summary>
+        /// Deprovision the orchestrator database based on the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
         public virtual Task DeprovisionAsync(SyncProvision provision, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -100,10 +122,8 @@ namespace Dotmim.Sync
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                clientScopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (exists)
+                    clientScopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             var isDeprovisioned = await InternalDeprovisionAsync(ctx, schema, provision, clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

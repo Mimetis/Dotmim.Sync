@@ -41,29 +41,23 @@ namespace Dotmim.Sync
             // Get Scope Builder
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            bool hasCreatedScopeInfo = false;
             // Shoudl we create scope
-            if (provision.HasFlag(SyncProvision.ClientScope))
+            // if scope is not null, so obviously we have create the table before, so no need to test
+            if (provision.HasFlag(SyncProvision.ClientScope) && scope == null)
             {
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                {
                     await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    hasCreatedScopeInfo = true;
-                }
             }
 
-            bool hasCreatedServerScopeInfo = false;
-            if (provision.HasFlag(SyncProvision.ServerScope))
+            // if scope is not null, so obviously we have create the table before, so no need to test
+            if (provision.HasFlag(SyncProvision.ServerScope) && scope == null)
             {
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                {
                     await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    hasCreatedServerScopeInfo = true;
-                }
             }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
@@ -114,35 +108,22 @@ namespace Dotmim.Sync
             }
 
             // save scope
-            if (this is LocalOrchestrator)
+            if (this is LocalOrchestrator && scope != null)
             {
                 var clientScopeInfo = scope as ScopeInfo;
                 clientScopeInfo.Schema = schema;
                 clientScopeInfo.Setup = this.Setup;
 
-                var exists = hasCreatedScopeInfo;
-
-                if (!hasCreatedScopeInfo)
-                    exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (exists)
-                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
-            else
+            else if (this is RemoteOrchestrator && scope != null)
             {
                 var serverScopeInfo = scope as ServerScopeInfo;
                 serverScopeInfo.Schema = schema;
                 serverScopeInfo.Setup = this.Setup;
 
-                var exists = hasCreatedServerScopeInfo;
-
-                if (!hasCreatedServerScopeInfo)
-                    exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (exists)
-                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
-
 
             var args = new ProvisionedArgs(ctx, provision, schema, connection);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
@@ -279,7 +260,7 @@ namespace Dotmim.Sync
             }
 
             // save scope
-            if (this is LocalOrchestrator && !hasDeleteClientScopeTable)
+            if (this is LocalOrchestrator && !hasDeleteClientScopeTable && scope != null)
             {
                 var clientScopeInfo = scope as ScopeInfo;
                 clientScopeInfo.Schema = null;
@@ -290,7 +271,7 @@ namespace Dotmim.Sync
                 if (exists)
                     await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
-            else if (!hasDeleteServerScopeTable)
+            else if (this is RemoteOrchestrator && !hasDeleteServerScopeTable && scope != null)
             {
                 var serverScopeInfo = scope as ServerScopeInfo;
                 serverScopeInfo.Schema = schema;

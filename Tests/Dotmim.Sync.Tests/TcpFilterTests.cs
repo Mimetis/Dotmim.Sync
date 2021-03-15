@@ -758,17 +758,12 @@ namespace Dotmim.Sync.Tests
 
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options, this.FilterSetup);
 
-                var provision = SyncProvision.ClientScope | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
                 // just check interceptor
                 var onTableCreatedCount = 0;
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
-                // Read client schema
-                var schema = await localOrchestrator.GetSchemaAsync();
-
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.ProvisionAsync(schema, provision);
+                await localOrchestrator.ProvisionAsync();
 
                 //--------------------------
                 // ASSERTION
@@ -810,7 +805,7 @@ namespace Dotmim.Sync.Tests
                 //localOrchestrator.OnTableProvisioned(null);
 
                 //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.DeprovisionAsync(schema, provision);
+                await localOrchestrator.DeprovisionAsync();
 
                 // check if scope table is correctly created
                 scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client, options.ScopeInfoTableName);
@@ -1103,7 +1098,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
-                await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers);
+                await agent.LocalOrchestrator.DeprovisionAsync();
 
                 foreach (var setupTable in setup.Tables)
                 {
