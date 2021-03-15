@@ -47,7 +47,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
             {
                 // set value for (MAX) 
-                maxLength = maxLength < 0 ? SqlMetaData.Max : maxLength;
+                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
 
                 // If max length is specified (not (MAX) )
                 if (maxLength > 0)

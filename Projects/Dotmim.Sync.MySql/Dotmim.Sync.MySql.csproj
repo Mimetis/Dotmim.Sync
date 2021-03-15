@@ -1,7 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+    <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
+    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+
+    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore)</TargetFrameworks>
+
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <Title>Dotmim.Sync.MySql</Title>
@@ -12,7 +17,7 @@
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.6.2</Version>
+    <Version>0.7.0</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>8.0</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
@@ -39,16 +44,25 @@
       <PackagePath></PackagePath>
     </None>
   </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="MySqlConnector">
-      <Version>0.69.10</Version>
-    </PackageReference>
-  </ItemGroup>  
+ 
   
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
   </ItemGroup>
+
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
+    <PackageReference Include="MySqlConnector" Version="1.2.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+    <PackageReference Include="MySqlConnector" Version="1.2.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
+    <PackageReference Include="MySqlConnector" Version="0.69.10"  />
+  </ItemGroup>
+
 
 </Project>

@@ -17,15 +17,15 @@ using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Web.Client;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
-using MySql.Data.MySqlClient;
+using MySqlConnector;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class SqlServerToSqliteTransactionTests : HttpTestsBase
+    public class SqlServerHttpToSqliteTransactionTests : HttpTestsBase
     {
-        public SqlServerToSqliteTransactionTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public SqlServerHttpToSqliteTransactionTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 

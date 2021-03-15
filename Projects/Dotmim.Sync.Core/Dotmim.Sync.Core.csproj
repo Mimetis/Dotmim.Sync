@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+    <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
+    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+
+    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore)</TargetFrameworks>
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <RootNamespace>Dotmim.Sync</RootNamespace>
@@ -12,13 +16,15 @@
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.6.2</Version>
+    <Version>0.7.0</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>8.0</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
     <PackageIcon>packageIcon.png</PackageIcon>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <OutputType>Library</OutputType>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
 
   </PropertyGroup>
 
@@ -34,7 +40,7 @@
     <EmbeddedResource Remove="Serialization\DmBinaryConverter\**" />
     <None Remove="Serialization\DmBinaryConverter\**" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <None Include="..\..\docs\assets\packageIcon.png">
       <Pack>True</Pack>
@@ -42,17 +48,28 @@
     </None>
   </ItemGroup>
 
-  
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
     <PackageReference Include="System.ComponentModel.TypeConverter" Version="4.3.0" />
     <PackageReference Include="System.Data.Common" Version="4.3.0" />
     <PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <PackageReference Include="Utf8Json" Version="1.3.7" />
   </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'" >
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'" >
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
+  </ItemGroup>
+
 </Project>

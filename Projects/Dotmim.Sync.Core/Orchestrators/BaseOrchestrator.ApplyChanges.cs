@@ -35,18 +35,21 @@ namespace Dotmim.Sync
             // if we have changes or if we are in re init mode
             if (hasChanges || context.SyncType != SyncType.Normal)
             {
+
+                var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
                 // Disable check constraints
                 // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
                 // Report this disabling constraints brefore opening a transaction
                 if (message.DisableConstraintsOnApplyChanges)
-                    foreach (var table in message.Schema.Tables.Reverse())
+                    foreach (var table in schemaTables)
                         await this.InternalDisableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
                 // -----------------------------------------------------
                 // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server, then check if we don't have already applied a snapshot)
                 // -----------------------------------------------------
                 if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
-                    foreach (var table in message.Schema.Tables)
+                    foreach (var table in schemaTables.Reverse())
                         await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
 
                 // Trying to change order (from deletes-upserts to upserts-deletes)
@@ -56,7 +59,7 @@ namespace Dotmim.Sync
                 // 1) Applying Inserts and Updates. Apply in table order
                 // -----------------------------------------------------
                 if (hasChanges)
-                    foreach (var table in message.Schema.Tables)
+                    foreach (var table in schemaTables)
                         await this.InternalApplyTableChangesAsync(context, table, message, connection,
                             transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
 
@@ -64,13 +67,13 @@ namespace Dotmim.Sync
                 // 2) Applying Deletes. Do not apply deletes if we are in a new database
                 // -----------------------------------------------------
                 if (!message.IsNew && hasChanges)
-                    foreach (var table in message.Schema.Tables.Reverse())
+                    foreach (var table in schemaTables.Reverse())
                         await this.InternalApplyTableChangesAsync(context, table, message, connection,
                             transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
 
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
-                    foreach (var table in message.Schema.Tables)
+                    foreach (var table in schemaTables)
                         await this.InternalEnableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
             }
 
@@ -107,7 +110,7 @@ namespace Dotmim.Sync
             // Create a select table based on the schema in parameter + scope columns
             var changesSet = schema.Schema.Clone(false);
             var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
-            
+
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             if (!dataReader.Read())
@@ -625,6 +628,15 @@ namespace Dotmim.Sync
                 finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
                 finalSenderScopeId = arg.SenderScopeId;
                 conflictType = arg.Conflict.Type;
+            }
+            else
+            {
+                // Check logger, because we make some reflection here
+                if (this.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    var args = new { Row = conflictRow, Resolution = resolution, Connection = connection, Transaction = transaction };
+                    this.Logger.LogDebug(new EventId(SyncEventsId.ApplyChangesFailed.Id, "ApplyChangesFailed"), args);
+                }
             }
 
             // Change action only if we choose ClientWins or Rollback.

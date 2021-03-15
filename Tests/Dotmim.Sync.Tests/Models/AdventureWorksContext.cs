@@ -2,7 +2,11 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+#if NET5_0 || NETCOREAPP3_1
+using MySqlConnector;
+#elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;
+#endif
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -53,13 +57,28 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
+#if NET5_0 || NETCOREAPP3_1
+                    case ProviderType.MySql:
+                        if (this.Connection != null)
+                            optionsBuilder.UseMySql(this.Connection, new MySqlServerVersion(new Version(8, 0, 21)), options => options.EnableRetryOnFailure(5));
+                        else
+                            optionsBuilder.UseMySql(this.ConnectionString, new MySqlServerVersion(new Version(8, 0, 21)), options => options.EnableRetryOnFailure(5));
+                        break;
+                    case ProviderType.MariaDB:
+                        if (this.Connection != null)
+                            optionsBuilder.UseMySql(this.Connection, new MariaDbServerVersion(new Version(10, 5, 5)), options => options.EnableRetryOnFailure(5));
+                        else
+                            optionsBuilder.UseMySql(this.ConnectionString, new MariaDbServerVersion(new Version(10, 5, 5)), options => options.EnableRetryOnFailure(5));
+                        break;
+#elif NETCOREAPP2_1
                     case ProviderType.MySql:
                     case ProviderType.MariaDB:
                         if (this.Connection != null)
                             optionsBuilder.UseMySql(this.Connection, options => options.EnableRetryOnFailure(5));
                         else
-                            optionsBuilder.UseMySql(this.ConnectionString,  options => options.EnableRetryOnFailure(5));
+                            optionsBuilder.UseMySql(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
+#endif
                     case ProviderType.Sqlite:
                         if (this.Connection != null)
                             optionsBuilder.UseSqlite(this.Connection);
@@ -335,11 +354,19 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.ProductId);
 
                 entity.HasIndex(e => e.Name)
+#if NET5_0 || NETCOREAPP3_1
+                    .HasDatabaseName("AK_Product_Name")
+#elif NETCOREAPP2_1
                     .HasName("AK_Product_Name")
+#endif
                     .IsUnique();
 
                 entity.HasIndex(e => e.ProductNumber)
+#if NET5_0 || NETCOREAPP3_1
+                    .HasDatabaseName("AK_Product_ProductNumber")
+#elif NETCOREAPP2_1
                     .HasName("AK_Product_ProductNumber")
+#endif
                     .IsUnique();
 
                 entity.Property(e => e.ProductId)
@@ -411,7 +438,11 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.HasIndex(e => e.Name)
+#if NET5_0 || NETCOREAPP3_1
+                    .HasDatabaseName("AK_ProductCategory_Name")
+#elif NETCOREAPP2_1
                     .HasName("AK_ProductCategory_Name")
+#endif
                     .IsUnique();
 
                 entity.Property(e => e.ProductCategoryId)
@@ -432,10 +463,6 @@ namespace Dotmim.Sync.Tests.Models
                     .HasColumnName("Name")
                     .HasMaxLength(50);
 
-                entity.Property(e => e.ParentProductCategoryId)
-                    .HasColumnName("ParentProductCategoryID")
-                    .HasMaxLength(12);
-
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
 
@@ -446,11 +473,6 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
-
-                //entity.HasOne(d => d.ParentProductCategory)
-                //    .WithMany(p => p.InverseParentProductCategory)
-                //    .HasForeignKey(d => d.ParentProductCategoryId)
-                //    .HasConstraintName("FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID");
             });
 
             modelBuilder.Entity<ProductModel>(entity =>
@@ -459,7 +481,11 @@ namespace Dotmim.Sync.Tests.Models
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
+#if NET5_0 || NETCOREAPP3_1
+                    .HasDatabaseName("AK_ProductModel_Name")
+#elif NETCOREAPP2_1
                     .HasName("AK_ProductModel_Name")
+#endif
                     .IsUnique();
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
@@ -825,17 +851,17 @@ namespace Dotmim.Sync.Tests.Models
             );
 
             modelBuilder.Entity<ProductCategory>().HasData(
-                new ProductCategory { ProductCategoryId = "BIKES", Name = "Bikes" },
-                new ProductCategory { ProductCategoryId = "COMPT", Name = "Components" },
-                new ProductCategory { ProductCategoryId = "CLOTHE", Name = "Clothing" },
-                new ProductCategory { ProductCategoryId = "ACCESS", Name = "Accessories" },
-                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes", ParentProductCategoryId = "BIKES" },
-                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes", ParentProductCategoryId = "BIKES" },
-                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames", ParentProductCategoryId = "COMPT" },
-                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes", ParentProductCategoryId = "BIKES" },
-                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars", ParentProductCategoryId = "COMPT" },
-                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets", ParentProductCategoryId = "COMPT" },
-                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes", ParentProductCategoryId = "COMPT" }
+                new ProductCategory { ProductCategoryId = "_BIKES", Name = "Bikes" },
+                new ProductCategory { ProductCategoryId = "_COMPT", Name = "Components" },
+                new ProductCategory { ProductCategoryId = "_CLOTHE", Name = "Clothing" },
+                new ProductCategory { ProductCategoryId = "_ACCESS", Name = "Accessories" },
+                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes"},
+                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames" },
+                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes"},
+                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars"},
+                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets" },
+                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes"}
 
             );
 
@@ -979,11 +1005,11 @@ namespace Dotmim.Sync.Tests.Models
             });
 
             modelBuilder.Entity<PriceListCategory>()
-                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "BIKES" }
-                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "BIKES", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "COMPT", }
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_BIKES" }
+                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_BIKES", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_COMPT", }
                     );
 
 
@@ -995,7 +1021,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "BIKES",
+                    PriceCategoryId = "_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1005,11 +1031,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "CLOTHE")
+                .Where(p => p.ProductCategoryId == "_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "CLOTHE",
+                    PriceCategoryId = "_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1024,7 +1050,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "BIKES",
+                    PriceCategoryId = "_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
@@ -1033,11 +1059,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "CLOTHE")
+                .Where(p => p.ProductCategoryId == "_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "CLOTHE",
+                    PriceCategoryId = "_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,

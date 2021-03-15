@@ -1,6 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+    <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
+    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+
+    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore)</TargetFrameworks>
+
     <Authors>Sébastien Pertus</Authors>
     <Company>Microsoft</Company>
     <Title>Dotmim.Sync.Web.Client</Title>
@@ -11,7 +16,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.6.2</Version>
+    <Version>0.7.0</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
     <PackageIcon>packageIcon.png</PackageIcon>
@@ -27,17 +32,22 @@
     <IncludeSymbols>True</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="WebProxyClientProvider.cs" />
+  
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
+    <PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.2.0" />
+  </ItemGroup>
+
+
 
   <ItemGroup>
     <ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.8" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
   </ItemGroup>
 

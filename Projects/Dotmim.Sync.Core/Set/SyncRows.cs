@@ -121,6 +121,9 @@ namespace Dotmim.Sync
                 yield return row.ToArray();
         }
 
+
+        
+
         /// <summary>
         /// Make a filter on primarykeys
         /// </summary>
