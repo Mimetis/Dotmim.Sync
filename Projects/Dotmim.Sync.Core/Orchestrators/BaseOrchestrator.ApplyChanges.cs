@@ -110,7 +110,7 @@ namespace Dotmim.Sync
             // Create a select table based on the schema in parameter + scope columns
             var changesSet = schema.Schema.Clone(false);
             var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
-            
+
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             if (!dataReader.Read())
@@ -628,6 +628,15 @@ namespace Dotmim.Sync
                 finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
                 finalSenderScopeId = arg.SenderScopeId;
                 conflictType = arg.Conflict.Type;
+            }
+            else
+            {
+                // Check logger, because we make some reflection here
+                if (this.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    var args = new { Row = conflictRow, Resolution = resolution, Connection = connection, Transaction = transaction };
+                    this.Logger.LogDebug(new EventId(SyncEventsId.ApplyChangesFailed.Id, "ApplyChangesFailed"), args);
+                }
             }
 
             // Change action only if we choose ClientWins or Rollback.
