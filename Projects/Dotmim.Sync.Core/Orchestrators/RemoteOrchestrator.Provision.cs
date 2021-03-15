@@ -19,6 +19,19 @@ namespace Dotmim.Sync
 {
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
+
+        /// <summary>
+        /// Provision the remote database 
+        /// </summary>
+        /// <param name="overwrite">Overwrite existing objects</param>
+        public virtual Task<SyncSet> ProvisionAsync(bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | 
+                            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+
+            return this.ProvisionAsync(provision, overwrite, null, connection, transaction, cancellationToken, progress);
+        }
+
         /// <summary>
         /// Provision the remote database based on the Setup parameter, and the provision enumeration
         /// </summary>
@@ -53,6 +66,19 @@ namespace Dotmim.Sync
 
             }, connection, transaction, cancellationToken);
 
+
+        /// <summary>
+        /// Deprovision the remote database 
+        /// </summary>
+        /// <param name="overwrite">Overwrite existing objects</param>
+        public virtual Task DeprovisionAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope |
+                            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+
+            return this.DeprovisionAsync(provision, null, connection, transaction, cancellationToken, progress);
+        }
+
         /// <summary>
         /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
         /// </summary>
@@ -68,10 +94,8 @@ namespace Dotmim.Sync
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (exists)
+                    serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             // Create a temporary SyncSet for attaching to the schemaTable
