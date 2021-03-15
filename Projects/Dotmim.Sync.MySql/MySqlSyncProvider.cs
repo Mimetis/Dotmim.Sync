@@ -1,7 +1,11 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
+#if NET5_0|| NETCOREAPP3_1
+using MySqlConnector;
+#elif NETSTANDARD 
 using MySql.Data.MySqlClient;
+#endif
 using Dotmim.Sync.MySql.Builders;
 using System;
 
@@ -13,7 +17,7 @@ namespace Dotmim.Sync.MySql
         DbMetadata dbMetadata;
         static string providerType;
 
-        public override string GetProviderTypeName() =>ProviderType;
+        public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType
         {

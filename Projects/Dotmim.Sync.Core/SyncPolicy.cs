@@ -83,7 +83,7 @@ namespace Dotmim.Sync
             {
                 while (true)
                 {
-                    if (cancellationToken != null && cancellationToken != CancellationToken.None)
+                    if (cancellationToken != default && cancellationToken != CancellationToken.None)
                         cancellationToken.ThrowIfCancellationRequested();
 
                     Exception handledException = null;
@@ -101,14 +101,14 @@ namespace Dotmim.Sync
                         var canRetry = tryCount < this.RetryCount;
 
                         if (!canRetry)
-                            throw ex;
+                            throw;
 
                         // Do we have a Func that explicitely say if we can retry or not
                         if (this.isRetriable != null)
                             canRetry = isRetriable(ex, arg);
                         
                         if (!canRetry)
-                            throw ex;
+                            throw;
 
                         if (onRetryAsync != null)
                             handledException = ex;

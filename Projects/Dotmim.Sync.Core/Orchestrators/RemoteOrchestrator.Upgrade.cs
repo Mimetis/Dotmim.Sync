@@ -114,17 +114,18 @@ namespace Dotmim.Sync
             // beta version
             if (version.Major == 0)
             {
-                // Migrate from 0.5.x to 0.6.0
                 if (version.Minor <= 5)
                     version = await UpgdrateTo600Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Migrate from 0.6.0 to 0.6.1
-                if (version.Minor <= 6 && version.Build == 0)
+                if (version.Minor == 6 && version.Build == 0)
                     version = await UpgdrateTo601Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Migrate from 0.6.0 to 0.6.1
-                if (version.Minor <= 6 && version.Build == 1)
+                if (version.Minor == 6 && version.Build == 1)
                     version = await UpgdrateTo602Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // last version of 0.6 Can be 0.6.2 or beta version 0.6.3 (that will never be released but still in the nuget packages available)
+                if (version.Minor == 6 && version.Build >= 2)
+                    version = await UpgdrateTo700Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             }
 
@@ -147,7 +148,7 @@ namespace Dotmim.Sync
 
             var newVersion = new Version(0, 6, 0);
 
-            var message = "Upgrade to 0.6.0 done";
+            var message = $"Upgrade to {newVersion}:";
             var args = new UpgradeProgressArgs(context, message, newVersion,   connection, transaction);
             this.ReportProgress(context, progress, args, connection, transaction );
 
@@ -165,7 +166,7 @@ namespace Dotmim.Sync
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
 
-            var message = "Upgrade to 0.6.1:";
+            var message = $"Upgrade to {newVersion}:";
             var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
             this.ReportProgress(context, progress, args, connection, transaction);
 
@@ -213,8 +214,6 @@ namespace Dotmim.Sync
             var message = $"Upgrade to {newVersion}:";
             var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
             this.ReportProgress(context, progress, args, connection, transaction);
-
-
             // Update the "Update trigger" for all tables
 
 
@@ -246,5 +245,64 @@ namespace Dotmim.Sync
 
             return newVersion;
         }
+
+        private async Task<Version> UpgdrateTo700Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
+                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            var newVersion = new Version(0, 7, 0);
+            // Sorting tables based on dependencies between them
+
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            var message = $"Upgrade to {newVersion}:";
+            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+            foreach (var schemaTable in schemaTables)
+            {
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+
+                // Upgrade Reset stored procedure
+                var exists = await InternalExistsStoredProcedureAsync(context, tableBuilder,
+                    DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (exists)
+                    await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                args = new UpgradeProgressArgs(context, $"Reset stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                this.ReportProgress(context, progress, args, connection, transaction);
+
+                // Upgrade Update stored procedure
+                var existsUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
+                    DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (existsUpdateSP)
+                    await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                args = new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                this.ReportProgress(context, progress, args, connection, transaction);
+
+                // Upgrade Bulk Update stored procedure
+                if (this.Provider.SupportBulkOperations)
+                {
+                    var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
+                        DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    if (existsBulkUpdateSP)
+                        await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    args = new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                    this.ReportProgress(context, progress, args, connection, transaction);
+                }
+
+            }
+
+            return newVersion;
+        }
+
+
     }
 }

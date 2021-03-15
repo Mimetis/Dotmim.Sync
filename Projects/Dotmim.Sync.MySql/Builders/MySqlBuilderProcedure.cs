@@ -4,7 +4,11 @@ using System.Text;
 using System.Data.Common;
 using System.Data;
 using System.Linq;
+#if NET5_0 || NETCOREAPP3_1
+using MySqlConnector;
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
+#endif
 using Dotmim.Sync.MySql.Builders;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -92,7 +96,7 @@ namespace Dotmim.Sync.MySql
         internal string CreateParameterDeclaration(MySqlParameter param)
         {
             var stringBuilder3 = new StringBuilder();
-            var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType);
+            var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType, param.Size);
             string precision = this.mySqlDbMetadata.GetPrecisionStringFromDbType(param.DbType, param.Size, param.Precision, param.Scale);
             string output = string.Empty;
             string isNull = string.Empty;
@@ -233,9 +237,10 @@ namespace Dotmim.Sync.MySql
 
             var sqlCommand = new MySqlCommand();
             var stringBuilder = new StringBuilder();
-
+            stringBuilder.AppendLine($"SET FOREIGN_KEY_CHECKS=0;"); 
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
             stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
+            stringBuilder.AppendLine($"SET FOREIGN_KEY_CHECKS=1;");
             stringBuilder.AppendLine();
 
             sqlCommand.CommandText = stringBuilder.ToString();

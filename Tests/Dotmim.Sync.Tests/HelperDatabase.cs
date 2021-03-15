@@ -1,7 +1,12 @@
 ﻿using Dotmim.Sync.Tests;
 using Dotmim.Sync.Tests.Core;
 using Microsoft.Data.Sqlite;
+#if NET5_0 || NETCOREAPP3_1
+using MySqlConnector;
+#elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;
+#endif
+
 using System;
 using System.Data;
 using Microsoft.Data.SqlClient;

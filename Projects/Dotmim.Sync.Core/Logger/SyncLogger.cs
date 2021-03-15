@@ -97,13 +97,10 @@ namespace Dotmim.Sync
 
                 Write(outputWriter, $"{GetLogLevelString(logLevel)}", levelColors.Background, levelColors.Foreground);
                 Write(outputWriter, ": ");
-                if (eventId != null)
-                {
-                    Write(outputWriter, "[", ConsoleColor.Black, ConsoleColor.DarkGray);
-                    Write(outputWriter, string.IsNullOrEmpty(eventId.Name) ? eventId.Id.ToString() : eventId.Name, ConsoleColor.Black, ConsoleColor.White);
-                    Write(outputWriter, "]", ConsoleColor.Black, ConsoleColor.DarkGray);
-                    Write(outputWriter, " ");
-                }
+                Write(outputWriter, "[", ConsoleColor.Black, ConsoleColor.DarkGray);
+                Write(outputWriter, string.IsNullOrEmpty(eventId.Name) ? eventId.Id.ToString() : eventId.Name, ConsoleColor.Black, ConsoleColor.White);
+                Write(outputWriter, "]", ConsoleColor.Black, ConsoleColor.DarkGray);
+                Write(outputWriter, " ");
                 WriteLine(outputWriter, message);
             }
         }
@@ -131,7 +128,7 @@ namespace Dotmim.Sync
 
         private static Dictionary<Type, List<PropertyInfo>> MembersInfo = new Dictionary<Type, List<PropertyInfo>>();
 
-   
+
 
         internal static (string Message, object[] Args) GetLogMessageFrom<T>(T value, EventId id)
         {

@@ -67,7 +67,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             //this.HttpContext = context;
             var httpRequest = context.Request;
