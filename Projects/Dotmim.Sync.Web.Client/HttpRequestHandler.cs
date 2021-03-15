@@ -8,14 +8,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Microsoft.AspNetCore.Http;
-using System.Net.Http.Headers;
-
-#if NETSTANDARD
 using Microsoft.Net.Http.Headers;
-#else
 using System.Net.Http.Headers;
-#endif
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -126,9 +120,9 @@ namespace Dotmim.Sync.Web.Client
 
                 return responseMessage;
             }
-            catch (SyncException ex)
+            catch (SyncException)
             {
-                throw ex;
+                throw;
             }
             catch (Exception e)
             {
@@ -278,9 +272,9 @@ namespace Dotmim.Sync.Web.Client
 
 
             }
-            catch (SyncException sexc)
+            catch (SyncException)
             {
-                throw sexc;
+                throw;
             }
             catch (Exception ex)
             {

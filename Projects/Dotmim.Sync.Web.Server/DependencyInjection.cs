@@ -47,8 +47,11 @@ namespace Microsoft.Extensions.DependencyInjection
             if (webServerManager == null)
             {
                 var cache = serviceProvider.GetService<IMemoryCache>();
+#if NET5_0 || NETCOREAPP3_1
+                var env = serviceProvider.GetService<IWebHostEnvironment>();
+#elif NETSTANDARD
                 var env = serviceProvider.GetService<IHostingEnvironment>();
-
+#endif
                 webServerManager = new WebServerManager(cache, env);
                 serviceCollection.AddSingleton(webServerManager);
             }
@@ -81,8 +84,11 @@ namespace Microsoft.Extensions.DependencyInjection
             if (webServerManager == null)
             {
                 var cache = serviceProvider.GetService<IMemoryCache>();
+#if NET5_0 || NETCOREAPP3_1
+                var env = serviceProvider.GetService<IWebHostEnvironment>();
+#elif NETSTANDARD
                 var env = serviceProvider.GetService<IHostingEnvironment>();
-
+#endif
                 webServerManager = new WebServerManager(cache, env); 
                 serviceCollection.AddSingleton(webServerManager);
             }

@@ -1,7 +1,12 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
+#if NET5_0|| NETCOREAPP3_1
+using MySqlConnector;
+#elif NETSTANDARD 
 using MySql.Data.MySqlClient;
+#endif
+
 using Dotmim.Sync.MySql.Builders;
 using System;
 using Dotmim.Sync.MySql;

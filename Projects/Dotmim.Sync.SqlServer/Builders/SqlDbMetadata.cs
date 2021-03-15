@@ -173,7 +173,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         /// <summary>
         /// Gets a Sql type name from a DbType enum value
         /// </summary>
-        public override string GetStringFromDbType(DbType dbType)
+        public override string GetStringFromDbType(DbType dbType, int maxlength)
         {
             switch (dbType)
             {
@@ -309,7 +309,10 @@ namespace Dotmim.Sync.SqlServer.Manager
                         return $"(MAX)";
                 case DbType.AnsiStringFixedLength:
                 case DbType.Binary:
-                    return $"({Math.Min(8000, maxLength)})";
+                    if (maxLength > 0 && maxLength <= 8000)
+                        return $"({maxLength})";
+                    else
+                        return $"(MAX)";
                 case DbType.StringFixedLength:
                     return $"({Math.Min(4000, maxLength)})";
                 case DbType.Decimal:
