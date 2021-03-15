@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// Get the local configuration, ensures the local scope is created
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
-        public Task<ScopeInfo> GetClientScopeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ScopeInfo> GetClientScopeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.ScopeLoading, async (ctx, connection, transaction) =>
             {
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);

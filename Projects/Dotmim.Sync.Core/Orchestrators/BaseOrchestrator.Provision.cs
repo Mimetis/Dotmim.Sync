@@ -17,35 +17,6 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-
-        /// <summary>
-        /// Provision the orchestrator database based on the orchestrator Setup, and the provision enumeration
-        /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.ProvisionAsync(new SyncSet(this.Setup), provision, overwrite, connection, transaction, cancellationToken, progress);
-
-        /// <summary>
-        /// Provision the orchestrator database based on the schema argument, and the provision enumeration
-        /// </summary>
-        /// <param name="schema">Schema to be applied to the database managed by the orchestrator, through the provider.</param>
-        /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        /// <returns>Full schema with table and columns properties</returns>
-        public virtual Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
-            {
-                // Check incompatibility with the flags
-                if (this is LocalOrchestrator && (provision.HasFlag(SyncProvision.ServerHistoryScope) || provision.HasFlag(SyncProvision.ServerScope)))
-                    throw new InvalidProvisionForLocalOrchestratorException();
-                else if (!(this is LocalOrchestrator) && provision.HasFlag(SyncProvision.ClientScope))
-                    throw new InvalidProvisionForRemoteOrchestratorException();
-
-                schema = await InternalProvisionAsync(ctx, overwrite, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                return schema;
-
-            }, connection, transaction, cancellationToken);
-
         /// <summary>
         /// Deprovision the orchestrator database based on the Setup table argument, and the provision enumeration
         /// </summary>
