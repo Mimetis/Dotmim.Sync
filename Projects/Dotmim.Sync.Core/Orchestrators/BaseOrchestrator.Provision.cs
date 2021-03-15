@@ -17,7 +17,7 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-   
+
         internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // If schema does not have any table, raise an exception
@@ -41,21 +41,29 @@ namespace Dotmim.Sync
             // Get Scope Builder
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
+            bool hasCreatedScopeInfo = false;
             // Shoudl we create scope
             if (provision.HasFlag(SyncProvision.ClientScope))
             {
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
+                {
                     await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasCreatedScopeInfo = true;
+                }
             }
 
+            bool hasCreatedServerScopeInfo = false;
             if (provision.HasFlag(SyncProvision.ServerScope))
             {
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
+                {
                     await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasCreatedServerScopeInfo = true;
+                }
             }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
@@ -112,7 +120,13 @@ namespace Dotmim.Sync
                 clientScopeInfo.Schema = schema;
                 clientScopeInfo.Setup = this.Setup;
 
-                await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = hasCreatedScopeInfo;
+
+                if (!hasCreatedScopeInfo)
+                    exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (exists)
+                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
             else
             {
@@ -120,7 +134,13 @@ namespace Dotmim.Sync
                 serverScopeInfo.Schema = schema;
                 serverScopeInfo.Setup = this.Setup;
 
-                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = hasCreatedServerScopeInfo;
+
+                if (!hasCreatedServerScopeInfo)
+                    exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (exists)
+                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
 
