@@ -44,6 +44,12 @@ namespace Dotmim.Sync
 
             // 3) Provision everything
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
+            var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (!exists)
+                await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
             var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             schema = await InternalProvisionAsync(ctx, false, schema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
