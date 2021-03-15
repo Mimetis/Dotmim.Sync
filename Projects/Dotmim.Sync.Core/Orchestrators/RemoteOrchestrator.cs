@@ -79,20 +79,9 @@ namespace Dotmim.Sync
                 // 1) Get Schema from remote provider
                 schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // 2) Ensure databases are ready
+                // 2) Provision
                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-                // Provision everything
-                schema = await InternalProvisionAsync(ctx, false, schema, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // Generated the first serverscope to be updated
-                serverScopeInfo.LastCleanupTimestamp = 0;
-                serverScopeInfo.Schema = schema;
-                serverScopeInfo.Setup = this.Setup;
-                serverScopeInfo.Version = SyncVersion.Current.ToString();
-
-                // 3) Update server scope
-                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(ctx, false, schema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
             else
             {
@@ -159,7 +148,7 @@ namespace Dotmim.Sync
         /// Apply changes on remote provider
         /// </summary>
         internal virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy, DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
-            ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo, 
+            ApplyThenGetChangesAsync(ScopeInfo clientScope, BatchInfo clientBatchInfo,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)

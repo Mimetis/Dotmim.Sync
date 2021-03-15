@@ -55,7 +55,8 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await Snapshot_Then_ReinitializeAsync();
+        //await SynchronizeAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
@@ -356,17 +357,9 @@ internal class Program
         Console.WriteLine("1 - Deprovision The Server");
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-        // We are in change tracking mode, so no need to deprovision triggers and tracking table. But it's part of the sample
-        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
 
-        var serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
-
-        serverScope.Setup = null;
-        serverScope.Schema = null;
-
-        // save the server scope
-        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
-
+        // We are in change tracking mode, so no need to deprovision triggers and tracking table.
+        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures, progress: progress);
 
         // DeprovisionAsync
         Console.WriteLine();
@@ -387,15 +380,8 @@ internal class Program
         setup.Tables["ProductCategory"].SyncDirection = SyncDirection.DownloadOnly;
 
         remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-        serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
-
+      
         var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
-
-        serverScope.Setup = setup;
-        serverScope.Schema = newSchema;
-
-        // save the server scope
-        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
 
         // Snapshot
         Console.WriteLine();
