@@ -1524,6 +1524,62 @@ namespace Dotmim.Sync.Tests
         }
 
 
+        /// <summary>
+        /// </summary>
+        [Fact]
+        public async Task Synchronize_ThenDeprovision_ThenAddPrefixes()
+        {
+            var options = new SyncOptions();
+            var setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filtered columns. 
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+
+                // Deprovision everything
+                var localOrchestrator = agent.LocalOrchestrator;
+                await agent.LocalOrchestrator.DeprovisionAsync();
+
+                // Adding a new table
+                setup.Tables.Add("Employee");
+
+                // Adding prefixes
+                setup.StoredProceduresPrefix = "sync";
+                setup.StoredProceduresSuffix = "sp";
+                setup.TrackingTablesPrefix = "track";
+                setup.TrackingTablesSuffix = "tbl";
+                setup.TriggersPrefix = "trg";
+                setup.TriggersSuffix = "tbl";
+
+                agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+
+        }
+
 
     }
 }
