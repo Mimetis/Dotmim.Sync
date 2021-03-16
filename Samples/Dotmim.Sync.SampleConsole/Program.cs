@@ -55,6 +55,7 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
+        await SyncTestMySqlAsync();
         //await SynchronizeAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
@@ -64,6 +65,38 @@ internal class Program
         //await SynchronizeWithFiltersAsync();
         //await CreateSnapshotAsync();
         // await SynchronizeAsyncThenAddFilterAsync();
+    }
+
+
+    private static async Task SyncTestMySqlAsync()
+    {
+        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("CANVAS"));
+        var clientProvider = new SqliteSyncProvider("dddd.db");
+        var tables = new string[] { "CANVASUSER" };
+        var setup = new SyncSetup(tables);
+
+        var canvasuserFilter = new SetupFilter("CANVASUSER");
+        canvasuserFilter.AddParameter("IDuser", "CANVASUSER", true);
+        canvasuserFilter.AddWhere("IDuser", "CANVASUSER", "IDuser");
+        setup.Filters.Add(canvasuserFilter);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, setup);
+
+        agent.Parameters.Add("IDuser", 1);
+
+        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+        Console.WriteLine(r);
+
     }
 
     private static async Task SynchronizeAsyncThenAddFilterAsync()
@@ -378,7 +411,7 @@ internal class Program
         setup.Tables["ProductCategory"].SyncDirection = SyncDirection.DownloadOnly;
 
         remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-      
+
         var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
 
         // Snapshot
@@ -499,7 +532,7 @@ internal class Program
         };
 
         var setup = new SyncSetup(allTables);
-      
+
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
@@ -515,7 +548,7 @@ internal class Program
         Console.WriteLine(r);
 
         await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
-        await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable );
+        await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
 
         setup = new SyncSetup(allTables)
         {
