@@ -165,8 +165,11 @@ namespace Dotmim.Sync.Tests.UnitTests
                     var productCategoryName = HelperDatabase.GetRandomName();
                     var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
+                    if (!ctx.ProductCategory.Any(p => p.ProductCategoryId == productCategoryId))
+                    {
+                        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                        ctx.Add(pc);
+                    }
 
                     var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
                     ctx.Add(product);
