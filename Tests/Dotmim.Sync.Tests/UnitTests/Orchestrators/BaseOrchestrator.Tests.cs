@@ -409,7 +409,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup();
 
-            var orchestrator = new RemoteOrchestrator(sqlProvider, options, setup, scopeName);
+            var orchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
 
             var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
