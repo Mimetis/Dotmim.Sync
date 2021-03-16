@@ -1555,25 +1555,32 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
+            }
+            foreach (var client in Clients)
+            {
                 // Deprovision everything
-                var localOrchestrator = agent.LocalOrchestrator;
-                await agent.LocalOrchestrator.DeprovisionAsync();
+                var localOrchestrator = new LocalOrchestrator(client.Provider, options, setup);
+                await localOrchestrator.DeprovisionAsync();
 
-                // Adding a new table
-                setup.Tables.Add("Employee");
+            }
 
-                // Adding prefixes
-                setup.StoredProceduresPrefix = "sync";
-                setup.StoredProceduresSuffix = "sp";
-                setup.TrackingTablesPrefix = "track";
-                setup.TrackingTablesSuffix = "tbl";
-                setup.TriggersPrefix = "trg";
-                setup.TriggersSuffix = "tbl";
+            // Adding a new table
+            setup.Tables.Add("Employee");
 
-                agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+            // Adding prefixes
+            setup.StoredProceduresPrefix = "sync";
+            setup.StoredProceduresSuffix = "sp";
+            setup.TrackingTablesPrefix = "track";
+            setup.TrackingTablesSuffix = "tbl";
+            setup.TriggersPrefix = "trg";
+            setup.TriggersSuffix = "tbl";
+
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 
