@@ -55,7 +55,6 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        await Snapshot_Then_ReinitializeAsync();
         //await SynchronizeAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
@@ -66,7 +65,6 @@ internal class Program
         //await CreateSnapshotAsync();
         // await SynchronizeAsyncThenAddFilterAsync();
     }
-
 
     private static async Task SynchronizeAsyncThenAddFilterAsync()
     {
