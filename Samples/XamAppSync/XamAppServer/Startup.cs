@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -35,12 +36,21 @@ namespace XamAppServer
             // [Required]: Get a connection string to your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
+            // Sync options
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),
+                BatchSize = 2000,
+            };
+
             // [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
-            // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncProvider>(connectionString, tables);
+            var setup = new SyncSetup(tables);
+
+            // add a SqlSyncProvider acting as the server hub
+            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
