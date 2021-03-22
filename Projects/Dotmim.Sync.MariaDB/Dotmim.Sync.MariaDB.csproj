@@ -17,7 +17,7 @@
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.7.0</Version>
+    <Version>0.7.1</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>8.0</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
@@ -76,7 +76,7 @@
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-    <PackageReference Include="MySqlConnector" Version="0.69.10"  />
+    <PackageReference Include="MySqlConnector" Version="0.69.10" />
   </ItemGroup>
 
   <ItemGroup>
