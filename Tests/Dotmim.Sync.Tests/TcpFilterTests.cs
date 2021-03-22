@@ -758,17 +758,12 @@ namespace Dotmim.Sync.Tests
 
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options, this.FilterSetup);
 
-                var provision = SyncProvision.ClientScope | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
                 // just check interceptor
                 var onTableCreatedCount = 0;
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
-                // Read client schema
-                var schema = await localOrchestrator.GetSchemaAsync();
-
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.ProvisionAsync(schema, provision);
+                await localOrchestrator.ProvisionAsync();
 
                 //--------------------------
                 // ASSERTION
@@ -810,7 +805,7 @@ namespace Dotmim.Sync.Tests
                 //localOrchestrator.OnTableProvisioned(null);
 
                 //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.DeprovisionAsync(schema, provision);
+                await localOrchestrator.DeprovisionAsync();
 
                 // check if scope table is correctly created
                 scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client, options.ScopeInfoTableName);
@@ -1103,7 +1098,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
-                await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers);
+                await agent.LocalOrchestrator.DeprovisionAsync();
 
                 foreach (var setupTable in setup.Tables)
                 {
@@ -1528,6 +1523,69 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+        /// <summary>
+        /// </summary>
+        [Fact]
+        public async Task Synchronize_ThenDeprovision_ThenAddPrefixes()
+        {
+            var options = new SyncOptions();
+            var setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filtered columns. 
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+
+            }
+            foreach (var client in Clients)
+            {
+                // Deprovision everything
+                var localOrchestrator = new LocalOrchestrator(client.Provider, options, setup);
+                await localOrchestrator.DeprovisionAsync();
+
+            }
+
+            // Adding a new table
+            setup.Tables.Add("Employee");
+
+            // Adding prefixes
+            setup.StoredProceduresPrefix = "sync";
+            setup.StoredProceduresSuffix = "sp";
+            setup.TrackingTablesPrefix = "track";
+            setup.TrackingTablesSuffix = "tbl";
+            setup.TriggersPrefix = "trg";
+            setup.TriggersSuffix = "tbl";
+
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                agent.Parameters.Add("EmployeeID", 1);
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+
+
+        }
 
 
     }

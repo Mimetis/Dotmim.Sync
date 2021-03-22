@@ -200,7 +200,7 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_scope_name"
                     || columnNameLower == "sync_scope_name"
                     )
-                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
+                    throw new UnsupportedColumnNameException(column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
                 // Validate max length
                 column.MaxLength = this.Provider.GetMetadata().ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
