@@ -28,7 +28,7 @@ namespace Dotmim.Sync
         {
             bool hasBeenCreated = false;
 
-            var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, this.Setup, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (schemaTable == null)
                 throw new MissingTableException(table.GetFullName());
@@ -74,15 +74,15 @@ namespace Dotmim.Sync
         public Task<bool> CreateStoredProceduresAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
          {
-             var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+             var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
              var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
              if (schemaTable == null)
                  throw new MissingTableException(table.GetFullName());
 
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+             // Get table builder
+             var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
              var r = await InternalCreateStoredProceduresAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

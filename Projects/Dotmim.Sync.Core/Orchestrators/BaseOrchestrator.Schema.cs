@@ -23,7 +23,7 @@ namespace Dotmim.Sync
         public virtual Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
             {
-                var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 return schema;
 
             }, connection, transaction, cancellationToken);
@@ -36,7 +36,7 @@ namespace Dotmim.Sync
         public virtual Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
             {
-                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, this.Setup, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (schemaTable == null)
                     throw new MissingTableException(table.GetFullName());
@@ -59,26 +59,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        internal async Task<SyncSet> InternalGetSchemaAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
+        internal async Task<SyncSet> InternalGetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction,
                                                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            if (this.Setup == null || this.Setup.Tables.Count <= 0)
+            if (setup == null || setup.Tables.Count <= 0)
                 throw new MissingTablesException();
 
-            await this.InterceptAsync(new SchemaLoadingArgs(context, this.Setup, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SchemaLoadingArgs(context, setup, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // Create the schema
             var schema = new SyncSet();
 
             // copy filters from setup
-            foreach (var filter in this.Setup.Filters)
+            foreach (var filter in setup.Filters)
                 schema.Filters.Add(filter);
 
             var relations = new List<DbRelationDefinition>(20);
 
-            foreach (var setupTable in this.Setup.Tables)
+            foreach (var setupTable in setup.Tables)
             {
-                var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setupTable, connection, transaction, cancellationToken, progress);
+                var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setup, setupTable, connection, transaction, cancellationToken, progress);
 
                 // Add this table to schema
                 schema.Tables.Add(syncTable);
@@ -103,14 +103,15 @@ namespace Dotmim.Sync
         }
 
 
-        internal async Task<(SyncTable SyncTable, IEnumerable<DbRelationDefinition> Relations)> InternalGetTableSchemaAsync(SyncContext context, SetupTable setupTable, DbConnection connection, DbTransaction transaction,
+        internal async Task<(SyncTable SyncTable, IEnumerable<DbRelationDefinition> Relations)> InternalGetTableSchemaAsync(
+            SyncContext context, SyncSetup setup, SetupTable setupTable, DbConnection connection, DbTransaction transaction,
                                                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             // ensure table is compliante with name / schema with provider
             var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction);
 
-            var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
+            var tableBuilder = this.GetTableBuilder(syncTable, setup);
 
             var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

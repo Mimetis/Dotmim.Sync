@@ -28,7 +28,7 @@ namespace Dotmim.Sync
             {
                 bool hasBeenCreated = false;
 
-                var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
@@ -65,7 +65,7 @@ namespace Dotmim.Sync
         public Task<bool> CreateTriggersAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
             {
-                var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 

@@ -58,7 +58,7 @@ namespace Dotmim.Sync
 
                 var schema = new SyncSet(this.Setup);
 
-                schema = await InternalProvisionAsync(ctx, overwrite, schema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(ctx, overwrite, schema, this.Setup, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return schema;
 
@@ -109,7 +109,7 @@ namespace Dotmim.Sync
             foreach (var filter in this.Setup.Filters)
                 tmpSchema.Filters.Add(filter);
 
-            var isDeprovisioned = await InternalDeprovisionAsync(ctx, tmpSchema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var isDeprovisioned = await InternalDeprovisionAsync(ctx, tmpSchema, this.Setup, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return isDeprovisioned;
 
