@@ -425,7 +425,7 @@ namespace Dotmim.Sync
 
                         // Affect local setup since the setup could potentially comes from Web server
                         // Affect local setup (equivalent to this.Setup)
-                        if (!this.Setup.EqualsByProperties(serverScopeInfo.Setup))
+                        if (!this.Setup.EqualsByProperties(serverScopeInfo.Setup) && !this.Setup.HasTables)
                             this.LocalOrchestrator.Setup = serverScopeInfo.Setup;
 
                         // Provision local database
@@ -439,7 +439,7 @@ namespace Dotmim.Sync
                     {
                         // Affect local setup since the setup could potentially comes from Web server
                         // Affect local setup (equivalent to this.Setup)
-                        if (!this.Setup.EqualsByProperties(clientScopeInfo.Setup))
+                        if (!this.Setup.EqualsByProperties(clientScopeInfo.Setup) && !this.Setup.HasTables)
                             this.LocalOrchestrator.Setup = clientScopeInfo.Setup;
 
                         // Do we need to upgrade ?

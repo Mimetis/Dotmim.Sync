@@ -71,7 +71,7 @@ namespace Dotmim.Sync
                     var exists = await InternalExistsTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        await InternalDropTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalDropTrackingTableAsync(context, oldSetup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // Removing cached commands
@@ -98,12 +98,12 @@ namespace Dotmim.Sync
                     var schemaExists = await InternalExistsSchemaAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (!schemaExists)
-                        await InternalCreateSchemaAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalCreateSchemaAsync(context, newSetup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (!exists)
-                        await InternalCreateTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalCreateTableAsync(context, newSetup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // Re provision table
@@ -113,7 +113,7 @@ namespace Dotmim.Sync
 
                     if (!exists)
                     {
-                        await InternalCreateTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalCreateTableAsync(context, newSetup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
                     else if (oldTable != null)
                     {
@@ -126,7 +126,7 @@ namespace Dotmim.Sync
                             {
                                 var columnExist = await InternalExistsColumnAsync(context, newColumn.ColumnName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                                 if (!columnExist)
-                                    await InternalAddColumnAsync(context, newColumn.ColumnName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                    await InternalAddColumnAsync(context, newSetup, newColumn.ColumnName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                             }
                         }
                     }
@@ -137,15 +137,15 @@ namespace Dotmim.Sync
                 {
                     var (_, oldTableName) = this.Provider.GetParsers(new SyncTable(oldTable.TableName, oldTable.SchemaName), oldSetup);
 
-                    await InternalRenameTrackingTableAsync(context, oldTableName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalRenameTrackingTableAsync(context, newSetup, oldTableName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
                 else if (migrationTable.TrackingTable == MigrationAction.Create)
                 {
                     var exists = await InternalExistsTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     if (exists)
-                        await InternalDropTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalDropTrackingTableAsync(context, newSetup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    await InternalCreateTrackingTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalCreateTrackingTableAsync(context, newSetup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // Re provision stored procedures
@@ -158,7 +158,7 @@ namespace Dotmim.Sync
             }
 
             // InterceptAsync Migrated
-            var args = new MigratedArgs(context, schema, this.Setup, migrationResults, connection, transaction);
+            var args = new MigratedArgs(context, schema, newSetup, migrationResults, connection, transaction);
             await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(context, progress, args);
 

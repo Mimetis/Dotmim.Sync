@@ -67,7 +67,7 @@ namespace Dotmim.Sync
                         clientScopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                schema = await InternalProvisionAsync(ctx, overwrite, schema, provision, clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(ctx, overwrite, schema, this.Setup, provision, clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return schema;
 
@@ -127,7 +127,7 @@ namespace Dotmim.Sync
                     clientScopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            var isDeprovisioned = await InternalDeprovisionAsync(ctx, schema, provision, clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var isDeprovisioned = await InternalDeprovisionAsync(ctx, schema, this.Setup, provision, clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return isDeprovisioned;
 

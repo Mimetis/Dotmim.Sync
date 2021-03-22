@@ -77,11 +77,11 @@ namespace Dotmim.Sync
                 ctx.SyncStage = SyncStage.Provisioning;
 
                 // 1) Get Schema from remote provider
-                schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // 2) Provision
                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                schema = await InternalProvisionAsync(ctx, false, schema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(ctx, false, schema, this.Setup, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
             else
             {
@@ -90,7 +90,7 @@ namespace Dotmim.Sync
                 if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
                 {
                     // 1) Get Schema from remote provider
-                    schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
                     await this.InternalMigrationAsync(ctx, schema, serverScopeInfo.Setup, this.Setup, connection, transaction, cancellationToken, progress);
@@ -119,7 +119,7 @@ namespace Dotmim.Sync
             SyncSet schema;
 
             // Get Schema from remote provider
-            schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Migrate the db structure
             await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

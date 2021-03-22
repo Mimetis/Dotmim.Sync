@@ -18,7 +18,7 @@ namespace Dotmim.Sync
     {
 
 
-        internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncSetup setup, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // If schema does not have any table, raise an exception
             if (schema == null || schema.Tables == null || !schema.HasTables)
@@ -36,7 +36,7 @@ namespace Dotmim.Sync
             // If we don't have any columns it's most probably because user called method with the Setup only
             // So far we have only tables names, it's enough to get the schema
             if (schema.HasTables && !schema.HasColumns)
-                schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await this.InternalGetSchemaAsync(ctx, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Get Scope Builder
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -81,20 +81,20 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
 
                 // Check if we need to create a schema there
                 var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!schemaExists)
-                    await InternalCreateSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalCreateSchemaAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (provision.HasFlag(SyncProvision.Table))
                 {
                     var tableExistst = await this.InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (!tableExistst)
-                        await this.InternalCreateTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalCreateTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.TrackingTable))
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
                     var trackingTableExistst = await this.InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (!trackingTableExistst)
-                        await this.InternalCreateTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalCreateTrackingTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.Triggers))
@@ -118,7 +118,7 @@ namespace Dotmim.Sync
             {
                 var clientScopeInfo = scope as ScopeInfo;
                 clientScopeInfo.Schema = schema;
-                clientScopeInfo.Setup = this.Setup;
+                clientScopeInfo.Setup = setup;
 
                 await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
@@ -126,7 +126,7 @@ namespace Dotmim.Sync
             {
                 var serverScopeInfo = scope as ServerScopeInfo;
                 serverScopeInfo.Schema = schema;
-                serverScopeInfo.Setup = this.Setup;
+                serverScopeInfo.Setup = setup;
 
                 await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
@@ -138,7 +138,7 @@ namespace Dotmim.Sync
             return schema;
         }
 
-        internal async Task<bool> InternalDeprovisionAsync(SyncContext ctx, SyncSet schema, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<bool> InternalDeprovisionAsync(SyncContext ctx, SyncSet schema, SyncSetup setup, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             await this.InterceptAsync(new DeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -153,7 +153,7 @@ namespace Dotmim.Sync
             // Disable check constraints
             if (this.Options.DisableConstraintsOnApplyChanges)
                 foreach (var table in schemaTables.Reverse())
-                    await this.InternalDisableConstraintsAsync(ctx, this.GetSyncAdapter(table, this.Setup), connection, transaction).ConfigureAwait(false);
+                    await this.InternalDisableConstraintsAsync(ctx, this.GetSyncAdapter(table, setup), connection, transaction).ConfigureAwait(false);
 
 
             // Checking if we have to deprovision tables
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
@@ -191,7 +191,7 @@ namespace Dotmim.Sync
                     }
 
                     // Removing cached commands
-                    var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
+                    var syncAdapter = this.GetSyncAdapter(schemaTable, setup);
                     syncAdapter.RemoveCommands();
                 }
 
@@ -212,7 +212,7 @@ namespace Dotmim.Sync
                     var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        await this.InternalDropTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalDropTrackingTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
@@ -221,12 +221,12 @@ namespace Dotmim.Sync
             {
                 foreach (var schemaTable in schemaTables.Reverse())
                 {
-                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                    var tableBuilder = this.GetTableBuilder(schemaTable, setup);
 
                     var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        await this.InternalDropTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalDropTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
@@ -281,7 +281,7 @@ namespace Dotmim.Sync
             {
                 var serverScopeInfo = scope as ServerScopeInfo;
                 serverScopeInfo.Schema = schema;
-                serverScopeInfo.Setup = this.Setup;
+                serverScopeInfo.Setup = setup;
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
