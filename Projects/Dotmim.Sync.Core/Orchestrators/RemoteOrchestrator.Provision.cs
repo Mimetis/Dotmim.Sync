@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// <param name="overwrite">Overwrite existing objects</param>
         public virtual Task<SyncSet> ProvisionAsync(bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | 
+            var provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope |
                             SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
 
             return this.ProvisionAsync(provision, overwrite, null, connection, transaction, cancellationToken, progress);
@@ -52,15 +52,13 @@ namespace Dotmim.Sync
 
                     var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    if (!exists)
-                        await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    if (exists)
+                        serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 var schema = new SyncSet(this.Setup);
 
-                schema = await InternalProvisionAsync(ctx, overwrite, schema, provision, serverScopeInfo, connection,  transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(ctx, overwrite, schema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return schema;
 

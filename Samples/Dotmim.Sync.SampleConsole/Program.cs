@@ -491,7 +491,7 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var options = new SyncOptions()
@@ -513,21 +513,9 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
-        //agent.LocalOrchestrator.OnTableChangesSelected(args =>
-        //{
-        //    if (args.Changes == null || !args.Changes.HasRows)
-        //        return;
-
-        //    foreach (var changedRow in args.Changes.Rows.ToArray())
-        //    {
-        //        if (changedRow.RowState == DataRowState.Deleted)
-        //            args.Changes.Rows.Remove(changedRow);
-        //    }
-        //});
-
         do
         {
-            Console.WriteLine("Web sync start");
+            Console.WriteLine("Sync start");
             try
             {
 

@@ -49,6 +49,9 @@ namespace Dotmim.Sync
 
                 if (!exists)
                     await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (scope == null)
+                    scope = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             // if scope is not null, so obviously we have create the table before, so no need to test
@@ -58,6 +61,9 @@ namespace Dotmim.Sync
 
                 if (!exists)
                     await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (scope == null)
+                    scope = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
