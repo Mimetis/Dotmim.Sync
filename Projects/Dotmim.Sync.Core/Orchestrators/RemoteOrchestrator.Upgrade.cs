@@ -21,13 +21,50 @@ namespace Dotmim.Sync
     public partial class RemoteOrchestrator
     {
         /// <summary>
+        /// Upgrade the database structure to reach the last DMS version
+        /// </summary>
+        public virtual Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        {
+            if (this.Setup == null)
+                return false;
+
+            // get Database builder
+            var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+            // Initialize database if needed
+            await dbBuilder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
+
+            // Get schema
+            var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            // If schema does not have any table, raise an exception
+            if (schema == null || schema.Tables == null || !schema.HasTables)
+                throw new MissingTablesException();
+
+            var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
+            var serverScopeInfos = await this.InternalGetAllScopesAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (serverScopeInfos == null || serverScopeInfos.Count <= 0)
+                throw new MissingServerScopeInfoException();
+
+            return await this.InternalUpgradeAsync(ctx, schema, serverScopeInfos, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+        }, connection, transaction, cancellationToken);
+
+
+        /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
         public virtual Task<bool> NeedsToUpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
-            if (this.Setup == null)
-                return false;
+            // get Database builder
+            var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+            // Initialize database if needed
+            await dbBuilder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
 
             var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -62,40 +99,7 @@ namespace Dotmim.Sync
 
         }
 
-        /// <summary>
-        /// Upgrade the database structure to reach the last DMS version
-        /// </summary>
-        public virtual Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
-        {
-            if (this.Setup == null)
-                return false;
-
-            // get Database builder
-            var dbBuilder = this.Provider.GetDatabaseBuilder();
-
-            // Initialize database if needed
-            await dbBuilder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
-
-            // Get schema
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // If schema does not have any table, raise an exception
-            if (schema == null || schema.Tables == null || !schema.HasTables)
-                throw new MissingTablesException();
-
-            var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-            var serverScopeInfos = await this.InternalGetAllScopesAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            if (serverScopeInfos == null || serverScopeInfos.Count <= 0)
-                throw new MissingServerScopeInfoException();
-
-            return await this.InternalUpgradeAsync(ctx, schema, serverScopeInfos, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-        }, connection, transaction, cancellationToken);
-
-
+  
         internal virtual async Task<bool> InternalUpgradeAsync(SyncContext context, SyncSet schema, List<ServerScopeInfo> serverScopeInfos, DbScopeBuilder builder, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {

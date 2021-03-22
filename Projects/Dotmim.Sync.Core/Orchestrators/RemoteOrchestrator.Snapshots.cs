@@ -37,7 +37,7 @@ namespace Dotmim.Sync
                 ctx.Parameters = syncParameters;
 
             // 1) Get Schema from remote provider
-            var schema = await this.InternalGetSchemaAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // 2) Ensure databases are ready
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -52,7 +52,7 @@ namespace Dotmim.Sync
 
             var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            schema = await InternalProvisionAsync(ctx, false, schema, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            schema = await InternalProvisionAsync(ctx, false, schema, this.Setup, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // 4) Getting the most accurate timestamp
             var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress);
@@ -60,7 +60,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // 5) Create the snapshot
-            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
             var snapshotCreated = new SnapshotCreatedArgs(ctx, batchInfo, connection);
             await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
@@ -148,7 +148,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema,
+        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
                              DbConnection connection, DbTransaction transaction, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -194,7 +194,7 @@ namespace Dotmim.Sync
             foreach (var table in schema.Tables)
             {
                 // Get Select initialize changes command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, this.Setup, true, connection, transaction);
+                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, setup, true, connection, transaction);
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, table, null, true, null, selectIncrementalChangesCommand);

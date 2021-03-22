@@ -29,7 +29,6 @@ namespace Dotmim.Sync
         public virtual Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.MetadataCleaning, async (ctx, connection, transaction) =>
         {
-
             if (!timeStampStart.HasValue)
                 return null;
 
