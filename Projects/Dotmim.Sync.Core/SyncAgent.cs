@@ -385,212 +385,214 @@ namespace Dotmim.Sync
 
             this.SessionState = SyncSessionState.Synchronizing;
             this.SessionStateChanged?.Invoke(this, this.SessionState);
-            //await Task.Run(async () =>
-            //{
-            try
+            await Task.Run(async () =>
             {
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                ServerScopeInfo serverScopeInfo = null;
-
-                // Internal set the good reference. Don't use the SetContext method here
-                this.LocalOrchestrator.syncContext = context;
-                this.RemoteOrchestrator.syncContext = context;
-                this.LocalOrchestrator.StartTime = startTime;
-                this.RemoteOrchestrator.StartTime = startTime;
-
-                // Begin session
-                await this.LocalOrchestrator.BeginSessionAsync(cancellationToken, progress).ConfigureAwait(false);
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // On local orchestrator, get scope info
-                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                // Register local scope id
-                context.ClientScopeId = clientScopeInfo.Id;
-
-                // if client is new or else schema does not exists
-                // We need to get it from server
-                if (clientScopeInfo.IsNewScope || clientScopeInfo.Schema == null)
+                try
                 {
-                    // Ensure schema is defined on remote side
-                    // This action will create schema on server if needed
-                    // if schema already exists on server, then the server setup will be compared with this one
-                    // if setup is different, it will be migrated.
-                    // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    // Affect local setup since the setup could potentially comes from Web server
-                    // Affect local setup (equivalent to this.Setup)
-                    if (!this.Setup.EqualsByProperties(serverScopeInfo.Setup))
+                    ServerScopeInfo serverScopeInfo = null;
+
+                    // Internal set the good reference. Don't use the SetContext method here
+                    this.LocalOrchestrator.syncContext = context;
+                    this.RemoteOrchestrator.syncContext = context;
+                    this.LocalOrchestrator.StartTime = startTime;
+                    this.RemoteOrchestrator.StartTime = startTime;
+
+                    // Begin session
+                    await this.LocalOrchestrator.BeginSessionAsync(cancellationToken, progress).ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                    // On local orchestrator, get scope info
+                    var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Register local scope id
+                    context.ClientScopeId = clientScopeInfo.Id;
+
+                    // if client is new or else schema does not exists
+                    // We need to get it from server
+                    if (clientScopeInfo.IsNewScope || clientScopeInfo.Schema == null)
                     {
-                        this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
-                        this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
-                    }
+                        // Ensure schema is defined on remote side
+                        // This action will create schema on server if needed
+                        // if schema already exists on server, then the server setup will be compared with this one
+                        // if setup is different, it will be migrated.
+                        // so serverScopeInfo.Setup MUST be equal to this.Setup
+                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Provision local database
-                    var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        // Affect local setup since the setup could potentially comes from Web server
+                        // Affect local setup (equivalent to this.Setup)
+                        if (!this.Setup.EqualsByProperties(serverScopeInfo.Setup))
+                            this.LocalOrchestrator.Setup = serverScopeInfo.Setup;
 
-                    // Set schema for agent, just to let the opportunity to user to use it.
-                    this.Schema = serverScopeInfo.Schema;
-                }
-                else
-                {
-                    // Do we need to upgrade ?
-                    if (this.LocalOrchestrator.InternalNeedsToUpgrade(context, clientScopeInfo))
-                    {
-                        var newScope = await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-                        if (newScope != null)
-                            clientScopeInfo = newScope;
-                    }
+                        // Provision local database
+                        var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                        await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
-                    // on remote orchestrator get scope info as well
-                    // if setup is different, it will be migrated.
-                    // so serverScopeInfo.Setup MUST be equal to this.Setup
-                    serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                    // compare local setup options with setup provided on SyncAgent constructor (check if pref / suf have changed)
-                    var hasSameOptions = clientScopeInfo.Setup.HasSameOptions(this.Setup);
-
-                    // compare local setup strucutre with remote structure
-                    var hasSameStructure = clientScopeInfo.Setup.HasSameStructure(serverScopeInfo.Setup);
-
-                    if (hasSameStructure)
-                    {
-                        // Set schema & setup
-                        this.Schema = clientScopeInfo.Schema;
-
-                        // Schema could be null if from web server 
-                        if (serverScopeInfo.Schema == null)
-                            serverScopeInfo.Schema = clientScopeInfo.Schema;
+                        // Set schema for agent, just to let the opportunity to user to use it.
+                        this.Schema = serverScopeInfo.Schema;
                     }
                     else
                     {
-                        // Get full schema from server
-                        serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                        // Affect local setup since the setup could potentially comes from Web server
+                        // Affect local setup (equivalent to this.Setup)
+                        if (!this.Setup.EqualsByProperties(clientScopeInfo.Setup))
+                            this.LocalOrchestrator.Setup = clientScopeInfo.Setup;
 
-                        // Set the correct schema
-                        this.Schema = serverScopeInfo.Schema;
+                        // Do we need to upgrade ?
+                        if (this.LocalOrchestrator.InternalNeedsToUpgrade(clientScopeInfo))
+                        {
+                            var newScope = await this.LocalOrchestrator.UpgradeAsync(clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                            if (newScope != null)
+                                clientScopeInfo = newScope;
+                        }
+
+                        // on remote orchestrator get scope info as well
+                        // if setup is different, it will be migrated.
+                        // so serverScopeInfo.Setup MUST be equal to this.Setup
+                        serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                        // compare local setup options with setup provided on SyncAgent constructor (check if pref / suf have changed)
+                        var hasSameOptions = clientScopeInfo.Setup.HasSameOptions(this.Setup);
+
+                        // compare local setup strucutre with remote structure
+                        var hasSameStructure = clientScopeInfo.Setup.HasSameStructure(serverScopeInfo.Setup);
+
+                        if (hasSameStructure)
+                        {
+                            // Set schema & setup
+                            this.Schema = clientScopeInfo.Schema;
+
+                            // Schema could be null if from web server 
+                            if (serverScopeInfo.Schema == null)
+                                serverScopeInfo.Schema = clientScopeInfo.Schema;
+                        }
+                        else
+                        {
+                            // Get full schema from server
+                            serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                            // Set the correct schema
+                            this.Schema = serverScopeInfo.Schema;
+                        }
+
+                        // Affect local setup (equivalent to this.Setup)
+                        this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
+                        this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
+
+                        // If one of the comparison is false, we make a migration
+                        if (!hasSameOptions || !hasSameStructure)
+                            clientScopeInfo = await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress).ConfigureAwait(false);
                     }
 
-                    // Affect local setup (equivalent to this.Setup)
-                    this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
-                    this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    // If one of the comparison is false, we make a migration
-                    if (!hasSameOptions || !hasSameStructure)
-                        clientScopeInfo = await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress).ConfigureAwait(false);
-                }
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // Before call the changes from localorchestrator, check if we are outdated
-                if (serverScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
-                {
-                    var isOutDated = await this.LocalOrchestrator.IsOutDatedAsync(clientScopeInfo, serverScopeInfo).ConfigureAwait(false);
-
-                    // if client does not change SyncType to Reinitialize / ReinitializeWithUpload on SyncInterceptor, we raise an error
-                    // otherwise, we are outdated, but we can continue, because we have a new mode.
-                    if (isOutDated)
-                        Debug.WriteLine($"Client id outdated, but we change mode to {context.SyncType}");
-                }
-
-                context.ProgressPercentage = 0.1;
-                
-                // On local orchestrator, get local changes
-                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // Reinitialize timestamp is in Reinit Mode
-                if (context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload)
-                    clientScopeInfo.LastServerSyncTimestamp = null;
-
-                // Get if we need to get all rows from the datasource
-                var fromScratch = clientScopeInfo.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
-
-                // IF is new and we have a snapshot directory, try to apply a snapshot
-                if (fromScratch)
-                {
-                    // Get snapshot files
-                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(this.Schema, cancellationToken, progress).ConfigureAwait(false);
-
-                    // Apply snapshot
-                    if (serverSnapshotChanges.ServerBatchInfo != null)
+                    // Before call the changes from localorchestrator, check if we are outdated
+                    if (serverScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
                     {
-                        (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
-                            clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+                        var isOutDated = await this.LocalOrchestrator.IsOutDatedAsync(clientScopeInfo, serverScopeInfo).ConfigureAwait(false);
+
+                        // if client does not change SyncType to Reinitialize / ReinitializeWithUpload on SyncInterceptor, we raise an error
+                        // otherwise, we are outdated, but we can continue, because we have a new mode.
+                        if (isOutDated)
+                            Debug.WriteLine($"Client id outdated, but we change mode to {context.SyncType}");
                     }
+
+                    context.ProgressPercentage = 0.1;
+
+                    // On local orchestrator, get local changes
+                    var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                    // Reinitialize timestamp is in Reinit Mode
+                    if (context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload)
+                        clientScopeInfo.LastServerSyncTimestamp = null;
+
+                    // Get if we need to get all rows from the datasource
+                    var fromScratch = clientScopeInfo.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
+
+                    // IF is new and we have a snapshot directory, try to apply a snapshot
+                    if (fromScratch)
+                    {
+                        // Get snapshot files
+                        var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(this.Schema, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Apply snapshot
+                        if (serverSnapshotChanges.ServerBatchInfo != null)
+                        {
+                            (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
+                                clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+                        }
+                    }
+
+                    context.ProgressPercentage = 0.3;
+                    // apply is 25%, get changes is 20%
+                    var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                    // Policy is always Server policy, so reverse this policy to get the client policy
+                    var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
+
+                    // Get if we have already applied a snapshot, so far we don't need to reset table even if we are i Reinitialize Mode
+                    var snapshotApplied = result.SnapshotChangesAppliedOnClient != null;
+
+                    // apply is 25%
+                    context.ProgressPercentage = 0.75;
+                    var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
+                        clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
+                        clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
+                        serverChanges.ServerChangesSelected, cancellationToken, progress).ConfigureAwait(false);
+
+                    completeTime = DateTime.UtcNow;
+                    this.LocalOrchestrator.CompleteTime = completeTime;
+                    this.RemoteOrchestrator.CompleteTime = completeTime;
+
+                    result.CompleteTime = completeTime;
+
+                    // All clients changes selected
+                    result.ClientChangesSelected = clientChanges.ClientChangesSelected;
+                    result.ServerChangesSelected = serverChanges.ServerChangesSelected;
+                    result.ChangesAppliedOnClient = clientChangesApplied.ChangesApplied;
+                    result.ChangesAppliedOnServer = serverChanges.ClientChangesApplied;
+
+                    // Begin session
+                    context.ProgressPercentage = 1;
+                    await this.LocalOrchestrator.EndSessionAsync(cancellationToken, progress).ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
                 }
 
-                context.ProgressPercentage = 0.3;
-                // apply is 25%, get changes is 20%
-                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // Policy is always Server policy, so reverse this policy to get the client policy
-                var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
-
-                // Get if we have already applied a snapshot, so far we don't need to reset table even if we are i Reinitialize Mode
-                var snapshotApplied = result.SnapshotChangesAppliedOnClient != null;
-
-                // apply is 25%
-                context.ProgressPercentage = 0.75;
-                var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
-                    clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
-                    clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
-                    serverChanges.ServerChangesSelected, cancellationToken, progress).ConfigureAwait(false);
-
-                completeTime = DateTime.UtcNow;
-                this.LocalOrchestrator.CompleteTime = completeTime;
-                this.RemoteOrchestrator.CompleteTime = completeTime;
-
-                result.CompleteTime = completeTime;
-
-                // All clients changes selected
-                result.ClientChangesSelected = clientChanges.ClientChangesSelected;
-                result.ServerChangesSelected = serverChanges.ServerChangesSelected;
-                result.ChangesAppliedOnClient = clientChangesApplied.ChangesApplied;
-                result.ChangesAppliedOnServer = serverChanges.ClientChangesApplied;
-
-                // Begin session
-                context.ProgressPercentage = 1;
-                await this.LocalOrchestrator.EndSessionAsync(cancellationToken, progress).ConfigureAwait(false);
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-            }
-
-            catch (SyncException se)
-            {
-                this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
-                throw new SyncException(ex, SyncStage.None);
-            }
-            finally
-            {
-                // End the current session
-                this.SessionState = SyncSessionState.Ready;
-                this.SessionStateChanged?.Invoke(this, this.SessionState);
-                // unlock sync since it's over
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                UnlockSync();
-            }
-            //});
+                catch (SyncException se)
+                {
+                    this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
+                    throw new SyncException(ex, SyncStage.None);
+                }
+                finally
+                {
+                    // End the current session
+                    this.SessionState = SyncSessionState.Ready;
+                    this.SessionStateChanged?.Invoke(this, this.SessionState);
+                    // unlock sync since it's over
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    UnlockSync();
+                }
+            });
 
             return result;
         }

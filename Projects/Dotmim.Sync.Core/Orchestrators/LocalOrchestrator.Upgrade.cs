@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Upgrade the database structure to reach the last DMS version
         /// </summary>
-        public virtual Task<ScopeInfo> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ScopeInfo> UpgradeAsync(ScopeInfo scopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync<ScopeInfo>(SyncStage.Provisioning, async (ctx, connection, transaction) =>
         {
             if (this.Setup == null)
@@ -44,7 +44,7 @@ namespace Dotmim.Sync
                 throw new MissingTablesException();
 
             var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-             
+
             var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!exists)
@@ -76,11 +76,11 @@ namespace Dotmim.Sync
             if (scope == null)
                 return false;
 
-            return InternalNeedsToUpgrade(ctx, scope);
+            return InternalNeedsToUpgrade(scope);
 
         }, connection, transaction, cancellationToken);
 
-        internal virtual bool InternalNeedsToUpgrade(SyncContext context, ScopeInfo scopeInfo)
+        internal virtual bool InternalNeedsToUpgrade(ScopeInfo scopeInfo)
         {
 
             var version = SyncVersion.EnsureVersion(scopeInfo.Version);
@@ -114,6 +114,9 @@ namespace Dotmim.Sync
 
                 if (version.Minor == 7 && version.Build == 0)
                     version = await UpgdrateTo701Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                
+                if (version.Minor == 7 && version.Build == 1)
+                    version = await UpgdrateTo702Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
@@ -283,6 +286,17 @@ namespace Dotmim.Sync
         private Task<Version> UpgdrateTo701Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var newVersion = new Version(0, 7, 1);
+
+            var message = $"Upgrade to {newVersion}:";
+            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+
+            return Task.FromResult(newVersion);
+        }
+        private Task<Version> UpgdrateTo702Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            var newVersion = new Version(0, 7, 2);
 
             var message = $"Upgrade to {newVersion}:";
             var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
