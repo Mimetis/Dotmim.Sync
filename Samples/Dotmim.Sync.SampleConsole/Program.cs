@@ -55,8 +55,8 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        await SyncTestMySqlAsync();
-        //await SynchronizeAsync();
+        // await SyncTestMySqlAsync();
+        await SynchronizeAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
@@ -67,37 +67,6 @@ internal class Program
         // await SynchronizeAsyncThenAddFilterAsync();
     }
 
-
-    private static async Task SyncTestMySqlAsync()
-    {
-        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("CANVAS"));
-        var clientProvider = new SqliteSyncProvider("dddd.db");
-        var tables = new string[] { "CANVASUSER" };
-        var setup = new SyncSetup(tables);
-
-        var canvasuserFilter = new SetupFilter("CANVASUSER");
-        canvasuserFilter.AddParameter("IDuser", "CANVASUSER", true);
-        canvasuserFilter.AddWhere("IDuser", "CANVASUSER", "IDuser");
-        setup.Filters.Add(canvasuserFilter);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, setup);
-
-        agent.Parameters.Add("IDuser", 1);
-
-        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-        Console.WriteLine(r);
-
-    }
 
     private static async Task SynchronizeAsyncThenAddFilterAsync()
     {
@@ -527,14 +496,11 @@ internal class Program
 
         var options = new SyncOptions()
         {
-            BatchSize = 1000,
+            BatchSize = 0,
             DisableConstraintsOnApplyChanges = false
         };
 
         var setup = new SyncSetup(allTables);
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -544,18 +510,42 @@ internal class Program
             Console.ResetColor();
         });
 
-        var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-        Console.WriteLine(r);
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
-        await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
-        await agent.RemoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+        //agent.LocalOrchestrator.OnTableChangesSelected(args =>
+        //{
+        //    if (args.Changes == null || !args.Changes.HasRows)
+        //        return;
 
-        setup = new SyncSetup(allTables)
+        //    foreach (var changedRow in args.Changes.Rows.ToArray())
+        //    {
+        //        if (changedRow.RowState == DataRowState.Deleted)
+        //            args.Changes.Rows.Remove(changedRow);
+        //    }
+        //});
+
+        do
         {
-            StoredProceduresPrefix = "Sync",
-            TrackingTablesPrefix = "Sync",
-            TriggersPrefix = "Sync",
-        };
+            Console.WriteLine("Web sync start");
+            try
+            {
+
+                var s = await agent.SynchronizeAsync(progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
 
