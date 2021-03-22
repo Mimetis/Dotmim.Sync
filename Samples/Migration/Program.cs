@@ -31,7 +31,7 @@ namespace Migration
             var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
             // Using the Progress pattern to handle progession during the synchronization
-            var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}"));
+            var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.PogressPercentageString}:\t{args.Message}"));
 
             // First sync to have a starting point
             var s1 = await agent.SynchronizeAsync(progress);
@@ -56,32 +56,16 @@ namespace Migration
             // Create a server orchestrator used to Deprovision and Provision only table Address
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setupAddress);
 
-            // Unprovision the Address triggers / stored proc. 
+            // Unprovision the old Address triggers / stored proc. 
             // We can conserve the Address tracking table, since we just add a column, 
             // that is not a primary key used in the tracking table
             // That way, we are preserving historical data
             await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
 
-            // Provision the Address triggers / stored proc again, 
+            // Provision the new Address triggers / stored proc again, 
             // This provision method will fetch the address schema from the database, 
             // so it will contains all the columns, including the new Address column added
             await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
-
-            // Now we need the full setup to get the full schema.
-            // Setup includes [Address] [Customer] and [CustomerAddress]
-            remoteOrchestrator.Setup = setup;
-            var newSchema = await remoteOrchestrator.GetSchemaAsync();
-
-            // Now we need to save this new schema to the serverscope table
-            // get the server scope again
-            var serverScope = await remoteOrchestrator.GetServerScopeAsync();
-
-            // affect good values
-            serverScope.Setup = setup;
-            serverScope.Schema = newSchema;
-
-            // save it
-            await remoteOrchestrator.SaveServerScopeAsync(serverScope);
 
             // -----------------------------------------------------------------
             // Client side
@@ -97,22 +81,6 @@ namespace Migration
             // Provision the Address triggers / stored proc again, 
             // This provision method will fetch the address schema from the database, so it will contains all the columns, including the new one added
             await localOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
-
-            // Now we need to save this to clientscope
-            // get the server scope again
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
-
-            // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
-            // You can create a WebClientOrchestrator and get the schema as well
-            // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
-            // var newSchema = proxyClientProvider.GetSchemaAsync();
-
-            // affect good values
-            clientScope.Setup = setup;
-            clientScope.Schema = newSchema;
-
-            // save it
-            await localOrchestrator.SaveClientScopeAsync(clientScope);
 
             // Now test a new sync, everything should work as expected.
             do

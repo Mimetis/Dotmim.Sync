@@ -51,8 +51,11 @@ internal class Program
                                                     "SalesOrderHeader", "SalesOrderDetail" };
 
     public static string[] oneTable = new string[] { "ProductCategory" };
+
+
     private static async Task Main(string[] args)
     {
+        // await SyncTestMySqlAsync();
         await SynchronizeAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
@@ -354,17 +357,9 @@ internal class Program
         Console.WriteLine("1 - Deprovision The Server");
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-        // We are in change tracking mode, so no need to deprovision triggers and tracking table. But it's part of the sample
-        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
 
-        var serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
-
-        serverScope.Setup = null;
-        serverScope.Schema = null;
-
-        // save the server scope
-        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
-
+        // We are in change tracking mode, so no need to deprovision triggers and tracking table.
+        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures, progress: progress);
 
         // DeprovisionAsync
         Console.WriteLine();
@@ -385,15 +380,8 @@ internal class Program
         setup.Tables["ProductCategory"].SyncDirection = SyncDirection.DownloadOnly;
 
         remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-        serverScope = await remoteOrchestrator.GetServerScopeAsync(progress: progress);
 
         var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
-
-        serverScope.Setup = setup;
-        serverScope.Schema = newSchema;
-
-        // save the server scope
-        await remoteOrchestrator.SaveServerScopeAsync(serverScope, progress: progress);
 
         // Snapshot
         Console.WriteLine();
@@ -503,24 +491,16 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var options = new SyncOptions()
         {
-            BatchSize = 1000,
+            BatchSize = 0,
             DisableConstraintsOnApplyChanges = false
         };
 
-        var setup = new SyncSetup(new string[] { "Accounts", "AccountSettings", "Companies" })
-        {
-            StoredProceduresPrefix = "Sync",
-            TrackingTablesPrefix = "Sync",
-            TriggersPrefix = "Sync",
-        };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+        var setup = new SyncSetup(allTables);
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -530,19 +510,31 @@ internal class Program
             Console.ResetColor();
         });
 
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
         do
         {
+            Console.WriteLine("Sync start");
             try
             {
-                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                Console.WriteLine(r);
+
+                var s = await agent.SynchronizeAsync(progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
             }
 
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
     }
 
     private static async Task CreateSnapshotAsync()

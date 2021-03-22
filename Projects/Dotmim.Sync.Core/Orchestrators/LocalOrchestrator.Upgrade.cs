@@ -111,6 +111,9 @@ namespace Dotmim.Sync
                 // last version of 0.6 Can be 0.6.2 or beta version 0.6.3 (that will never be released but still in the nuget packages available)
                 if (version.Minor == 6 && version.Build >= 2)
                     version = await UpgdrateTo700Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (version.Minor == 7 && version.Build == 0)
+                    version = await UpgdrateTo701Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
@@ -277,6 +280,17 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
+        private Task<Version> UpgdrateTo701Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            var newVersion = new Version(0, 7, 1);
+
+            var message = $"Upgrade to {newVersion}:";
+            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+
+            return Task.FromResult(newVersion);
+        }
 
     }
 }
