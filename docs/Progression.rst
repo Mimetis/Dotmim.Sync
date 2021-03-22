@@ -10,10 +10,10 @@ Progression
 Overview
 ^^^^^^^^^^^^
 
-During a full synchronization, we have **two distincts** progression:
+During a full synchronization, we have **two distincts** type of progression:
 
-* A first **Progression** from the client side
-* A second **Progression** from the server side.
+* The **Progression** from the client side.
+* The **Progression** from the server side.
 
 We have a lot of progress values raised from both the **server** and the **client** side:
 
@@ -76,7 +76,7 @@ We are going to see how to get useful information, from each stage involved duri
 .. hint:: You will find this complete sample here : `Progression sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Progression>`_ 
 
 IProgress\<T\>
-^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 As we said, the progress values are triggered from both side : **Server** side and **Client** side, ordered.  
 
@@ -85,11 +85,8 @@ In our sample, we can say that :
 * The ``RemoteOrchestrator`` instance, using the server provider instance, will report all the progress from the server side.   
 * The ``LocalOrchestrator`` instance using the client provider instance, will report all the progress from the client side.  
 
-.. note:: The ``syncAgent`` instance will report progress **only** from the **Client** side.
-          
-          Why? Because the ``syncAgent`` instance is always running **locally** on the client local machine, and the **server** may be is behind an **HTTP** endpoint. Then ``syncAgent`` has no idea what's going on the server side.
 
-.. hint:: A ``syncAgent`` object is **always** running on the client side of **any** architecture.  
+.. note:: A ``syncAgent`` object is **always** running on the client side of **any** architecture.  
 
 Since our main method ``SynchronizeAsync()`` is marked ``async`` method, we will use the `Progress\<T\> <https://docs.microsoft.com/en-us/dotnet/api/system.progress-1?view=netcore-2.2>`_ to be able to report progress value.
 
@@ -115,7 +112,7 @@ Here is a quick example used to provide some feedback to the user:
 
     // Using the IProgress<T> pattern to handle progession dring the synchronization
     var progress = new SynchronousProgress<ProgressArgs>(args => 
-            Console.WriteLine('$'"{args.Context.SyncStage}:{args.Message}"));
+        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}"));
 
     do
     {
@@ -134,54 +131,46 @@ Here is the result, after the first synchronization, assuming the **Client** dat
 
 .. code-block:: bash
 
-    BeginSession:   22:27:06.811
-    ScopeLoaded:    22:27:07.215     [Client] [DefaultScope] [Version ] Last sync: Last sync duration:0:0:0.0
-    Provisioned:    22:27:09.140     [Client] tables count:8 provision:Table, TrackingTable, StoredProcedures, Triggers
-    ChangesSelected:        22:27:09.207     [Client] upserts:0 deletes:0 total:0
-    ChangesApplying:        22:27:09.786     [Client] [ProductCategory] Modified applied:41 resolved conflicts:0
-    ChangesApplying:        22:27:09.819     [Client] [ProductModel] Modified applied:128 resolved conflicts:0
-    ChangesApplying:        22:27:09.897     [Client] [Product] Modified applied:295 resolved conflicts:0
-    ChangesApplying:        22:27:09.940     [Client] [Address] Modified applied:450 resolved conflicts:0
-    ChangesApplying:        22:27:10.83      [Client] [Customer] Modified applied:847 resolved conflicts:0
-    ChangesApplying:        22:27:10.124     [Client] [CustomerAddress] Modified applied:417 resolved conflicts:0
-    ChangesApplying:        22:27:10.164     [Client] [SalesOrderHeader] Modified applied:32 resolved conflicts:0
-    ChangesApplying:        22:27:10.218     [Client] [SalesOrderDetail] Modified applied:542 resolved conflicts:0
-    ChangesApplied: 22:27:10.268     [Client] applied:2752 resolved conflicts:0
-    EndSession:     22:27:10.269
+    0%:     625b4be7-54a5-4fe7-8a47-cd2bf46f15b9:   Session Begins.
+    0%:     AdventureWorks: Schema Loaded For 9 Tables.
+    0%:     AdventureWorks: Provisioned 9 Tables. Provision:TrackingTable, StoredProcedures, Triggers.
+    0%:     Client: Provisioned 9 Tables. Provision:Table, TrackingTable, StoredProcedures, Triggers.
+    30%:    AdventureWorks: [Total] Applied:0. Conflicts:0.
+    57%:    AdventureWorks: [ProductDescription] [Total] Upserts:762. Deletes:0. Total:762.
+    59%:    AdventureWorks: [ProductCategory] [Total] Upserts:41. Deletes:0. Total:41.
+    61%:    AdventureWorks: [ProductModel] [Total] Upserts:128. Deletes:0. Total:128.
+    63%:    AdventureWorks: [Product] [Total] Upserts:295. Deletes:0. Total:295.
+    66%:    AdventureWorks: [Address] [Total] Upserts:450. Deletes:0. Total:450.
+    68%:    AdventureWorks: [Customer] [Total] Upserts:847. Deletes:0. Total:847.
+    70%:    AdventureWorks: [CustomerAddress] [Total] Upserts:417. Deletes:0. Total:417.
+    72%:    AdventureWorks: [SalesOrderHeader] [Total] Upserts:32. Deletes:0. Total:32.
+    75%:    AdventureWorks: [SalesOrderDetail] [Total] Upserts:542. Deletes:0. Total:542.
+    75%:    AdventureWorks: [Total] Upserts:3514. Deletes:0. Total:3514
+    80%:    Client: [ProductDescription] [Modified] Applied:(762) Total:(762/3514).
+    80%:    Client: [ProductCategory] [Modified] Applied:(41) Total:(803/3514).
+    81%:    Client: [ProductModel] [Modified] Applied:(128) Total:(931/3514).
+    83%:    Client: [Product] [Modified] Applied:(295) Total:(1226/3514).
+    86%:    Client: [Address] [Modified] Applied:(450) Total:(1676/3514).
+    92%:    Client: [Customer] [Modified] Applied:(847) Total:(2523/3514).
+    95%:    Client: [CustomerAddress] [Modified] Applied:(417) Total:(2940/3514).
+    96%:    Client: [SalesOrderHeader] [Modified] Applied:(32) Total:(2972/3514).
+    100%:   Client: [SalesOrderDetail] [Modified] Applied:(542) Total:(3514/3514).
+    100%:   Client: [Total] Applied:3514. Conflicts:0.
+    100%:   625b4be7-54a5-4fe7-8a47-cd2bf46f15b9:   Session Ended.
     Synchronization done.
             Total changes  uploaded: 0
-            Total changes  downloaded: 2752
-            Total changes  applied: 2752
+            Total changes  downloaded: 3514
+            Total changes  applied: 3514
             Total resolved conflicts: 0
-            Total duration :0:0:3.463
+            Total duration :0:0:7.440
 
 
 As you can see, it's a first synchronization, so:
 
 * Session begins 
-* Client apply databases schema for all tables
-* Client select changes to send (nothing, obviously, because the tables have just been created on the client)
-* Client applies changes from server 
+* Server creates all metadatas needed for AdventureWorks database
+* Client creates all metadatas needed for Client database
+* Server selects all changes to upserts
+* Client applies all changes sent from ths server
+* Client selects changes to send (nothing, obviously, because the tables have just been created on the client)
 * Session ends
-
-Since the agent is executing on the client, as we said, the ``progress`` instance reference passed to the ``agent.SynchronizeAsync(progress)`` will trigger all the progress from the client side only.   
-
-To be able to get progress from the server side (if you are not in a web proxy mode), you can call the ``AddRemoteProgress()`` method with your `remoteProgress` instance.
-
-.. code-block:: csharp
-
-    // I want the server side progress as well
-    var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine('$'"{s.Context.SyncStage}:\t{s.Message}");
-        Console.ResetColor();
-    });
-    agent.AddRemoteProgress(remoteProgress);
-
-
-The result is really verbose, but you have ALL the informations  from both **Client** side and **Server** side !
-
-*In the screenshot below, yellow lines are progression events raised from server side.*
-
-.. image:: assets/ProgressionVerbose.png

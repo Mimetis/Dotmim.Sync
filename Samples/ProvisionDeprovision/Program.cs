@@ -16,10 +16,30 @@ namespace ProvisionDeprovision
             await ProvisionServerManuallyAsync();
             await ProvisionClientManuallyAsync();
 
+            await SynchronizeAsync();
+
             await DeprovisionServerManuallyAsync();
             await DeprovisionClientManuallyAsync();
 
             Console.WriteLine("Hello World!");
+        }
+
+
+        private static async Task SynchronizeAsync()
+        {
+            // Create 2 Sql Sync providers
+            var serverProvider = new SqlSyncProvider(serverConnectionString);
+            var clientProvider = new SqlSyncProvider(clientConnectionString);
+
+            // Create standard Setup and Options
+            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
+            var options = new SyncOptions();
+
+            var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+            var result = await agent.SynchronizeAsync();
+
+            Console.WriteLine(result);
         }
 
 
@@ -39,32 +59,14 @@ namespace ProvisionDeprovision
             // This method is useful if you want to provision by yourself the server database
             // You will need to :
             // - Create a remote orchestrator with the correct setup to proivision
-            // - Get the server scope that will contains after provisioning, the serialized version of your scope / schema
             // - Provision everything
-            // - Save the server scope information
 
             // Create a server orchestrator used to Deprovision and Provision only table Address
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
 
-            // Get the server scope
-            var serverScope = await remoteOrchestrator.GetServerScopeAsync();
+            // Provision everything needed
+            await remoteOrchestrator.ProvisionAsync();
 
-            // Server scope is created on the server side.
-            // but Setup and Schema are both null, since nothing have been created so far
-            //
-            // serverScope.Setup = null;
-            // serverScope.Schema = null;
-            //
-            // Provision everything needed (sp, triggers, tracking tables)
-            // Internally provision will fectch the schema a will return it to the caller. 
-            var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
-
-            // affect good values
-            serverScope.Setup = setup;
-            serverScope.Schema = newSchema;
-
-            // save the server scope
-            await remoteOrchestrator.SaveServerScopeAsync(serverScope);
         }
 
 
@@ -80,19 +82,8 @@ namespace ProvisionDeprovision
             // Create a server orchestrator used to Deprovision everything on the server side
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
 
-            // Get the server scope
-            var serverScope = await remoteOrchestrator.GetServerScopeAsync();
-
             // Deprovision everything
-            await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-                | SyncProvision.Triggers | SyncProvision.TrackingTable);
-
-            // Affect good values
-            serverScope.Setup = null;
-            serverScope.Schema = null;
-
-            // save the server scope
-            await remoteOrchestrator.SaveServerScopeAsync(serverScope);
+            await remoteOrchestrator.DeprovisionAsync();
         }
         private static async Task DeprovisionClientManuallyAsync()
         {
@@ -106,19 +97,9 @@ namespace ProvisionDeprovision
             // Create a local orchestrator used to Deprovision everything
             var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
 
-            // Get the local scope
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
-
             // Deprovision everything
-            await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-                | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.Table);
+            await localOrchestrator.DeprovisionAsync();
 
-            // affect good values
-            clientScope.Setup = null;
-            clientScope.Schema = null;
-
-            // save the local scope
-            await localOrchestrator.SaveClientScopeAsync(clientScope);
         }
 
 
@@ -140,10 +121,8 @@ namespace ProvisionDeprovision
             // This method is useful if you want to provision by yourself the client database
             // You will need to :
             // - Create a local orchestrator with the correct setup to provision
-            // - Get the local scope that will contains after provisioning, the serialized version of your scope / schema
             // - Get the schema from the server side using a RemoteOrchestrator or a WebClientOrchestrator
             // - Provision everything locally
-            // - Save the local scope information
 
             // Create a local orchestrator used to provision everything locally
             var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
@@ -159,19 +138,8 @@ namespace ProvisionDeprovision
             // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
             // var serverSchema = proxyClientProvider.GetSchemaAsync();
 
-            // get the local scope
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
-
             // Provision everything needed (sp, triggers, tracking tables, AND TABLES)
-            await localOrchestrator.ProvisionAsync(serverSchema, SyncProvision.StoredProcedures
-                    | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.Table);
-
-            // affect good values
-            clientScope.Setup = setup;
-            clientScope.Schema = serverSchema;
-
-            // save the client scope
-            await localOrchestrator.SaveClientScopeAsync(clientScope);
+            await localOrchestrator.ProvisionAsync(serverSchema);
 
         }
     }

@@ -186,6 +186,8 @@ You can personalize how are created the **tracking tables**, **triggers** and **
 
 
 .. image:: assets/SyncConfiguration01.png
+    :alt: configuration
+
 
 
 HTTP mode
@@ -379,7 +381,7 @@ By default, here is a sync process, where we download everything from the server
 Here is the fiddler trace:
 
 .. image:: assets/batch01.png
-
+    :alt: batch
 
 | As you can see, the fiddler trace shows a http response around **16 Mb** (approximatively **6 Mb** compressed). 
 | It could be even more, depending on the size of the selected changes from the server.
@@ -407,6 +409,7 @@ Here is the same sync, with the batch mode enabled:
 Here is the fiddler trace:
 
 .. image:: assets/batch02.png
+    :alt: batch
 
 
 And the progress of the sync process:

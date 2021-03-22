@@ -32,7 +32,7 @@ Generaly, you have access to three methods (``Create_XXX``, ``Drop_XXX``, ``Exis
 * Schemas
 * Scopes
 
-Here is some example using these methods:
+Here is some examples using these methods:
 
 Get a table schema
 ----------------------
