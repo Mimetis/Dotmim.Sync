@@ -97,7 +97,9 @@ namespace Dotmim.Sync.Sqlite
             if (typeName.Contains("("))
                 typeName = typeName.Substring(0, typeName.IndexOf("("));
 
-            return typeName == "numeric" || typeName == "decimal" || typeName == "real";
+            return typeName == "numeric" || typeName == "decimal" || typeName == "real"
+                || typeName == "integer" || typeName == "bigint"
+                ;
         }
 
         public override bool IsTextType(string typeName)
@@ -129,6 +131,7 @@ namespace Dotmim.Sync.Sqlite
             switch (typeName)
             {
                 case "integer":
+                case "float":
                 case "decimal":
                 case "bit":
                 case "bigint":
@@ -136,7 +139,9 @@ namespace Dotmim.Sync.Sqlite
                 case "blob":
                 case "image":
                 case "datetime":
+                case "time":
                 case "text":
+                case "varchar":
                 case "real":
                     return true;
             }
@@ -145,7 +150,8 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool SupportScale(string typeName)
         {
-            return typeName.ToLowerInvariant() == "numeric" || typeName.ToLowerInvariant() == "decimal" || typeName.ToLowerInvariant() == "real";
+            return typeName.ToLowerInvariant() == "numeric" || typeName.ToLowerInvariant() == "decimal"
+                || typeName.ToLowerInvariant() == "real" || typeName.ToLowerInvariant() == "float";
         }
 
         public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
@@ -162,6 +168,7 @@ namespace Dotmim.Sync.Sqlite
                     return DbType.Int64;
                 case "numeric":
                 case "real":
+                case "float":
                     return DbType.Double;
                 case "decimal":
                     return DbType.Decimal;
@@ -170,7 +177,10 @@ namespace Dotmim.Sync.Sqlite
                     return DbType.Binary;
                 case "datetime":
                     return DbType.DateTime;
+                case "time":
+                    return DbType.Time;
                 case "text":
+                case "varchar":
                     return DbType.String;
 
             }
@@ -202,11 +212,14 @@ namespace Dotmim.Sync.Sqlite
                 case "numeric":
                 case "decimal":
                 case "real":
+                case "float":
                     return SqliteType.Real;
                 case "blob":
                 case "image":
                     return SqliteType.Blob;
                 case "datetime":
+                case "time":
+                case "varchar":
                 case "text":
                     return SqliteType.Text;
 

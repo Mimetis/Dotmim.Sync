@@ -581,7 +581,10 @@ namespace Dotmim.Sync
 
                 //After a force update, there is a problem, so raise exception
                 if (!operationComplete)
-                    throw new UnknownException("Force update should always work.. contact the author :)");
+                {
+                    //throw new UnknownException("Force update should always work.. contact the author :)");
+                    this.Logger.LogError("Force update should always work..");
+                }
 
                 return (1, finalRow, rowAppliedCount);
             }
