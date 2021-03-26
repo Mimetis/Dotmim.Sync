@@ -53,7 +53,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         public override bool UseFiddler => false;
 
-        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
+        protected override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
             AdventureWorksContext ctx = null;
             try
@@ -72,7 +72,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        protected override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
         {
             return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
         }

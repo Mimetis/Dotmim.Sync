@@ -116,6 +116,8 @@ namespace Dotmim.Sync.Web.Client
 
                         responseMessage = await responseSerializer.DeserializeAsync(streamResponse);
                     }
+
+                    await streamResponse.FlushAsync();
                 }
 
                 return responseMessage;
@@ -263,6 +265,8 @@ namespace Dotmim.Sync.Web.Client
                         }
 
                     }
+
+                    await streamResponse.FlushAsync();
                 }
 
                 syncException.ReasonPhrase = response.ReasonPhrase;

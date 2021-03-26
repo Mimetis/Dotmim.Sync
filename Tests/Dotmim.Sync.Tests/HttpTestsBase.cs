@@ -66,14 +66,14 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create database, seed it, with or without schema
         /// </summary>
-        public abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
+        protected abstract Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName,
             ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false);
 
 
         /// <summary>
         /// Create an empty database
         /// </summary>
-        public abstract Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true);
+        protected abstract Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true);
 
 
         // abstract fixture used to run the tests

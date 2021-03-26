@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(this.Tables);
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
 
             localOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(this.Tables);
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
 
             localOrchestrator.OnTransactionCommit(args => cts.Cancel());
             var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(default, default, cts.Token));

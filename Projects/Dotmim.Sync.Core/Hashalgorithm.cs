@@ -49,7 +49,10 @@ namespace Dotmim.Sync
             public static byte[] Create(byte[] data)
             {
                 using var stream = new MemoryStream(data);
-                return Create(stream);
+                var b = Create(stream);
+                stream.Flush();
+
+                return b;
             }
 
             public static byte[] Create(Stream stream)

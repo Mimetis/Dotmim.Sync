@@ -123,6 +123,9 @@ namespace Dotmim.Sync
 
                 if (version.Minor == 7 && version.Build == 1)
                     version = await UpgdrateTo702Async(context, schema, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (version.Minor == 7 && version.Build == 2)
+                    version = await UpgdrateTo703Async(context, schema, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
@@ -134,7 +137,7 @@ namespace Dotmim.Sync
 
         }
 
-        private Task<Version> UpgdrateTo600Async(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private ValueTask<Version> UpgdrateTo600Async(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var newVersion = new Version(0, 6, 0);
 
@@ -143,7 +146,7 @@ namespace Dotmim.Sync
             this.ReportProgress(context, progress, args, connection, transaction);
 
 
-            return Task.FromResult(newVersion);
+            return new ValueTask<Version>(newVersion); //Task.FromResult(newVersion);
         }
 
         private async Task<Version> UpgdrateTo601Async(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection, DbTransaction transaction,
@@ -303,6 +306,17 @@ namespace Dotmim.Sync
         private Task<Version> UpgdrateTo702Async(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var newVersion = new Version(0, 7, 2);
+
+            var message = $"Upgrade to {newVersion}:";
+            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+
+            return Task.FromResult(newVersion);
+        }
+        private Task<Version> UpgdrateTo703Async(SyncContext context, SyncSet schema, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            var newVersion = new Version(0, 7, 3);
 
             var message = $"Upgrade to {newVersion}:";
             var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
