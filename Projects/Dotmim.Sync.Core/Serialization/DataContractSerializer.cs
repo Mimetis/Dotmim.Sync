@@ -42,6 +42,8 @@ namespace Dotmim.Sync.Serialization
                 var serializer = new DataContractSerializer(typeof(T));
 
                 var res = (T)serializer.ReadObject(ims);
+
+                await ims.FlushAsync();
                 return res;
             }
 
@@ -49,16 +51,17 @@ namespace Dotmim.Sync.Serialization
         }
 
      
-        public Task<byte[]> SerializeAsync(T obj)
+        public async Task<byte[]> SerializeAsync(T obj)
         {
             var serializer = new DataContractSerializer(typeof(T));
 
-            using (var ms = new MemoryStream())
-            {
-                serializer.WriteObject(ms, obj);
-                return Task.FromResult(ms.ToArray());
-            }
+            using var ms = new MemoryStream();
+            
+            serializer.WriteObject(ms, obj);
+            var a = ms.ToArray();
+            await ms.FlushAsync();
 
+            return a;
         }
     }
 }

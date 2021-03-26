@@ -75,12 +75,6 @@ namespace Dotmim.Sync
                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
                 schema = await InternalProvisionAsync(ctx, false, schema, this.Setup, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                serverScopeInfo.Schema = schema;
-                serverScopeInfo.Setup = this.Setup;
-
-                // Write scopes locally
-                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
                 return serverScopeInfo;
             }
 

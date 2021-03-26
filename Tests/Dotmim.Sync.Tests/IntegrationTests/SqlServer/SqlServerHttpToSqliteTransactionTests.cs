@@ -58,7 +58,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         public override bool UseFiddler => false;
 
-        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
+        protected override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
             AdventureWorksContext ctx = null;
             try
@@ -77,7 +77,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        protected override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
         {
             return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
         }
@@ -147,7 +147,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var ev1 = new SemaphoreSlim(0, 1);
             var ev2 = new SemaphoreSlim(0, 1);
             var ev3 = new SemaphoreSlim(0, 1);
-            var cts = new CancellationTokenSource(1000);
+            using var cts = new CancellationTokenSource(1000);
 
             // create brand new client and setup locks
             agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);

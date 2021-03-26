@@ -126,6 +126,7 @@ namespace Dotmim.Sync
                         using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
                         {
                             serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+
                         }
 
                         serverBatchInfo.SanitizedSchema = changesSet;

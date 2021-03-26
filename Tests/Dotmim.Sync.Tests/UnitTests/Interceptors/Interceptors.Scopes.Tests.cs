@@ -194,8 +194,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(2, scopeTableCreated);
             Assert.Equal(1, scopeLoading);
             Assert.Equal(1, scopeLoaded);
-            Assert.Equal(2, scopeSaving);
-            Assert.Equal(2, scopeSaved);
+            Assert.Equal(3, scopeSaving);
+            Assert.Equal(3, scopeSaved);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

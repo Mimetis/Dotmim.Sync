@@ -139,6 +139,7 @@ namespace Dotmim.Sync
             this.Command = command;
             this.ScopeType = scopeType;
             this.ScopeName = scopeName;
+            this.ScopeInfo = scopeInfo;
         }
         public override string Source => Connection.Database;
         public override string Message => $"Scope Table [{ScopeType}] Saving.";
@@ -157,6 +158,7 @@ namespace Dotmim.Sync
             this.ScopeType = scopeType;
             this.ScopeInfo = scopeInfo;
             this.ScopeName = scopeName;
+            this.ScopeInfo = scopeInfo;
         }
         public override string Source => Connection.Database;
         public override string Message => $"Scope Table [{ScopeType}] Saved.";
