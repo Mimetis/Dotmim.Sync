@@ -292,15 +292,15 @@ namespace Dotmim.Sync
         /// <summary>
         /// Migrate an old setup configuration to a new one. This method is usefull if you are changing your SyncSetup when a database has been already configured previously
         /// </summary>
-        public virtual Task<ScopeInfo> MigrationAsync(SyncSetup oldSetup, SyncSet schema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ScopeInfo> MigrationAsync(SyncSetup oldSetup, SyncSetup newSetup, SyncSet newSchema, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Migrating, async (ctx, connection, transaction) =>
         {
             // If schema does not have any table, just return
-            if (schema == null || schema.Tables == null || !schema.HasTables)
+            if (newSchema == null || newSchema.Tables == null || !newSchema.HasTables)
                 throw new MissingTablesException();
 
             // Migrate the db structure
-            await this.InternalMigrationAsync(ctx, schema, oldSetup, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalMigrationAsync(ctx, newSchema, oldSetup, newSetup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Get Scope Builder
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -314,8 +314,8 @@ namespace Dotmim.Sync
 
             localScope = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            localScope.Setup = this.Setup;
-            localScope.Schema = schema;
+            localScope.Setup = newSetup;
+            localScope.Schema = newSchema;
 
             await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, localScope, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

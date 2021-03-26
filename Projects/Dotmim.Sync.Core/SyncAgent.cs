@@ -479,13 +479,12 @@ namespace Dotmim.Sync
                             this.Schema = serverScopeInfo.Schema;
                         }
 
-                        // Affect local setup (equivalent to this.Setup)
-                        this.LocalOrchestrator.Setup.Filters = serverScopeInfo.Setup.Filters;
-                        this.LocalOrchestrator.Setup.Tables = serverScopeInfo.Setup.Tables;
-
                         // If one of the comparison is false, we make a migration
                         if (!hasSameOptions || !hasSameStructure)
-                            clientScopeInfo = await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress).ConfigureAwait(false);
+                            clientScopeInfo = await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress).ConfigureAwait(false);
+
+                        // Affect local setup (equivalent to this.Setup)
+                        this.LocalOrchestrator.Setup = serverScopeInfo.Setup;
                     }
 
                     if (cancellationToken.IsCancellationRequested)

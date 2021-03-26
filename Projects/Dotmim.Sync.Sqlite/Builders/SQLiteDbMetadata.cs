@@ -56,8 +56,8 @@ namespace Dotmim.Sync.Sqlite
                 case DbType.Xml:
                 case DbType.Time:
                 case DbType.DateTimeOffset:
-                    return "text";
                 case DbType.Guid:
+                    return "text";
                 case DbType.Binary:
                 case DbType.Object:
                     return "blob";
@@ -104,7 +104,12 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool IsTextType(string typeName)
         {
-            return typeName.ToLowerInvariant() == "text";
+            typeName = typeName.ToLowerInvariant();
+
+            if (typeName.Contains("("))
+                typeName = typeName.Substring(0, typeName.IndexOf("("));
+
+            return typeName.ToLowerInvariant() == "text" || typeName.ToLowerInvariant() == "varchar";
         }
 
         public bool IsTextType(DbType dbType)
@@ -116,6 +121,7 @@ namespace Dotmim.Sync.Sqlite
                 case DbType.String:
                 case DbType.StringFixedLength:
                 case DbType.Xml:
+                case DbType.Guid:
                     return true;
             }
             return false;
