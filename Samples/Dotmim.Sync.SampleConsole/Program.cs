@@ -65,6 +65,8 @@ internal class Program
         //await SynchronizeWithFiltersAsync();
         //await CreateSnapshotAsync();
         // await SynchronizeAsyncThenAddFilterAsync();
+
+        
     }
 
 
@@ -513,6 +515,7 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
 
         do
         {

@@ -65,9 +65,24 @@ namespace Dotmim.Sync
 
             serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            // if serverscopeinfo is a new, because we never run any sync before, just return serverscope empty
+            // if serverscopeinfo is a new, because we never run any sync before, grab schema and affect setup
             if (serverScopeInfo.Setup == null && serverScopeInfo.Schema == null)
+            {
+                // 1) Get Schema from remote provider
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // 2) Provision
+                var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                schema = await InternalProvisionAsync(ctx, false, schema, this.Setup, provision, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                serverScopeInfo.Schema = schema;
+                serverScopeInfo.Setup = this.Setup;
+
+                // Write scopes locally
+                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 return serverScopeInfo;
+            }
 
             // Compare serverscope setup with current
             if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
