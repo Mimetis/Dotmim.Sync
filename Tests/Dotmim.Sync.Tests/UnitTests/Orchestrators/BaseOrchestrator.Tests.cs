@@ -237,7 +237,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(this.Tables);
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
 
             localOrchestrator.OnConnectionOpen(args =>
             {

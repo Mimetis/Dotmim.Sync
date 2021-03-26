@@ -26,16 +26,13 @@ namespace Dotmim.Sync.Serialization
 
         public async Task<T> DeserializeAsync(Stream ms)
         {
-            using (var sr = new StreamReader(ms))
-            {
-                using (var jtr = new JsonTextReader(sr))
-                {
-                    var jobject = await JObject.LoadAsync(jtr);
-
-                    return jobject.ToObject<T>();
-                }
-            }
+            using var sr = new StreamReader(ms);
+            using var jtr = new JsonTextReader(sr);
             
+            var jobject = await JObject.LoadAsync(jtr);
+            
+            return jobject.ToObject<T>();
+
         }
 
 
@@ -43,20 +40,16 @@ namespace Dotmim.Sync.Serialization
         {
             var jobject = JObject.FromObject(obj);
 
-            using (var ms = new MemoryStream())
-            {
-                using (var sw = new StreamWriter(ms))
-                {
-                    using (var jtw = new JsonTextWriter(sw))
-                    {
-                        await jobject.WriteToAsync(jtw);
-                        await jtw.FlushAsync();
-                        await sw.FlushAsync();
+            using var ms = new MemoryStream();
+            using var sw = new StreamWriter(ms);
+            using var jtw = new JsonTextWriter(sw);
+            
+            await jobject.WriteToAsync(jtw);
+            
+            await jtw.FlushAsync();
+            await sw.FlushAsync();
 
-                        return ms.ToArray();
-                    }
-                }
-            }
+            return ms.ToArray();
         }
     }
 }

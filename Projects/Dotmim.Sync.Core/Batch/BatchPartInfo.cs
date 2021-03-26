@@ -114,6 +114,8 @@ namespace Dotmim.Sync.Batch
             if (set == null)
                 set = await jsonConverter.DeserializeAsync(fs);
 
+            await fs.FlushAsync();
+
             return set;
         }
 
@@ -152,6 +154,8 @@ namespace Dotmim.Sync.Batch
 
 
             f.Write(serializedBytes, 0, serializedBytes.Length);
+
+            await f.FlushAsync();
         }
 
         /// <summary>

@@ -209,6 +209,7 @@ namespace Dotmim.Sync.Web.Server
             }
             finally
             {
+                readableStream.Flush();
                 readableStream.Close();
                 readableStream.Dispose();
             }
@@ -232,10 +233,12 @@ namespace Dotmim.Sync.Web.Server
                 using (var compress = new GZipStream(writeSteam, CompressionMode.Compress))
                 {
                     compress.Write(binaryData, 0, binaryData.Length);
+                    compress.Flush();
                 }
 
-                return writeSteam.ToArray();
+                var b =  writeSteam.ToArray();
 
+                writeSteam.Flush();
             }
 
             return binaryData;
