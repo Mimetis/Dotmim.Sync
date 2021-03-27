@@ -50,7 +50,7 @@ namespace Dotmim.Sync
             {
                 using var stream = new MemoryStream(data);
                 var b = Create(stream);
-                stream.Flush();
+                //stream.Flush();
 
                 return b;
             }
