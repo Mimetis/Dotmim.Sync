@@ -237,8 +237,8 @@ namespace Dotmim.Sync.Web.Server
                 }
 
                 var b =  writeSteam.ToArray();
-
                 writeSteam.Flush();
+                return b;
             }
 
             return binaryData;
