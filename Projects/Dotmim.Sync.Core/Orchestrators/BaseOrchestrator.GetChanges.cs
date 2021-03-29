@@ -73,6 +73,10 @@ namespace Dotmim.Sync
                 // tmp count of table for report progress pct
                 cptSyncTable++;
 
+                // Only table schema is replicated, no datas are applied
+                if (syncTable.SyncDirection == SyncDirection.None)
+                    continue;
+
                 // if we are in upload stage, so check if table is not download only
                 if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
                     continue;
@@ -223,6 +227,10 @@ namespace Dotmim.Sync
 
             foreach (var syncTable in message.Schema.Tables)
             {
+                // Only table schema is replicated, no datas are applied
+                if (syncTable.SyncDirection == SyncDirection.None)
+                    continue;
+                
                 // if we are in upload stage, so check if table is not download only
                 if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
                     continue;

@@ -214,6 +214,11 @@ namespace Dotmim.Sync
             DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+
+            // Only table schema is replicated, no datas are applied
+            if (schemaTable.SyncDirection == SyncDirection.None)
+                return;
+
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && schemaTable.SyncDirection == SyncDirection.DownloadOnly)
                 return;
