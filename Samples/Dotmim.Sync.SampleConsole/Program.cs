@@ -56,7 +56,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
         // await SyncTestMySqlAsync();
-        await SyncHttpThroughKestrellAsync();
+        await SynchronizeAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
@@ -493,17 +493,13 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        
+        var tables = new string[] { "Customer", "ProductCategory" };
+        var setup = new SyncSetup(tables);
 
-        var options = new SyncOptions()
-        {
-            BatchSize = 0,
-            DisableConstraintsOnApplyChanges = true,
-            UseBulkOperations = false
-        };
-
-        var setup = new SyncSetup(new string[] { "OrderDetails", "Jobs" });
+        setup.Tables["ProductCategory"].SyncDirection = SyncDirection.None;
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -514,7 +510,7 @@ internal class Program
         });
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+        var agent = new SyncAgent(clientProvider, serverProvider, setup);
 
 
         do
@@ -522,14 +518,8 @@ internal class Program
             Console.WriteLine("Sync start");
             try
             {
-                //await agent.LocalOrchestrator.DeprovisionAsync();
-                //await agent.RemoteOrchestrator.DeprovisionAsync();
-
                 var s = await agent.SynchronizeAsync(progress);
                 Console.WriteLine(s);
-
-                await agent.LocalOrchestrator.DeprovisionAsync();
-                await agent.RemoteOrchestrator.DeprovisionAsync();
             }
             catch (SyncException e)
             {
