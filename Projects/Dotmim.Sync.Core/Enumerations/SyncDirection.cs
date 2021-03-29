@@ -24,7 +24,13 @@ namespace Dotmim.Sync.Enumerations
         /// Table will be sync from client to server only
         /// All changes from server won't be downloaded to client
         /// </summary>
-        UploadOnly = 4
+        UploadOnly = 4,
+
+        /// <summary>
+        /// Table structure is replicated, but not the datas
+        /// Note : The value should be 0, but for compatibility issue with previous version, we go for a new value
+        /// </summary>
+        None = 8,
     }
 
     public enum SyncWay
