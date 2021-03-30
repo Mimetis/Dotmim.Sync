@@ -24,7 +24,7 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract class DbSyncAdapter
     {
-        internal const int BATCH_SIZE = 1000;
+        internal const int BATCH_SIZE = 10000;
 
 
         // Internal commands cache

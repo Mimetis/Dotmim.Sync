@@ -13,6 +13,7 @@ namespace Dotmim.Sync.Builders
         SelectChangesWithFilters,
         SelectRow,
         UpdateRow,
+        InitializeRow,
         DeleteRow,
         DisableConstraints,
         EnableConstraints,
@@ -23,6 +24,7 @@ namespace Dotmim.Sync.Builders
         DeleteTrigger,
         BulkTableType,
         BulkUpdateRows,
+        BulkInitializeRows,
         BulkDeleteRows,
         UpdateUntrackedRows,
         Reset

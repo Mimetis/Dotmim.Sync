@@ -57,6 +57,7 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
                     break;
                 case DbCommandType.UpdateRow:
+                case DbCommandType.InitializeRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
                     break;
@@ -97,6 +98,7 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
                     break;
                 case DbCommandType.BulkUpdateRows:
+                case DbCommandType.BulkInitializeRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
                     break;
@@ -147,6 +149,7 @@ namespace Dotmim.Sync.MySql
                     this.SetDeleteRowParameters(command);
                     break;
                 case DbCommandType.UpdateRow:
+                case DbCommandType.InitializeRow:
                     this.SetUpdateRowParameters(command);
                     break;
                 case DbCommandType.UpdateMetadata:

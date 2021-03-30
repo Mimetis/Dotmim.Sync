@@ -67,6 +67,9 @@ namespace Dotmim.Sync.Sqlite
                 case DbCommandType.UpdateRow:
                     this.SetUpdateRowParameters(command);
                     break;
+                case DbCommandType.InitializeRow:
+                    this.SetInitializeRowParameters(command);
+                    break;
                 case DbCommandType.Reset:
                     this.SetResetParameters(command);
                     break;
@@ -97,6 +100,39 @@ namespace Dotmim.Sync.Sqlite
         }
 
         private void SetUpdateRowParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+                p = command.CreateParameter();
+                p.ParameterName = $"@{unquotedColumn}";
+                p.DbType = GetValidDbType(column.GetDbType());
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_force_write";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+
+
+        }
+
+        private void SetInitializeRowParameters(DbCommand command)
         {
             DbParameter p;
 
