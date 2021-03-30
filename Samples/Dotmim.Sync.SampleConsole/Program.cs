@@ -56,7 +56,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
         // await SyncTestMySqlAsync();
-        await SynchronizeAsync();
+        await SynchronizeHeavyTableAsync();
         // await SynchronizeWithFiltersAndMultiScopesAsync();
         // await TestMultiCallToMethodsAsync();
         //await CreateSnapshotAsync();
@@ -66,7 +66,53 @@ internal class Program
         //await CreateSnapshotAsync();
         // await SynchronizeAsyncThenAddFilterAsync();
 
-        
+
+    }
+    private static async Task SynchronizeHeavyTableAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("HeavyTables"));
+
+        var tables = new string[] { "Customer" };
+        var setup = new SyncSetup(tables);
+
+        var options = new SyncOptions { BatchSize = 3000 };
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+                //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+                var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+                agent.LocalOrchestrator.OnTableChangesBatchApplying(args => Console.WriteLine(args.Command.CommandText));
+
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+        }
+
+
+
+
     }
 
 
@@ -493,13 +539,15 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        
-        var tables = new string[] { "Customer", "ProductCategory" };
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("HeavyTables"));
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        var tables = new string[] { "Customer" };
         var setup = new SyncSetup(tables);
 
-        setup.Tables["ProductCategory"].SyncDirection = SyncDirection.None;
+        var options = new SyncOptions();
+        options.BatchSize = 1000;
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -510,7 +558,7 @@ internal class Program
         });
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, setup);
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
 
         do

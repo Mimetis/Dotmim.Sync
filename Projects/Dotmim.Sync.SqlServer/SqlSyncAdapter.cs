@@ -347,6 +347,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
                     break;
                 case DbCommandType.UpdateRow:
+                case DbCommandType.InitializeRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
                     break;
@@ -387,6 +388,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
                     break;
                 case DbCommandType.BulkUpdateRows:
+                case DbCommandType.BulkInitializeRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
                     break;

@@ -358,13 +358,25 @@ namespace Dotmim.Sync
             var syncAdapter = this.GetSyncAdapter(changesTable, message.Setup);
             syncAdapter.ApplyType = applyType;
 
-            // Get correct command type
-            var dbCommandType = applyType switch
+            DbCommandType dbCommandType;
+
+            if (applyType == DataRowState.Deleted)
             {
-                DataRowState.Deleted => useBulkOperation ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow,
-                DataRowState.Modified => useBulkOperation ? DbCommandType.BulkUpdateRows : DbCommandType.UpdateRow,
-                _ => throw new UnknownException("RowState not valid during ApplyBulkChanges operation"),
-            };
+                dbCommandType = useBulkOperation ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow;
+            }
+            else
+            {
+                var init = message.IsNew || context.SyncType != SyncType.Normal;
+                dbCommandType = useBulkOperation ? (init ? DbCommandType.BulkInitializeRows : DbCommandType.BulkUpdateRows) : (init ? DbCommandType.InitializeRow : DbCommandType.UpdateRow);
+            }
+
+            //// Get correct command type
+            //var dbCommandType = applyType switch
+            //{
+            //    DataRowState.Deleted => useBulkOperation ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow,
+            //    DataRowState.Modified => useBulkOperation ? (message.IsNew ? DbCommandType.BulkInitializeRows : DbCommandType.BulkUpdateRows) : (message.IsNew ? DbCommandType.InitializeRow : DbCommandType.UpdateRow),
+            //    _ => throw new UnknownException("RowState not valid during ApplyBulkChanges operation"),
+            //};
 
             // Get command
             var command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
@@ -383,65 +395,63 @@ namespace Dotmim.Sync
             var itemsArrayCount = changesTable.Rows.Count;
 
             // Make some parts of BATCH_SIZE
-            var appliedRows = await Task.Run(async () =>
+
+            int appliedRowsTmp = 0;
+
+            for (int step = 0; step < itemsArrayCount; step += DbSyncAdapter.BATCH_SIZE)
             {
-                int appliedRowsTmp = 0;
+                // get upper bound max value
+                var taken = step + DbSyncAdapter.BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : DbSyncAdapter.BATCH_SIZE;
 
-                for (int step = 0; step < itemsArrayCount; step += DbSyncAdapter.BATCH_SIZE)
+                var arrayStepChanges = changesTable.Rows.Skip(step).Take(taken);
+
+                if (useBulkOperation)
                 {
-                    // get upper bound max value
-                    var taken = step + DbSyncAdapter.BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : DbSyncAdapter.BATCH_SIZE;
+                    var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
 
-                    var arrayStepChanges = changesTable.Rows.Skip(step).Take(taken);
+                    // execute the batch, through the provider
+                    await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
 
-                    if (useBulkOperation)
+                    // Get local and remote row and create the conflict object
+                    foreach (var failedRow in failedPrimaryKeysTable.Rows)
                     {
-                        var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
-
-                        // execute the batch, through the provider
-                        await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
-
-                        // Get local and remote row and create the conflict object
-                        foreach (var failedRow in failedPrimaryKeysTable.Rows)
-                        {
-                            // Get the row that caused the problem, from the opposite side (usually client)
-                            var remoteConflictRow = changesTable.Rows.GetRowByPrimaryKeys(failedRow);
-                            conflictRows.Add(remoteConflictRow);
-                        }
-
-                        //rows minus failed rows
-                        appliedRowsTmp += taken - failedPrimaryKeysTable.Rows.Count;
-
+                        // Get the row that caused the problem, from the opposite side (usually client)
+                        var remoteConflictRow = changesTable.Rows.GetRowByPrimaryKeys(failedRow);
+                        conflictRows.Add(remoteConflictRow);
                     }
-                    else
-                    {
-                        foreach (var row in arrayStepChanges)
-                        {
-                            // Set the parameters value from row 
-                            syncAdapter.SetColumnParametersValues(command, row);
 
-                            // Set the special parameters for update
-                            syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
-
-                            var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                            // Check if we have a return value instead
-                            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
-
-                            if (syncRowCountParam != null)
-                                rowAppliedCount = (int)syncRowCountParam.Value;
-
-                            if (rowAppliedCount > 0)
-                                appliedRowsTmp++;
-                            else
-                                conflictRows.Add(row);
-                        }
-                    }
+                    //rows minus failed rows
+                    appliedRowsTmp += taken - failedPrimaryKeysTable.Rows.Count;
 
                 }
+                else
+                {
+                    foreach (var row in arrayStepChanges)
+                    {
+                        // Set the parameters value from row 
+                        syncAdapter.SetColumnParametersValues(command, row);
 
-                return appliedRowsTmp;
-            });
+                        // Set the special parameters for update
+                        syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
+
+                        var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                        // Check if we have a return value instead
+                        var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+                        if (syncRowCountParam != null)
+                            rowAppliedCount = (int)syncRowCountParam.Value;
+
+                        if (rowAppliedCount > 0)
+                            appliedRowsTmp++;
+                        else
+                            conflictRows.Add(row);
+                    }
+                }
+
+            }
+
+            var appliedRows = appliedRowsTmp;
 
             // If conflicts occured
             if (conflictRows.Count <= 0)

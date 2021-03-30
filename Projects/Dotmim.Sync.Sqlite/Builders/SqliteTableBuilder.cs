@@ -536,6 +536,8 @@ namespace Dotmim.Sync.Sqlite
 
         public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
+            //return Task.FromResult<DbCommand>(null);
+
             return triggerType switch
             {
                 DbTriggerType.Insert => Task.FromResult(CreateInsertTriggerCommand(connection, transaction)),
