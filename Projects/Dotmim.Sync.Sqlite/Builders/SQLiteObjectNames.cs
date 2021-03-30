@@ -92,17 +92,14 @@ namespace Dotmim.Sync.Sqlite
             this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
             this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
 
-            // Check if we have mutables columns
-            var hasMutableColumns = TableDescription.GetMutableColumns(false).Any();
-
-
             // Select changes
             this.CreateSelectChangesCommandText();
             this.CreateSelectRowCommandText();
             this.CreateSelectInitializedCommandText();
             this.CreateDeleteCommandText();
             this.CreateDeleteMetadataCommandText();
-            this.CreateUpdateCommandText(hasMutableColumns);
+            this.CreateUpdateCommandText();
+            this.CreateInitializeCommandText();
             this.CreateResetCommandText();
             this.CreateUpdateUntrackedRowsCommandText();
             this.CreateUpdateMetadataCommandText();
@@ -163,7 +160,70 @@ namespace Dotmim.Sync.Sqlite
             this.AddCommandName(DbCommandType.UpdateMetadata, cmdtext);
         }
 
-        private void CreateUpdateCommandText(bool hasMutableColumns)
+        private void CreateInitializeCommandText()
+        {
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            var stringBuilderParametersValues = new StringBuilder();
+            var stringBuilderParametersValues2 = new StringBuilder();
+            string empty = string.Empty;
+
+            string str1 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
+            string str2 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[base]");
+            string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
+
+            // Generate Update command
+            var stringBuilder = new StringBuilder();
+
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+                stringBuilderParametersValues.Append($"{empty}@{columnParameterName} as {columnName}");
+                stringBuilderParametersValues2.Append($"{empty}@{columnParameterName}");
+                stringBuilderArguments.Append($"{empty}{columnName}");
+                stringBuilderParameters.Append($"{empty}[c].{columnName}");
+                empty = ", ";
+            }
+
+            stringBuilder.AppendLine($"INSERT OR IGNORE INTO {tableName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            stringBuilder.Append($"VALUES ({stringBuilderParametersValues2.ToString()}) ");
+            stringBuilder.AppendLine($";");
+
+            //stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
+            //stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            //stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+            //stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
+            //stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
+            //stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
+            //stringBuilder.Append($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
+            //stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
+            //stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
+            //stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
+            //stringBuilder.Append($"OR @sync_force_write = 1");
+            //stringBuilder.AppendLine($";");
+
+
+            //stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
+            //stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            //stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
+            //stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
+            //stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
+
+            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+            stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
+            stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.Append($" AND (select changes()) > 0");
+            stringBuilder.AppendLine($";");
+            var cmdtext = stringBuilder.ToString();
+
+            this.AddCommandName(DbCommandType.InitializeRow, cmdtext);
+        }
+
+        private void CreateUpdateCommandText()
         {
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderParameters = new StringBuilder();
@@ -171,7 +231,8 @@ namespace Dotmim.Sync.Sqlite
             string empty = string.Empty;
 
             string str1 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
-            string str2 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+            //string str2 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
+            string str2 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[base]");
 
             // Generate Update command
             var stringBuilder = new StringBuilder();
@@ -208,11 +269,12 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
             stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
-            stringBuilder.AppendLine($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
-            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
+            //stringBuilder.AppendLine($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
+            stringBuilder.AppendLine($"WHERE ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id) ");
             stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
             stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
-            stringBuilder.AppendLine($"OR @sync_force_write = 1)");
+            stringBuilder.Append($"OR @sync_force_write = 1");
+            stringBuilder.AppendLine($")");
 
             stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted().ToString()}");
             stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
@@ -312,7 +374,7 @@ namespace Dotmim.Sync.Sqlite
 
         //    this.AddName(DbCommandType.UpdateRow, cmdtext);
         //}
-              
+
 
         private void CreateDeleteMetadataCommandText()
         {
