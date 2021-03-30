@@ -33,8 +33,8 @@ namespace Dotmim.Sync
         //    = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
 
         // Internal sync adapter cache
-        private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
-            = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
+        //private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
+        //    = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -255,26 +255,26 @@ namespace Dotmim.Sync
         /// </summary>
         public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
         {
-            var p = this.Provider.GetParsers(tableDescription, setup);
+            //var p = this.Provider.GetParsers(tableDescription, setup);
 
-            var s = JsonConvert.SerializeObject(setup);
-            var data = Encoding.UTF8.GetBytes(s);
-            var hash = HashAlgorithm.SHA256.Create(data);
-            var hashString = Convert.ToBase64String(hash);
+            //var s = JsonConvert.SerializeObject(setup);
+            //var data = Encoding.UTF8.GetBytes(s);
+            //var hash = HashAlgorithm.SHA256.Create(data);
+            //var hashString = Convert.ToBase64String(hash);
 
-            // Create the key
-            var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+            //// Create the key
+            //var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
 
-            // Get a lazy command instance
-            var lazySyncAdapter = syncAdapters.GetOrAdd(commandKey,
-                k => new Lazy<DbSyncAdapter>(() => this.Provider.GetSyncAdapter(tableDescription, setup)));
+            //// Get a lazy command instance
+            //var lazySyncAdapter = syncAdapters.GetOrAdd(commandKey,
+            //    k => new Lazy<DbSyncAdapter>(() => this.Provider.GetSyncAdapter(tableDescription, setup)));
 
-            // Get the concrete instance
-            var syncAdapter = lazySyncAdapter.Value;
+            //// Get the concrete instance
+            //var syncAdapter = lazySyncAdapter.Value;
 
-            return syncAdapter;
+            //return syncAdapter;
 
-            //return this.Provider.GetSyncAdapter(tableDescription, setup);
+            return this.Provider.GetSyncAdapter(tableDescription, setup);
         }
 
         /// <summary>
