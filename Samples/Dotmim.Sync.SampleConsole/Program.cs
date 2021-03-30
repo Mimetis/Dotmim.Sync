@@ -55,19 +55,58 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        // await SyncTestMySqlAsync();
         await SynchronizeHeavyTableAsync();
-        // await SynchronizeWithFiltersAndMultiScopesAsync();
-        // await TestMultiCallToMethodsAsync();
-        //await CreateSnapshotAsync();
-        // await SyncHttpThroughKestrellAsync();
-        // await SyncThroughWebApiAsync();
-        //await SynchronizeWithFiltersAsync();
-        //await CreateSnapshotAsync();
-        // await SynchronizeAsyncThenAddFilterAsync();
+    }
 
+    private static async Task SynchronizeAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("HeavyTables"));
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        var tables = new string[] { "Customer" };
+        var setup = new SyncSetup(tables);
+
+        var options = new SyncOptions();
+        options.BatchSize = 1000;
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        agent.LocalOrchestrator.OnTableChangesBatchApplying(args => Console.WriteLine(args.Command.CommandText));
+
+        do
+        {
+            Console.WriteLine("Sync start");
+            try
+            {
+                var s = await agent.SynchronizeAsync(progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
+
     private static async Task SynchronizeHeavyTableAsync()
     {
         // Create 2 Sql Sync providers
@@ -536,54 +575,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-    private static async Task SynchronizeAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("HeavyTables"));
-        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
-
-        var tables = new string[] { "Customer" };
-        var setup = new SyncSetup(tables);
-
-        var options = new SyncOptions();
-        options.BatchSize = 1000;
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-
-        do
-        {
-            Console.WriteLine("Sync start");
-            try
-            {
-                var s = await agent.SynchronizeAsync(progress);
-                Console.WriteLine(s);
-            }
-            catch (SyncException e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-    }
-
+  
     private static async Task CreateSnapshotAsync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
