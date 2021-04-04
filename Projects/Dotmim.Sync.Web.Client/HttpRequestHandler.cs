@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<U> ProcessRequestAsync<U>(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId, string scopeName,
+        public async Task<HttpResponseMessage> ProcessRequestAsync(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId, string scopeName,
             ISerializerFactory serializerFactory, IConverter converter, int batchSize, SyncPolicy policy, 
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -44,14 +44,14 @@ namespace Dotmim.Sync.Web.Client
                 throw new ArgumentException("BaseUri is not defined");
 
             HttpResponseMessage response = null;
-            var responseMessage = default(U);
+            //var responseMessage = default(U);
             try
             {
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Get response serializer
-                var responseSerializer = serializerFactory.GetSerializer<U>();
+                //// Get response serializer
+                //var responseSerializer = serializerFactory.GetSerializer<U>();
 
                 var requestUri = new StringBuilder();
                 requestUri.Append(baseUri);
@@ -106,21 +106,23 @@ namespace Dotmim.Sync.Web.Client
                 var args2 = new HttpGettingResponseMessageArgs(response, this.orchestrator.GetContext());
                 await this.orchestrator.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
 
-                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    if (streamResponse.CanRead && streamResponse.Length > 0)
-                    {
-                        // if Hash is present in header, check hash
-                        if (TryGetHeaderValue(headers, "dotmim-sync-hash", out string hashStringRequest))
-                            HashAlgorithm.SHA256.EnsureHash(streamResponse, hashStringRequest);
+                //using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                //{
+                //    if (streamResponse.CanRead)
+                //    {
+                //        //// if Hash is present in header, check hash
+                //        //if (TryGetHeaderValue(headers, "dotmim-sync-hash", out string hashStringRequest))
+                //        //    HashAlgorithm.SHA256.EnsureHash(streamResponse, hashStringRequest);
 
-                        responseMessage = await responseSerializer.DeserializeAsync(streamResponse);
-                    }
+                //        responseMessage = await responseSerializer.DeserializeAsync(streamResponse);
+                //    }
 
-                    await streamResponse.FlushAsync();
-                }
+                //    //await streamResponse.FlushAsync();
+                //}
 
-                return responseMessage;
+                //return responseMessage;
+
+                return response;
             }
             catch (SyncException)
             {
@@ -175,7 +177,6 @@ namespace Dotmim.Sync.Web.Client
             requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-name", scopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
-
             requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
 
             // if client specifies a converter, add it as header
@@ -199,7 +200,8 @@ namespace Dotmim.Sync.Web.Client
             await this.orchestrator.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
 
             // Eventually, send the request
-            var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+            var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            //var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();

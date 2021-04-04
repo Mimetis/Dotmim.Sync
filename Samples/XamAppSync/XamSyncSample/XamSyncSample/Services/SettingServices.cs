@@ -26,7 +26,7 @@ namespace XamSyncSample.Services
 
         public string DataSource => $"Data Source={DataSourcePath}";
 
-        public string DataSourceName => "ddzeeaz.db";
+        public string DataSourceName => "adv001.db";
         public string BatchDirectoryName => "dms";
 
 

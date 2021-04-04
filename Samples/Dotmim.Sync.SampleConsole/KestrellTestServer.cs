@@ -23,8 +23,9 @@ namespace Dotmim.Sync.SampleConsole
     {
         IWebHostBuilder builder;
         IWebHost host;
+        bool useFiddler;
 
-        public KestrellTestServer(Action<IServiceCollection> configureServices = null)
+        public KestrellTestServer(Action<IServiceCollection> configureServices = null, bool useFidller = false)
         {
             var hostBuilder = new WebHostBuilder()
                 .UseKestrel()
@@ -44,6 +45,8 @@ namespace Dotmim.Sync.SampleConsole
 
                 });
             this.builder = hostBuilder;
+
+            this.useFiddler = useFidller;
         }
 
         public async Task Run(RequestDelegate serverHandler, ResponseDelegate clientHandler)
@@ -55,9 +58,10 @@ namespace Dotmim.Sync.SampleConsole
 
             });
 
+            var fiddler = useFiddler ? ".fiddler" : "";
             this.host = this.builder.Build();
             this.host.Start();
-            string serviceUrl = $"http://localhost:{host.GetPort()}/";
+            string serviceUrl = $"http://localhost{fiddler}:{this.host.GetPort()}/";
             await clientHandler(serviceUrl);
         }
 

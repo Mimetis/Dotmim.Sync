@@ -55,7 +55,8 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        await SynchronizeHeavyTableAsync();
+       //await CreateSnapshotAsync();
+       await SyncHttpThroughKestrellAsync();
     }
 
     private static async Task SynchronizeAsync()
@@ -575,7 +576,7 @@ internal class Program
         Console.WriteLine("End");
     }
 
-  
+
     private static async Task CreateSnapshotAsync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
@@ -588,29 +589,13 @@ internal class Program
         });
         var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-        var options = new SyncOptions() { BatchSize = 1000, SnapshotsDirectory = snapshotDirectory };
+        var options = new SyncOptions() { BatchSize = 10000, SnapshotsDirectory = snapshotDirectory };
 
-        Console.WriteLine($"Creating snapshot for each customer");
+        Console.WriteLine($"Creating snapshot");
 
-        var setup = new SyncSetup(new string[] { "Customer" });
-        setup.Filters.Add("Customer", "CustomerID");
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
 
-        // creating a snapshot for each customerId (that is my filter)
-        for (int customerId = 1; customerId <= 10; customerId++)
-        {
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-            var stopwatch = Stopwatch.StartNew();
-
-            var parameters = new SyncParameters {
-        { "CustomerID", customerId }
-    };
-
-            await remoteOrchestrator.CreateSnapshotAsync(syncParameters: parameters,
-                                                            progress: snapshotProgress);
-            stopwatch.Stop();
-            var str = $"Snapshot for customer {customerId} created: {stopwatch.Elapsed.Minutes}:{stopwatch.Elapsed.Seconds}.{stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-        }
+        await remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress);
     }
 
 
@@ -619,21 +604,24 @@ internal class Program
         // server provider
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("AdvHugeD.db");
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        //var tables = new string[] { "Customer" };
+        var setup = new SyncSetup(allTables);
+
+        //var options = new SyncOptions { BatchSize = 2000 };
+        var options = new SyncOptions();
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
             var serverOptions = new SyncOptions()
             {
                 DisableConstraintsOnApplyChanges = false,
+                // SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
             };
 
-            var setup = new SyncSetup(new string[] { "OrderDetails", "Jobs" });
-
             services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, serverOptions);
-
-
         });
 
         var serverHandler = new RequestDelegate(async context =>
@@ -646,7 +634,7 @@ internal class Program
 
         });
 
-        using var server = new KestrellTestServer(configureServices);
+        using var server = new KestrellTestServer(configureServices, false);
         var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
             do
@@ -654,24 +642,29 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
-                    var clientOptions = new SyncOptions()
-                    {
-                        DisableConstraintsOnApplyChanges = false
-                    };
-
                     var localOrchestrator = new WebClientOrchestrator(serviceUri);
 
-                    var agent = new SyncAgent(clientProvider, localOrchestrator, clientOptions);
+                    var agent = new SyncAgent(clientProvider, localOrchestrator, options);
 
+                    var startTime = DateTime.Now;
 
                     var localProgress = new SynchronousProgress<ProgressArgs>(s =>
                     {
+                        var tsEnded = TimeSpan.FromTicks(DateTime.Now.Ticks);
+                        var tsStarted = TimeSpan.FromTicks(startTime.Ticks);
+
+                        var durationTs = tsEnded.Subtract(tsStarted);
+                        
                         Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.PogressPercentageString}:\t{s.Message}");
                         Console.ResetColor();
+                        startTime = DateTime.Now;
                     });
 
-                    var s = await agent.SynchronizeAsync(localProgress);
+                    //var scope = await agent.LocalOrchestrator.GetClientScopeAsync().ConfigureAwait(false);
+                    //var changes = await agent.RemoteOrchestrator.GetChangesAsync(scope, progress:localProgress);
+
+                    var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, localProgress);
                     Console.WriteLine(s);
                 }
                 catch (SyncException e)

@@ -240,7 +240,7 @@ namespace Dotmim.Sync
         /// Apply a snapshot locally
         /// </summary>
         internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)> 
-            ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (serverBatchInfo == null )
                 return (new DatabaseChangesApplied(), clientScopeInfo);
@@ -259,7 +259,7 @@ namespace Dotmim.Sync
 
             // Applying changes and getting the new client scope info
             var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, clientScopeInfo.Schema, serverBatchInfo,
-                    clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, new DatabaseChangesSelected(), cancellationToken, progress).ConfigureAwait(false);
+                    clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, databaseChangesSelected, cancellationToken, progress).ConfigureAwait(false);
 
             var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx, changesApplied);
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);

@@ -43,9 +43,11 @@ namespace XamAppServer
                 BatchSize = 2000,
             };
 
-            // [Required] Tables involved in the sync process:
+            //// [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+
+            //var tables = new string[] { "Customer" };
 
             var setup = new SyncSetup(tables);
 
