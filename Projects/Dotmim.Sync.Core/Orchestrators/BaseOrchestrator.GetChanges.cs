@@ -47,9 +47,7 @@ namespace Dotmim.Sync
 
             // create local directory
             if (message.BatchSize > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
-            {
                 Directory.CreateDirectory(message.BatchDirectory);
-            }
 
             changesSelected = new DatabaseChangesSelected();
 

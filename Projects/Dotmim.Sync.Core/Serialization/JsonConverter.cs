@@ -30,11 +30,9 @@ namespace Dotmim.Sync.Serialization
             using var jtr = new JsonTextReader(sr);
             
             var jobject = await JObject.LoadAsync(jtr);
-            
+
             return jobject.ToObject<T>();
-
         }
-
 
         public async Task<byte[]> SerializeAsync(T obj)
         {

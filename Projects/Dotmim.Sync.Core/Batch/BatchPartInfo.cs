@@ -1,8 +1,10 @@
 ﻿
 
 using Dotmim.Sync.Serialization;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -80,12 +82,19 @@ namespace Dotmim.Sync.Batch
         [IgnoreDataMember]
         public SyncSet Data { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the serialized type
+        /// </summary>
+        [IgnoreDataMember]
+        public Type SerializedType { get; set; }
+
+
         public BatchPartInfo()
         {
         }
 
 
-        private static async Task<ContainerSet> DeserializeAsync(string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
+        private async Task<ContainerSet> DeserializeAsync(string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
             if (string.IsNullOrEmpty(fileName))
                 throw new ArgumentNullException(fileName);
@@ -97,8 +106,9 @@ namespace Dotmim.Sync.Batch
             if (!File.Exists(fullPath))
                 throw new MissingFileException(fullPath);
 
-            var jsonConverter = new JsonConverter<ContainerSet>();
             //var jsonConverter = new Utf8JsonConverter<ContainerSet>();
+
+            Debug.WriteLine($"Deserialize file {fileName}");
 
             using var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
 
@@ -111,8 +121,26 @@ namespace Dotmim.Sync.Batch
                 set = interceptorArgs.Result;
             }
 
+            // backward compatibility
+            if (this.SerializedType == default)
+                this.SerializedType = typeof(ContainerSet);
+
             if (set == null)
-                set = await jsonConverter.DeserializeAsync(fs);
+            {
+                if (this.SerializedType == typeof(ContainerSet))
+                {
+                    var jsonConverter = new JsonConverter<ContainerSet>();
+                    set = await jsonConverter.DeserializeAsync(fs);
+                }
+                else
+                {
+                    var jsonConverter = new JsonConverter<JObject>();
+                    var jobject = await jsonConverter.DeserializeAsync(fs);
+
+                    if (jobject.ContainsKey("changes"))
+                        set = jobject["changes"].ToObject<ContainerSet>();
+                }
+            }
 
             //await fs.FlushAsync();
 
@@ -136,7 +164,6 @@ namespace Dotmim.Sync.Batch
 
             // Serialize on disk.
             var jsonConverter = new JsonConverter<ContainerSet>();
-            //var jsonConverter = new Utf8JsonConverter<ContainerSet>();
 
             using var f = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
 
@@ -172,7 +199,6 @@ namespace Dotmim.Sync.Batch
             await SerializeAsync(set.GetContainerSet(), fileName, directoryFullPath, orchestrator);
 
             bpi = new BatchPartInfo { FileName = fileName };
-
             bpi.Index = batchIndex;
             bpi.IsLastBatch = isLastBatch;
 

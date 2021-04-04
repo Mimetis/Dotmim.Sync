@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Batch
     [DataContract(Name = "bi"), Serializable]
     public class BatchInfo
     {
-
+   
         /// <summary>
         /// Ctor for serializer
         /// </summary>
@@ -33,6 +33,7 @@ namespace Dotmim.Sync.Batch
         {
             this.InMemory = isInMemory;
 
+            
             // We need to create a change table set, containing table with columns not readonly
             foreach (var table in inSchema.Tables)
                 DbSyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
@@ -198,7 +199,9 @@ namespace Dotmim.Sync.Batch
                         {
                             yield return batchTable;
 
-                            // once loaded and yield, can dispose
+                            // We may need this same BatchPartInfo for another table, 
+                            // but we dispose it anyway, because memory can be quickly a bottleneck
+                            // if batchpartinfos are resident in memory
                             batchPartinInfo.Data.Dispose();
                             batchPartinInfo.Data = null;
                         }
@@ -237,8 +240,7 @@ namespace Dotmim.Sync.Batch
             }
             else
             {
-                var bpId = this.GenerateNewFileName(batchIndex.ToString());
-                //var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
+                var bpId = GenerateNewFileName(batchIndex.ToString());
                 var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch, orchestrator).ConfigureAwait(false);
 
                 // add the batchpartinfo tp the current batchinfo
@@ -249,7 +251,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// generate a batch file name
         /// </summary>
-        internal string GenerateNewFileName(string batchIndex)
+        public static string GenerateNewFileName(string batchIndex)
         {
             if (batchIndex.Length == 1)
                 batchIndex = $"000{batchIndex}";

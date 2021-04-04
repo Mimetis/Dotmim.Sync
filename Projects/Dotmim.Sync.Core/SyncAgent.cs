@@ -526,7 +526,7 @@ namespace Dotmim.Sync
                         if (serverSnapshotChanges.ServerBatchInfo != null)
                         {
                             (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
-                                clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+                                clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, serverSnapshotChanges.DatabaseChangesSelected, cancellationToken, progress).ConfigureAwait(false);
                         }
                     }
 
