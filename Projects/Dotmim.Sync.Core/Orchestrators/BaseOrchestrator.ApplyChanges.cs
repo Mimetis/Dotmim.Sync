@@ -75,6 +75,9 @@ namespace Dotmim.Sync
                 if (message.DisableConstraintsOnApplyChanges)
                     foreach (var table in schemaTables)
                         await this.InternalEnableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
+
+                // Dispose data
+                message.Changes.Clear(false);
             }
 
 

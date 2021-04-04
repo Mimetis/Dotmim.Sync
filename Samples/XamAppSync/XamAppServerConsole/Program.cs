@@ -30,6 +30,8 @@ namespace XamAppServerConsole
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
+            //var tables = new string[] { "Customer" };
+
             var syncOptions = new SyncOptions
             {
                 SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),

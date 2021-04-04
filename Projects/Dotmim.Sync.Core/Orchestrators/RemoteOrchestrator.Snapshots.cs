@@ -74,18 +74,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)>
+        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
             GetSnapshotAsync(SyncSet schema = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // Get context or create a new one
             var ctx = this.GetContext();
+            var changesSelected = new DatabaseChangesSelected();
 
             BatchInfo serverBatchInfo = null;
             try
             {
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                    return (0, null);
+                    return (0, null, changesSelected);
 
                 //Direction set to Download
                 ctx.SyncWay = SyncWay.Download;
@@ -116,19 +117,46 @@ namespace Dotmim.Sync
 
                         var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
 
+
+                        using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
+                        {
+                            serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                        }
+
                         // Create the schema changeset
                         var changesSet = new SyncSet();
 
                         // Create a Schema set without readonly columns, attached to memory changes
                         foreach (var table in schema.Tables)
+                        {
                             DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-                        using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
-                        {
-                            serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                            // Get all stats about this table
+                            var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>
+                            {
+                                var sc = SyncGlobalization.DataSourceStringComparison;
+
+                                var sn = t.SchemaName == null ? string.Empty : t.SchemaName;
+                                var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
+
+                                return table.TableName.Equals(t.TableName, sc) && sn.Equals(otherSn, sc);
+
+                            }));
+
+                            if (bptis != null)
+                            {
+                                // Statistics
+                                var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName);
+
+                                // we are applying a snapshot where it can't have any deletes, obviously
+                                tableChangesSelected.Upserts = bptis.Sum(bpti => bpti.RowsCount);
+
+                                if (tableChangesSelected.Upserts > 0)
+                                    changesSelected.TableChangesSelected.Add(tableChangesSelected);
+                            }
+
 
                         }
-
                         serverBatchInfo.SanitizedSchema = changesSet;
                     }
                 }
@@ -139,9 +167,9 @@ namespace Dotmim.Sync
             }
 
             if (serverBatchInfo == null)
-                return (0, null);
+                return (0, null, changesSelected);
 
-            return (serverBatchInfo.Timestamp, serverBatchInfo);
+            return (serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
         }
 
 
