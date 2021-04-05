@@ -473,7 +473,12 @@ namespace Dotmim.Sync.Web.Client
 
             // hook to get the last batch part info at the end
             var bpis = serverBatchInfo.BatchPartsInfo.Where(bpi => !bpi.IsLastBatch);
-            var lstbpi = serverBatchInfo.BatchPartsInfo.First(bpi => bpi.IsLastBatch);
+            var lstbpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
+
+            // If we have a snapshot we are raising the batches downloading process that will occurs
+            var args1 = new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost());
+            await this.InterceptAsync(args1, cancellationToken).ConfigureAwait(false);
+            this.ReportProgress(ctx, progress, args1);
 
             // function used to download one part
             var dl = new Func<BatchPartInfo, Task>(async (bpi) =>
@@ -508,13 +513,18 @@ namespace Dotmim.Sync.Web.Client
             await bpis.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
 
             // Download last batch part that will launch the server deletion of the tmp dir
-            await dl(lstbpi).ConfigureAwait(false);
+            if (lstbpi != null)
+                await dl(lstbpi).ConfigureAwait(false);
 
             // generate the new scope item
             this.CompleteTime = DateTime.UtcNow;
 
             // Reaffect context
             this.SetContext(summaryResponseContent.SyncContext);
+
+            var args4 = new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost());
+            await this.InterceptAsync(args4, cancellationToken).ConfigureAwait(false);
+            this.ReportProgress(ctx, progress, args4);
 
             return (summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ConflictResolutionPolicy,
                     summaryResponseContent.ClientChangesApplied, summaryResponseContent.ServerChangesSelected);
@@ -585,8 +595,8 @@ namespace Dotmim.Sync.Web.Client
             if ((serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count <= 0) && serverBatchInfo.RowsCount <= 0)
                 return (0, null, new DatabaseChangesSelected());
 
-            // If we have a snapshot we are raising the snapshot downloading process that will occurs
-            var args1 = new HttpSnapshotDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost());
+            // If we have a snapshot we are raising the batches downloading process that will occurs
+            var args1 = new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost());
             await this.InterceptAsync(args1, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, args1);
 
@@ -622,7 +632,7 @@ namespace Dotmim.Sync.Web.Client
             // Reaffect context
             this.SetContext(summaryResponseContent.SyncContext);
 
-            var args4 = new HttpSnapshotDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost());
+            var args4 = new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost());
             await this.InterceptAsync(args4, cancellationToken).ConfigureAwait(false);
             this.ReportProgress(ctx, progress, args4);
 
@@ -715,7 +725,7 @@ namespace Dotmim.Sync.Web.Client
             var initialPctProgress = 0.55;
             ctx.ProgressPercentage = initialPctProgress;
 
-   
+
             // Create the BatchInfo
             var serverBatchInfo = new BatchInfo(workInMemoryLocally, schema);
 
@@ -870,11 +880,11 @@ namespace Dotmim.Sync.Web.Client
                     (this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetEstimatedChangesCount, ctx.SessionId, clientScope.Name,
                      this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
-            HttpMessageSummaryResponse summaryResponseContent = null;
+            HttpMessageSendChangesResponse summaryResponseContent = null;
 
             using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
             {
-                var responseSerializer = this.SerializerFactory.GetSerializer<HttpMessageSummaryResponse>();
+                var responseSerializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
 
                 if (streamResponse.CanRead)
                     summaryResponseContent = await responseSerializer.DeserializeAsync(streamResponse);

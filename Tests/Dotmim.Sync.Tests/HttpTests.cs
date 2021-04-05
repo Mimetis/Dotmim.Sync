@@ -123,7 +123,10 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri));
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
 
 
                 agent.LocalOrchestrator.OnReConnect(onReconnect);
@@ -157,7 +160,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri));
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -189,7 +194,10 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri));
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -219,7 +227,10 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri));
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -678,9 +689,10 @@ namespace Dotmim.Sync.Tests
             {
                 // Add a converter on the client.
                 // But this converter is not register on the server side converters list.
-                var webClientProvider = new WebClientOrchestrator(this.ServiceUri, null, new DateConverter());
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, null, new DateConverter());
+                webClientOrchestrator.SyncPolicy.RetryCount = 0;
 
-                var agent = new SyncAgent(client.Provider, webClientProvider, options);
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 var exception = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
                 {
@@ -1634,7 +1646,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(3, policyRetries);
+                Assert.Equal(4, policyRetries);
                 interrupted.Clear();
             }
 
@@ -1708,7 +1720,8 @@ namespace Dotmim.Sync.Tests
 
 
         /// <summary>
-        /// On Intermittent connection, should work even if server has done its part
+        /// On Intermittent connection, should work even if server has already applied a batch  and then timeout for some reason 
+        /// Client will resend the batch again, but that's ok, since we are merging
         /// </summary>
         [Fact]
         public async Task Intermitent_Connection_SyncPolicy_InsertClientRow_ShouldWork()
@@ -1746,7 +1759,7 @@ namespace Dotmim.Sync.Tests
             // Insert one line on each client
             foreach (var client in Clients)
             {
-                using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
                 for (var i = 0; i < 1000; i++)
                 {
                     var name = HelperDatabase.GetRandomName();
@@ -1754,13 +1767,10 @@ namespace Dotmim.Sync.Tests
 
                     var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
 
-                    serverDbCtx.Product.Add(product);
+                    cliCtx.Product.Add(product);
                 }
-                await serverDbCtx.SaveChangesAsync();
+                await cliCtx.SaveChangesAsync();
             }
-
-
-
 
 
             // Sync all clients
@@ -1770,15 +1780,15 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var interruptedBatch = 0;
+                var interruptedBatch = false;
                 // When Server Orchestrator send back the response, we will make an interruption
                 this.WebServerOrchestrator.OnHttpSendingResponse(args =>
                 {
-                    interruptedBatch++;
                     // Throw error when sending changes to server
-                    if (args.HttpStep == HttpStep.SendChanges && interruptedBatch == 3)
+                    if (args.HttpStep == HttpStep.SendChangesInProgress && !interruptedBatch )
                     {
-                        throw new TimeoutException($"Timeout excecption raised on step {args.HttpStep}");
+                        interruptedBatch = true;
+                        throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
                     }
 
                 });
