@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Client;
+﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Http;
@@ -9,11 +10,10 @@ namespace Dotmim.Sync
 
     public class HttpGettingServerChangesRequestArgs : ProgressArgs
     {
-        public HttpGettingServerChangesRequestArgs(int batchIndexRequested, int lastBatchIndexReceived, int batchCount, SyncContext context, string host)
+        public HttpGettingServerChangesRequestArgs(int batchIndexRequested, int batchCount, SyncContext context, string host)
              : base(context, null, null)
         {
             this.BatchIndexRequested = batchIndexRequested;
-            this.LastBatchIndexReceived = lastBatchIndexReceived;
             this.BatchCount = batchCount;
 
             this.Host = host;
@@ -25,7 +25,7 @@ namespace Dotmim.Sync
             get
             {
                 if (this.BatchCount <= 1)
-                    return $"Getting Changes Information.";
+                    return $"Getting Batch Changes.";
                 else
                     return $"Getting Batch Changes. ({this.BatchIndexRequested + 1}/{this.BatchCount}).";
             }
@@ -37,16 +37,11 @@ namespace Dotmim.Sync
         public int BatchIndexRequested { get; set; }
 
         /// <summary>
-        /// Gets the last batch index received from the server 
-        /// </summary>
-        public int LastBatchIndexReceived { get; set; }
-
-        /// <summary>
         /// Gets the batch count to be received from server 
         /// </summary>
         public int BatchCount { get; set; }
 
-            
+
         public string Host { get; }
 
         public override int EventId => HttpClientSyncEventsId.HttpGettingChangesRequest.Id;
@@ -54,10 +49,12 @@ namespace Dotmim.Sync
 
     public class HttpGettingServerChangesResponseArgs : ProgressArgs
     {
-        public HttpGettingServerChangesResponseArgs(HttpHeaderInfo headerInfo, string host)
-            : base(headerInfo.SyncContext, null, null)
+        public HttpGettingServerChangesResponseArgs(BatchInfo batchInfo, int batchIndex, int batchRowsCount, SyncContext syncContext, string host)
+            : base(syncContext, null, null)
         {
-            this.HttpHeaderInfo = headerInfo;
+            this.BatchInfo = batchInfo;
+            this.BatchIndex = batchIndex;
+            this.BatchRowsCount = batchRowsCount;
             this.Host = host;
         }
 
@@ -66,15 +63,14 @@ namespace Dotmim.Sync
         {
             get
             {
-                if (this.HttpHeaderInfo.BatchCount == 0 && this.HttpHeaderInfo.BatchIndex == 0)
-                    return $"Downloaded All Changes. Rows:{this.HttpHeaderInfo.RowsCount}. Total Rows: {this.HttpHeaderInfo?.ServerChangesSelected.TotalChangesSelected ?? 0}.";
-                else
-                    return $"Downloaded Batch Changes. ({this.HttpHeaderInfo.BatchIndex + 1}/{this.HttpHeaderInfo.BatchCount}). Rows:{this.HttpHeaderInfo.RowsCount}. Total Rows: {this.HttpHeaderInfo?.ServerChangesSelected.TotalChangesSelected ?? 0}.";
+                var batchesCount = this.BatchInfo.BatchPartsInfo?.Count ?? 1;
+                return $"Downloaded Batch Changes. ({this.BatchIndex + 1}/{batchesCount}). Rows:({this.BatchRowsCount}/{this.BatchInfo.RowsCount}).";
             }
         }
 
-        public HttpHeaderInfo HttpHeaderInfo { get; set; }
-
+        public BatchInfo BatchInfo { get; }
+        public int BatchIndex { get; }
+        public int BatchRowsCount { get; }
         public string Host { get; }
 
         public override int EventId => HttpClientSyncEventsId.HttpGettingChangesResponse.Id;
