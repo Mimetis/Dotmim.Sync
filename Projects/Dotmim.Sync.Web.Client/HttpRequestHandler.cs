@@ -106,22 +106,6 @@ namespace Dotmim.Sync.Web.Client
                 var args2 = new HttpGettingResponseMessageArgs(response, this.orchestrator.GetContext());
                 await this.orchestrator.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
 
-                //using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                //{
-                //    if (streamResponse.CanRead)
-                //    {
-                //        //// if Hash is present in header, check hash
-                //        //if (TryGetHeaderValue(headers, "dotmim-sync-hash", out string hashStringRequest))
-                //        //    HashAlgorithm.SHA256.EnsureHash(streamResponse, hashStringRequest);
-
-                //        responseMessage = await responseSerializer.DeserializeAsync(streamResponse);
-                //    }
-
-                //    //await streamResponse.FlushAsync();
-                //}
-
-                //return responseMessage;
-
                 return response;
             }
             catch (SyncException)

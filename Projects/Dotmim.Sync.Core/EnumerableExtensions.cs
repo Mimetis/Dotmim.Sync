@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 
 namespace Dotmim.Sync
 {
@@ -101,6 +105,59 @@ namespace Dotmim.Sync
         }
 
 
+        public static Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int maxDegreeOfParallelism = DataflowBlockOptions.Unbounded, TaskScheduler scheduler = null)
+        {
+            var options = new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = maxDegreeOfParallelism
+            };
+            if (scheduler != null)
+                options.TaskScheduler = scheduler;
+
+            var block = new ActionBlock<T>(body, options);
+
+            foreach (var item in source)
+                block.Post(item);
+
+            block.Complete();
+            return block.Completion;
+        }
+
+        //public static Task ForEachAsync<T>(this IEnumerable<T> source, int dop, Func<T, Task> body)
+        //{
+        //    async Task AwaitPartition(IEnumerator<T> partition)
+        //    {
+        //        using (partition)
+        //        {
+        //            while (partition.MoveNext())
+        //            { await body(partition.Current); }
+        //        }
+        //    }
+        //    return Task.WhenAll(
+        //        Partitioner
+        //            .Create(source)
+        //            .GetPartitions(dop)
+        //            .AsParallel()
+        //            .Select(p => AwaitPartition(p)));
+        //}
+
+
+        //public static Task ForEachAsync<TSource, TResult>(this IEnumerable<TSource> source, Func<TSource, Task<TResult>> taskSelector, Action<TSource, TResult> resultProcessor, int dop = 4)
+        //{
+        //    var oneAtATime = new SemaphoreSlim(initialCount: 1, maxCount: 1);
+        //    return Task.WhenAll(
+        //         from partition in Partitioner.Create(source).GetPartitions(dop)
+        //             from item in source
+        //             select ProcessAsync(item, taskSelector, resultProcessor, oneAtATime));
+        //}
+
+        //private static async Task ProcessAsync<TSource, TResult>(TSource item, Func<TSource, Task<TResult>> taskSelector, Action<TSource, TResult> resultProcessor, SemaphoreSlim oneAtATime)
+        //{
+        //    TResult result = await taskSelector(item);
+        //    await oneAtATime.WaitAsync();
+        //    try { resultProcessor(item, result); }
+        //    finally { oneAtATime.Release(); }
+        //}
 
     }
 }
