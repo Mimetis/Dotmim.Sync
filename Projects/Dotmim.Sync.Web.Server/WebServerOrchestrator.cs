@@ -1,20 +1,14 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -75,7 +69,6 @@ namespace Dotmim.Sync.Web.Server
             var httpResponse = context.Response;
             var serAndsizeString = string.Empty;
             var cliConverterKey = string.Empty;
-            bool isLastBatch = false;
 
             // Get the serialization and batch size format
             if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
@@ -200,6 +193,14 @@ namespace Dotmim.Sync.Web.Server
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s55);
 
                         break;
+                    case HttpStep.SendEndDownloadChanges:
+                        var m56 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m56.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s56 = await this.SendEndDownloadChangesAsync(m56, sessionCache, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s56, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s56);
+                        break;
+
                     case HttpStep.GetEstimatedChangesCount:
                         var m6 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
                         await this.InterceptAsync(new HttpGettingRequestArgs(context, m6.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
@@ -446,27 +447,8 @@ namespace Dotmim.Sync.Web.Server
                 IsLastBatch = true,
                 RemoteClientTimestamp = changes.RemoteClientTimestamp
             };
-            //var httpHeaderInfo = new HttpHeaderInfo(ctx)
-            //{
-            //    IsLastBatch = changesResponse.IsLastBatch,
-            //    Step = changesResponse.ServerStep,
-            //    BatchIndex = changesResponse.BatchIndex,
-            //    BatchCount = changesResponse.BatchCount,
-            //    SyncContext = changesResponse.SyncContext,
-            //    ClientChangesApplied = changesResponse.ClientChangesApplied,
-            //    RemoteClientTimestamp = changesResponse.RemoteClientTimestamp,
-            //    ConflictResolutionPolicy = changesResponse.ConflictResolutionPolicy,
-            //    ServerChangesSelected = changesResponse.ServerChangesSelected
 
-            //};
-
-            //if (changesResponse.Changes != null && changesResponse.Changes.Tables != null)
-            //{
-            //    httpHeaderInfo.Tables = changesResponse.Changes.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName, t.Rows.Count)).ToArray();
-            //    httpHeaderInfo.RowsCount = changesResponse.Changes.Tables.Sum(t => t.Rows.Count);
-            //}
             return changesResponse;
-
         }
 
 
@@ -559,24 +541,6 @@ namespace Dotmim.Sync.Web.Server
                     RemoteClientTimestamp = 0,
                     Changes = null
                 };
-                //var httpHeaderInfo = new HttpHeaderInfo(ctx)
-                //{
-                //    IsLastBatch = changesResponse.IsLastBatch,
-                //    Step = changesResponse.ServerStep,
-                //    BatchIndex = changesResponse.BatchIndex,
-                //    BatchCount = changesResponse.BatchCount,
-                //    SyncContext = changesResponse.SyncContext,
-                //    ClientChangesApplied = changesResponse.ClientChangesApplied,
-                //    RemoteClientTimestamp = changesResponse.RemoteClientTimestamp,
-                //    ConflictResolutionPolicy = changesResponse.ConflictResolutionPolicy,
-                //    ServerChangesSelected = changesResponse.ServerChangesSelected
-                //};
-
-                //if (changesResponse.Changes != null && changesResponse.Changes.Tables != null)
-                //{
-                //    httpHeaderInfo.Tables = changesResponse.Changes.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName, t.Rows.Count)).ToArray();
-                //    httpHeaderInfo.RowsCount = changesResponse.Changes.Tables.Sum(t => t.Rows.Count);
-                //}
                 return changesResponse;
             }
 
@@ -655,31 +619,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Until we don't have received all the batches, wait for more
             if (!httpMessage.IsLastBatch)
-            {
-                var r = new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendChangesInProgress };
-
-                //var httpHeaderInfo = new HttpHeaderInfo(ctx)
-                //{
-                //    IsLastBatch = r.IsLastBatch,
-                //    Step = r.ServerStep,
-                //    BatchIndex = r.BatchIndex,
-                //    BatchCount = r.BatchCount,
-                //    SyncContext = r.SyncContext,
-                //    ClientChangesApplied = r.ClientChangesApplied,
-                //    RemoteClientTimestamp = r.RemoteClientTimestamp,
-                //    ConflictResolutionPolicy = r.ConflictResolutionPolicy,
-                //    ServerChangesSelected = r.ServerChangesSelected
-                //};
-
-                //if (r.Changes != null && r.Changes.Tables != null)
-                //{
-                //    httpHeaderInfo.Tables = r.Changes.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName, t.Rows.Count)).ToArray();
-                //    httpHeaderInfo.RowsCount = r.Changes.Tables.Sum(t => t.Rows.Count);
-                //}
-
-                return r;
-            }
-
+                return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendChangesInProgress };
 
             // ------------------------------------------------------------
             // SECOND STEP : apply then return server changes
@@ -784,8 +724,6 @@ namespace Dotmim.Sync.Web.Server
             if (!httpMessage.IsLastBatch)
                 return new HttpMessageSummaryResponse(ctx) { Step = HttpStep.SendChangesInProgress };
 
-
-
             // ------------------------------------------------------------
             // SECOND STEP : apply then return server changes
             // ------------------------------------------------------------
@@ -844,6 +782,33 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
         }
 
+        /// <summary>
+        /// This method is only used when batch mode is enabled on server and we need send to the server the order to delete tmp folder 
+        /// </summary>
+        internal async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpMessageGetMoreChangesRequest httpMessage,
+            SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (sessionCache.ServerBatchInfo == null)
+                throw new HttpSessionLostException();
+
+            var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessage.BatchIndexRequested);
+
+            // If we have only one bpi, we can safely delete it
+            if (batchPartInfo.IsLastBatch)
+            {
+                // delete the folder (not the BatchPartInfo, because we have a reference on it)
+                var cleanFolder = this.Options.CleanFolder;
+
+                if (cleanFolder)
+                    cleanFolder = await this.InternalCanCleanFolderAsync(httpMessage.SyncContext, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
+
+                if (cleanFolder)
+                    sessionCache.ServerBatchInfo.TryRemoveDirectory();
+            }
+
+            return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendEndDownloadChanges };
+        }
+
 
         /// <summary>
         /// Create a response message content based on a requested index in a server batch info
@@ -872,25 +837,6 @@ namespace Dotmim.Sync.Web.Server
                 changesResponse.BatchCount = serverBatchInfo.InMemoryData == null ? 0 : serverBatchInfo.BatchPartsInfo == null ? 0 : serverBatchInfo.BatchPartsInfo.Count;
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
-
-                //var headerInfo = new HttpHeaderInfo(context)
-                //{
-                //    IsLastBatch = changesResponse.IsLastBatch,
-                //    Step = changesResponse.ServerStep,
-                //    BatchIndex = changesResponse.BatchIndex,
-                //    BatchCount = changesResponse.BatchCount,
-                //    SyncContext = changesResponse.SyncContext,
-                //    ClientChangesApplied = changesResponse.ClientChangesApplied,
-                //    RemoteClientTimestamp = changesResponse.RemoteClientTimestamp,
-                //    ConflictResolutionPolicy = changesResponse.ConflictResolutionPolicy,
-                //    ServerChangesSelected = changesResponse.ServerChangesSelected
-                //};
-
-                //if (changesResponse.Changes != null && changesResponse.Changes.Tables != null)
-                //{
-                //    headerInfo.Tables = changesResponse.Changes.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName, t.Rows.Count)).ToArray();
-                //    headerInfo.RowsCount = changesResponse.Changes.Tables.Sum(t => t.Rows.Count);
-                //}
 
                 return changesResponse;
             }
@@ -921,40 +867,6 @@ namespace Dotmim.Sync.Web.Server
             changesResponse.ServerStep = batchPartInfo.IsLastBatch ? HttpStep.GetMoreChanges : HttpStep.GetChangesInProgress;
 
             batchPartInfo.Clear();
-
-
-            // If we have only one bpi, we can safely delete it
-            if (batchPartInfo.IsLastBatch)
-            {
-                // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                var cleanFolder = this.Options.CleanFolder;
-
-                if (cleanFolder)
-                    cleanFolder = await this.InternalCanCleanFolderAsync(context, serverBatchInfo, default).ConfigureAwait(false);
-
-                if (cleanFolder)
-                    serverBatchInfo.TryRemoveDirectory();
-            }
-
-            //var httpHeaderInfo = new HttpHeaderInfo(context)
-            //{
-            //    IsLastBatch = changesResponse.IsLastBatch,
-            //    Step = changesResponse.ServerStep,
-            //    BatchIndex = changesResponse.BatchIndex,
-            //    BatchCount = changesResponse.BatchCount,
-            //    SyncContext = changesResponse.SyncContext,
-            //    ClientChangesApplied = changesResponse.ClientChangesApplied,
-            //    RemoteClientTimestamp = changesResponse.RemoteClientTimestamp,
-            //    ConflictResolutionPolicy = changesResponse.ConflictResolutionPolicy,
-            //    ServerChangesSelected = changesResponse.ServerChangesSelected
-
-            //};
-
-            //if (changesResponse.Changes != null && changesResponse.Changes.Tables != null)
-            //{
-            //    httpHeaderInfo.Tables = changesResponse.Changes.Tables.Select(t => new BatchPartTableInfo(t.TableName, t.SchemaName, t.Rows.Count)).ToArray();
-            //    httpHeaderInfo.RowsCount = changesResponse.Changes.Tables.Sum(t => t.Rows.Count);
-            //}
 
 
             return changesResponse;

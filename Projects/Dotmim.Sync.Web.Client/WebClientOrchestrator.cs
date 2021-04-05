@@ -471,9 +471,9 @@ namespace Dotmim.Sync.Web.Client
             serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
             serverBatchInfo.DirectoryName = batchDirectoryName;
 
-            // hook to get the last batch part info at the end
-            var bpis = serverBatchInfo.BatchPartsInfo.Where(bpi => !bpi.IsLastBatch);
-            var lstbpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
+            //// hook to get the last batch part info at the end
+            //var bpis = serverBatchInfo.BatchPartsInfo.Where(bpi => !bpi.IsLastBatch);
+            //var lstbpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
 
             // If we have a snapshot we are raising the batches downloading process that will occurs
             var args1 = new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost());
@@ -510,11 +510,21 @@ namespace Dotmim.Sync.Web.Client
             });
 
             // Parrallel download of all bpis except the last one (which will launch the delete directory on the server side)
-            await bpis.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
+            await serverBatchInfo.BatchPartsInfo.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
 
-            // Download last batch part that will launch the server deletion of the tmp dir
-            if (lstbpi != null)
-                await dl(lstbpi).ConfigureAwait(false);
+            // Send order of end of download
+            var lastBpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
+
+            if (lastBpi != null)
+            {
+                var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(ctx, lastBpi.Index);
+                var serializerEndOfDownloadChanges = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
+                var binaryData3 = await serializerEndOfDownloadChanges.SerializeAsync(endOfDownloadChanges).ConfigureAwait(false);
+
+                await this.httpRequestHandler.ProcessRequestAsync(
+                    this.HttpClient, this.ServiceUri, binaryData3, HttpStep.SendEndDownloadChanges, ctx.SessionId, this.ScopeName,
+                    this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+            }
 
             // generate the new scope item
             this.CompleteTime = DateTime.UtcNow;
