@@ -108,6 +108,115 @@ internal class Program
 
     }
 
+
+    private static async Task CreateSnapshotAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        {
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.ResetColor();
+        });
+        var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
+
+        var options = new SyncOptions() { BatchSize = 5000, SnapshotsDirectory = snapshotDirectory };
+
+        Console.WriteLine($"Creating snapshot");
+
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
+
+        await remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress);
+    }
+
+    public static async Task SyncHttpThroughKestrellAsync()
+    {
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        //var tables = new string[] { "Customer" };
+        var setup = new SyncSetup(allTables);
+
+        //var options = new SyncOptions { BatchSize = 5000 };
+        var options = new SyncOptions();
+
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            var serverOptions = new SyncOptions()
+            {
+                DisableConstraintsOnApplyChanges = false,
+               // SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
+            };
+
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, serverOptions);
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+
+            var webServerOrchestrator = webServerManager.GetOrchestrator(context);
+
+            await webServerManager.HandleRequestAsync(context);
+
+        });
+
+        using var server = new KestrellTestServer(configureServices, true);
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
+        {
+            do
+            {
+                Console.WriteLine("Web sync start");
+                try
+                {
+                    var localOrchestrator = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism:4);
+
+                    var agent = new SyncAgent(clientProvider, localOrchestrator, options);
+
+                    var startTime = DateTime.Now;
+
+                    var localProgress = new SynchronousProgress<ProgressArgs>(s =>
+                    {
+                        var tsEnded = TimeSpan.FromTicks(DateTime.Now.Ticks);
+                        var tsStarted = TimeSpan.FromTicks(startTime.Ticks);
+
+                        var durationTs = tsEnded.Subtract(tsStarted);
+                        
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.PogressPercentageString}:\t{s.Message}");
+                        Console.ResetColor();
+                    });
+
+                    //var scope = await agent.LocalOrchestrator.GetClientScopeAsync().ConfigureAwait(false);
+                    //var changes = await agent.RemoteOrchestrator.GetChangesAsync(scope, progress:localProgress);
+
+                    var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, localProgress);
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
+
+
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+        });
+        await server.Run(serverHandler, clientHandler);
+
+    }
+
+
     private static async Task SynchronizeHeavyTableAsync()
     {
         // Create 2 Sql Sync providers
@@ -154,7 +263,6 @@ internal class Program
 
 
     }
-
 
     private static async Task SynchronizeAsyncThenAddFilterAsync()
     {
@@ -211,7 +319,6 @@ internal class Program
         Console.WriteLine(r);
 
     }
-
 
     public static async Task SyncHttpThroughKestrellAndTestDateTimeSerializationAsync()
     {
@@ -395,8 +502,6 @@ internal class Program
 
     }
 
-
-
     private static async Task Snapshot_Then_ReinitializeAsync()
     {
         var clientFileName = "AdventureWorks.db";
@@ -527,7 +632,6 @@ internal class Program
 
     }
 
-
     private static async Task SynchronizeComputedColumnAsync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("tcp_sv_yq0h0pxbfu3"));
@@ -575,118 +679,6 @@ internal class Program
 
         Console.WriteLine("End");
     }
-
-
-    private static async Task CreateSnapshotAsync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
-            Console.ResetColor();
-        });
-        var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
-
-        var options = new SyncOptions() { BatchSize = 10000, SnapshotsDirectory = snapshotDirectory };
-
-        Console.WriteLine($"Creating snapshot");
-
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, new SyncSetup(allTables));
-
-        await remoteOrchestrator.CreateSnapshotAsync(progress: snapshotProgress);
-    }
-
-
-    public static async Task SyncHttpThroughKestrellAsync()
-    {
-        // server provider
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
-
-        //var tables = new string[] { "Customer" };
-        var setup = new SyncSetup(allTables);
-
-        //var options = new SyncOptions { BatchSize = 2000 };
-        var options = new SyncOptions();
-
-        var configureServices = new Action<IServiceCollection>(services =>
-        {
-            var serverOptions = new SyncOptions()
-            {
-                DisableConstraintsOnApplyChanges = false,
-                // SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
-            };
-
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, serverOptions);
-        });
-
-        var serverHandler = new RequestDelegate(async context =>
-        {
-            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-
-            var webServerOrchestrator = webServerManager.GetOrchestrator(context);
-
-            await webServerManager.HandleRequestAsync(context);
-
-        });
-
-        using var server = new KestrellTestServer(configureServices, false);
-        var clientHandler = new ResponseDelegate(async (serviceUri) =>
-        {
-            do
-            {
-                Console.WriteLine("Web sync start");
-                try
-                {
-                    var localOrchestrator = new WebClientOrchestrator(serviceUri);
-
-                    var agent = new SyncAgent(clientProvider, localOrchestrator, options);
-
-                    var startTime = DateTime.Now;
-
-                    var localProgress = new SynchronousProgress<ProgressArgs>(s =>
-                    {
-                        var tsEnded = TimeSpan.FromTicks(DateTime.Now.Ticks);
-                        var tsStarted = TimeSpan.FromTicks(startTime.Ticks);
-
-                        var durationTs = tsEnded.Subtract(tsStarted);
-                        
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.PogressPercentageString}:\t{s.Message}");
-                        Console.ResetColor();
-                        startTime = DateTime.Now;
-                    });
-
-                    //var scope = await agent.LocalOrchestrator.GetClientScopeAsync().ConfigureAwait(false);
-                    //var changes = await agent.RemoteOrchestrator.GetChangesAsync(scope, progress:localProgress);
-
-                    var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, localProgress);
-                    Console.WriteLine(s);
-                }
-                catch (SyncException e)
-                {
-                    Console.WriteLine(e.ToString());
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-                }
-
-
-                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-
-        });
-        await server.Run(serverHandler, clientHandler);
-
-    }
-
-
     public static async Task MultiScopesAsync()
     {
 

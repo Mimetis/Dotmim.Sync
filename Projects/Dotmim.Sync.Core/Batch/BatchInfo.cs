@@ -70,13 +70,13 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Gets or Sets directory name
         /// </summary>
-        [DataMember(Name = "dirname", IsRequired = true, Order = 1)]
+        [DataMember(Name = "dirname", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string DirectoryName { get; set; }
 
         /// <summary>
         /// Gets or sets directory root
         /// </summary>
-        [DataMember(Name = "dir", IsRequired = true, Order = 2)]
+        [DataMember(Name = "dir", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string DirectoryRoot { get; set; }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// List of batch parts if not in memory
         /// </summary>
-        [DataMember(Name = "parts", IsRequired = true, Order = 4)]
+        [DataMember(Name = "parts", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public List<BatchPartInfo> BatchPartsInfo { get; set; }
 
         /// <summary>
