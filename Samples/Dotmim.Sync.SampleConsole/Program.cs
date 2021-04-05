@@ -55,7 +55,7 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-       //await CreateSnapshotAsync();
+       // await CreateSnapshotAsync();
        await SyncHttpThroughKestrellAsync();
     }
 
@@ -141,15 +141,15 @@ internal class Program
         //var tables = new string[] { "Customer" };
         var setup = new SyncSetup(allTables);
 
-        //var options = new SyncOptions { BatchSize = 5000 };
-        var options = new SyncOptions();
+        var options = new SyncOptions { BatchSize = 5000 };
+        //var options = new SyncOptions();
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
             var serverOptions = new SyncOptions()
             {
                 DisableConstraintsOnApplyChanges = false,
-               // SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
+                SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
             };
 
             services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, serverOptions);
@@ -173,7 +173,7 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
-                    var localOrchestrator = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism:4);
+                    var localOrchestrator = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism:8);
 
                     var agent = new SyncAgent(clientProvider, localOrchestrator, options);
 

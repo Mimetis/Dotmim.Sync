@@ -443,9 +443,6 @@ namespace Dotmim.Sync.Web.Server
                 ClientChangesApplied = new DatabaseChangesApplied(),
                 ServerStep = HttpStep.GetMoreChanges,
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
-                Changes = new ContainerSet(),
-                BatchIndex = 0,
-                BatchCount = 0,
                 IsLastBatch = true,
                 RemoteClientTimestamp = changes.RemoteClientTimestamp
             };
