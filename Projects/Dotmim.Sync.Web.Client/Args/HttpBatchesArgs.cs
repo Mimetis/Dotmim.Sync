@@ -10,9 +10,9 @@ namespace Dotmim.Sync
     /// <summary>
     /// Represents a request made to the server to get the server scope info
     /// </summary>
-    public class HttpSnapshotDownloadingArgs : ProgressArgs
+    public class HttpBatchesDownloadingArgs : ProgressArgs
     {
-        public HttpSnapshotDownloadingArgs(SyncContext context, DateTime startTime, BatchInfo serverBatchInfo, string host) : base(context, null)
+        public HttpBatchesDownloadingArgs(SyncContext context, DateTime startTime, BatchInfo serverBatchInfo, string host) : base(context, null)
         {
             this.StartTime = startTime;
             this.ServerBatchInfo = serverBatchInfo;
@@ -21,15 +21,15 @@ namespace Dotmim.Sync
 
         public override string Source => this.Host;
         public override int EventId => HttpClientSyncEventsId.HttpGettingSchemaRequest.Id;
-        public override string Message => $"Downloading Snapshot. Scope Name:{this.Context.ScopeName}. Batches Count:{this.ServerBatchInfo.BatchPartsInfo?.Count ?? 1}. Rows Count:{this.ServerBatchInfo.RowsCount}";
+        public override string Message => $"Downloading Batches. Scope Name:{this.Context.ScopeName}. Batches Count:{this.ServerBatchInfo.BatchPartsInfo?.Count ?? 1}. Rows Count:{this.ServerBatchInfo.RowsCount}";
 
         public DateTime StartTime { get; }
         public BatchInfo ServerBatchInfo { get; }
         public string Host { get; }
     }
-    public class HttpSnapshotDownloadedArgs : ProgressArgs
+    public class HttpBatchesDownloadedArgs : ProgressArgs
     {
-        public HttpSnapshotDownloadedArgs(HttpMessageSummaryResponse httpSummary, SyncContext context, DateTime startTime, DateTime completeTime, string host) : base(context, null)
+        public HttpBatchesDownloadedArgs(HttpMessageSummaryResponse httpSummary, SyncContext context, DateTime startTime, DateTime completeTime, string host) : base(context, null)
         {
             this.HttpSummary = httpSummary;
             this.StartTime = startTime;
@@ -71,8 +71,8 @@ namespace Dotmim.Sync
 
     public static partial class HttpClientSyncEventsId
     {
-        public static EventId HttpSnapshotDownloadingArgs => new EventId(20200, nameof(HttpSnapshotDownloadingArgs));
-        public static EventId HttpSnapshotDownloadedArgs => new EventId(20250, nameof(HttpSnapshotDownloadedArgs));
+        public static EventId HttpBatchesDownloadingArgs => new EventId(20600, nameof(HttpBatchesDownloadingArgs));
+        public static EventId HttpBatchesDownloadedArgs => new EventId(20650, nameof(HttpBatchesDownloadedArgs));
     }
 
     /// <summary>
@@ -81,27 +81,27 @@ namespace Dotmim.Sync
     public static partial class HttpInterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider when snapshot is about to be downloaded
+        /// Intercept the provider when batches are about to be downloaded
         /// </summary>
-        public static void OnHttpSnapshotDownloadingArgs(this WebClientOrchestrator orchestrator, Action<HttpSnapshotDownloadingArgs> action)
+        public static void OnHttpBatchesDownloadingArgs(this WebClientOrchestrator orchestrator, Action<HttpBatchesDownloadingArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when snapshot is about to be downloaded
+        /// Intercept the provider when batches are about to be downloaded
         /// </summary>
-        public static void OnHttpSnapshotDownloadingArgs(this WebClientOrchestrator orchestrator, Func<HttpSnapshotDownloadingArgs, Task> action)
+        public static void OnHttpBatchesDownloadingArgs(this WebClientOrchestrator orchestrator, Func<HttpBatchesDownloadingArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when snapshot has been completely downloaded
+        /// Intercept the provider when batches have been completely downloaded
         /// </summary>
-        public static void OnHttpSnapshotDownloadedArgs(this WebClientOrchestrator orchestrator, Action<HttpSnapshotDownloadedArgs> action)
+        public static void OnHttpBatchesDownloadedArgs(this WebClientOrchestrator orchestrator, Action<HttpBatchesDownloadedArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when snapshot has been completely downloaded
+        /// Intercept the provider when batches have been completely downloaded
         /// </summary>
-        public static void OnHttpSnapshotDownloadedArgs(this WebClientOrchestrator orchestrator, Func<HttpSnapshotDownloadedArgs, Task> action)
+        public static void OnHttpBatchesDownloadedArgs(this WebClientOrchestrator orchestrator, Func<HttpBatchesDownloadedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
 

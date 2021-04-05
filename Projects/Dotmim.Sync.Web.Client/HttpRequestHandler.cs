@@ -222,7 +222,7 @@ namespace Dotmim.Sync.Web.Client
                 {
                     using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-                    if (streamResponse.CanRead && streamResponse.Length > 0)
+                    if (streamResponse.CanRead)
                     {
                         // Error are always json formatted
                         var webSyncErrorSerializer = new Serialization.JsonConverter<WebSyncException>();
