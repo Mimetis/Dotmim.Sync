@@ -1620,11 +1620,10 @@ namespace Dotmim.Sync.Tests
                 if (!interrupted[args.HttpStep])
                 {
                     interrupted[args.HttpStep] = true;
-                    throw new TimeoutException($"Timeout excecption raised on step {args.HttpStep}");
+                    throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
                 }
 
             });
-
 
             SyncOptions options = new SyncOptions { BatchSize = 10 };
 
@@ -1646,7 +1645,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(4, policyRetries);
+                Assert.Equal(5, policyRetries);
                 interrupted.Clear();
             }
 
@@ -1685,7 +1684,7 @@ namespace Dotmim.Sync.Tests
                 if (!interrupted[args.HttpStep])
                 {
                     interrupted[args.HttpStep] = true;
-                    throw new TimeoutException($"Timeout excecption raised on step {args.HttpStep}");
+                    throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
                 }
 
             });
@@ -1711,7 +1710,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(3, policyRetries);
+                Assert.Equal(5, policyRetries);
                 interrupted.Clear();
             }
 
