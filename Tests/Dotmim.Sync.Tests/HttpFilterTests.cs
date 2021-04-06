@@ -533,16 +533,14 @@ namespace Dotmim.Sync.Tests
             // configure server orchestrator
             this.WebServerOrchestrator.Setup = this.FilterSetup;
 
-            // add custom serializers
-            var webServerOptions = new WebServerOptions();
-            webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
-            this.WebServerOrchestrator.WebServerOptions = webServerOptions;
+            // add custom serializer
+            options.SerializerFactory = new CustomMessagePackSerializerFactory();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new CustomMessagePackSerializerFactory());
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -578,7 +576,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new CustomMessagePackSerializerFactory());
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 

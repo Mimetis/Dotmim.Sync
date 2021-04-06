@@ -25,11 +25,17 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, 
+            ISerializerFactory serializerFactory = default,
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.SnapshotCreating, async (ctx, connection, transaction) =>
         {
             if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
                 throw new SnapshotMissingMandatariesOptionsException();
+
+            // Default serialization to json
+            if (serializerFactory == default)
+                serializerFactory = SerializersCollection.JsonSerializer;
 
             // check parameters
             // If context has no parameters specified, and user specifies a parameter collection we switch them
@@ -60,7 +66,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // 5) Create the snapshot
-            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, this.Options.SerializerFactory, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
             var snapshotCreated = new SnapshotCreatedArgs(ctx, batchInfo, connection);
             await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
@@ -177,7 +183,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
+        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup, ISerializerFactory serializerFactory,
                              DbConnection connection, DbTransaction transaction, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -278,7 +284,7 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
                         // add changes to batchinfo
-                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
+                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false, serializerFactory, this).ConfigureAwait(false);
 
                         // increment batch index
                         batchIndex++;
@@ -314,7 +320,7 @@ namespace Dotmim.Sync
 
             if (changesSet != null && changesSet.HasTables)
             {
-                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this).ConfigureAwait(false);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, serializerFactory, this).ConfigureAwait(false);
             }
 
             //Set the total rows count contained in the batch info

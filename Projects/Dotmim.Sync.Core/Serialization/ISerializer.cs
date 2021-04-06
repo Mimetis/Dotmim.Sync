@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
@@ -11,6 +12,7 @@ namespace Dotmim.Sync.Serialization
     public interface ISerializerFactory
     {
         string Key { get; }
+
         ISerializer<T> GetSerializer<T>();
     }
 

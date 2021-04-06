@@ -217,11 +217,6 @@ namespace Dotmim.Sync.Web.Server
                 this.Cache.Set(sessionId, sessionCache, this.WebServerOptions.GetClientCacheOptions());
 
                 // Adding the serialization format used and session id
-
-                //var dmsString = JsonConvert.SerializeObject(httpHeaderInfo);
-                //string base64EncodedDmsString = Convert.ToBase64String(Encoding.UTF8.GetBytes(dmsString));
-                //httpResponse.Headers.Add("dotmim-sync", base64EncodedDmsString);
-
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
                 httpResponse.Headers.Add("dotmim-sync-serialization-format", clientSerializerFactory.Key);
 
@@ -284,18 +279,22 @@ namespace Dotmim.Sync.Web.Server
             try
             {
                 if (string.IsNullOrEmpty(serAndsizeString))
-                    throw new Exception();
+                    throw new Exception("Serializer header is null, coming from http header");
 
                 var serAndsize = JsonConvert.DeserializeAnonymousType(serAndsizeString, new { f = "", s = 0 });
 
                 var clientBatchSize = serAndsize.s;
-                var clientSerializerFactory = this.WebServerOptions.Serializers[serAndsize.f];
 
-                return (clientBatchSize, clientSerializerFactory);
+                // V0.8 Serializer is now fixed from options
+                // var clientSerializerFactory = this.WebServerOptions.Serializers[serAndsize.f];
+                // return (clientBatchSize, clientSerializerFactory);
+
+                return (clientBatchSize, this.Options.SerializerFactory);
             }
             catch
             {
-                throw new HttpSerializerNotConfiguredException(this.WebServerOptions.Serializers.Select(sf => sf.Key));
+                throw new Exception("Serializer header is incorrect, coming from http header");
+                //throw new HttpSerializerNotConfiguredException(this.WebServerOptions.Serializers.Select(sf => sf.Key));
             }
         }
 
@@ -611,7 +610,7 @@ namespace Dotmim.Sync.Web.Server
                 AfterDeserializedRows(changesSet, this.ClientConverter);
 
             // add changes to the batch info
-            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this);
+            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this.Options.SerializerFactory, this);
 
             // Clear the httpMessage set
             if (!clientWorkInMemory && httpMessage.Changes != null)
@@ -714,7 +713,7 @@ namespace Dotmim.Sync.Web.Server
                 AfterDeserializedRows(changesSet, this.ClientConverter);
 
             // add changes to the batch info
-            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this);
+            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this.Options.SerializerFactory, this);
 
             // Clear the httpMessage set
             if (!clientWorkInMemory && httpMessage.Changes != null)
@@ -853,7 +852,7 @@ namespace Dotmim.Sync.Web.Server
             foreach (var table in Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath(), this);
+            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath(), this.Options.SerializerFactory, this);
 
             // if client request a conversion on each row, apply the conversion
             if (this.ClientConverter != null && batchPartInfo.Data.HasRows)

@@ -689,7 +689,7 @@ namespace Dotmim.Sync.Tests
             {
                 // Add a converter on the client.
                 // But this converter is not register on the server side converters list.
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, null, new DateConverter());
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new DateConverter());
                 webClientOrchestrator.SyncPolicy.RetryCount = 0;
 
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
@@ -882,7 +882,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, null, new DateConverter());
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new DateConverter());
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 var s = await agent.SynchronizeAsync();

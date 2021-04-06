@@ -62,7 +62,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets the BatchParInfo send from the server 
         /// </summary>
         [DataMember(Name = "changes", IsRequired = true, Order = 7)]
-        public ContainerSet Changes { get; set; }
+        public ContainerSet Changes { get; set; } // BE CAREFUL: If changes the order, change it too in "ContainerSetBoilerPlate" !
 
         /// <summary>
         /// Gets the changes stats from the server
