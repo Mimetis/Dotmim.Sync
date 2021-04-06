@@ -97,6 +97,11 @@ namespace Dotmim.Sync.Batch
         [DataMember(Name = "count", IsRequired = true, Order = 5)]
         public int RowsCount { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the Serialization Factory Key used to serialize this batch info (if not in memory)
+        /// </summary>
+        [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue =false, Order = 6)]
+        public string SerializerFactoryKey { get; set; }
 
         /// <summary>
         /// Get the full path of the Batch directory
@@ -167,7 +172,7 @@ namespace Dotmim.Sync.Batch
             return false;
         }
 
-        public async IAsyncEnumerable<SyncTable> GetTableAsync(string tableName, string schemaName, BaseOrchestrator orchestrator = null)
+        public async IAsyncEnumerable<SyncTable> GetTableAsync(string tableName, string schemaName, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -176,11 +181,15 @@ namespace Dotmim.Sync.Batch
 
             if (InMemory)
             {
+                this.SerializerFactoryKey = null;
+
                 if (this.InMemoryData != null && this.InMemoryData.HasTables)
                     yield return this.InMemoryData.Tables[tableName, schemaName];
             }
             else
             {
+                this.SerializerFactoryKey = serializerFactory.Key;
+
                 var bpiTables = BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.Tables.Any(t => t.EqualsByName(tableInfo))).OrderBy(t => t.Index);
 
                 if (bpiTables != null)
@@ -189,7 +198,7 @@ namespace Dotmim.Sync.Batch
                     {
                         // load only if not already loaded in memory
                         if (batchPartinInfo.Data == null)
-                            await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
+                            await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), serializerFactory, orchestrator).ConfigureAwait(false);
 
                         // Get the table from the batchPartInfo
                         // generate a tmp SyncTable for 
@@ -232,16 +241,18 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Add changes to batch info.
         /// </summary>
-        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true, BaseOrchestrator orchestrator = null)
+        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
         {
             if (this.InMemory)
             {
+                this.SerializerFactoryKey = null;
                 this.InMemoryData = changes;
             }
             else
             {
+                this.SerializerFactoryKey = serializerFactory.Key;
                 var bpId = GenerateNewFileName(batchIndex.ToString());
-                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch, orchestrator).ConfigureAwait(false);
+                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch, serializerFactory, orchestrator).ConfigureAwait(false);
 
                 // add the batchpartinfo tp the current batchinfo
                 this.BatchPartsInfo.Add(bpi);
