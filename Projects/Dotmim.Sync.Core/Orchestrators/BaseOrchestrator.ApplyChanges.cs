@@ -244,7 +244,7 @@ namespace Dotmim.Sync
 
                 TableChangesApplied tableChangesApplied = null;
 
-                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, this);
+                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this) ;
                 var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
 
                 // getting the table to be applied

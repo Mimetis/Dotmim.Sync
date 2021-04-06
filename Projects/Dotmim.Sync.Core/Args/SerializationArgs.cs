@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -13,15 +14,16 @@ namespace Dotmim.Sync
     /// </summary>
     public class SerializingSetArgs : ProgressArgs
     {
-        public SerializingSetArgs(SyncContext context, ContainerSet set, string fileName, string directoryPath) : base(context, null, null)
+        public SerializingSetArgs(SyncContext context, ContainerSet set, ISerializerFactory serializerFactory, string fileName, string directoryPath) : base(context, null, null)
         {
             this.Set = set;
+            this.SerializerFactory = serializerFactory;
             this.FileName = fileName;
             this.DirectoryPath = directoryPath;
         }
 
         /// <summary>
-        /// Gets or Sets byte array representing the Set to serialize to the disk. If the Result property is Null, Dotmim.Sync will serialized the container set using a simple Json converter
+        /// Gets or Sets byte array representing the Set to serialize to the disk. If the Result property is Null, Dotmim.Sync will serialized the container set using the serializer factory configured in the SyncOptions instance
         /// </summary>
         public byte[] Result { get; set; }
 
@@ -29,6 +31,11 @@ namespace Dotmim.Sync
         /// Container set to serialize
         /// </summary>
         public ContainerSet Set { get; }
+        
+        /// <summary>
+        /// Gets or Sets the serializer factory used to serialize the ContainerSet
+        /// </summary>
+        public ISerializerFactory SerializerFactory { get; }
 
         /// <summary>
         /// File name, where the content will be serialized
@@ -51,9 +58,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class DeserializingSetArgs : ProgressArgs
     {
-        public DeserializingSetArgs(SyncContext context, FileStream fileStream, string fileName, string directoryPath) : base(context, null, null)
+        public DeserializingSetArgs(SyncContext context, FileStream fileStream, ISerializerFactory serializerFactory, string fileName, string directoryPath) : base(context, null, null)
         {
             this.FileStream = fileStream;
+            this.SerializerFactory = serializerFactory;
             this.FileName = fileName;
             this.DirectoryPath = directoryPath;
         }
@@ -62,6 +70,11 @@ namespace Dotmim.Sync
         /// Gets the Filestream to deserialize
         /// </summary>
         public FileStream FileStream { get; }
+
+        /// <summary>
+        /// Gets or Sets the serializer factory used to deserialize the filestream
+        /// </summary>
+        public ISerializerFactory SerializerFactory { get; }
 
         /// <summary>
         /// File name containing the set to be deserialized

@@ -110,7 +110,8 @@ namespace Dotmim.Sync
             clientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Creating the message
-            var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory);
+            var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 
+                                                     this.Options.BatchSize, this.Options.BatchDirectory, this.Options.SerializerFactory);
 
             // Locally, if we are new, no need to get changes
             if (isNew)
@@ -169,7 +170,7 @@ namespace Dotmim.Sync
 
                 // Creating the message
                 // Since it's an estimated count, we don't need to create batches, so we hard code the batchsize to 0
-                var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory);
+                var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory, this.Options.SerializerFactory);
 
                 // Locally, if we are new, no need to get changes
                 if (isNew)
@@ -202,7 +203,7 @@ namespace Dotmim.Sync
             var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, this.Setup, policy,
                             this.Options.DisableConstraintsOnApplyChanges,
                             this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
-                            serverBatchInfo);
+                            serverBatchInfo, this.Options.SerializerFactory);
 
 
             // Call apply changes on provider

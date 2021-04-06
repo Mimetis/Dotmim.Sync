@@ -25,13 +25,6 @@ namespace Dotmim.Sync.Web.Server
             return sessionCacheEntryOptions;
         }
 
-    
-        /// <summary>
-        /// Serializers that could be used by each client
-        /// </summary>
-        public SerializersCollection Serializers { get; set; }
-
-    
         /// <summary>
         /// Gets or Sets Converters used by different clients
         /// </summary>
@@ -53,7 +46,6 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public WebServerOptions() : base()
         {
-            this.Serializers = new SerializersCollection();
             this.Converters = new Collection<IConverter>();
             this.ServerCacheSlidingExpiration = TimeSpan.FromHours(12);
             this.ClientCacheSlidingExpiration = TimeSpan.FromMinutes(10);

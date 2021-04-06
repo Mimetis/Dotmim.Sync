@@ -10,8 +10,6 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Data;
-using System.Data.Common;
-using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -19,26 +17,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
-using Npgsql;
-using Microsoft.Extensions.Configuration;
-using NpgsqlTypes;
-using Newtonsoft.Json;
-using System.Collections.Generic;
-using Dotmim.Sync.MySql;
-using System.Linq;
-using System.Transactions;
-using System.Threading;
 #if NET5_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
 
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Builder;
-using System.Text;
 using System.Diagnostics;
-using Dotmim.Sync.Serialization;
 
 internal class Program
 {
@@ -55,22 +40,25 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-       // await CreateSnapshotAsync();
-       await SyncHttpThroughKestrellAsync();
+        // await CreateSnapshotAsync();
+        // await SyncHttpThroughKestrellAsync();
+        await SynchronizeAsync();
     }
 
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("HeavyTables"));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var tables = new string[] { "Customer" };
-        var setup = new SyncSetup(tables);
-
-        var options = new SyncOptions();
-        options.BatchSize = 1000;
+        var setup = new SyncSetup(allTables);
+        var options = new SyncOptions
+        {
+            BatchSize = 5000,
+            SerializerFactory = new CustomMessagePackSerializerFactory(),
+            SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
+        };
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -82,8 +70,6 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        agent.LocalOrchestrator.OnTableChangesBatchApplying(args => Console.WriteLine(args.Command.CommandText));
 
         do
         {
@@ -121,7 +107,7 @@ internal class Program
         });
         var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
 
-        var options = new SyncOptions() { BatchSize = 5000, SnapshotsDirectory = snapshotDirectory };
+        var options = new SyncOptions() { BatchSize = 500, SnapshotsDirectory = snapshotDirectory, SerializerFactory = new CustomMessagePackSerializerFactory() };
 
         Console.WriteLine($"Creating snapshot");
 
@@ -141,7 +127,7 @@ internal class Program
         //var tables = new string[] { "Customer" };
         var setup = new SyncSetup(allTables);
 
-        var options = new SyncOptions { BatchSize = 5000 };
+        var options = new SyncOptions { BatchSize = 5000, SerializerFactory = new CustomMessagePackSerializerFactory() };
         //var options = new SyncOptions();
 
         var configureServices = new Action<IServiceCollection>(services =>
@@ -149,6 +135,7 @@ internal class Program
             var serverOptions = new SyncOptions()
             {
                 DisableConstraintsOnApplyChanges = false,
+                SerializerFactory = new CustomMessagePackSerializerFactory(),
                 SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
             };
 
@@ -165,7 +152,7 @@ internal class Program
 
         });
 
-        using var server = new KestrellTestServer(configureServices, true);
+        using var server = new KestrellTestServer(configureServices, false);
         var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
             do
@@ -173,7 +160,7 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
-                    var localOrchestrator = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism:8);
+                    var localOrchestrator = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 8);
 
                     var agent = new SyncAgent(clientProvider, localOrchestrator, options);
 
@@ -185,7 +172,7 @@ internal class Program
                         var tsStarted = TimeSpan.FromTicks(startTime.Ticks);
 
                         var durationTs = tsEnded.Subtract(tsStarted);
-                        
+
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.PogressPercentageString}:\t{s.Message}");
                         Console.ResetColor();
@@ -376,7 +363,7 @@ internal class Program
                 var localDateTime = DateTime.Now;
                 var utcDateTime = DateTime.UtcNow;
 
-                var localOrchestrator = new WebClientOrchestrator(serviceUri, SerializersCollection.JsonSerializer);
+                var localOrchestrator = new WebClientOrchestrator(serviceUri);
 
                 var agent = new SyncAgent(clientProvider, localOrchestrator, options);
                 await agent.SynchronizeAsync(localProgress);
@@ -786,7 +773,7 @@ internal class Program
         var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
         var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
 
-        var proxyClientProvider = new WebClientOrchestrator("https://localhost:44313/api/Sync", null, null, client);
+        var proxyClientProvider = new WebClientOrchestrator("https://localhost:44313/api/Sync", client: client);
 
         var options = new SyncOptions
         {
