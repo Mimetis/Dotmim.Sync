@@ -267,7 +267,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the container changes when in memory requested by the client
         /// </summary>
         [DataMember(Name = "changes", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public ContainerSet Changes { get; internal set; }
+        public ContainerSet Changes { get; set; }
         
         [DataMember(Name = "scs", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public DatabaseChangesSelected ServerChangesSelected { get; set; }
