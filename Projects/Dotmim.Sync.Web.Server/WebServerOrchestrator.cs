@@ -852,7 +852,12 @@ namespace Dotmim.Sync.Web.Server
             foreach (var table in Schema.Tables)
                 DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath(), this.Options.SerializerFactory, this);
+            // Backward compatibility for client < v0.8.0
+            var serializerFactory = this.Options.SerializerFactory;
+            if (this.Options.SerializerFactory.Key != SerializersCollection.JsonSerializer.Key && (string.IsNullOrEmpty(serverBatchInfo.SerializerFactoryKey) || serverBatchInfo.SerializerFactoryKey == SerializersCollection.JsonSerializer.Key))
+                serializerFactory = SerializersCollection.JsonSerializer;
+
+            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath(), serializerFactory, this);
 
             // if client request a conversion on each row, apply the conversion
             if (this.ClientConverter != null && batchPartInfo.Data.HasRows)
