@@ -1442,8 +1442,11 @@ namespace Dotmim.Sync.Tests
             {
                 int batchIndex = 0;
 
-                var orch = new WebClientOrchestrator(this.ServiceUri);
+                // restreint parallelism degrees to be sure the batch index is not downloaded at the end
+                // (This will not raise the error if the batchindex 1 is downloaded as the last part)
+                var orch = new WebClientOrchestrator(this.ServiceUri, maxDownladingDegreeOfParallelism:1);
                 var agent = new SyncAgent(client.Provider, orch, options);
+
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
                 orch.OnHttpGettingChangesResponse(x =>
                 {
@@ -1462,7 +1465,19 @@ namespace Dotmim.Sync.Tests
 
                 });
 
-                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
+                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
+                {
+                    try
+                    {
+                        var r = await agent.SynchronizeAsync();
+
+                    }
+                    catch (Exception ex)
+                    {
+                        throw ex;
+                    }
+
+                });
 
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
@@ -1784,7 +1799,7 @@ namespace Dotmim.Sync.Tests
                 this.WebServerOrchestrator.OnHttpSendingResponse(args =>
                 {
                     // Throw error when sending changes to server
-                    if (args.HttpStep == HttpStep.SendChangesInProgress && !interruptedBatch )
+                    if (args.HttpStep == HttpStep.SendChangesInProgress && !interruptedBatch)
                     {
                         interruptedBatch = true;
                         throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
