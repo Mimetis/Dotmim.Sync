@@ -42,7 +42,8 @@ internal class Program
     {
         // await CreateSnapshotAsync();
         // await SyncHttpThroughKestrellAsync();
-        await SynchronizeAsync();
+        // await SynchronizeAsync();
+        await SynchronizeWithOneFilterAsync();
     }
 
     private static async Task SynchronizeAsync()
@@ -93,7 +94,6 @@ internal class Program
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
-
 
     private static async Task CreateSnapshotAsync()
     {
@@ -164,6 +164,11 @@ internal class Program
 
                     var agent = new SyncAgent(clientProvider, localOrchestrator, options);
 
+                    agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
+                    {
+                        var changes = args.Changes;
+                    });
+
                     var startTime = DateTime.Now;
 
                     var localProgress = new SynchronousProgress<ProgressArgs>(s =>
@@ -178,10 +183,8 @@ internal class Program
                         Console.ResetColor();
                     });
 
-                    //var scope = await agent.LocalOrchestrator.GetClientScopeAsync().ConfigureAwait(false);
-                    //var changes = await agent.RemoteOrchestrator.GetChangesAsync(scope, progress:localProgress);
 
-                    var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, localProgress);
+                    var s = await agent.SynchronizeAsync(localProgress);
                     Console.WriteLine(s);
                 }
                 catch (SyncException e)
@@ -202,6 +205,66 @@ internal class Program
         await server.Run(serverHandler, clientHandler);
 
     }
+
+
+    private static async Task SynchronizeWithOneFilterAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+
+        // Create a filter on table ProductCategory 
+        var productCategoryFilter = new SetupFilter("ProductCategory");
+        // Parameter ModifiedDate mapped to the ModifiedDate column
+        // Allow Null = true
+        productCategoryFilter.AddParameter("ModifiedDate", "ProductCategory", true);
+        // Since we are using a >= in the query, we should use a custom where
+        productCategoryFilter.AddCustomWhere("base.ModifiedDate >= @ModifiedDate Or @ModifiedDate Is Null");
+
+        setup.Filters.Add(productCategoryFilter);
+
+        var options = new SyncOptions();
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
+
+                // Write results
+                Console.WriteLine(s1);
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
+
 
 
     private static async Task SynchronizeHeavyTableAsync()
@@ -1078,8 +1141,10 @@ internal class Program
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("clientX.db");
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
         var setup = new SyncSetup(new string[] {"ProductCategory",
                   "ProductModel", "Product",
