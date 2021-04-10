@@ -75,6 +75,9 @@ namespace Dotmim.Sync
                 if (message.DisableConstraintsOnApplyChanges)
                     foreach (var table in schemaTables)
                         await this.InternalEnableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
+
+                // Dispose data
+                message.Changes.Clear(false);
             }
 
 
@@ -241,7 +244,7 @@ namespace Dotmim.Sync
 
                 TableChangesApplied tableChangesApplied = null;
 
-                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, this);
+                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this) ;
                 var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
 
                 // getting the table to be applied

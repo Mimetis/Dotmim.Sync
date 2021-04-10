@@ -22,14 +22,14 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone -f net5.0 --logger trx
         name: standalonetests
         displayName: "Standalone Tests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests -f net5.0 --logger trx
         name: unittests
         displayName: "Unit Tests"
         continueOnError: true

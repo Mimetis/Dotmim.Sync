@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Serialization;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -10,11 +11,12 @@ namespace Dotmim.Sync
     public class MessageGetChangesBatch
     {
         public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
-                                      int batchSize, string batchDirectory)
+                                      int batchSize, string batchDirectory, ISerializerFactory serializerFactory)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
+            this.SerializerFactory = serializerFactory;
             this.ExcludingScopeId = excludingScopeId;
             this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
@@ -65,5 +67,10 @@ namespace Dotmim.Sync
         /// </summary>
         public string BatchDirectory { get; set; }
 
-     }
+        /// <summary>
+        /// Gets or Sets the Serializer factory used when batch mode is enabled
+        /// </summary>
+        public ISerializerFactory SerializerFactory { get; set; }
+
+    }
 }
