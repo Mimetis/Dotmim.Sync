@@ -47,9 +47,7 @@ namespace Dotmim.Sync
 
             // create local directory
             if (message.BatchSize > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
-            {
                 Directory.CreateDirectory(message.BatchDirectory);
-            }
 
             changesSelected = new DatabaseChangesSelected();
 
@@ -144,7 +142,7 @@ namespace Dotmim.Sync
                             await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
                             // add changes to batchinfo
-                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
+                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false, message.SerializerFactory, this).ConfigureAwait(false);
 
                             // increment batch index
                             batchIndex++;
@@ -185,7 +183,7 @@ namespace Dotmim.Sync
             // Even if we don't have rows inside, we return the changesSet, since it contains at least schema
             if (changesSet != null && changesSet.HasTables && changesSet.HasRows)
             {
-                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this).ConfigureAwait(false);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, message.SerializerFactory, this).ConfigureAwait(false);
             }
 
             //Set the total rows count contained in the batch info

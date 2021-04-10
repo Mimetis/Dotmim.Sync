@@ -33,11 +33,9 @@ namespace Dotmim.Sync.SampleConsole
         }
         public async Task<byte[]> SerializeAsync(T obj)
         {
-            using (var ms = new MemoryStream())
-            {
-                await MessagePackSerializer.SerializeAsync(ms, obj, options);
-                return ms.ToArray();
-            }
+            using var ms = new MemoryStream();
+            await MessagePackSerializer.SerializeAsync(ms, obj, options);
+            return ms.ToArray();
         }
     }
 }

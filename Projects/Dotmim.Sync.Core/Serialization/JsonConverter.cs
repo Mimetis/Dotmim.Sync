@@ -30,11 +30,9 @@ namespace Dotmim.Sync.Serialization
             using var jtr = new JsonTextReader(sr);
             
             var jobject = await JObject.LoadAsync(jtr);
-            
+
             return jobject.ToObject<T>();
-
         }
-
 
         public async Task<byte[]> SerializeAsync(T obj)
         {
@@ -43,7 +41,10 @@ namespace Dotmim.Sync.Serialization
             using var ms = new MemoryStream();
             using var sw = new StreamWriter(ms);
             using var jtw = new JsonTextWriter(sw);
-            
+
+#if DEBUG
+            jtw.Formatting = Formatting.Indented;
+#endif
             await jobject.WriteToAsync(jtw);
             
             await jtw.FlushAsync();

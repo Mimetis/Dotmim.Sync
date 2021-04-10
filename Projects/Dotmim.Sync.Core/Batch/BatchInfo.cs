@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Batch
     [DataContract(Name = "bi"), Serializable]
     public class BatchInfo
     {
-
+   
         /// <summary>
         /// Ctor for serializer
         /// </summary>
@@ -33,6 +33,7 @@ namespace Dotmim.Sync.Batch
         {
             this.InMemory = isInMemory;
 
+            
             // We need to create a change table set, containing table with columns not readonly
             foreach (var table in inSchema.Tables)
                 DbSyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
@@ -69,13 +70,13 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Gets or Sets directory name
         /// </summary>
-        [DataMember(Name = "dirname", IsRequired = true, Order = 1)]
+        [DataMember(Name = "dirname", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public string DirectoryName { get; set; }
 
         /// <summary>
         /// Gets or sets directory root
         /// </summary>
-        [DataMember(Name = "dir", IsRequired = true, Order = 2)]
+        [DataMember(Name = "dir", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string DirectoryRoot { get; set; }
 
         /// <summary>
@@ -87,7 +88,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// List of batch parts if not in memory
         /// </summary>
-        [DataMember(Name = "parts", IsRequired = true, Order = 4)]
+        [DataMember(Name = "parts", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public List<BatchPartInfo> BatchPartsInfo { get; set; }
 
         /// <summary>
@@ -96,6 +97,11 @@ namespace Dotmim.Sync.Batch
         [DataMember(Name = "count", IsRequired = true, Order = 5)]
         public int RowsCount { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the Serialization Factory Key used to serialize this batch info (if not in memory)
+        /// </summary>
+        [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue =false, Order = 6)]
+        public string SerializerFactoryKey { get; set; }
 
         /// <summary>
         /// Get the full path of the Batch directory
@@ -166,7 +172,7 @@ namespace Dotmim.Sync.Batch
             return false;
         }
 
-        public async IAsyncEnumerable<SyncTable> GetTableAsync(string tableName, string schemaName, BaseOrchestrator orchestrator = null)
+        public async IAsyncEnumerable<SyncTable> GetTableAsync(string tableName, string schemaName, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -175,11 +181,15 @@ namespace Dotmim.Sync.Batch
 
             if (InMemory)
             {
+                this.SerializerFactoryKey = null;
+
                 if (this.InMemoryData != null && this.InMemoryData.HasTables)
                     yield return this.InMemoryData.Tables[tableName, schemaName];
             }
             else
             {
+                this.SerializerFactoryKey = serializerFactory.Key;
+
                 var bpiTables = BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.Tables.Any(t => t.EqualsByName(tableInfo))).OrderBy(t => t.Index);
 
                 if (bpiTables != null)
@@ -188,7 +198,7 @@ namespace Dotmim.Sync.Batch
                     {
                         // load only if not already loaded in memory
                         if (batchPartinInfo.Data == null)
-                            await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), orchestrator).ConfigureAwait(false);
+                            await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), serializerFactory, orchestrator).ConfigureAwait(false);
 
                         // Get the table from the batchPartInfo
                         // generate a tmp SyncTable for 
@@ -198,7 +208,9 @@ namespace Dotmim.Sync.Batch
                         {
                             yield return batchTable;
 
-                            // once loaded and yield, can dispose
+                            // We may need this same BatchPartInfo for another table, 
+                            // but we dispose it anyway, because memory can be quickly a bottleneck
+                            // if batchpartinfos are resident in memory
                             batchPartinInfo.Data.Dispose();
                             batchPartinInfo.Data = null;
                         }
@@ -229,17 +241,18 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Add changes to batch info.
         /// </summary>
-        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true, BaseOrchestrator orchestrator = null)
+        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
         {
             if (this.InMemory)
             {
+                this.SerializerFactoryKey = null;
                 this.InMemoryData = changes;
             }
             else
             {
-                var bpId = this.GenerateNewFileName(batchIndex.ToString());
-                //var fileName = Path.Combine(this.GetDirectoryFullPath(), bpId);
-                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch, orchestrator).ConfigureAwait(false);
+                this.SerializerFactoryKey = serializerFactory.Key;
+                var bpId = GenerateNewFileName(batchIndex.ToString());
+                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch, serializerFactory, orchestrator).ConfigureAwait(false);
 
                 // add the batchpartinfo tp the current batchinfo
                 this.BatchPartsInfo.Add(bpi);
@@ -249,7 +262,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// generate a batch file name
         /// </summary>
-        internal string GenerateNewFileName(string batchIndex)
+        public static string GenerateNewFileName(string batchIndex)
         {
             if (batchIndex.Length == 1)
                 batchIndex = $"000{batchIndex}";

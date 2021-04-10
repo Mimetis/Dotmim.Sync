@@ -532,17 +532,16 @@ namespace Dotmim.Sync.Tests
 
             // configure server orchestrator
             this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerOrchestrator.Options.SerializerFactory = new CustomMessagePackSerializerFactory();
 
-            // add custom serializers
-            var webServerOptions = new WebServerOptions();
-            webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
-            this.WebServerOrchestrator.WebServerOptions = webServerOptions;
+            // add custom serializer
+            options.SerializerFactory = new CustomMessagePackSerializerFactory();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new CustomMessagePackSerializerFactory());
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -578,7 +577,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new CustomMessagePackSerializerFactory());
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -688,6 +687,97 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Empty(serverFiles);
                 Assert.Empty(clientFiles);
+            }
+        }
+
+
+        /// <summary>
+        /// Insert one row in two tables on server, should be correctly sync on all clients
+        /// </summary>
+        [Fact]
+        public async Task Snapshot_Initialize_With_CustomSeriazlizer_MessagePack()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+            // ----------------------------------
+            // Setting correct options for sync agent to be able to reach snapshot
+            // ----------------------------------
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 200,
+                SerializerFactory = new CustomMessagePackSerializerFactory()
+            };
+
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+
+
+            // ----------------------------------
+            // Add rows on server AFTER snapshot
+            // ----------------------------------
+            // Create a new address & customer address on server
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var newAddress = new Address { AddressLine1 = addressLine1 };
+
+                serverDbCtx.Address.Add(newAddress);
+                await serverDbCtx.SaveChangesAsync();
+
+                var newCustomerAddress = new CustomerAddress
+                {
+                    AddressId = newAddress.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "OTH"
+                };
+
+                serverDbCtx.CustomerAddress.Add(newCustomerAddress);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // configure server orchestrator
+            this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
+            this.WebServerOrchestrator.Options.BatchSize = 200;
+            this.WebServerOrchestrator.Options.SerializerFactory = new CustomMessagePackSerializerFactory();
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                agent.Parameters.AddRange(this.FilterParameters);
+
+                var snapshotApplying = 0;
+                var snapshotApplied = 0;
+
+                agent.LocalOrchestrator.OnSnapshotApplying(saa => snapshotApplying++);
+                agent.LocalOrchestrator.OnSnapshotApplied(saa => snapshotApplied++);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(1, snapshotApplying);
+                Assert.Equal(1, snapshotApplied);
             }
         }
 
