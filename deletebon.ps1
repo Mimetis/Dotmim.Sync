@@ -1,1 +1,1 @@
-Get-ChildItem -include bin,obj,packages,'.vs','.git',node_modules -Force -Recurse | foreach ($_) { remove-item $_.fullname -Force -Recurse -ErrorAction SilentlyContinue -Verbose}
+Get-ChildItem -include bin,obj,packages,'.vs', -Force -Recurse | foreach ($_) { remove-item $_.fullname -Force -Recurse -ErrorAction SilentlyContinue -Verbose}

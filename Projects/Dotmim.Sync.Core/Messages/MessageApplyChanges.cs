@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using System;
 
 namespace Dotmim.Sync
@@ -16,7 +17,7 @@ namespace Dotmim.Sync
         /// </summary>
         public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
-                                    bool useBulkOperations, bool cleanMetadatas, bool cleanFolder, bool snapshotApplied, BatchInfo changes)
+                                    bool useBulkOperations, bool cleanMetadatas, bool cleanFolder, bool snapshotApplied, BatchInfo changes, ISerializerFactory serializerFactory)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
@@ -30,6 +31,7 @@ namespace Dotmim.Sync
             this.CleanMetadatas = cleanMetadatas;
             this.CleanFolder = cleanFolder;
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
+            this.SerializerFactory = serializerFactory;
             this.SnapshoteApplied = snapshotApplied;
         }
 
@@ -94,6 +96,11 @@ namespace Dotmim.Sync
         /// Gets or Sets the changes to apply
         /// </summary>
         public BatchInfo Changes { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the Serializer factory used when batch mode is enabled
+        /// </summary>
+        public ISerializerFactory SerializerFactory { get; set; }
 
         /// <summary>
         /// Gets or Sets if we have already applied a snapshot. So far, we don't reset the tables, even if we are in reinit mode.

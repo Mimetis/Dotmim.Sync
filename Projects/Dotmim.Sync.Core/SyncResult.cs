@@ -116,7 +116,7 @@ namespace Dotmim.Sync
                         $"\tTotal changes  downloaded: {TotalChangesDownloaded} " + Environment.NewLine +
                         $"\tTotal changes  applied: {TotalChangesApplied} " + Environment.NewLine +
                         $"\tTotal resolved conflicts: {TotalResolvedConflicts}" + Environment.NewLine +
-                        $"\tTotal duration :{durationstr} ");
+                        $"\tTotal duration :{durationTs:hh\\.mm\\:ss\\.fff} ");
 
             }
             return base.ToString();

@@ -75,7 +75,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the overall string percentage progress
         /// </summary>
-        public string PogressPercentageString => $"{Math.Floor(this.Context.ProgressPercentage * 100)}%";
+        public string PogressPercentageString => this.Context.ProgressPercentage.ToString("p");
 
         public override string ToString()
         {

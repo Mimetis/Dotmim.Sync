@@ -25,11 +25,17 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null, 
+            ISerializerFactory serializerFactory = default,
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.SnapshotCreating, async (ctx, connection, transaction) =>
         {
             if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
                 throw new SnapshotMissingMandatariesOptionsException();
+
+            // Default serialization to json
+            if (serializerFactory == default)
+                serializerFactory = SerializersCollection.JsonSerializer;
 
             // check parameters
             // If context has no parameters specified, and user specifies a parameter collection we switch them
@@ -60,7 +66,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new SnapshotCreatingArgs(ctx, schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // 5) Create the snapshot
-            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+            var batchInfo = await this.InternalCreateSnapshotAsync(ctx, schema, this.Setup, this.Options.SerializerFactory, connection, transaction, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
             var snapshotCreated = new SnapshotCreatedArgs(ctx, batchInfo, connection);
             await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
@@ -74,18 +80,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo)>
+        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
             GetSnapshotAsync(SyncSet schema = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // Get context or create a new one
             var ctx = this.GetContext();
+            var changesSelected = new DatabaseChangesSelected();
 
             BatchInfo serverBatchInfo = null;
             try
             {
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                    return (0, null);
+                    return (0, null, changesSelected);
 
                 //Direction set to Download
                 ctx.SyncWay = SyncWay.Download;
@@ -116,19 +123,46 @@ namespace Dotmim.Sync
 
                         var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
 
+
+                        using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
+                        {
+                            serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                        }
+
                         // Create the schema changeset
                         var changesSet = new SyncSet();
 
                         // Create a Schema set without readonly columns, attached to memory changes
                         foreach (var table in schema.Tables)
+                        {
                             DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
-                        using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
-                        {
-                            serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                            // Get all stats about this table
+                            var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>
+                            {
+                                var sc = SyncGlobalization.DataSourceStringComparison;
+
+                                var sn = t.SchemaName == null ? string.Empty : t.SchemaName;
+                                var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
+
+                                return table.TableName.Equals(t.TableName, sc) && sn.Equals(otherSn, sc);
+
+                            }));
+
+                            if (bptis != null)
+                            {
+                                // Statistics
+                                var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName);
+
+                                // we are applying a snapshot where it can't have any deletes, obviously
+                                tableChangesSelected.Upserts = bptis.Sum(bpti => bpti.RowsCount);
+
+                                if (tableChangesSelected.Upserts > 0)
+                                    changesSelected.TableChangesSelected.Add(tableChangesSelected);
+                            }
+
 
                         }
-
                         serverBatchInfo.SanitizedSchema = changesSet;
                     }
                 }
@@ -139,9 +173,9 @@ namespace Dotmim.Sync
             }
 
             if (serverBatchInfo == null)
-                return (0, null);
+                return (0, null, changesSelected);
 
-            return (serverBatchInfo.Timestamp, serverBatchInfo);
+            return (serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
         }
 
 
@@ -149,7 +183,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
+        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup, ISerializerFactory serializerFactory,
                              DbConnection connection, DbTransaction transaction, long remoteClientTimestamp,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -250,7 +284,7 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
                         // add changes to batchinfo
-                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false, this).ConfigureAwait(false);
+                        await batchInfo.AddChangesAsync(changesSet, batchIndex, false, serializerFactory, this).ConfigureAwait(false);
 
                         // increment batch index
                         batchIndex++;
@@ -286,7 +320,7 @@ namespace Dotmim.Sync
 
             if (changesSet != null && changesSet.HasTables)
             {
-                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, this).ConfigureAwait(false);
+                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, serializerFactory, this).ConfigureAwait(false);
             }
 
             //Set the total rows count contained in the batch info

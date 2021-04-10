@@ -89,6 +89,11 @@ namespace Dotmim.Sync
         public ILogger Logger { get; set; }
 
         /// <summary>
+        /// Gets or Sets the serializer used when batch mode is enabled. Default is Json
+        /// </summary>
+        public ISerializerFactory SerializerFactory { get; set; }
+
+        /// <summary>
         /// Create a new instance of options with default values
         /// </summary>
         public SyncOptions()
@@ -103,6 +108,7 @@ namespace Dotmim.Sync
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();
+            this.SerializerFactory = SerializersCollection.JsonSerializer;
         }
 
 
