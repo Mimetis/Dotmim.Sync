@@ -16,7 +16,7 @@
     <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.8.0</Version>
+    <Version>0.8.1</Version>
     <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
     <LangVersion>8.0</LangVersion>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
