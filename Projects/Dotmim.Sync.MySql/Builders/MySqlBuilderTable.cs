@@ -332,20 +332,22 @@ namespace Dotmim.Sync.MySql
 
                 var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
 
-                // Gets the datastore owner dbType 
-                var datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
+                //// Gets the datastore owner dbType 
+                //var datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
 
-                // once we have the datastore type, we can have the managed type
-                var columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
+                //// once we have the datastore type, we can have the managed type
+                //var columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
 
-                var sColumn = new SyncColumn(name, columnType);
-                sColumn.OriginalTypeName = typeName;
-                sColumn.Ordinal = Convert.ToInt32(c["ordinal_position"]);
-                sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
-                sColumn.Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0;
-                sColumn.Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0;
-                sColumn.AllowDBNull = (string)c["is_nullable"] != "NO";
-                sColumn.DefaultValue = c["COLUMN_DEFAULT"].ToString();
+                var sColumn = new SyncColumn(name)
+                {
+                    OriginalTypeName = typeName,
+                    Ordinal = Convert.ToInt32(c["ordinal_position"]),
+                    MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong,
+                    Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0,
+                    Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0,
+                    AllowDBNull = (string)c["is_nullable"] != "NO",
+                    DefaultValue = c["COLUMN_DEFAULT"].ToString()
+                };
 
                 var extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
 

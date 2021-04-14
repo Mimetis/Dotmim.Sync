@@ -573,21 +573,23 @@ namespace Dotmim.Sync.Sqlite
                 var typeName = c["type"].ToString();
                 var name = c["name"].ToString();
 
-                // Gets the datastore owner dbType 
-                var datastoreDbType = (SqliteType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, 0);
+                //// Gets the datastore owner dbType 
+                //var datastoreDbType = (SqliteType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, 0);
 
-                // once we have the datastore type, we can have the managed type
-                var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+                //// once we have the datastore type, we can have the managed type
+                //var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
 
-                var sColumn = new SyncColumn(name, columnType);
-                sColumn.OriginalDbType = datastoreDbType.ToString();
-                sColumn.Ordinal = Convert.ToInt32(c["cid"]);
-                sColumn.OriginalTypeName = c["type"].ToString();
-                sColumn.AllowDBNull = !Convert.ToBoolean(c["notnull"]);
-                sColumn.DefaultValue = c["dflt_value"].ToString();
+                var sColumn = new SyncColumn(name)
+                {
+                    OriginalDbType = typeName,
+                    Ordinal = Convert.ToInt32(c["cid"]),
+                    OriginalTypeName = c["type"].ToString(),
+                    AllowDBNull = !Convert.ToBoolean(c["notnull"]),
+                    DefaultValue = c["dflt_value"].ToString(),
 
-                // No unsigned type in SQL Server
-                sColumn.IsUnsigned = false;
+                    // No unsigned type in SQLite
+                    IsUnsigned = false
+                };
 
                 columns.Add(sColumn);
             }

@@ -244,23 +244,26 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var name = c["name"].ToString();
                 var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
-                // Gets the datastore owner dbType 
-                var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
-                // once we have the datastore type, we can have the managed type
-                var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+                //// Gets the datastore owner dbType 
+                //var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
 
-                var sColumn = new SyncColumn(name, columnType);
-                sColumn.OriginalDbType = datastoreDbType.ToString();
-                sColumn.Ordinal = (int)c["column_id"];
-                sColumn.OriginalTypeName = c["type"].ToString();
-                sColumn.MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong;
-                sColumn.Precision = (byte)c["precision"];
-                sColumn.Scale = (byte)c["scale"];
-                sColumn.AllowDBNull = (bool)c["is_nullable"];
-                sColumn.IsAutoIncrement = (bool)c["is_identity"];
-                sColumn.IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false;
-                sColumn.IsCompute = (bool)c["is_computed"];
-                sColumn.DefaultValue = c["defaultvalue"] != DBNull.Value ? c["defaultvalue"].ToString() : null;
+                //// once we have the datastore type, we can have the managed type
+                //var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+
+                var sColumn = new SyncColumn(name)
+                {
+                    OriginalDbType = typeName,
+                    Ordinal = (int)c["column_id"],
+                    OriginalTypeName = c["type"].ToString(),
+                    MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong,
+                    Precision = (byte)c["precision"],
+                    Scale = (byte)c["scale"],
+                    AllowDBNull = (bool)c["is_nullable"],
+                    IsAutoIncrement = (bool)c["is_identity"],
+                    IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false,
+                    IsCompute = (bool)c["is_computed"],
+                    DefaultValue = c["defaultvalue"] != DBNull.Value ? c["defaultvalue"].ToString() : null
+                };
 
                 if (sColumn.IsAutoIncrement)
                 {
