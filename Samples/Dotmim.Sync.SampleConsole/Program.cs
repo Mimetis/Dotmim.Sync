@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
+using System.Data.Common;
 #if NET5_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -42,8 +43,85 @@ internal class Program
     {
         // await CreateSnapshotAsync();
         // await SyncHttpThroughKestrellAsync();
-        // await SynchronizeAsync();
-        await SynchronizeWithOneFilterAsync();
+        await SynchronizeAsync();
+        // await ScenarioAsync();
+    }
+
+    private static async Task ScenarioAsync()
+    {
+
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        var options = new SyncOptions();
+
+        var originalSetup = new SyncSetup(new string[] { "ProductCategory" });
+
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, originalSetup);
+        var localOrchestrator = new LocalOrchestrator(clientProvider, options, originalSetup);
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
+
+        var s = await agent.SynchronizeAsync();
+        Console.WriteLine(s);
+
+        // Add a new column to SQL server provider
+        await AddNewColumn(serverProvider.CreateConnection(),
+            "ProductCategory", "CreationDate", "datetime", "default(getdate())");
+
+        // Add a new column to SQLite client provider
+        await AddNewColumn(clientProvider.CreateConnection(),
+            "ProductCategory", "CreationDate", "datetime");
+
+        // Deprovision server and client
+        await remoteOrchestrator.DeprovisionAsync(
+            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+        await localOrchestrator.DeprovisionAsync(
+            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+
+        var newSetup = new SyncSetup(new string[] { "ProductCategory", "Product" });
+
+        // re create orchestrators with new setup
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, newSetup);
+        localOrchestrator = new LocalOrchestrator(clientProvider, options, newSetup);
+
+        // Provision again the server 
+        await remoteOrchestrator.ProvisionAsync(
+            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+
+        // Get the server schema to be sure we can create the table on client side
+        var schema = await remoteOrchestrator.GetSchemaAsync();
+
+        // Provision local orchestrator based on server schema
+        // Adding option Table to be sure I'm provisioning the new table
+        await localOrchestrator.ProvisionAsync(schema,
+            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.Table);
+
+        // Sync with Reinitialize
+        agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
+
+        s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+        Console.WriteLine(s);
+
+    }
+
+    private static async Task AddNewColumn(DbConnection connection,
+        string tableName, string columnName, string columnType,
+        string defaultValue = default)
+    {
+        var command = connection.CreateCommand();
+        command.CommandText = $"ALTER TABLE {tableName} ADD {columnName} {columnType} NULL {defaultValue}";
+        command.Connection = connection;
+        command.CommandType = CommandType.Text;
+
+        await connection.OpenAsync();
+        command.ExecuteNonQuery();
+        await connection.CloseAsync();
+
+
     }
 
     private static async Task SynchronizeAsync()
@@ -53,12 +131,14 @@ internal class Program
         var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        setup.Tables["ProductCategory"].Columns.AddRange(new[] { "ProductCategoryID", "Name" });
+
         var options = new SyncOptions
         {
-            BatchSize = 5000,
-            SerializerFactory = new CustomMessagePackSerializerFactory(),
-            SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
+            //BatchSize = 5000,
+            //SerializerFactory = new CustomMessagePackSerializerFactory(),
+            //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
         };
 
         // Using the Progress pattern to handle progession during the synchronization
@@ -1004,11 +1084,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress = new SynchronousProgress<ProgressArgs>(s =>
-                        {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-                            Console.ResetColor();
-                        });
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+                        Console.ResetColor();
+                    });
 
                     var s = await agent.SynchronizeAsync(progress);
                     Console.WriteLine(s);
@@ -1018,11 +1098,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress2 = new SynchronousProgress<ProgressArgs>(s =>
-                        {
-                            Console.ForegroundColor = ConsoleColor.DarkGreen;
-                            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
-                            Console.ResetColor();
-                        });
+                    {
+                        Console.ForegroundColor = ConsoleColor.DarkGreen;
+                        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+                        Console.ResetColor();
+                    });
                     s = await agent2.SynchronizeAsync(progress2);
                     Console.WriteLine(s);
                 }
