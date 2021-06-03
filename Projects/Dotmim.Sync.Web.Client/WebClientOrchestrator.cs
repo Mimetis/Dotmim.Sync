@@ -440,6 +440,8 @@ namespace Dotmim.Sync.Web.Client
 
                 changesSet.ImportContainerSet(summaryResponseContent.Changes, false);
 
+                AfterDeserializedRows(changesSet);
+
                 // Create a BatchPartInfo instance
                 await serverBatchInfo.AddChangesAsync(changesSet, 0, true, this.Options.SerializerFactory, this);
 
@@ -761,6 +763,8 @@ namespace Dotmim.Sync.Web.Client
                     DbSyncAdapter.CreateChangesTable(serverBatchInfo.SanitizedSchema.Tables[tbl.TableName, tbl.SchemaName], changesSet);
 
                 changesSet.ImportContainerSet(summaryResponseContent.Changes, false);
+
+                AfterDeserializedRows(changesSet);
 
                 // Create a BatchPartInfo instance
                 await serverBatchInfo.AddChangesAsync(changesSet, 0, true, this.Options.SerializerFactory, this);
