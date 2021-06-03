@@ -78,19 +78,32 @@ namespace Dotmim.Sync
         [DataMember(Name = "dv", IsRequired = false, EmitDefaultValue = false, Order = 21)]
         public string DefaultValue { get; set; }
 
+
+
+
         /// <summary>
         /// Ctor for serialization purpose
         /// </summary>
-        public SyncColumn() { }
+        public SyncColumn() => this.DataType = "-1";
 
         /// <summary>
         /// Create a new column with the given name
         /// </summary>
-        public SyncColumn(string columnName, Type type) : this()
+        public SyncColumn(string columnName) : this() => this.ColumnName = columnName ?? throw new ArgumentNullException(nameof(columnName));
+
+        /// <summary>
+        /// Create a new column with the given name and given type
+        /// </summary>
+        public SyncColumn(string columnName, Type type) : this(columnName) => this.SetType(type);
+
+        /// <summary>
+        /// Set the SyncColumn Type (if the type was not set with the correct ctor)
+        /// </summary>
+        public void SetType(Type type)
         {
-            this.ColumnName = columnName ?? throw new ArgumentNullException(nameof(columnName));
             this.DataType = GetAssemblyQualifiedName(type);
             this.DbType = (int)CoerceDbType();
+
         }
 
         /// <summary>

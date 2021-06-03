@@ -212,6 +212,9 @@ namespace Dotmim.Sync
                 // once we have the datastore type, we can have the managed type
                 var columnType = this.Provider.GetMetadata().ValidateType(datastoreDbType);
 
+                // Set the correct type
+                column.SetType(columnType);
+
                 // and the DbType
                 column.DbType = (int)this.Provider.GetMetadata().ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
 
