@@ -34,12 +34,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the number of changes applied on the client
         /// </summary>
-        public int TotalChangesApplied => this.ChangesAppliedOnClient?.TotalAppliedChanges ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0;
+        public int TotalChangesApplied => (this.ChangesAppliedOnClient?.TotalAppliedChanges ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
 
         /// <summary>
         /// Gets total number of changes downloaded from server. 
         /// </summary>
-        public int TotalChangesDownloaded => this.ServerChangesSelected?.TotalChangesSelected ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0;
+        public int TotalChangesDownloaded => (this.ServerChangesSelected?.TotalChangesSelected ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
 
         /// <summary>
         /// Gets the number of change uploaded to the server
