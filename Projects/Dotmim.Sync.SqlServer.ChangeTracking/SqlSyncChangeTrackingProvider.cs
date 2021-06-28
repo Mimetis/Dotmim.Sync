@@ -74,6 +74,14 @@ namespace Dotmim.Sync.SqlServer
 
         public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
 
+        public override DbMetadata GetMetadata() => base.GetMetadata();
 
+
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        {
+            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+            var adapter = new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingName, setup);
+            return adapter;
+        }
     }
 }

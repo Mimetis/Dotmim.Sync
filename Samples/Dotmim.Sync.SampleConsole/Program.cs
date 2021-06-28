@@ -42,7 +42,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
         // await CreateSnapshotAsync();
-        // await SyncHttpThroughKestrellAsync();
+        //await SyncHttpThroughKestrellAsync();
         await SynchronizeAsync();
         // await ScenarioAsync();
     }
@@ -127,30 +127,41 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
-        setup.Tables["ProductCategory"].Columns.AddRange(new[] { "ProductCategoryID", "Name" });
+        var setup = new SyncSetup(allTables);
+        //setup.Tables["ProductCategory"].Columns.AddRange(new[] { "ProductCategoryID", "Name" });
 
         var options = new SyncOptions
         {
             //BatchSize = 5000,
             //SerializerFactory = new CustomMessagePackSerializerFactory(),
             //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
+            //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
         };
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
             Console.ResetColor();
         });
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        agent.LocalOrchestrator.OnApplyChangesFailed(args =>
+        {
+            if (args.Conflict.Type == ConflictType.RemoteIsDeletedLocalIsDeleted
+            && args.Resolution == ConflictResolution.ClientWins)
+            {
+                args.Resolution = ConflictResolution.ServerWins;
+            }
+        });
 
         do
         {
@@ -182,7 +193,7 @@ internal class Program
         var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
             Console.ResetColor();
         });
         var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots");
@@ -201,34 +212,62 @@ internal class Program
         // server provider
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         var clientProvider = new SqliteSyncProvider(clientDatabaseName);
-
-        //var tables = new string[] { "Customer" };
-        var setup = new SyncSetup(allTables);
-
-        var options = new SyncOptions { BatchSize = 5000, SerializerFactory = new CustomMessagePackSerializerFactory() };
-        //var options = new SyncOptions();
-
         var configureServices = new Action<IServiceCollection>(services =>
         {
             var serverOptions = new SyncOptions()
             {
+                BatchSize = 2000,
                 DisableConstraintsOnApplyChanges = false,
-                SerializerFactory = new CustomMessagePackSerializerFactory(),
-                SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
+                UseBulkOperations = true,
+                ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins,
+                UseVerboseErrors = true
             };
 
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, serverOptions);
+            var tables = new[] {
+                "Mobile.Report",
+                "Mobile.ReportLine"
+            };
+
+            var syncSetup = new SyncSetup(tables)
+            {
+                StoredProceduresPrefix = "sp",
+                StoredProceduresSuffix = "",
+                TrackingTablesPrefix = "t",
+                TrackingTablesSuffix = ""
+            };
+
+            // Works fine, just one report in the sync process
+            syncSetup.Filters.Add("Report", "CreatedBy", "Mobile");
+
+            // This crashes. It's trying to bring all the report lines
+            var reportLineFilter = new SetupFilter("ReportLine", "Mobile");
+            reportLineFilter.AddParameter("CreatedBy", DbType.AnsiString, maxLength: 255);
+            reportLineFilter.AddJoin(Join.Left, "Mobile.Report").On("Mobile.ReportLine", "ReportId", "Mobile.Report", "Id");
+            reportLineFilter.AddWhere("CreatedBy", "Report", "CreatedBy", "Mobile");
+            syncSetup.Filters.Add(reportLineFilter);
+
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, syncSetup, serverOptions);
         });
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+            try
+            {
+                var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
 
-            var webServerOrchestrator = webServerManager.GetOrchestrator(context);
+                var webServerOrchestrator = webServerManager.GetOrchestrator(context);
 
-            await webServerManager.HandleRequestAsync(context);
+                await webServerManager.HandleRequestAsync(context);
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                throw;
+            }
 
         });
 
@@ -240,29 +279,32 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
-                    var localOrchestrator = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 8);
-
-                    var agent = new SyncAgent(clientProvider, localOrchestrator, options);
-
-                    agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
-                    {
-                        var changes = args.Changes;
-                    });
-
                     var startTime = DateTime.Now;
+
+                    var localOrchestrator = new WebClientOrchestrator(serviceUri);
+
+                    var clientOptions = new SyncOptions
+                    {
+                        ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins,
+                        UseBulkOperations = true,
+                        DisableConstraintsOnApplyChanges = true,
+                        UseVerboseErrors = true
+                    };
+
 
                     var localProgress = new SynchronousProgress<ProgressArgs>(s =>
                     {
                         var tsEnded = TimeSpan.FromTicks(DateTime.Now.Ticks);
                         var tsStarted = TimeSpan.FromTicks(startTime.Ticks);
-
                         var durationTs = tsEnded.Subtract(tsStarted);
 
                         Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.PogressPercentageString}:\t{s.Message}");
+                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.ProgressPercentage:p}:\t{s.Message}");
                         Console.ResetColor();
                     });
 
+                    var agent = new SyncAgent(clientProvider, localOrchestrator, clientOptions);
+                    agent.Parameters.Add("CreatedBy", "user1");
 
                     var s = await agent.SynchronizeAsync(localProgress);
                     Console.WriteLine(s);
@@ -317,7 +359,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -361,7 +403,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -414,7 +456,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -476,7 +518,7 @@ internal class Program
         var localProgress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -651,7 +693,7 @@ internal class Program
         var options = new SyncOptions();
 
         // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}"));
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}"));
 
         // Be sure client database file is deleted is already exists
         if (File.Exists(clientFileName))
@@ -771,7 +813,7 @@ internal class Program
         var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
             Console.ResetColor();
         });
 
@@ -784,7 +826,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -931,21 +973,21 @@ internal class Program
         var remoteProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
             Console.ForegroundColor = ConsoleColor.Gray;
-            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
             Console.ResetColor();
         });
 
         var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
         {
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+            Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
             Console.ResetColor();
         });
 
         var localProgress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -1057,7 +1099,7 @@ internal class Program
             var progress = new SynchronousProgress<ProgressArgs>(pa =>
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"{pa.PogressPercentageString}\t {pa.Message}");
+                Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
                 Console.ResetColor();
             });
 
@@ -1086,7 +1128,7 @@ internal class Program
                     var progress = new SynchronousProgress<ProgressArgs>(s =>
                     {
                         Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+                        Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
                         Console.ResetColor();
                     });
 
@@ -1100,7 +1142,7 @@ internal class Program
                     var progress2 = new SynchronousProgress<ProgressArgs>(s =>
                     {
                         Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.WriteLine($"{s.PogressPercentageString}:\t{s.Source}:\t{s.Message}");
+                        Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
                         Console.ResetColor();
                     });
                     s = await agent2.SynchronizeAsync(progress2);
@@ -1149,7 +1191,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -1309,7 +1351,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
             Console.ResetColor();
         });
 
@@ -1425,7 +1467,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.PogressPercentageString}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
             Console.ResetColor();
         });
 

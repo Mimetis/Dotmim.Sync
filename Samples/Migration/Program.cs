@@ -31,7 +31,7 @@ namespace Migration
             var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
             // Using the Progress pattern to handle progession during the synchronization
-            var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.PogressPercentageString}:\t{args.Message}"));
+            var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
 
             // First sync to have a starting point
             var s1 = await agent.SynchronizeAsync(progress);

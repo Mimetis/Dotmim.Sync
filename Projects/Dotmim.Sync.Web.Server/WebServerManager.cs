@@ -25,6 +25,7 @@ namespace Dotmim.Sync.Web.Server
         public IMemoryCache Cache { get; }
 
 
+
         public string Hint { get; set; }
 
 #if NET5_0 || NETCOREAPP3_1

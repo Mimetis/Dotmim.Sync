@@ -40,7 +40,7 @@ namespace Progression
 
             // Using the IProgress<T> pattern to handle progession dring the synchronization
             // Be careful, Progress<T> is not synchronous. Use SynchronousProgress<T> instead !
-            var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.PogressPercentageString}:\t{args.Message}"));
+            var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
 
             // --------------------------------------------
             // Using Interceptors

@@ -48,7 +48,7 @@ namespace Dotmim.Sync
             //        await this.provider.InterceptAsync(new ConnectionOpenArgs(context, connection)).ConfigureAwait(false);
 
             //        // Create a transaction
-            //        using (transaction = connection.BeginTransaction())
+            //        using (transaction = connection.BeginTransaction(this.provider.IsolationLevel))
             //        {
 
             //            await this.provider.InterceptAsync(new TransactionOpenArgs(context, connection, transaction)).ConfigureAwait(false);

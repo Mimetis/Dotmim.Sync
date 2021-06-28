@@ -70,12 +70,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the overall percentage progress
         /// </summary>
-        public double PogressPercentage => this.Context.ProgressPercentage;
-
-        /// <summary>
-        /// Gets the overall string percentage progress
-        /// </summary>
-        public string PogressPercentageString => this.Context.ProgressPercentage.ToString("p");
+        public double ProgressPercentage => this.Context.ProgressPercentage;
 
         public override string ToString()
         {

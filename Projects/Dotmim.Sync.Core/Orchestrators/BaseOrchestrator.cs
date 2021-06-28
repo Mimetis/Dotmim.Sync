@@ -419,7 +419,7 @@ namespace Dotmim.Sync
                 {
                     await c.OpenAsync();
 
-                    using (var t = c.BeginTransaction())
+                    using (var t = c.BeginTransaction(this.Provider.IsolationLevel))
                     {
                         if (actionTask != null)
                             result = await actionTask(ctx, c, t);
@@ -472,7 +472,7 @@ namespace Dotmim.Sync
                 // Create a transaction
                 if (!alreadyInTransaction)
                 {
-                    transaction = connection.BeginTransaction();
+                    transaction = connection.BeginTransaction(this.Provider.IsolationLevel);
                     await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
                 }
 

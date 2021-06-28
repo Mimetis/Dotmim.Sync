@@ -46,11 +46,12 @@ namespace ConverterWebSyncServer
 
             // To add a converter, create an instance and add it to the special WebServerOptions
             var webServerOptions = new WebServerOptions();
-            webServerOptions.Serializers.Add(new CustomMessagePackSerializerFactory());
             webServerOptions.Converters.Add(new CustomConverter());
 
+            var options = new SyncOptions { SerializerFactory = new CustomMessagePackSerializerFactory() };
+
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, null, webServerOptions);
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options, webServerOptions);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

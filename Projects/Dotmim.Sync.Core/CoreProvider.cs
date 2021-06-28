@@ -88,6 +88,11 @@ namespace Dotmim.Sync
         public abstract bool CanBeServerProvider { get; }
 
         /// <summary>
+        /// Gets the default isolation level used during transaction
+        /// </summary>
+        public virtual IsolationLevel IsolationLevel { get; } = IsolationLevel.ReadCommitted;
+
+        /// <summary>
         /// Get naming tables
         /// </summary>
         public abstract (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup);

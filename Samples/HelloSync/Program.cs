@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.Threading.Tasks;
@@ -21,10 +22,10 @@ namespace HelloSync
             // First provider is using the Sql change tracking feature. Don't forget to enable it on your database until running this code !
             // For instance, use this SQL statement on your server database : ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)  
             // Otherwise, if you don't want to use Change Tracking feature, just change 'SqlSyncChangeTrackingProvider' to 'SqlSyncProvider'
-            var serverProvider = new SqlSyncChangeTrackingProvider(serverConnectionString);
+            var serverProvider = new SqlSyncProvider(serverConnectionString);
        
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
-            var clientProvider = new SqlSyncProvider(clientConnectionString);
+            var clientProvider = new SqliteSyncProvider("adv.db");
 
             // Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",

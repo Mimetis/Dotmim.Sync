@@ -180,7 +180,7 @@ namespace Dotmim.Sync
                 // Create two transactions
                 // First one to commit changes
                 // Second one to get changes now that everything is commited
-                using (transaction = connection.BeginTransaction())
+                using (transaction = connection.BeginTransaction(this.Provider.IsolationLevel))
                 {
                     await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
@@ -219,7 +219,7 @@ namespace Dotmim.Sync
                 ctx.ProgressPercentage = 0.55;
 
 
-                using (transaction = connection.BeginTransaction())
+                using (transaction = connection.BeginTransaction(this.Provider.IsolationLevel))
                 {
                     await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
 
