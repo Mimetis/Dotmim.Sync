@@ -41,7 +41,7 @@ namespace IdentityColumnsClient
 
             try
             {
-                var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.PogressPercentageString}:\t{args.Message}"));
+                var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
 
                 // Get the client scope
                 var scope = await agent.LocalOrchestrator.GetClientScopeAsync();

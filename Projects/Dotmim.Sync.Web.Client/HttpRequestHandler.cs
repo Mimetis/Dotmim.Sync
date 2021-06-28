@@ -50,9 +50,6 @@ namespace Dotmim.Sync.Web.Client
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                //// Get response serializer
-                //var responseSerializer = serializerFactory.GetSerializer<U>();
-
                 var requestUri = new StringBuilder();
                 requestUri.Append(baseUri);
                 requestUri.Append(baseUri.EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");

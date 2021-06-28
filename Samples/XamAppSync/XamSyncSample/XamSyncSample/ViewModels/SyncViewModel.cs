@@ -75,7 +75,7 @@ namespace XamSyncSample.ViewModels
                 {
                     Device.BeginInvokeOnMainThread(() =>
                     {
-                        this.SyncProgress = args.PogressPercentage;
+                        this.SyncProgress = args.ProgressPercentage;
                         this.SyncProgressionText = args.Message;
                     });
                 });

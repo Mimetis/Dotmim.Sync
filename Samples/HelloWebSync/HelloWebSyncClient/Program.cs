@@ -35,7 +35,7 @@ namespace HelloWebSyncClient
             {
                 try
                 {
-                    var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.PogressPercentageString}:\t{args.Message}"));
+                    var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
                     // Launch the sync process
                     var s1 = await agent.SynchronizeAsync(progress);
                     // Write results

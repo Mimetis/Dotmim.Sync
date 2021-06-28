@@ -26,7 +26,6 @@ namespace HelloWebSyncClient
             // Create a web proxy Orchesrtrator with a custom serializer
             var serverProxyOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync")
             {
-                SerializerFactory = new CustomMessagePackSerializerFactory(),
                 Converter = new CustomConverter()
             };
 
@@ -38,7 +37,7 @@ namespace HelloWebSyncClient
 
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProxyOrchestrator);
+            var agent = new SyncAgent(clientProvider, serverProxyOrchestrator, new SyncOptions { SerializerFactory = new CustomMessagePackSerializerFactory() });
 
             do
             {
