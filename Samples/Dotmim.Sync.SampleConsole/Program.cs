@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using System.Data.Common;
+using Dotmim.Sync.MySql;
 #if NET5_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -127,12 +128,18 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
+        //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("ServerWithSyncNames"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var tables = new string[] { "SyncScope" };
         var setup = new SyncSetup(tables);
