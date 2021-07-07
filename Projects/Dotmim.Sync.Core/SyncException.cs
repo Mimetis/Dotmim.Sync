@@ -385,6 +385,16 @@ namespace Dotmim.Sync
         public UnsupportedColumnNameException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
     }
 
+    /// <summary>
+    /// Occurs when a column name is not supported by the Dotmim.Sync framework for a primary key
+    /// </summary>
+    public class UnsupportedPrimaryKeyColumnNameException : Exception
+    {
+        const string message = "The Column name {0} is not allowed as a primary key. Please consider to change the column name or choose another primary key for your table.";
+
+        public UnsupportedPrimaryKeyColumnNameException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
+    }
+
 
     /// <summary>
     /// Occurs when a provider not supported as a server provider is used with a RemoteOrchestrator.
