@@ -34,23 +34,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the number of changes applied on the client
         /// </summary>
-        public int TotalChangesApplied => this.ChangesAppliedOnClient.TotalAppliedChanges + (this.SnapshotChangesAppliedOnClient != null ? this.SnapshotChangesAppliedOnClient.TotalAppliedChanges : 0);
+        public int TotalChangesApplied => (this.ChangesAppliedOnClient?.TotalAppliedChanges ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
 
         /// <summary>
         /// Gets total number of changes downloaded from server. 
         /// </summary>
-        public int TotalChangesDownloaded => this.ServerChangesSelected.TotalChangesSelected + (this.SnapshotChangesAppliedOnClient != null ? this.SnapshotChangesAppliedOnClient.TotalAppliedChanges : 0);
+        public int TotalChangesDownloaded => (this.ServerChangesSelected?.TotalChangesSelected ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
 
         /// <summary>
         /// Gets the number of change uploaded to the server
         /// </summary>
-        public int TotalChangesUploaded => this.ClientChangesSelected.TotalChangesSelected;
+        public int TotalChangesUploaded => this.ClientChangesSelected?.TotalChangesSelected ?? 0;
 
         /// <summary>
         /// Gets the number of conflicts resolved
         /// </summary>
         public int TotalResolvedConflicts =>
-            Math.Max(this.ChangesAppliedOnClient.TotalResolvedConflicts, this.ChangesAppliedOnServer.TotalResolvedConflicts);
+            Math.Max(this.ChangesAppliedOnClient?.TotalResolvedConflicts ?? 0, this.ChangesAppliedOnServer?.TotalResolvedConflicts ?? 0);
 
         /// <summary>
         /// Gets the number of sync errors
