@@ -244,6 +244,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var name = c["name"].ToString();
                 var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
+                if (name.ToLower().Equals("timestamp"))
+                {
+                    name = $"[{name}]";
+                }
                 //// Gets the datastore owner dbType 
                 //var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
 
