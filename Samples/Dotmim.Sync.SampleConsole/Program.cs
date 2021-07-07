@@ -127,12 +127,19 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
         var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var setup = new SyncSetup(allTables);
+        var tables = new string[] { "SyncScope" };
+        var setup = new SyncSetup(tables);
+
+        // Works fine, just one report in the sync process
+        setup.Filters.Add("SyncScope", "last_change_datetime", allowNull:true);
+
         //setup.Tables["ProductCategory"].Columns.AddRange(new[] { "ProductCategoryID", "Name" });
 
         var options = new SyncOptions
@@ -153,15 +160,6 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
-        agent.LocalOrchestrator.OnApplyChangesFailed(args =>
-        {
-            if (args.Conflict.Type == ConflictType.RemoteIsDeletedLocalIsDeleted
-            && args.Resolution == ConflictResolution.ClientWins)
-            {
-                args.Resolution = ConflictResolution.ServerWins;
-            }
-        });
 
         do
         {

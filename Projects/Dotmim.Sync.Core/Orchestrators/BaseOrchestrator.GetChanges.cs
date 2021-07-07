@@ -228,7 +228,7 @@ namespace Dotmim.Sync
                 // Only table schema is replicated, no datas are applied
                 if (syncTable.SyncDirection == SyncDirection.None)
                     continue;
-                
+
                 // if we are in upload stage, so check if table is not download only
                 if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
                     continue;
@@ -407,21 +407,8 @@ namespace Dotmim.Sync
                     isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
                     continue;
                 }
-                if (columnName == "update_scope_id")
-                {
-                    //var readerScopeId = dataReader.GetValue(i);
-
-                    //// if update_scope_id is null, so the row owner is the local database
-                    //// if update_scope_id is not null, the row owner is someone else
-                    //if (readerScopeId == DBNull.Value || readerScopeId == null)
-                    //    row.UpdateScopeId = localScopeId;
-                    //else if (SyncTypeConverter.TryConvertTo<Guid>(readerScopeId, out var updateScopeIdObject))
-                    //    row.UpdateScopeId = (Guid)updateScopeIdObject;
-                    //else
-                    //    throw new Exception("Impossible to parse row['update_scope_id']");
-
+                if (columnName == "sync_update_scope_id")
                     continue;
-                }
 
                 var columnValueObject = dataReader.GetValue(i);
                 var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
@@ -429,11 +416,6 @@ namespace Dotmim.Sync
                 row[columnName] = columnValue;
 
             }
-
-            //// during initialization, row["update_scope_id"] is not part of the data reader
-            //// so we affect the local scope id owner manually
-            //if (!row.UpdateScopeId.HasValue)
-            //    row.UpdateScopeId = localScopeId;
 
             row.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
 
