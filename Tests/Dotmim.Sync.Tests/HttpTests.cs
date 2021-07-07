@@ -1467,16 +1467,7 @@ namespace Dotmim.Sync.Tests
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
                 {
-                    try
-                    {
                         var r = await agent.SynchronizeAsync();
-
-                    }
-                    catch (Exception ex)
-                    {
-                        throw ex;
-                    }
-
                 });
 
                 // Assert
