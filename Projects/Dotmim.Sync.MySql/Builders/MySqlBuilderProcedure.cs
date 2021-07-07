@@ -379,7 +379,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.AppendLine($"\t`base`.{nonPkColumnName}, ");
             }
             stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`, ");
-            stringBuilder.AppendLine("\t`side`.`update_scope_id` ");
+            stringBuilder.AppendLine("\t`side`.`update_scope_id` as `sync_update_scope_id`");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
             stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Quoted().ToString()} `side` ON");
 
@@ -798,7 +798,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.AppendLine($"\t`base`.{columnName}, ");
             }
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");
-            stringBuilder.AppendLine($"\t`side`.`update_scope_id` ");
+            stringBuilder.AppendLine($"\t`side`.`update_scope_id` as `sync_update_scope_id` ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
             // ----------------------------------
             // Make Right Join
