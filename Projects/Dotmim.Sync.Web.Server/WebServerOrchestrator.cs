@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Gets or Sets the Client Converter
         /// </summary>
-        public IConverter ClientConverter { get; set; }
+        public IConverter ClientConverter { get; private set; }
 
         ///// <summary>
         ///// Gets the current Http Context
@@ -762,8 +762,13 @@ namespace Dotmim.Sync.Web.Server
             };
 
             if (clientWorkInMemory)
+            {
+                if (this.ClientConverter != null && serverBatchInfo.InMemoryData != null && serverBatchInfo.InMemoryData.HasRows)
+                    BeforeSerializeRows(serverBatchInfo.InMemoryData, this.ClientConverter);
+
                 summaryResponse.Changes = serverBatchInfo.InMemoryData == null ? new ContainerSet() : serverBatchInfo.InMemoryData.GetContainerSet();
 
+            }
             // Get the firt response to send back to client
             return summaryResponse;
 
