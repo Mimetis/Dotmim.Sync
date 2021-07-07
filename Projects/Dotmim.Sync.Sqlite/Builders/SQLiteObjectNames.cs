@@ -397,7 +397,7 @@ namespace Dotmim.Sync.Sqlite
                 var columnName = ParserName.Parse(c).Quoted().ToString();
                 stringBuilder.Append($"[p].{columnName}, ");
             }
-            stringBuilder.AppendLine($"[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone]");
             stringBuilder.Append($"\tFROM (SELECT ");
             string comma = "";
             foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
@@ -418,7 +418,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"AND (EXISTS (");
             stringBuilder.AppendLine($"     SELECT * FROM [c] ");
             stringBuilder.AppendLine($"     WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[c]")}");
-            stringBuilder.AppendLine($"     AND (timestamp < @sync_min_timestamp OR timestamp IS NULL OR update_scope_id = @sync_scope_id))");
+            stringBuilder.AppendLine($"     AND ([sync_timestamp] < @sync_min_timestamp OR [sync_timestamp] IS NULL OR [sync_update_scope_id] = @sync_scope_id))");
             stringBuilder.AppendLine($"  OR @sync_force_write = 1");
             stringBuilder.AppendLine($" );");
             stringBuilder.AppendLine();
@@ -453,7 +453,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine($"\t[base].{nonPkColumnName}, ");
             }
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine("\t[side].[update_scope_id]");
+            stringBuilder.AppendLine("\t[side].[update_scope_id] as [sync_update_scope_id]");
 
             stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side] ");
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base] ON ");
@@ -484,7 +484,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] ");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id] ");
             stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side]");
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base]");
             stringBuilder.Append($"ON ");

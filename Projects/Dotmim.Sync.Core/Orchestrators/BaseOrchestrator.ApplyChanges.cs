@@ -135,11 +135,8 @@ namespace Dotmim.Sync
                     syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
                     continue;
                 }
-                if (columnName == "update_scope_id")
-                {
-                    // var readerScopeId = dataReader.GetValue(i);
+                if (columnName == "sync_update_scope_id")
                     continue;
-                }
 
                 var columnValueObject = dataReader.GetValue(i);
                 var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
@@ -519,7 +516,7 @@ namespace Dotmim.Sync
                 // if we have a merge action, we apply the row on the server
                 if (isMergeAction)
                 {
-                    // if merge, we update locally the row and let the update_scope_id set to null
+                    // if merge, we update locally the row and let the sync_update_scope_id set to null
                     var isUpdated = await this.InternalApplyConflictUpdateAsync(context, syncAdapter, row, lastTimestamp, null, true, connection, transaction).ConfigureAwait(false);
                     // We don't update metadatas so the row is updated (on server side) 
                     // and is mark as updated locally.

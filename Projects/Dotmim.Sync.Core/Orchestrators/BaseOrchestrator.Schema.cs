@@ -189,12 +189,13 @@ namespace Dotmim.Sync
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
                 if (columnNameLower == "sync_scope_id"
                     || columnNameLower == "changeTable"
+                    || columnNameLower == "sync_scope_name"
                     || columnNameLower == "sync_min_timestamp"
                     || columnNameLower == "sync_row_count"
                     || columnNameLower == "sync_force_write"
-                    || columnNameLower == "side_update_scope_id"
-                    || columnNameLower == "side_timestamp"
-                    || columnNameLower == "side_sync_row_is_tombstone"
+                    || columnNameLower == "sync_update_scope_id"
+                    || columnNameLower == "sync_timestamp"
+                    || columnNameLower == "sync_row_is_tombstone"
                     )
                     throw new UnsupportedColumnNameException(column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
@@ -277,9 +278,7 @@ namespace Dotmim.Sync
                     throw new MissingPrimaryKeyColumnException(rowColumn.ColumnName, schemaTable.TableName);
 
                 var columnNameLower = columnKey.ColumnName.ToLowerInvariant();
-                if (columnNameLower == "sync_scope_id"
-                    || columnNameLower == "sync_scope_name"
-                    || columnNameLower == "update_scope_id"
+                if (columnNameLower == "update_scope_id"
                     || columnNameLower == "timestamp"
                     || columnNameLower == "timestamp_bigint"
                     || columnNameLower == "sync_row_is_tombstone"

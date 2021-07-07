@@ -321,7 +321,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [side_update_scope_id], [side].[timestamp] as [side_timestamp], [side].[sync_row_is_tombstone] as [side_sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable [p]");
             stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
             stringBuilder.AppendLine($"\t{str7}");
@@ -342,7 +342,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"INTO @dms_changed ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"JOIN [changes] ON {str5}");
-            stringBuilder.AppendLine("WHERE [changes].[side_timestamp] <= @sync_min_timestamp OR [changes].[side_timestamp] IS NULL OR [changes].[side_update_scope_id] = @sync_scope_id;");
+            stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("-- Since the delete trigger is passed, we update the tracking table to reflect the real scope deleter");
             stringBuilder.AppendLine("UPDATE [side] SET");
@@ -436,7 +436,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [side_update_scope_id], [side].[timestamp] as [side_timestamp], [side].[sync_row_is_tombstone] as [side_sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable [p]");
             stringBuilder.AppendLine($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
             stringBuilder.Append($"\t{str7}");
@@ -446,7 +446,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"USING [changes] on {str5}");
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[side_timestamp] <= @sync_min_timestamp OR [changes].[side_timestamp] IS NULL OR [changes].[side_update_scope_id] = @sync_scope_id) THEN");
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id) THEN");
                 foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 {
                     var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -466,7 +466,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
             }
 
-            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[side_timestamp] <= @sync_min_timestamp OR [changes].[side_timestamp] IS NULL) THEN");
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL) THEN");
 
 
             stringBuilderArguments = new StringBuilder();
@@ -728,8 +728,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
-            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine("\t[side].[update_scope_id]");
+            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
 
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
@@ -876,7 +876,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [side_update_scope_id], [side].[timestamp] as [side_timestamp], [side].[sync_row_is_tombstone] as [side_sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM (SELECT ");
             stringBuilder.Append($"\t\t ");
             string comma = "";
@@ -897,7 +897,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"USING [changes] on {str5}");
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[side_timestamp] <= @sync_min_timestamp OR [changes].[side_timestamp] IS NULL OR [changes].[side_update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
                 foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 {
                     var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -917,7 +917,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
             }
 
-            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[side_timestamp] <= @sync_min_timestamp OR [changes].[side_timestamp] IS NULL OR @sync_force_write = 1) THEN");
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR @sync_force_write = 1) THEN");
 
 
             stringBuilderArguments = new StringBuilder();
@@ -1216,8 +1216,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
-            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] ");
+            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
             // ----------------------------------
 
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");

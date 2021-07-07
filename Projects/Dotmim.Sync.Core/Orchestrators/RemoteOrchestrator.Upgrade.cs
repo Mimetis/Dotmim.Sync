@@ -174,33 +174,13 @@ namespace Dotmim.Sync
             var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
             this.ReportProgress(context, progress, args, connection, transaction);
 
-
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                await InternalCreateStoredProceduresAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-
-                // Upgrade Select Initial Changes
-                var exists = await InternalExistsStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                if (exists)
-                    await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                args = new UpgradeProgressArgs(context, $"SelectInitializedChanges stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                args = new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
                 this.ReportProgress(context, progress, args, connection, transaction);
-
-                // Upgrade Select Initial Changes With Filter
-                if (tableBuilder.TableDescription.GetFilter() != null)
-                {
-                    var existsWithFilter = await InternalExistsStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChangesWithFilters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    if (existsWithFilter)
-                        await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChangesWithFilters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChangesWithFilters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    args = new UpgradeProgressArgs(context, $"SelectInitializedChangesWithFilters stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                    this.ReportProgress(context, progress, args, connection, transaction);
-                }
-
             }
 
             message = "Upgrade to 0.6.1 done.";

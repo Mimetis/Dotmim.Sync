@@ -99,8 +99,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable AS [p] ");
             stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
@@ -121,7 +121,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"INTO @dms_changed ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"JOIN {trackingName.Quoted().ToString()} [changes] ON {str5}");
-            stringBuilder.AppendLine("WHERE [changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id;");
+            stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
@@ -204,8 +204,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable AS [p] ");
             stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id) THEN");
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id) THEN");
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tUPDATE SET");
 
@@ -228,7 +228,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 }
             }
 
-            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL) THEN");
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL) THEN");
 
 
             stringBuilderArguments = new StringBuilder();
@@ -319,8 +319,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.Append($"\tFROM (SELECT ");
             string comma = "";
@@ -341,7 +341,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] <= @sync_min_timestamp OR [side].[timestamp] IS NULL OR [side].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1)");
+            stringBuilder.AppendLine("WHERE ([side].[sync_timestamp] <= @sync_min_timestamp OR [side].[sync_timestamp] IS NULL OR [side].[sync_update_scope_id] = @sync_scope_id OR @sync_force_write = 1)");
             stringBuilder.Append("AND ");
             stringBuilder.AppendLine(string.Concat("(", SqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "[base]"), ");"));
             stringBuilder.AppendLine();
@@ -401,7 +401,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append(stringBuilder2.ToString());
             // add columns
             stringBuilder.Append(stringBuilderColumns.ToString());
-            stringBuilder.AppendLine($"\tCAST([side].SYS_CHANGE_CONTEXT as uniqueidentifier) AS [update_scope_id],");
+            stringBuilder.AppendLine($"\tCAST([side].SYS_CHANGE_CONTEXT as uniqueidentifier) AS [sync_update_scope_id],");
             stringBuilder.AppendLine($"\tCASE [side].SYS_CHANGE_OPERATION WHEN 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, 0) AS [side]");
             stringBuilder.AppendLine($"\tLEFT JOIN {tableName.Schema().Quoted().ToString()} [base] ON");
@@ -415,7 +415,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append(stringBuilder22.ToString());
             // add base columns
             stringBuilder.Append(stringBuilderColumns.ToString());
-            stringBuilder.AppendLine($"\tnull as update_scope_id, ");
+            stringBuilder.AppendLine($"\tnull as sync_update_scope_id, ");
             stringBuilder.AppendLine($"\t0 as sync_row_is_tombstone ");
             stringBuilder.AppendLine($"\tFROM {tableName.Schema().Quoted().ToString()} as [base] ");
             stringBuilder.Append(string.Concat("\tWHERE ", stringBuilder11.ToString()));
@@ -484,8 +484,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[p].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM (SELECT ");
             stringBuilder.Append($"\t\t ");
@@ -507,7 +507,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
+                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tUPDATE SET");
 
@@ -520,7 +520,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 }
             }
 
-            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR @sync_force_write = 1) THEN");
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR @sync_force_write = 1) THEN");
 
 
             stringBuilderArguments = new StringBuilder();
@@ -581,8 +581,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[CT].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
             stringBuilder.AppendLine($"\t)");
@@ -652,7 +652,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
 
 
-            stringBuilder.AppendLine("\t([side].[timestamp] > @sync_min_timestamp OR @sync_min_timestamp IS NULL)");
+            stringBuilder.AppendLine("\t([side].[sync_timestamp] > @sync_min_timestamp OR @sync_min_timestamp IS NULL)");
             stringBuilder.AppendLine(")");
             sqlCommand.CommandText = stringBuilder.ToString();
 
@@ -688,8 +688,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"[CT].{columnName}, ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [update_scope_id], ");
-            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [timestamp],");
+            stringBuilder.AppendLine($"\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
+            stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
             stringBuilder.AppendLine($"\t)");
@@ -706,7 +706,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] ");
+            stringBuilder.AppendLine($"\t[side].[sync_update_scope_id] ");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
             stringBuilder.Append($"RIGHT JOIN {trackingName.Quoted().ToString()} [side]");
             stringBuilder.Append($"ON ");
@@ -757,8 +757,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
 
 
-            stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
+            stringBuilder.AppendLine("\t[side].[sync_timestamp] > @sync_min_timestamp");
+            stringBuilder.AppendLine("\tAND ([side].[sync_update_scope_id] <> @sync_scope_id OR [side].[sync_update_scope_id] IS NULL)");
             stringBuilder.AppendLine(")");
             sqlCommand.CommandText = stringBuilder.ToString();
 
