@@ -101,6 +101,8 @@ namespace Dotmim.Sync.Web.Server
                 // if Hash is present in header, check hash
                 if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-hash", out string hashStringRequest))
                     HashAlgorithm.SHA256.EnsureHash(readableStream, hashStringRequest);
+                else
+                    readableStream.Seek(0, SeekOrigin.Begin);
 
                 // try get schema from cache
                 if (this.Cache.TryGetValue<SyncSet>(scopeName, out var cachedSchema))
