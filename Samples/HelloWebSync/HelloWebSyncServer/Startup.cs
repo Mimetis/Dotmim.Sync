@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Server;
@@ -36,12 +37,14 @@ namespace HelloWebSyncServer
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
             // var connectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
+            var options = new SyncOptions {  };
+
             // [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables);
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options);
             //services.AddSyncServer<MySqlSyncProvider>(connectionString, tables);
         }
 

@@ -2,10 +2,11 @@
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace HelloWebSyncClient
+namespace FilterWebSyncClient
 {
     class Program
     {
@@ -27,19 +28,29 @@ namespace HelloWebSyncClient
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-
+            // Set the web server Options
             var options = new SyncOptions
             {
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "client")
             };
 
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverOrchestrator, options);
 
+            var progress = new SynchronousProgress<ProgressArgs>(
+               pa => Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}"));
+
+            if (!agent.Parameters.Contains("City"))
+                agent.Parameters.Add("City", "Toronto");
+
+            // Because I've specified that "postal" could be null, 
+            // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
+            if (!agent.Parameters.Contains("postal"))
+                agent.Parameters.Add("postal", DBNull.Value);
             do
             {
                 try
                 {
-                    var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
                     // Launch the sync process
                     var s1 = await agent.SynchronizeAsync(progress);
                     // Write results

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28407.52
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31521.260
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.Core", "..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj", "{0D8EB514-E877-411A-8133-1515711A8C66}"
 EndProject
@@ -81,7 +81,21 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamSyncSample", "XamAppSync
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamSyncSample.Android", "XamAppSync\XamSyncSample\XamSyncSample.Android\XamSyncSample.Android.csproj", "{0D70D6AC-4E2F-4120-9AEA-73BE22534D27}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XamAppServerConsole", "XamAppSync\XamAppServerConsole\XamAppServerConsole.csproj", "{EC268A2A-4CF9-42D1-958C-F7F8CA6C137F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XamAppServerConsole", "XamAppSync\XamAppServerConsole\XamAppServerConsole.csproj", "{EC268A2A-4CF9-42D1-958C-F7F8CA6C137F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "FilterWebSync", "FilterWebSync", "{A47777C8-7C63-4522-A016-22902AF389CD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FilterWebSyncClient", "FilterWebSync\FilterWebSyncClient\FilterWebSyncClient.csproj", "{2E676AA1-AE0C-4012-B685-C7DC8109F6C6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FilterWebSyncServer", "FilterWebSync\FilterWebSyncServer\FilterWebSyncServer.csproj", "{823B5175-6622-4B36-86F7-BF8EACC1E00D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComplexFilter", "ComplexFilter\ComplexFilter.csproj", "{C78B747C-149B-42CC-BB2F-3843FFE39A7B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SimpleFilter", "SimpleFilter\SimpleFilter.csproj", "{06A38128-BE86-4234-9903-1AFA69FB9CC2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AlreadyExstingDatabases", "AlreadyExstingDatabases", "{DB38C0EE-21B9-454D-8022-8E734E6F4445}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AlreadyExstingDatabases", "AlreadyExistingDatabases\AlreadyExstingDatabases.csproj", "{DA91FDB8-E024-4BDD-A942-2A3CEA4F687B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -223,6 +237,26 @@ Global
 		{EC268A2A-4CF9-42D1-958C-F7F8CA6C137F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EC268A2A-4CF9-42D1-958C-F7F8CA6C137F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EC268A2A-4CF9-42D1-958C-F7F8CA6C137F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E676AA1-AE0C-4012-B685-C7DC8109F6C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E676AA1-AE0C-4012-B685-C7DC8109F6C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E676AA1-AE0C-4012-B685-C7DC8109F6C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E676AA1-AE0C-4012-B685-C7DC8109F6C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{823B5175-6622-4B36-86F7-BF8EACC1E00D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{823B5175-6622-4B36-86F7-BF8EACC1E00D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{823B5175-6622-4B36-86F7-BF8EACC1E00D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{823B5175-6622-4B36-86F7-BF8EACC1E00D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C78B747C-149B-42CC-BB2F-3843FFE39A7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C78B747C-149B-42CC-BB2F-3843FFE39A7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C78B747C-149B-42CC-BB2F-3843FFE39A7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C78B747C-149B-42CC-BB2F-3843FFE39A7B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{06A38128-BE86-4234-9903-1AFA69FB9CC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{06A38128-BE86-4234-9903-1AFA69FB9CC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{06A38128-BE86-4234-9903-1AFA69FB9CC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{06A38128-BE86-4234-9903-1AFA69FB9CC2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DA91FDB8-E024-4BDD-A942-2A3CEA4F687B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DA91FDB8-E024-4BDD-A942-2A3CEA4F687B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DA91FDB8-E024-4BDD-A942-2A3CEA4F687B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DA91FDB8-E024-4BDD-A942-2A3CEA4F687B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -260,6 +294,13 @@ Global
 		{92D4C1D0-EF43-4D38-BC4C-722D706199C6} = {AA2E24CC-52D4-4E5C-AD40-2DD2B28D0F69}
 		{0D70D6AC-4E2F-4120-9AEA-73BE22534D27} = {AA2E24CC-52D4-4E5C-AD40-2DD2B28D0F69}
 		{EC268A2A-4CF9-42D1-958C-F7F8CA6C137F} = {AA2E24CC-52D4-4E5C-AD40-2DD2B28D0F69}
+		{A47777C8-7C63-4522-A016-22902AF389CD} = {3334B930-49DF-4984-9730-AA4559C02E1C}
+		{2E676AA1-AE0C-4012-B685-C7DC8109F6C6} = {A47777C8-7C63-4522-A016-22902AF389CD}
+		{823B5175-6622-4B36-86F7-BF8EACC1E00D} = {A47777C8-7C63-4522-A016-22902AF389CD}
+		{C78B747C-149B-42CC-BB2F-3843FFE39A7B} = {3334B930-49DF-4984-9730-AA4559C02E1C}
+		{06A38128-BE86-4234-9903-1AFA69FB9CC2} = {3334B930-49DF-4984-9730-AA4559C02E1C}
+		{DB38C0EE-21B9-454D-8022-8E734E6F4445} = {3334B930-49DF-4984-9730-AA4559C02E1C}
+		{DA91FDB8-E024-4BDD-A942-2A3CEA4F687B} = {DB38C0EE-21B9-454D-8022-8E734E6F4445}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {FC6BB5E5-6A25-46EF-BAAD-3F5822392673}

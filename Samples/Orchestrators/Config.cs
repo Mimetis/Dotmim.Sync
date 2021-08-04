@@ -38,7 +38,7 @@ namespace Orchestrators
         public static SynchronousProgress<ProgressArgs> GetProgress() => new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
             Console.ResetColor();
         });
     }
