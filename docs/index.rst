@@ -8,6 +8,7 @@ Welcome to Dotmim.Sync
 
 .. image:: assets/Smallicon.png
    :align: center
+   :alt: icon
 
 
 **DotMim.Sync** (**DMS**) is a straightforward framework for syncing relational databases, developed on top of **.Net Standard 2.0**, available and ready to use within  **IOT**, **Xamarin**, **.NET**, **.NET Core**, **UWP** and so on :)  
@@ -20,8 +21,10 @@ Available for syncing **SQL Server**, **MySQL**, **MariaDB** and **Sqlite** data
 
 .. image:: assets/allinone.png
    :align: center
+   :alt: all in one
 
 .. image:: assets/Architecture01.png
+   :alt: Architecture
 
 Starting from scratch
 =============================================
@@ -33,7 +36,9 @@ Here is the easiest way to create a first sync, from scratch :
 * If you don't have any hub database for testing purpose, use this one : `AdventureWorks lightweight script for SQL Server </CreateAdventureWorks.sql>`_ 
 * If you want to test **MySql**, use this script : `AdventureWorks lightweight script for MySQL Server </CreateMySqlAdventureWorks.sql>`_   
 
-Add this code ::
+Add this code:
+
+.. code-block:: csharp
 
    // Sql Server provider, the "server" or "hub".
    SqlSyncProvider serverProvider = new SqlSyncProvider(
@@ -59,7 +64,9 @@ Add this code ::
    } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
-And here is the result you should have, after a few seconds::
+And here is the result you should have, after a few seconds:
+
+.. code-block:: csharp
 
    Synchronization done.
          Total changes  uploaded: 0
@@ -71,7 +78,9 @@ And here is the result you should have, after a few seconds::
 You're done !
 
 Now try to update a row in your client or server database, then hit enter again.   
-You should see something like that::
+You should see something like that:
+
+.. code-block:: csharp
 
    Synchronization done.
          Total changes  uploaded: 0

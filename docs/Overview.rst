@@ -20,6 +20,8 @@ Nuget packages
 Basically, **DMS** is working with *sync database providers*, that are available through nuget, from the **Visual Studio** interface:  
 
 .. image:: assets/Packages.png
+    :align: center
+    :alt: packages
 
 
 Obviously, you can add them through your command line, assuming you are developing with **Visual Studio Code**, **Rider** or even **Notepad** :)

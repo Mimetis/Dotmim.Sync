@@ -465,7 +465,7 @@ UseBulkOperations
 
 This option is only available when using ``SQL Server`` providers.  
 
-It allows you to use bulk operations from within `SQL Server` using **Table Value Parameters** as input to the stored procedures.
+It allows you to use bulk operations from within **SQL Server** using **Table Value Parameters** as input to the stored procedures.
 
 When using ``UseBulkOperations``, each table will have new stored procedures and one table value parameter:
 
@@ -504,7 +504,7 @@ You can also manually delete metadatas from both server or client, using the met
 DisableConstraintsOnApplyChanges
 -----------------------------------
 
-The `DisableConstraintsOnApplyChanges` will disable all constraint on your database, before the sync process is launched, and will be enabled after.   
+The ``DisableConstraintsOnApplyChanges`` will disable all constraint on your database, before the sync process is launched, and will be enabled after.   
 Use it if you're not sure of the table orders.
 
 

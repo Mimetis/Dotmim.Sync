@@ -129,7 +129,7 @@ namespace Dotmim.Sync.Sqlite
             // Affect options
             var builder = new SqliteConnectionStringBuilder(this.ConnectionString);
 
-            if (!builder.ForeignKeys.HasValue)
+            if (!builder.ForeignKeys.HasValue && this.Orchestrator != null)
             {
                 builder.ForeignKeys = !this.Orchestrator.Options.DisableConstraintsOnApplyChanges;
                 this.ConnectionString = builder.ToString();

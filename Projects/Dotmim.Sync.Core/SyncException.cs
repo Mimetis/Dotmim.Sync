@@ -355,6 +355,17 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
+    /// Occurs when we local orchestrator tries to update untracked rows, but no tracking table exists
+    /// </summary>
+    public class MissingTrackingTableException : Exception
+    {
+        const string message = "No tracking table for table {0}. Please Provision your database before calling this method";
+
+        public MissingTrackingTableException(string tableName) : base(string.Format(message, tableName)) { }
+    }
+
+
+    /// <summary>
     /// Occurs when we check database existence
     /// </summary>
     public class MissingDatabaseException : Exception

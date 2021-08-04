@@ -73,7 +73,8 @@ To explain how things work, we are starting from a really straightforward sync p
 
 We are going to see how to get useful information, from each stage involved during the sync processus, thanks to ``IProgress<T>`` and then we will go deeper with the notion of ``Interceptor<T>``.
 
-.. hint:: You will find this complete sample here : `Progression sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Progression>`_ 
+.. note:: You will find this complete sample here : `Progression sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Progression>`_ 
+
 
 IProgress\<T\>
 ^^^^^^^^^^^^^^^^
