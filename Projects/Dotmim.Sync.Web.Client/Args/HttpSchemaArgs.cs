@@ -55,13 +55,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http call is about to be made to get server schema
         /// </summary>
-        public static void OnHttpGettingSchemaRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingSchemaResponseArgs> action)
+        public static void OnHttpGettingSchemaRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingSchemaRequestArgs> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call is about to be made to get server schema
         /// </summary>
-        public static void OnHttpGettingSchemaRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingSchemaResponseArgs, Task> action)
+        public static void OnHttpGettingSchemaRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingSchemaRequestArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
@@ -75,7 +75,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static void OnHttpGettingSchemaResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingSchemaResponseArgs, Task> action)
             => orchestrator.SetInterceptor(action);
-
-
     }
 }
