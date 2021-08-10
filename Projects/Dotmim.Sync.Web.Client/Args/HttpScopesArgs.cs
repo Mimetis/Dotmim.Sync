@@ -62,13 +62,13 @@ namespace Dotmim.Sync
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when an http call to get scope is done
+        /// Intercept the provider when an http is about to be done to get server scope 
         /// </summary>
         public static void OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeRequestArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when an http is about to be done to get server scope 
+        /// Intercept the provider when an http call to get scope is done
         /// </summary>
         public static void OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeResponseArgs> action)
             => orchestrator.SetInterceptor(action);
