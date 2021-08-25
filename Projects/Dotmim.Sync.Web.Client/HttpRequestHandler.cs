@@ -74,8 +74,6 @@ namespace Dotmim.Sync.Web.Client
                 var hash = HashAlgorithm.SHA256.Create(data);
                 var hashString = Convert.ToBase64String(hash);
 
-                // get byte array content
-                var arrayContent = new ByteArrayContent(data);
 
                 string contentType = null;
                 // If Json, specify header
@@ -87,7 +85,7 @@ namespace Dotmim.Sync.Web.Client
 
                 //// Execute my OpenAsync in my policy context
                 response = await policy.ExecuteAsync(ct => this.SendAsync(client, requestUri.ToString(),
-                    sessionId.ToString(), scopeName, step, arrayContent, ser, converter, hashString, contentType,
+                    sessionId.ToString(), scopeName, step, data, ser, converter, hashString, contentType,
                     ct), cancellationToken, progress);
 
 
@@ -148,8 +146,11 @@ namespace Dotmim.Sync.Web.Client
 
         private async Task<HttpResponseMessage> SendAsync(HttpClient client, string requestUri,
             string sessionId, string scopeName, HttpStep step,
-            ByteArrayContent arrayContent, string ser, IConverter converter, string hashString, string contentType, CancellationToken cancellationToken)
+            byte[] data, string ser, IConverter converter, string hashString, string contentType, CancellationToken cancellationToken)
         {
+
+            // get byte array content
+            var arrayContent = new ByteArrayContent(data);
 
             // Create the request message
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri) { Content = arrayContent };
