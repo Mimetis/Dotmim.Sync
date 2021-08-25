@@ -250,7 +250,6 @@ namespace Dotmim.Sync.Web.Client
 
                     }
 
-                    await streamResponse.FlushAsync();
                 }
 
                 syncException.ReasonPhrase = response.ReasonPhrase;
