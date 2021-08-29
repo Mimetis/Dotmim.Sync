@@ -109,6 +109,14 @@ namespace Dotmim.Sync.Web.Server
                 if (sessionCache == null)
                     sessionCache = new SessionCache();
 
+                if (sessionCache.ClientBatchInfo != null 
+                    && sessionCache.ClientBatchInfo.SanitizedSchema != null && sessionCache.ClientBatchInfo.SanitizedSchema.Tables.Count == 0 
+                    && this.Schema != null && this.Schema.Tables.Count > 0)
+                    foreach (var table in this.Schema.Tables)
+                        DbSyncAdapter.CreateChangesTable(this.Schema.Tables[table.TableName, table.SchemaName], sessionCache.ClientBatchInfo.SanitizedSchema);
+
+
+
                 // action from user if available
                 action?.Invoke(this);
 

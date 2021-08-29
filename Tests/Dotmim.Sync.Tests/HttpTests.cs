@@ -1351,8 +1351,7 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
-                // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                orch.OnHttpSendingChangesRequest(x =>
+                this.WebServerOrchestrator.OnHttpSendingResponse(args =>
                 {
                     if (batchIndex == 1)
                     {

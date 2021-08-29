@@ -33,7 +33,6 @@ namespace Dotmim.Sync.Batch
         {
             this.InMemory = isInMemory;
 
-            
             // We need to create a change table set, containing table with columns not readonly
             foreach (var table in inSchema.Tables)
                 DbSyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
