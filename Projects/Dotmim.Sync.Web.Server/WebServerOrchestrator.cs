@@ -700,13 +700,13 @@ namespace Dotmim.Sync.Web.Server
                    await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache if not working in memory
-            if (!clientWorkInMemory)
-            {
-                sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
-                sessionCache.ServerBatchInfo = serverBatchInfo;
-                sessionCache.ServerChangesSelected = serverChangesSelected;
-                sessionCache.ClientChangesApplied = clientChangesApplied;
-            }
+            //if (!clientWorkInMemory)
+            //{
+            sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
+            sessionCache.ServerBatchInfo = serverBatchInfo;
+            sessionCache.ServerChangesSelected = serverChangesSelected;
+            sessionCache.ClientChangesApplied = clientChangesApplied;
+            //}
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
             var cleanFolder = this.Options.CleanFolder;
@@ -793,12 +793,6 @@ namespace Dotmim.Sync.Web.Server
                 ServerStep = HttpStep.GetMoreChanges,
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy
             };
-
-            if (serverBatchInfo != null)
-            {
-                Console.WriteLine($"batchIndexRequested: {batchIndexRequested}");
-                Console.WriteLine($"serverBatchInfo.BatchPartsInfo.Count : {serverBatchInfo.BatchPartsInfo.Count}");
-            }
 
             if (serverBatchInfo == null)
                 throw new Exception("serverBatchInfo is Null and should not be ....");
