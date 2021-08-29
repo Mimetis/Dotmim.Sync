@@ -95,7 +95,6 @@ namespace Dotmim.Sync.Web.Server
                 else
                     readableStream.Seek(0, SeekOrigin.Begin);
 
-
                 // Get schema and clients batch infos / summaries, from session
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
                 var sessionCache = httpContext.Session.Get<SessionCache>("session_cache");
@@ -107,7 +106,7 @@ namespace Dotmim.Sync.Web.Server
                 {
                     sessionCache = new SessionCache();
                     httpContext.Session.Set("session_cache", sessionCache);
-                    httpContext.Session.Set("session_id", sessionId);
+                    httpContext.Session.SetString("session_id", sessionId);
                 }
 
                 // if sessionCache is still null, then we are in a step where it should not be null.
@@ -116,10 +115,10 @@ namespace Dotmim.Sync.Web.Server
                     throw new HttpSessionLostException();
 
                 // check session id
-                var tempSessionId = httpContext.Session.Get<string>("session_Id");
+                var tempSessionId = httpContext.Session.GetString("session_id");
 
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
-                    throw new Exception($"Bad Session Id. Stored session id is {tempSessionId} and header session id is {sessionId}");
+                    throw new Exception($"Bad Session Id. Step:{step}. Stored sessionid:{tempSessionId}. Header sessionId:{sessionId}");
 
                 // Check if sanitized schema is still there
                 if (sessionCache.ClientBatchInfo != null
