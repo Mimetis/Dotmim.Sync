@@ -795,7 +795,7 @@ namespace Dotmim.Sync.Web.Server
             };
 
             // If nothing to do, just send back
-            if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo.Count == 0)
+            if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count == 0)
             {
                 if (this.ClientConverter != null && serverBatchInfo.InMemoryData != null && serverBatchInfo.InMemoryData.HasRows)
                     BeforeSerializeRows(serverBatchInfo.InMemoryData, this.ClientConverter);
