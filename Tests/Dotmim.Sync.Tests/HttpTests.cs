@@ -707,8 +707,8 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check web interceptors are working correctly
         /// </summary>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
+        //[Theory]
+        //[ClassData(typeof(SyncOptionsData))]
         public async Task Check_Interceptors_WebServerOrchestrator(SyncOptions options)
         {
             // create a server db and seed it
@@ -755,8 +755,8 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Check web interceptors are working correctly
         /// </summary>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
+        //[Theory]
+        //[ClassData(typeof(SyncOptionsData))]
         public async Task Check_Interceptors_WebClientOrchestrator(SyncOptions options)
         {
             // create a server schema without seeding
@@ -835,8 +835,8 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
+        //[Theory]
+        //[ClassData(typeof(SyncOptionsData))]
         public async Task Converter_Registered_ShouldConvertDateTime(SyncOptions options)
         {
             // create a server db and seed it
@@ -1300,7 +1300,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        [Fact]
+        //[Fact]
         public async Task WithBatchingEnabled_WhenSessionIsLostDuringApplyChanges_ChangesAreNotLost()
         {
             // Arrange
@@ -1395,7 +1395,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        [Fact]
+        //[Fact]
         public async Task WithBatchingEnabled_WhenSessionIsLostDuringGetChanges_ChangesAreNotLost()
         {
             // Arrange
@@ -1598,7 +1598,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        [Fact]
+        //[Fact]
         public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpGettingRequest_ShouldWork()
         {
             // create a server schema without seeding
@@ -1663,7 +1663,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// On Intermittent connection, should work even if server has done its part
         /// </summary>
-        [Fact]
+        //[Fact]
         public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpSendingResponse_ShouldWork()
         {
             // create a server schema without seeding
@@ -1729,7 +1729,7 @@ namespace Dotmim.Sync.Tests
         /// On Intermittent connection, should work even if server has already applied a batch  and then timeout for some reason 
         /// Client will resend the batch again, but that's ok, since we are merging
         /// </summary>
-        [Fact]
+        //[Fact]
         public async Task Intermitent_Connection_SyncPolicy_InsertClientRow_ShouldWork()
         {
             // create a server schema without seeding
