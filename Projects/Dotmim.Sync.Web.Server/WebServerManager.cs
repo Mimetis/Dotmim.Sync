@@ -54,7 +54,7 @@ namespace Dotmim.Sync.Web.Server
             try
             {
                 if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
-                    throw new HttpHeaderMissingExceptiopn("dotmim-sync-scope-name");
+                    throw new HttpHeaderMissingException("dotmim-sync-scope-name");
 
                 var orchestrator = this.GetOrchestrator(scopeName);
 
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Web.Server
         public WebServerOrchestrator GetOrchestrator(HttpContext context)
         {
             if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
-                throw new HttpHeaderMissingExceptiopn("dotmim-sync-scope-name");
+                throw new HttpHeaderMissingException("dotmim-sync-scope-name");
 
             return GetOrchestrator(scopeName);
         }
