@@ -96,6 +96,9 @@ namespace Dotmim.Sync.Web.Server
                 else
                     readableStream.Seek(0, SeekOrigin.Begin);
 
+                // load session
+                await httpContext.Session.LoadAsync(cancellationToken);
+
                 // Get schema and clients batch infos / summaries, from session
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
                 sessionCache = httpContext.Session.Get<SessionCache>("session_cache");
@@ -271,7 +274,7 @@ namespace Dotmim.Sync.Web.Server
                     else
                         sb.AppendLine("sessionCache ClientChangesApplied is not null");
 
-                    foreach(var key in httpContext.Session.Keys)
+                    foreach (var key in httpContext.Session.Keys)
                     {
                         sb.AppendLine($"Session key:{key}");
                         sb.AppendLine(httpContext.Session.GetString(key));
@@ -451,14 +454,14 @@ namespace Dotmim.Sync.Web.Server
             var clientChangesApplied = new DatabaseChangesApplied();
 
             // Save the server batch info object to cache if not working in memory
-            //if (!clientWorkInMemory)
-            //{
-            sessionCache.RemoteClientTimestamp = changes.RemoteClientTimestamp;
-            sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
-            sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
-            sessionCache.ClientChangesApplied = clientChangesApplied;
-            httpContext.Session.Set("session_cache", sessionCache);
-            //}
+            if (!clientWorkInMemory)
+            {
+                sessionCache.RemoteClientTimestamp = changes.RemoteClientTimestamp;
+                sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
+                sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
+                sessionCache.ClientChangesApplied = clientChangesApplied;
+                httpContext.Session.Set("session_cache", sessionCache);
+            }
 
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
@@ -656,14 +659,14 @@ namespace Dotmim.Sync.Web.Server
 
 
             // Save the server batch info object to cache if not working in memory
-            //if (!clientWorkInMemory)
-            //{
-            sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
+            if (!clientWorkInMemory)
+            {
+                sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
             sessionCache.ServerBatchInfo = serverBatchInfo;
             sessionCache.ServerChangesSelected = serverChangesSelected;
             sessionCache.ClientChangesApplied = clientChangesApplied;
             httpContext.Session.Set("session_cache", sessionCache);
-            //}
+            }
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
             var cleanFolder = this.Options.CleanFolder;
@@ -751,14 +754,14 @@ namespace Dotmim.Sync.Web.Server
                    await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache if not working in memory
-            //if (!clientWorkInMemory)
-            //{
-            sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
+            if (!clientWorkInMemory)
+            {
+                sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
             sessionCache.ServerBatchInfo = serverBatchInfo;
             sessionCache.ServerChangesSelected = serverChangesSelected;
             sessionCache.ClientChangesApplied = clientChangesApplied;
             httpContext.Session.Set("session_cache", sessionCache);
-            //}
+            }
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
             var cleanFolder = this.Options.CleanFolder;
