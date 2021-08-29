@@ -20,18 +20,15 @@ namespace Dotmim.Sync.Web.Server
         /// Default ctor. Using default options and schema
         /// </summary>
         /// <param name="provider"></param>
-        public WebServerOrchestrator(CoreProvider provider, SyncOptions options, WebServerOptions webServerOptions, SyncSetup setup, IMemoryCache cache = null, string scopeName = SyncOptions.DefaultScopeName)
+        public WebServerOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
             : base(provider, options, setup, scopeName)
         {
-            this.WebServerOptions = webServerOptions ?? throw new ArgumentNullException(nameof(webServerOptions));
-
-            this.Cache = cache ?? new MemoryCache(new MemoryCacheOptions());
+            this.WebServerOptions = webServerOptions ?? new WebServerOptions();
         }
-
-        /// <summary>
-        /// Gets the cache system used to cache schema and options
-        /// </summary>
-        public IMemoryCache Cache { get; }
+        public WebServerOrchestrator(CoreProvider provider, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
+            : this(provider, new SyncOptions(), new SyncSetup(tables), new WebServerOptions(), scopeName)
+        {
+        }
 
         /// <summary>
         /// Gets or Sets Web server options parameters
@@ -104,12 +101,12 @@ namespace Dotmim.Sync.Web.Server
                 else
                     readableStream.Seek(0, SeekOrigin.Begin);
 
-                // try get schema from cache
-                if (this.Cache.TryGetValue<SyncSet>(scopeName, out var cachedSchema))
-                    this.Schema = cachedSchema;
 
-                // try get session cache from current sessionId
-                if (!this.Cache.TryGetValue<SessionCache>(sessionId, out var sessionCache))
+                // Get schema and clients batch infos / summaries, from session
+                this.Schema = context.Session.Get<SyncSet>(scopeName);
+
+                var sessionCache = context.Session.Get<SessionCache>(sessionId);
+                if (sessionCache == null)
                     sessionCache = new SessionCache();
 
                 // action from user if available
@@ -212,11 +209,13 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
+                context.Session.Set(scopeName, this.Schema);
                 // Save schema to cache with a sliding expiration
-                this.Cache.Set(scopeName, this.Schema, this.WebServerOptions.GetServerCacheOptions());
+                //this.Cache.Set(scopeName, this.Schema, this.WebServerOptions.GetServerCacheOptions());
 
-                // Save session client to cache with a sliding expiration
-                this.Cache.Set(sessionId, sessionCache, this.WebServerOptions.GetClientCacheOptions());
+                context.Session.Set(sessionId, sessionCache);
+                //// Save session client to cache with a sliding expiration
+                //this.Cache.Set(sessionId, sessionCache, this.WebServerOptions.GetClientCacheOptions());
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
@@ -847,7 +846,6 @@ namespace Dotmim.Sync.Web.Server
                 return changesResponse;
             }
 
-            Debug.WriteLine($"SERVER. Index Requested:{batchIndexRequested}");
             // Get the batch part index requested
             var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
 

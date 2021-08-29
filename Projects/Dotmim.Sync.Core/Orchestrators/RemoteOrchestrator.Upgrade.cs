@@ -306,39 +306,10 @@ namespace Dotmim.Sync
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                await InternalCreateStoredProceduresAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Upgrade Update stored procedure
-                var existsUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
-                    DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                if (existsUpdateSP)
-                    await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                args = new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
+                args = new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
                 this.ReportProgress(context, progress, args, connection, transaction);
-
-                // Upgrade Bulk Update stored procedure
-                if (this.Provider.SupportBulkOperations)
-                {
-                    var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
-                        DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    if (existsBulkUpdateSP)
-                        await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    args = new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                    this.ReportProgress(context, progress, args, connection, transaction);
-
-                    var existsBulkDeleteSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
-                        DbStoredProcedureType.BulkDeleteRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    if (existsBulkDeleteSP)
-                        await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkDeleteRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkDeleteRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    args = new UpgradeProgressArgs(context, $"Bulk Delete stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                    this.ReportProgress(context, progress, args, connection, transaction);
-                }
-
             }
 
             return newVersion;

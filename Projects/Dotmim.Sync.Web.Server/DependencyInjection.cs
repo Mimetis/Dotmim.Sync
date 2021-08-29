@@ -42,20 +42,19 @@ namespace Microsoft.Extensions.DependencyInjection
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
             serviceCollection.AddMemoryCache();
-            
+
             // Get all registered server providers with schema and options
             var webServerManager = serviceProvider.GetService<WebServerManager>();
 
             // On first time, inject the singleton in the service collection provider
             if (webServerManager == null)
             {
-                var cache = serviceProvider.GetService<IMemoryCache>();
 #if NET5_0 || NETCOREAPP3_1
-                            var env = serviceProvider.GetService<IWebHostEnvironment>();
+                var env = serviceProvider.GetService<IWebHostEnvironment>();
 #elif NETSTANDARD
                 var env = serviceProvider.GetService<IHostingEnvironment>();
 #endif
-                webServerManager = new WebServerManager(cache, env);
+                webServerManager = new WebServerManager(env);
                 serviceCollection.AddSingleton(webServerManager);
             }
 
@@ -68,7 +67,7 @@ namespace Microsoft.Extensions.DependencyInjection
             provider.ConnectionString = connectionString;
 
             // Create orchestrator
-            var webServerOrchestrator = new WebServerOrchestrator(provider, options, webServerOptions, setup, webServerManager.Cache, scopeName);
+            var webServerOrchestrator = new WebServerOrchestrator(provider, options, setup, webServerOptions, scopeName);
 
             // add it to the singleton collection
             webServerManager.Add(webServerOrchestrator);
@@ -101,13 +100,12 @@ namespace Microsoft.Extensions.DependencyInjection
             // On first time, inject the singleton in the service collection provider
             if (webServerManager == null)
             {
-                var cache = serviceProvider.GetService<IMemoryCache>();
 #if NET5_0 || NETCOREAPP3_1
                  var env = serviceProvider.GetService<IWebHostEnvironment>();
 #elif NETSTANDARD
                 var env = serviceProvider.GetService<IHostingEnvironment>();
 #endif
-                webServerManager = new WebServerManager(cache, env);
+                webServerManager = new WebServerManager(env);
                 serviceCollection.AddSingleton(webServerManager);
             }
 
@@ -120,7 +118,7 @@ namespace Microsoft.Extensions.DependencyInjection
             provider.ConnectionString = connectionString;
 
             // Create orchestrator
-            var webServerOrchestrator = new WebServerOrchestrator(provider, options, webServerOptions, setup, webServerManager.Cache, scopeName);
+            var webServerOrchestrator = new WebServerOrchestrator(provider, options, setup, webServerOptions, scopeName);
 
             // add it to the singleton collection
             webServerManager.Add(webServerOrchestrator);
@@ -139,13 +137,12 @@ namespace Microsoft.Extensions.DependencyInjection
 
             if (webServerManager == null)
             {
-                var cache = serviceProvider.GetService<IMemoryCache>();
 #if NET5_0 || NETCOREAPP3_1
                 var env = serviceProvider.GetService<IWebHostEnvironment>();
 #elif NETSTANDARD
                 var env = serviceProvider.GetService<IHostingEnvironment>();
 #endif
-                webServerManager = new WebServerManager(cache, env);
+                webServerManager = new WebServerManager(env);
                 serviceCollection.AddSingleton(webServerManager);
             }
 

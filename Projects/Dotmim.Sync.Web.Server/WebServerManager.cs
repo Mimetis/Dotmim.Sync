@@ -22,27 +22,16 @@ namespace Dotmim.Sync.Web.Server
     public class WebServerManager : ICollection<WebServerOrchestrator>, IList<WebServerOrchestrator>
     {
         private List<WebServerOrchestrator> innerCollection = new List<WebServerOrchestrator>();
-        public IMemoryCache Cache { get; }
-
 
 
         public string Hint { get; set; }
 
 #if NET5_0 || NETCOREAPP3_1
-
         public IWebHostEnvironment Environment { get; }
-        public WebServerManager(IMemoryCache cache, IWebHostEnvironment env)
-        {
-            this.Cache = cache;
-            this.Environment = env;
-        }
+        public WebServerManager(IWebHostEnvironment env) => this.Environment = env;
 #elif NETSTANDARD
         public IHostingEnvironment Environment { get; }
-        public WebServerManager(IMemoryCache cache, IHostingEnvironment env)
-        {
-            this.Cache = cache;
-            this.Environment = env;
-        }
+        public WebServerManager(IHostingEnvironment env) => this.Environment = env;
 #endif
 
 
