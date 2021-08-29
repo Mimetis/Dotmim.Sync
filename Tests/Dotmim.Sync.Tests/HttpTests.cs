@@ -747,6 +747,9 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
+
+            this.WebServerOrchestrator.OnHttpGettingRequest(null);
+            this.WebServerOrchestrator.OnHttpSendingResponse(null);
         }
 
         /// <summary>
@@ -890,6 +893,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
+
+            this.WebServerOrchestrator.OnHttpSendingChanges(null);
         }
 
 
@@ -1365,6 +1370,8 @@ namespace Dotmim.Sync.Tests
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
 
+                this.WebServerOrchestrator.OnHttpSendingResponse(null);
+
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
@@ -1467,6 +1474,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(ex); //"exception required!"
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
+                this.WebServerOrchestrator.OnHttpSendingResponse(null);
 
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
@@ -1648,6 +1656,7 @@ namespace Dotmim.Sync.Tests
                 interrupted.Clear();
             }
 
+            this.WebServerOrchestrator.OnHttpGettingRequest(null);
 
         }
 
@@ -1688,7 +1697,6 @@ namespace Dotmim.Sync.Tests
 
             });
 
-
             SyncOptions options = new SyncOptions { BatchSize = 10 };
 
             // Execute a sync on all clients to initialize client and server schema 
@@ -1713,7 +1721,7 @@ namespace Dotmim.Sync.Tests
                 interrupted.Clear();
             }
 
-
+            this.WebServerOrchestrator.OnHttpSendingResponse(null);
         }
 
 
@@ -1793,6 +1801,8 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
                 var s = await agent.SynchronizeAsync();
+
+                this.WebServerOrchestrator.OnHttpSendingResponse(null);
 
                 Assert.Equal(download, s.TotalChangesDownloaded);
                 Assert.Equal(1000, s.TotalChangesUploaded);
