@@ -35,7 +35,6 @@ namespace Dotmim.Sync.Tests
                 .UseUrls("http://127.0.0.1:0/")
                 .ConfigureServices(services =>
                 {
-                    services.AddMemoryCache();
                     services.AddDistributedMemoryCache();
                     services.AddSession(options =>
                     {
@@ -60,8 +59,8 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
             {
-                var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
-                await webServerManager.HandleRequestAsync(context);
+                var webServerOrchestrator = context.RequestServices.GetService(typeof(WebServerOrchestrator)) as WebServerOrchestrator;
+                await webServerOrchestrator.HandleRequestAsync(context);
             });
 
                 

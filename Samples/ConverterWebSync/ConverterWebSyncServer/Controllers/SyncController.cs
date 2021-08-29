@@ -12,24 +12,24 @@ namespace ConverterWebSyncServer.Controllers
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        // The WebServerManager instance is useful to manage all the Web server orchestrators register in the Startup.cs
-        private WebServerManager webServerManager;
+        public WebServerOrchestrator WebServerOrchestrator { get; }
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerManager webServerManager) => this.webServerManager = webServerManager;
+        public SyncController(WebServerOrchestrator webServerOrchestrator) => this.WebServerOrchestrator = webServerOrchestrator;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
         /// </summary>
         /// <returns></returns>
         [HttpPost]
-        public async Task Post() => await webServerManager.HandleRequestAsync(this.HttpContext);
+        public Task Post() => WebServerOrchestrator.HandleRequestAsync(this.HttpContext);
 
         /// <summary>
         /// This GET handler is optional. It allows you to see the configuration hosted on the server
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public async Task Get() => await webServerManager.HandleRequestAsync(this.HttpContext);
+        public Task Get() => WebServerManager.WriteHelloAsync(this.HttpContext, WebServerOrchestrator);
+
     }
 }

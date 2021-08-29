@@ -19,147 +19,12 @@ namespace Dotmim.Sync.Web.Server
     /// <summary>
     /// Contains all providers registered on the server side
     /// </summary>
-    public class WebServerManager : ICollection<WebServerOrchestrator>, IList<WebServerOrchestrator>
+    public class WebServerManager 
     {
-        private List<WebServerOrchestrator> innerCollection = new List<WebServerOrchestrator>();
+        public static Task WriteHelloAsync(HttpContext context, WebServerOrchestrator orchestrator, CancellationToken cancellationToken = default)
+            => WriteHelloAsync(context, new[] { orchestrator }, cancellationToken);
 
-
-        public string Hint { get; set; }
-
-#if NET5_0 || NETCOREAPP3_1
-        public IWebHostEnvironment Environment { get; }
-        public WebServerManager(IWebHostEnvironment env) => this.Environment = env;
-#elif NETSTANDARD
-        public IHostingEnvironment Environment { get; }
-        public WebServerManager(IHostingEnvironment env) => this.Environment = env;
-#endif
-
-
-
-
-        /// <summary>
-        /// Habdle request
-        /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (context.Request.Method.ToLowerInvariant() == "get")
-            {
-                if (this.Environment != null && this.Environment.IsDevelopment())
-                    await this.WriteHelloAsync(context, cancellationToken);
-                else
-                    await context.Response.WriteAsync("<div>Server is configured to Production mode. No options displayed.</div>", cancellationToken);
-                return;
-            }
-
-            try
-            {
-                if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
-                    throw new HttpHeaderMissingException("dotmim-sync-scope-name");
-
-                var orchestrator = this.GetOrchestrator(scopeName);
-
-                await orchestrator.HandleRequestAsync(context, cancellationToken, progress).ConfigureAwait(false);
-
-            }
-            catch (Exception ex)
-            {
-                await WriteExceptionAsync(context.Response, ex);
-            }
-
-        }
-
-
-
-        /// <summary>
-        /// Add a new WebServerOrchestrator to the collection of WebServerOrchestrator
-        /// </summary>
-        public void Add(WebServerOrchestrator wsp)
-        {
-            if (innerCollection.Any(st => st.ScopeName == wsp.ScopeName))
-                throw new Exception($"Scope {wsp.ScopeName} already exists in the collection");
-
-            innerCollection.Add(wsp);
-        }
-
-
-        /// <summary>
-        /// Get a WebServerOrchestrator by its scope name
-        /// </summary>
-        public WebServerOrchestrator this[string scopeName]
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(scopeName))
-                    throw new ArgumentNullException("scopeName");
-
-                var wsp = innerCollection.FirstOrDefault(c => c.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
-
-                if (wsp == null)
-                    throw new ArgumentNullException($"Scope name {scopeName} does not exists");
-
-                return wsp;
-            }
-        }
-
-        /// <summary>
-        /// Get a WebServerOrchestrator by its scope name
-        /// </summary>
-        public WebServerOrchestrator GetOrchestrator(string scopeName)
-        {
-            if (string.IsNullOrEmpty(scopeName))
-                throw new ArgumentNullException("scopeName");
-
-            var orchestrator = innerCollection.FirstOrDefault(c => c.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
-
-            if (orchestrator == null)
-                throw new HttpScopeNameInvalidException(scopeName);
-
-            return orchestrator;
-        }
-
-        /// <summary>
-        /// Get a WebServerOrchestrator using http context to determine the scope name
-        /// </summary>
-        public WebServerOrchestrator GetOrchestrator(HttpContext context)
-        {
-            if (!WebServerOrchestrator.TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
-                throw new HttpHeaderMissingException("dotmim-sync-scope-name");
-
-            return GetOrchestrator(scopeName);
-        }
-
-
-
-        /// <summary>
-        /// Write exception to output message
-        /// </summary>
-        public static async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
-        {
-            // Check if it's an unknown error, not managed (yet)
-            if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex);
-
-            var webException = new WebSyncException
-            {
-                Message = syncException.Message,
-                SyncStage = syncException.SyncStage,
-                TypeName = syncException.TypeName,
-                DataSource = syncException.DataSource,
-                InitialCatalog = syncException.InitialCatalog,
-                Number = syncException.Number,
-                Side = syncException.Side
-            };
-
-            var webXMessage = JsonConvert.SerializeObject(webException);
-
-            httpResponse.Headers.Add("dotmim-sync-error", syncException.TypeName);
-            httpResponse.StatusCode = StatusCodes.Status400BadRequest;
-            httpResponse.ContentLength = webXMessage.Length;
-            await httpResponse.WriteAsync(webXMessage);
-        }
-
-
-        public async Task WriteHelloAsync(HttpContext context, CancellationToken cancellationToken)
+        public static async Task WriteHelloAsync(HttpContext context, IEnumerable<WebServerOrchestrator> orchestrators, CancellationToken cancellationToken = default)
         {
             var httpResponse = context.Response;
             var stringBuilder = new StringBuilder();
@@ -180,7 +45,7 @@ namespace Dotmim.Sync.Web.Server
             stringBuilder.AppendLine("<div class='container'>");
             stringBuilder.AppendLine("<h2>Web Server properties</h2>");
 
-            foreach (var webOrchestrator in this)
+            foreach (var webOrchestrator in orchestrators)
             {
 
                 string dbName = null;
@@ -285,23 +150,6 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-
-        public void Clear() => this.innerCollection.Clear();
-        public WebServerOrchestrator this[int index] => innerCollection[index];
-        public int Count => innerCollection.Count;
-        public bool IsReadOnly => false;
-        WebServerOrchestrator IList<WebServerOrchestrator>.this[int index] { get => this.innerCollection[index]; set => this.innerCollection[index] = value; }
-        public bool Remove(WebServerOrchestrator item) => innerCollection.Remove(item);
-        public bool Contains(WebServerOrchestrator item) => innerCollection.Any(st => st.ScopeName.Equals(item.ScopeName, SyncGlobalization.DataSourceStringComparison));
-        public bool Contains(string scopeName) => innerCollection.Any(st => st.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
-        public void CopyTo(WebServerOrchestrator[] array, int arrayIndex) => innerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(WebServerOrchestrator item) => innerCollection.IndexOf(item);
-        public void RemoveAt(int index) => innerCollection.RemoveAt(index);
-        public override string ToString() => this.innerCollection.Count.ToString();
-        public void Insert(int index, WebServerOrchestrator item) => this.innerCollection.Insert(index, item);
-        public IEnumerator<WebServerOrchestrator> GetEnumerator() => innerCollection.GetEnumerator();
-        IEnumerator<WebServerOrchestrator> IEnumerable<WebServerOrchestrator>.GetEnumerator() => this.innerCollection.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => this.innerCollection.GetEnumerator();
 
     }
 }

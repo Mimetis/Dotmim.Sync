@@ -30,19 +30,14 @@ namespace HelloWebSyncServer
         {
             services.AddControllers();
 
-            // [Required]: Handling multiple sessions
-            services.AddMemoryCache();
             services.AddDistributedMemoryCache();
-            services.AddSession(options =>
-            {
-                options.IdleTimeout = TimeSpan.FromMinutes(30);
-            });
+            services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
             // [Required]: Get a connection string to your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
             // var connectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
-            var options = new SyncOptions {  };
+            var options = new SyncOptions { };
 
             // [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
@@ -50,7 +45,6 @@ namespace HelloWebSyncServer
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
             services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options);
-            //services.AddSyncServer<MySqlSyncProvider>(connectionString, tables);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

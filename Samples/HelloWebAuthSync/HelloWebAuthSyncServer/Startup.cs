@@ -37,8 +37,8 @@ namespace HelloWebSyncServer
         {
             services.AddControllers();
 
-            // [Required]: Handling multiple sessions
-            services.AddMemoryCache();
+            services.AddDistributedMemoryCache();
+            services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
             // Adding a default authentication system
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // => remove default claims
@@ -96,6 +96,7 @@ namespace HelloWebSyncServer
 
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseSession();
 
             app.UseEndpoints(endpoints =>
             {
