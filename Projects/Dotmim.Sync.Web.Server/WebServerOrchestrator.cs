@@ -101,7 +101,7 @@ namespace Dotmim.Sync.Web.Server
 
                 // Get schema and clients batch infos / summaries, from session
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
-                sessionCache = httpContext.Session.Get<SessionCache>("session_cache");
+                sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
 
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
@@ -109,7 +109,7 @@ namespace Dotmim.Sync.Web.Server
                 if (sessionCache == null && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes))
                 {
                     sessionCache = new SessionCache();
-                    httpContext.Session.Set("session_cache", sessionCache);
+                    httpContext.Session.Set(sessionId, sessionCache);
                     httpContext.Session.SetString("session_id", sessionId);
                 }
 
@@ -230,7 +230,7 @@ namespace Dotmim.Sync.Web.Server
                 }
 
                 httpContext.Session.Set(scopeName, schema);
-                httpContext.Session.Set("session_cache", sessionCache);
+                httpContext.Session.Set(sessionId, sessionCache);
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
@@ -460,7 +460,7 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
                 sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
                 sessionCache.ClientChangesApplied = clientChangesApplied;
-                httpContext.Session.Set("session_cache", sessionCache);
+                httpContext.Session.Set(sessionId, sessionCache);
             }
 
             // Get the firt response to send back to client
@@ -521,7 +521,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
             sessionCache.ServerChangesSelected = snap.DatabaseChangesSelected;
-            httpContext.Session.Set("session_cache", sessionCache);
+            httpContext.Session.Set(sessionId, sessionCache);
 
             return summaryResponse;
         }
@@ -561,7 +561,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
             sessionCache.ServerChangesSelected = snap.DatabaseChangesSelected;
-            httpContext.Session.Set("session_cache", sessionCache);
+            httpContext.Session.Set(sessionId, sessionCache);
 
             // if no snapshot, return empty response
             if (snap.ServerBatchInfo == null)
@@ -580,7 +580,7 @@ namespace Dotmim.Sync.Web.Server
 
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
-            httpContext.Session.Set("session_cache", sessionCache);
+            httpContext.Session.Set(sessionId, sessionCache);
 
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
@@ -621,7 +621,7 @@ namespace Dotmim.Sync.Web.Server
             if (sessionCache.ClientBatchInfo == null)
             {
                 sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, schema, this.Options.BatchDirectory);
-                httpContext.Session.Set("session_cache", sessionCache);
+                httpContext.Session.Set(sessionId, sessionCache);
             }
 
             // create the in memory changes set
@@ -639,7 +639,7 @@ namespace Dotmim.Sync.Web.Server
             // add changes to the batch info
             await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this.Options.SerializerFactory, this);
 
-            httpContext.Session.Set("session_cache", sessionCache);
+            httpContext.Session.Set(sessionId, sessionCache);
 
             // Clear the httpMessage set
             if (!clientWorkInMemory && httpMessage.Changes != null)
@@ -665,7 +665,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = serverBatchInfo;
             sessionCache.ServerChangesSelected = serverChangesSelected;
             sessionCache.ClientChangesApplied = clientChangesApplied;
-            httpContext.Session.Set("session_cache", sessionCache);
+            httpContext.Session.Set(sessionId, sessionCache);
             }
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
@@ -718,7 +718,7 @@ namespace Dotmim.Sync.Web.Server
             if (sessionCache.ClientBatchInfo == null)
             {
                 sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, schema, this.Options.BatchDirectory);
-                httpContext.Session.Set("session_cache", sessionCache);
+                httpContext.Session.Set(sessionId, sessionCache);
             }
 
             // create the in memory changes set
@@ -735,7 +735,7 @@ namespace Dotmim.Sync.Web.Server
 
             // add changes to the batch info
             await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this.Options.SerializerFactory, this);
-            httpContext.Session.Set("session_cache", sessionCache);
+            httpContext.Session.Set(sessionId, sessionCache);
 
             // Clear the httpMessage set
             if (!clientWorkInMemory && httpMessage.Changes != null)
@@ -760,7 +760,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = serverBatchInfo;
             sessionCache.ServerChangesSelected = serverChangesSelected;
             sessionCache.ClientChangesApplied = clientChangesApplied;
-            httpContext.Session.Set("session_cache", sessionCache);
+            httpContext.Session.Set(sessionId, sessionCache);
             }
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
