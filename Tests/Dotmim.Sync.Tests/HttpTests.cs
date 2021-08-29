@@ -1799,7 +1799,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server
-                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1050);
+                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1000, 1050);
                 Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
 
                 download += 1000;
