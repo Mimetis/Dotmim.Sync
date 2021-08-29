@@ -81,6 +81,7 @@ namespace Dotmim.Sync.Web.Server
             var step = (HttpStep)Convert.ToInt32(iStep);
             var readableStream = new MemoryStream();
 
+            SessionCache sessionCache = null;
             try
             {
                 // Copty stream to a readable and seekable stream
@@ -97,7 +98,7 @@ namespace Dotmim.Sync.Web.Server
 
                 // Get schema and clients batch infos / summaries, from session
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
-                var sessionCache = httpContext.Session.Get<SessionCache>("session_cache");
+                sessionCache = httpContext.Session.Get<SessionCache>("session_cache");
 
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
@@ -247,7 +248,38 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpRequest, httpResponse, ex);
+                var sb = new StringBuilder();
+
+                if (sessionCache == null)
+                {
+                    sb.AppendLine("sessionCache instance is null");
+                }
+                else
+                {
+                    if (sessionCache.ServerChangesSelected == null)
+                        sb.AppendLine($"sessionCache ServerChangesSelected is null");
+                    else
+                        sb.AppendLine("sessionCache ServerChangesSelected is not null");
+
+                    if (sessionCache.ClientBatchInfo == null)
+                        sb.AppendLine($"sessionCache ClientBatchInfo is null");
+                    else
+                        sb.AppendLine("sessionCache ClientBatchInfo is not null");
+
+                    if (sessionCache.ClientChangesApplied == null)
+                        sb.AppendLine($"sessionCache ClientChangesApplied is null");
+                    else
+                        sb.AppendLine("sessionCache ClientChangesApplied is not null");
+
+                    foreach(var key in httpContext.Session.Keys)
+                    {
+                        sb.AppendLine($"Session key:{key}");
+                        sb.AppendLine(httpContext.Session.GetString(key));
+                    }
+                }
+
+
+                await WriteExceptionAsync(httpRequest, httpResponse, ex, sb.ToString());
             }
             finally
             {
@@ -905,7 +937,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Write exception to output message
         /// </summary>
-        public async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception ex)
+        public async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception ex, string additionalInfo = null)
         {
             // Check if it's an unknown error, not managed (yet)
             if (!(ex is SyncException syncException))
@@ -924,6 +956,15 @@ namespace Dotmim.Sync.Web.Server
                 message.AppendLine(syncException.InnerException.Message);
                 message.AppendLine("-----------------------");
                 message.AppendLine(syncException.InnerException.StackTrace);
+                message.AppendLine("-----------------------");
+
+            }
+            if (!string.IsNullOrEmpty(additionalInfo))
+            {
+                message.AppendLine("-----------------------");
+                message.AppendLine("ADDITIONAL INFO");
+                message.AppendLine("-----------------------");
+                message.AppendLine(additionalInfo);
                 message.AppendLine("-----------------------");
 
             }
