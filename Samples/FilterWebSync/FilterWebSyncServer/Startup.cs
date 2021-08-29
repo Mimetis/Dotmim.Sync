@@ -31,7 +31,8 @@ namespace FilterWebSyncServer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
-            services.AddMemoryCache();
+            services.AddDistributedMemoryCache();
+            services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
@@ -125,6 +126,8 @@ namespace FilterWebSyncServer
             app.UseRouting();
 
             app.UseAuthorization();
+
+            app.UseSession();
 
             app.UseEndpoints(endpoints =>
             {

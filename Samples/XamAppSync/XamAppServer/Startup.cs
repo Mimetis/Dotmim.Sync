@@ -31,7 +31,8 @@ namespace XamAppServer
             services.AddControllers();
 
             // [Required]: Handling multiple sessions
-            services.AddMemoryCache();
+            services.AddDistributedMemoryCache();
+            services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
             // [Required]: Get a connection string to your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
@@ -46,8 +47,6 @@ namespace XamAppServer
             //// [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
-
-            //var tables = new string[] { "Customer" };
 
             var setup = new SyncSetup(tables);
 
@@ -69,6 +68,8 @@ namespace XamAppServer
             app.UseRouting();
 
             app.UseAuthorization();
+
+            app.UseSession();
 
             app.UseEndpoints(endpoints =>
             {

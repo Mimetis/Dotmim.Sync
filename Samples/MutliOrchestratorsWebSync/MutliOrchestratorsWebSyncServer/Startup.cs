@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Server;
@@ -16,14 +17,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace BatchsizeServer
+namespace MutliOrchestratorsWebSyncServer
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration)
-        {
-            Configuration = configuration;
-        }
+        public Startup(IConfiguration configuration) => Configuration = configuration;
 
         public IConfiguration Configuration { get; }
 
@@ -31,26 +29,23 @@ namespace BatchsizeServer
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+
             services.AddDistributedMemoryCache();
             services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
+            // [Required]: Get a connection string to your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
+            // var connectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
-            // Creating a setup instance
+            var options = new SyncOptions { };
+
+            // [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
-            var setup = new SyncSetup(tables)
-            {
-                StoredProceduresPrefix = "s",
-                StoredProceduresSuffix = "",
-                TrackingTablesPrefix = "t",
-                TrackingTablesSuffix = "",
-                TriggersPrefix = "",
-                TriggersSuffix = "t"
-            };
-
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup);
+            // [Required]: Add a SqlSyncProvider acting as the server hub.
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options);
+            services.AddSyncServer<MySqlSyncProvider>(connectionString, tables);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -256,11 +256,9 @@ internal class Program
         {
             try
             {
-                var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+                var webServerOrchestrator = context.RequestServices.GetService(typeof(WebServerOrchestrator)) as WebServerOrchestrator;
 
-                var webServerOrchestrator = webServerManager.GetOrchestrator(context);
-
-                await webServerManager.HandleRequestAsync(context);
+                await webServerOrchestrator.HandleRequestAsync(context);
 
             }
             catch (Exception ex)
@@ -530,12 +528,9 @@ internal class Program
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+            var webServerOrchestrator = context.RequestServices.GetService(typeof(WebServerOrchestrator)) as WebServerOrchestrator;
 
-            var webServerOrchestrator = webServerManager.GetOrchestrator(context);
-
-            await webServerManager.HandleRequestAsync(context);
-
+            await webServerOrchestrator.HandleRequestAsync(context);
         });
 
         using var server = new KestrellTestServer(configureServices);
@@ -1094,7 +1089,7 @@ internal class Program
 
         var serverHandler = new RequestDelegate(async context =>
         {
-            var webServerManager = context.RequestServices.GetService(typeof(WebServerManager)) as WebServerManager;
+            var webServerOrchestrator = context.RequestServices.GetService(typeof(WebServerOrchestrator)) as WebServerOrchestrator;
 
             var progress = new SynchronousProgress<ProgressArgs>(pa =>
             {
@@ -1102,8 +1097,8 @@ internal class Program
                 Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
                 Console.ResetColor();
             });
+            await webServerOrchestrator.HandleRequestAsync(context, default, progress);
 
-            await webServerManager.HandleRequestAsync(context, default, progress);
         });
 
 

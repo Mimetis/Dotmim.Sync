@@ -2,10 +2,8 @@
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -234,7 +232,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await WebServerManager.WriteExceptionAsync(httpResponse, ex);
+                await WriteExceptionAsync(httpResponse, ex);
             }
             finally
             {
@@ -897,6 +895,35 @@ namespace Dotmim.Sync.Web.Server
                 }
             }
 
+        }
+
+
+        /// <summary>
+        /// Write exception to output message
+        /// </summary>
+        public static async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
+        {
+            // Check if it's an unknown error, not managed (yet)
+            if (!(ex is SyncException syncException))
+                syncException = new SyncException(ex);
+
+            var webException = new WebSyncException
+            {
+                Message = syncException.Message,
+                SyncStage = syncException.SyncStage,
+                TypeName = syncException.TypeName,
+                DataSource = syncException.DataSource,
+                InitialCatalog = syncException.InitialCatalog,
+                Number = syncException.Number,
+                Side = syncException.Side
+            };
+
+            var webXMessage = JsonConvert.SerializeObject(webException);
+
+            httpResponse.Headers.Add("dotmim-sync-error", syncException.TypeName);
+            httpResponse.StatusCode = StatusCodes.Status400BadRequest;
+            httpResponse.ContentLength = webXMessage.Length;
+            await httpResponse.WriteAsync(webXMessage);
         }
 
     }
