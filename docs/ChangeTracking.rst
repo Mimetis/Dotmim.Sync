@@ -6,7 +6,7 @@ Change Tracking
 | Change tracking is supported since **SQL Server 2008** and is available from within **Azure Sql Database**.
 | If you need, for some reasons, to run your sync from an older version, you will have to fallback on the ``SqlSyncProvider``.
 
-.. hint:: If you need more information on this feature, the best place to start is here : `Track data changes with SQL Server <https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/track-data-changes-sql-server?view=sql-server-ver15#Tracking>`_ 
+.. note:: If you need more information on this feature, the best place to start is here : `Track data changes with SQL Server <https://docs.microsoft.com/en-us/sql/relational-databases/track-changes/track-data-changes-sql-server?view=sql-server-ver15#Tracking>`_ 
 
 | A new **Sql** sync provider which uses this **Change Tracking** feature is available with **DMS**:
 | This provider is called ``SqlSyncChangeTrackingProvider``.

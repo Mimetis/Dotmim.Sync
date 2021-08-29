@@ -294,9 +294,10 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
-            stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
-            stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
-            stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
+            stringBuilder.AppendLine($"[update_scope_id] = @sync_scope_id,");
+            stringBuilder.AppendLine($"[sync_row_is_tombstone] = 0,");
+            stringBuilder.AppendLine($"[timestamp] = {SqliteObjectNames.TimestampValue},");
+            stringBuilder.AppendLine($"[last_change_datetime] = datetime('now')");
             stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
             stringBuilder.AppendLine($" AND (select changes()) > 0;");
 

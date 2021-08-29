@@ -18,9 +18,12 @@ Here is the big picture of the components used in a simple synchronization, over
 
 .. image:: assets/Architecture01.png
   :align: center
+  :alt: Architecture
 
 
-If we take a close look to the `HelloSync <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/HelloSync>`_  sample::
+If we take a close look to the `HelloSync <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/HelloSync>`_  sample:
+
+.. code-block:: csharp
 
   var serverProvider = new MySqlSyncProvider(serverConnectionString);
   var clientProvider = new SqliteSyncProvider(clientConnectionString);
@@ -36,7 +39,9 @@ If we take a close look to the `HelloSync <https://github.com/Mimetis/Dotmim.Syn
 There is no mention of any ``Orchestrators`` here.   
 
 It's basically because the ``SyncAgent`` instance will create them under the hood, for simplicity.  
-We can rewrite this code, this way::
+We can rewrite this code, this way:
+
+.. code-block:: cs
 
   // Create 2 providers, one for MySql, one for Sqlite.
   var serverProvider = new MySqlSyncProvider(serverConnectionString);
@@ -75,6 +80,7 @@ And each client will have a sync agent, responsible of the sync process:
 
 .. image:: assets/Architecture02.png
    :align: center
+   :alt: architecture
 
 
 Sync over HTTP
@@ -91,6 +97,7 @@ Here is the big picture of this more advanced scenario:
 
 .. image:: assets/Architecture03.png
    :align: center
+   :alt: architecture
 
 
 You can read more on the web architecture and how to implement it, here: `Asp.net Core Web Api sync proxy <./Web.html>`_ 

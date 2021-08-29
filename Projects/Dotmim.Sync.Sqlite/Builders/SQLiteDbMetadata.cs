@@ -87,7 +87,8 @@ namespace Dotmim.Sync.Sqlite
 
         public override string GetStringFromOwnerDbType(object ownerType)
         {
-            return GetStringFromDbType((DbType)ownerType, 8000);
+            var dbType = ValidateDbType(ownerType.ToString(), true, true, 0);
+            return GetStringFromDbType(dbType, 8000);
         }
 
         public override bool IsNumericType(string typeName)
