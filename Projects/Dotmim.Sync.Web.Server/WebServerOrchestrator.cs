@@ -36,11 +36,6 @@ namespace Dotmim.Sync.Web.Server
         public WebServerOptions WebServerOptions { get; set; }
 
         /// <summary>
-        /// Schema database
-        /// </summary>
-        public SyncSet Schema { get; set; }
-
-        /// <summary>
         /// Gets or Sets the Client Converter
         /// </summary>
         public IConverter ClientConverter { get; private set; }
@@ -103,17 +98,17 @@ namespace Dotmim.Sync.Web.Server
 
 
                 // Get schema and clients batch infos / summaries, from session
-                this.Schema = context.Session.Get<SyncSet>(scopeName);
+                var schema = context.Session.Get<SyncSet>(scopeName);
 
                 var sessionCache = context.Session.Get<SessionCache>(sessionId);
                 if (sessionCache == null)
                     sessionCache = new SessionCache();
 
-                if (sessionCache.ClientBatchInfo != null 
-                    && sessionCache.ClientBatchInfo.SanitizedSchema != null && sessionCache.ClientBatchInfo.SanitizedSchema.Tables.Count == 0 
-                    && this.Schema != null && this.Schema.Tables.Count > 0)
-                    foreach (var table in this.Schema.Tables)
-                        DbSyncAdapter.CreateChangesTable(this.Schema.Tables[table.TableName, table.SchemaName], sessionCache.ClientBatchInfo.SanitizedSchema);
+                if (sessionCache.ClientBatchInfo != null
+                    && sessionCache.ClientBatchInfo.SanitizedSchema != null && sessionCache.ClientBatchInfo.SanitizedSchema.Tables.Count == 0
+                    && schema != null && schema.Tables.Count > 0)
+                    foreach (var table in schema.Tables)
+                        DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], sessionCache.ClientBatchInfo.SanitizedSchema);
 
 
 
@@ -217,13 +212,8 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
-                context.Session.Set(scopeName, this.Schema);
-                // Save schema to cache with a sliding expiration
-                //this.Cache.Set(scopeName, this.Schema, this.WebServerOptions.GetServerCacheOptions());
-
+                context.Session.Set(scopeName, schema);
                 context.Session.Set(sessionId, sessionCache);
-                //// Save session client to cache with a sliding expiration
-                //this.Cache.Set(sessionId, sessionCache, this.WebServerOptions.GetClientCacheOptions());
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
@@ -384,8 +374,9 @@ namespace Dotmim.Sync.Web.Server
             // Get schema
             var serverScopeInfo = await base.EnsureSchemaAsync(connection: default, default, cancellationToken, progress).ConfigureAwait(false);
 
-            this.Schema = serverScopeInfo.Schema;
-            this.Schema.EnsureSchema();
+            var schema = serverScopeInfo.Schema;
+            schema.EnsureSchema();
+            this.HttpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
 
             var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
 
@@ -463,19 +454,11 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             // TODO : check Snapshot with version and scopename
 
             // Check schema.
             // If client has stored the schema, the EnsureScope will not be called on server.
-            if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
-            {
-                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                this.Schema = serverScopeInfo.Schema;
-                this.Schema.EnsureSchema();
-
-            }
+            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // Get context from request message
             var ctx = httpMessage.SyncContext;
@@ -484,7 +467,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // get changes
-            var snap = await this.GetSnapshotAsync(this.Schema, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(schema, cancellationToken, progress).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(ctx)
             {
@@ -504,7 +487,21 @@ namespace Dotmim.Sync.Web.Server
             return summaryResponse;
         }
 
+        private async Task<SyncSet> EnsureSchemaAsync(string scopeName, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        {
+            var schema = this.HttpContext.Session.Get<SyncSet>(scopeName);
 
+            if (schema == null || !schema.HasTables || !schema.HasColumns)
+            {
+                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                schema = serverScopeInfo.Schema;
+                schema.EnsureSchema();
+                this.HttpContext.Session.Set(scopeName, schema);
+            }
+
+            return schema;
+        }
 
         internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -513,15 +510,8 @@ namespace Dotmim.Sync.Web.Server
             // TODO : check Snapshot with version and scopename
 
             // Check schema.
-            // If client has stored the schema, the EnsureScope will not be called on server.
-            if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
-            {
-                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
-                this.Schema = serverScopeInfo.Schema;
-                this.Schema.EnsureSchema();
-
-            }
 
             // Get context from request message
             var ctx = httpMessage.SyncContext;
@@ -530,7 +520,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // get changes
-            var snap = await this.GetSnapshotAsync(this.Schema, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(schema, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
@@ -581,15 +571,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Check schema.
-            // If client has stored the schema, the EnsureScope will not be called on server.
-            if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
-            {
-                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                this.Schema = serverScopeInfo.Schema;
-                this.Schema.EnsureSchema();
-
-            }
+            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
@@ -604,13 +586,13 @@ namespace Dotmim.Sync.Web.Server
             // Retrieve batchinfo instance if exists
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
-                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
+                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, schema, this.Options.BatchDirectory);
 
             // create the in memory changes set
             var changesSet = new SyncSet();
 
             foreach (var table in httpMessage.Changes.Tables)
-                DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
+                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             changesSet.ImportContainerSet(httpMessage.Changes, false);
 
@@ -684,15 +666,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Check schema.
-            // If client has stored the schema, the EnsureScope will not be called on server.
-            if (this.Schema == null || !this.Schema.HasTables || !this.Schema.HasColumns)
-            {
-                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                this.Schema = serverScopeInfo.Schema;
-                this.Schema.EnsureSchema();
-
-            }
+            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
@@ -707,13 +681,13 @@ namespace Dotmim.Sync.Web.Server
             // Retrieve batchinfo instance if exists
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
-                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, Schema, this.Options.BatchDirectory);
+                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, schema, this.Options.BatchDirectory);
 
             // create the in memory changes set
             var changesSet = new SyncSet();
 
             foreach (var table in httpMessage.Changes.Tables)
-                DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
+                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             changesSet.ImportContainerSet(httpMessage.Changes, false);
 
@@ -830,6 +804,8 @@ namespace Dotmim.Sync.Web.Server
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
+            var schema = await EnsureSchemaAsync(context.ScopeName, default, default).ConfigureAwait(false);
+
             // 1) Create the http message content response
             var changesResponse = new HttpMessageSendChangesResponse(context)
             {
@@ -862,8 +838,8 @@ namespace Dotmim.Sync.Web.Server
             // create the in memory changes set
             var changesSet = new SyncSet();
 
-            foreach (var table in Schema.Tables)
-                DbSyncAdapter.CreateChangesTable(Schema.Tables[table.TableName, table.SchemaName], changesSet);
+            foreach (var table in schema.Tables)
+                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
 
             // Backward compatibility for client < v0.8.0
             var serializerFactory = this.Options.SerializerFactory;
