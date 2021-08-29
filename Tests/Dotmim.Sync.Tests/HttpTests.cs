@@ -1350,18 +1350,14 @@ namespace Dotmim.Sync.Tests
 
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
+
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
                 orch.OnHttpSendingChangesRequest(x =>
                 {
                     if (batchIndex == 1)
                     {
-                        var sessionId = x.Request.SyncContext.SessionId.ToString();
-
-                        if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
-                            Assert.True(false, "sessionid was wrong. please fix this test!!");
-
                         // simulate a session loss (e.g. IIS application pool recycle)
-                        this.WebServerOrchestrator.Cache.Remove(sessionId);
+                        this.WebServerOrchestrator.HttpContext.Session.Clear();
                     }
 
                     batchIndex++;
@@ -1452,13 +1448,8 @@ namespace Dotmim.Sync.Tests
                 {
                     if (batchIndex == 1)
                     {
-                        var sessionId = x.Context.SessionId.ToString();
-
-                        if (!this.WebServerOrchestrator.Cache.TryGetValue(sessionId, out var _))
-                            Assert.True(false, "sessionid was wrong. please fix this test!!");
-
                         // simulate a session loss (e.g. IIS application pool recycle)
-                        this.WebServerOrchestrator.Cache.Remove(sessionId);
+                        this.WebServerOrchestrator.HttpContext.Session.Clear();
                     }
 
                     batchIndex++;

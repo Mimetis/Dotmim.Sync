@@ -45,10 +45,10 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public IConverter ClientConverter { get; private set; }
 
-        ///// <summary>
-        ///// Gets the current Http Context
-        ///// </summary>
-        //public HttpContext HttpContext { get; private set; }
+        /// <summary>
+        /// Gets the current Http Context
+        /// </summary>
+        public HttpContext HttpContext { get; private set; }
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
@@ -61,7 +61,7 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public async Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            //this.HttpContext = context;
+            this.HttpContext = context;
             var httpRequest = context.Request;
             var httpResponse = context.Response;
             var serAndsizeString = string.Empty;
@@ -76,13 +76,13 @@ namespace Dotmim.Sync.Web.Server
                 cliConverterKey = cs.ToLowerInvariant();
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
-                throw new HttpHeaderMissingExceptiopn("dotmim-sync-session-id");
+                throw new HttpHeaderMissingException("dotmim-sync-session-id");
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
-                throw new HttpHeaderMissingExceptiopn("dotmim-sync-scope-name");
+                throw new HttpHeaderMissingException("dotmim-sync-scope-name");
 
             if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-step", out string iStep))
-                throw new HttpHeaderMissingExceptiopn("dotmim-sync-step");
+                throw new HttpHeaderMissingException("dotmim-sync-step");
 
             var step = (HttpStep)Convert.ToInt32(iStep);
             var readableStream = new MemoryStream();
