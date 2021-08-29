@@ -38,10 +38,10 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public IConverter ClientConverter { get; private set; }
 
-        /// <summary>
-        /// Gets the current Http Context
-        /// </summary>
-        public HttpContext HttpContext { get; private set; }
+        ///// <summary>
+        ///// Gets the current Http Context
+        ///// </summary>
+        //public HttpContext HttpContext { get; private set; }
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
@@ -52,29 +52,28 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext context, Action<RemoteOrchestrator> action, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        public async Task HandleRequestAsync(HttpContext httpContext, Action<RemoteOrchestrator> action, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            this.HttpContext = context;
-            var httpRequest = context.Request;
-            var httpResponse = context.Response;
+            var httpRequest = httpContext.Request;
+            var httpResponse = httpContext.Response;
             var serAndsizeString = string.Empty;
             var cliConverterKey = string.Empty;
 
             // Get the serialization and batch size format
-            if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-serialization-format", out var vs))
+            if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-serialization-format", out var vs))
                 serAndsizeString = vs.ToLowerInvariant();
 
             // Get the serialization and batch size format
-            if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-converter", out var cs))
+            if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-converter", out var cs))
                 cliConverterKey = cs.ToLowerInvariant();
 
-            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-session-id", out var sessionId))
+            if (!TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new HttpHeaderMissingException("dotmim-sync-session-id");
 
-            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
+            if (!TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
                 throw new HttpHeaderMissingException("dotmim-sync-scope-name");
 
-            if (!TryGetHeaderValue(context.Request.Headers, "dotmim-sync-step", out string iStep))
+            if (!TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out string iStep))
                 throw new HttpHeaderMissingException("dotmim-sync-step");
 
             var step = (HttpStep)Convert.ToInt32(iStep);
@@ -89,16 +88,16 @@ namespace Dotmim.Sync.Web.Server
                 httpRequest.Body.Dispose();
 
                 // if Hash is present in header, check hash
-                if (TryGetHeaderValue(context.Request.Headers, "dotmim-sync-hash", out string hashStringRequest))
+                if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-hash", out string hashStringRequest))
                     HashAlgorithm.SHA256.EnsureHash(readableStream, hashStringRequest);
                 else
                     readableStream.Seek(0, SeekOrigin.Begin);
 
 
                 // Get schema and clients batch infos / summaries, from session
-                var schema = context.Session.Get<SyncSet>(scopeName);
+                var schema = httpContext.Session.Get<SyncSet>(scopeName);
 
-                var sessionCache = context.Session.Get<SessionCache>(sessionId);
+                var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
                 if (sessionCache == null)
                     sessionCache = new SessionCache();
 
@@ -128,90 +127,90 @@ namespace Dotmim.Sync.Web.Server
                 {
                     case HttpStep.EnsureScopes:
                         var m1 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m1.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        var s1 = await this.EnsureScopesAsync(m1, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m1.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s1 = await this.EnsureScopesAsync(httpContext, m1, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
                         break;
                     case HttpStep.EnsureSchema:
                         var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m11.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        var s11 = await this.EnsureSchemaAsync(m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m11.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s11 = await this.EnsureSchemaAsync(httpContext, m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
                         break;
 
                     // version < 0.8    
                     case HttpStep.SendChanges:
                         var m2 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m2.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m2, context.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
-                        var s2 = await this.ApplyThenGetChangesAsync(m2, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
-                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s2, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m2.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m2, httpContext.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
+                        var s2 = await this.ApplyThenGetChangesAsync(httpContext, m2, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s2, httpContext.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s2);
                         break;
 
                     // version >= 0.8    
                     case HttpStep.SendChangesInProgress:
                         var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m22.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m22, context.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
-                        var s22 = await this.ApplyThenGetChangesAsync2(m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
+                        var s22 = await this.ApplyThenGetChangesAsync2(httpContext, m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
                         //await this.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s22);
                         break;
 
                     case HttpStep.GetChanges:
                         var m3 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m3.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m3, context.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
-                        var s3 = await this.GetChangesAsync(m3, sessionCache, clientBatchSize, cancellationToken, progress);
-                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s3, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m3.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m3, httpContext.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
+                        var s3 = await this.GetChangesAsync(httpContext, m3, sessionCache, clientBatchSize, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s3, httpContext.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s3);
                         break;
 
                     case HttpStep.GetMoreChanges:
                         var m4 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m4.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        var s4 = await this.GetMoreChangesAsync(m4, sessionCache, cancellationToken, progress);
-                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s4, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m4.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s4 = await this.GetMoreChangesAsync(httpContext, m4, sessionCache, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s4, httpContext.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s4);
                         break;
 
                     case HttpStep.GetSnapshot:
                         var m5 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m5.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        var s5 = await this.GetSnapshotAsync(m5, sessionCache, cancellationToken, progress);
-                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s5, context.Request.Host.Host, sessionCache, true), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m5.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s5 = await this.GetSnapshotAsync(httpContext, m5, sessionCache, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s5, httpContext.Request.Host.Host, sessionCache, true), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s5);
                         break;
 
                     // version >= 0.8    
                     case HttpStep.GetSummary:
                         var m55 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m55.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        var s55 = await this.GetSnapshotSummaryAsync(m55, sessionCache, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m55.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s55 = await this.GetSnapshotSummaryAsync(httpContext, m55, sessionCache, cancellationToken, progress);
                         //await this.InterceptAsync(new HttpSendingServerChangesArgs(s5.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, true), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s55);
 
                         break;
                     case HttpStep.SendEndDownloadChanges:
                         var m56 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m56.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        var s56 = await this.SendEndDownloadChangesAsync(m56, sessionCache, cancellationToken, progress);
-                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s56, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m56.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s56 = await this.SendEndDownloadChangesAsync(httpContext, m56, sessionCache, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s56, httpContext.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s56);
                         break;
 
                     case HttpStep.GetEstimatedChangesCount:
                         var m6 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(context, m6.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        var s6 = await this.GetEstimatedChangesCountAsync(m6, cancellationToken, progress);
-                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s6, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m6.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
+                        var s6 = await this.GetEstimatedChangesCountAsync(httpContext, m6, cancellationToken, progress);
+                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s6, httpContext.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s6);
                         break;
                 }
 
-                context.Session.Set(scopeName, schema);
-                context.Session.Set(sessionId, sessionCache);
+                httpContext.Session.Set(scopeName, schema);
+                httpContext.Session.Set(sessionId, sessionCache);
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
@@ -226,7 +225,7 @@ namespace Dotmim.Sync.Web.Server
                 // data to send back, as the response
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
 
-                await this.InterceptAsync(new HttpSendingResponseArgs(context, this.GetContext(), sessionCache, data, step), cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new HttpSendingResponseArgs(httpContext, this.GetContext(), sessionCache, data, step), cancellationToken).ConfigureAwait(false);
 
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
             }
@@ -327,7 +326,7 @@ namespace Dotmim.Sync.Web.Server
 
 
 
-        internal async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
+        internal async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
                                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -353,7 +352,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        internal async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
+        internal async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -374,7 +373,7 @@ namespace Dotmim.Sync.Web.Server
 
             var schema = serverScopeInfo.Schema;
             schema.EnsureSchema();
-            this.HttpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
+            httpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
 
             var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
 
@@ -384,7 +383,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        internal async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -417,12 +416,12 @@ namespace Dotmim.Sync.Web.Server
             }
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
+            return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
 
 
         }
 
-        internal async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpMessageSendChangesRequest httpMessage,
+        internal async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -449,14 +448,14 @@ namespace Dotmim.Sync.Web.Server
         }
 
 
-        internal async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // TODO : check Snapshot with version and scopename
 
             // Check schema.
             // If client has stored the schema, the EnsureScope will not be called on server.
-            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
+            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // Get context from request message
             var ctx = httpMessage.SyncContext;
@@ -485,9 +484,9 @@ namespace Dotmim.Sync.Web.Server
             return summaryResponse;
         }
 
-        private async Task<SyncSet> EnsureSchemaAsync(string scopeName, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        private async Task<SyncSet> EnsureSchemaAsync(HttpContext httpContext, string scopeName, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
-            var schema = this.HttpContext.Session.Get<SyncSet>(scopeName);
+            var schema = httpContext.Session.Get<SyncSet>(scopeName);
 
             if (schema == null || !schema.HasTables || !schema.HasColumns)
             {
@@ -495,20 +494,20 @@ namespace Dotmim.Sync.Web.Server
 
                 schema = serverScopeInfo.Schema;
                 schema.EnsureSchema();
-                this.HttpContext.Session.Set(scopeName, schema);
+                httpContext.Session.Set(scopeName, schema);
             }
 
             return schema;
         }
 
-        internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // TODO : check Snapshot with version and scopename
 
             // Check schema.
-            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
+            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
 
             // Get context from request message
@@ -544,13 +543,13 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
+            return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
         }
 
         /// <summary>
         /// Get changes from 
         /// </summary>
-        internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -569,7 +568,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Check schema.
-            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
+            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
@@ -638,14 +637,14 @@ namespace Dotmim.Sync.Web.Server
 
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(ctx, remoteClientTimestamp, serverBatchInfo, clientChangesApplied, serverChangesSelected, 0);
+            return await GetChangesResponseAsync(httpContext, ctx, remoteClientTimestamp, serverBatchInfo, clientChangesApplied, serverChangesSelected, 0);
 
         }
 
         /// <summary>
         /// Get changes from 
         /// </summary>
-        internal async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -664,7 +663,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Check schema.
-            var schema = await EnsureSchemaAsync(httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
+            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
@@ -756,13 +755,13 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// This method is only used when batch mode is enabled on server and we need to send back mor BatchPartInfo 
         /// </summary>
-        internal Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpMessageGetMoreChangesRequest httpMessage,
+        internal Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (sessionCache.ServerBatchInfo == null)
                 throw new HttpSessionLostException();
 
-            return GetChangesResponseAsync(httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
+            return GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
         }
@@ -770,7 +769,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// This method is only used when batch mode is enabled on server and we need send to the server the order to delete tmp folder 
         /// </summary>
-        internal async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpMessageGetMoreChangesRequest httpMessage,
+        internal async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (sessionCache.ServerBatchInfo == null)
@@ -798,14 +797,14 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
-        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
+        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
-            var schema = await EnsureSchemaAsync(context.ScopeName, default, default).ConfigureAwait(false);
+            var schema = await EnsureSchemaAsync(httpContext, syncContext.ScopeName, default, default).ConfigureAwait(false);
 
             // 1) Create the http message content response
-            var changesResponse = new HttpMessageSendChangesResponse(context)
+            var changesResponse = new HttpMessageSendChangesResponse(syncContext)
             {
                 ServerChangesSelected = serverChangesSelected,
                 ClientChangesApplied = clientChangesApplied,

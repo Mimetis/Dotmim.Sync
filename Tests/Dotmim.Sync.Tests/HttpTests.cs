@@ -1356,7 +1356,7 @@ namespace Dotmim.Sync.Tests
                     if (batchIndex == 1)
                     {
                         // simulate a session loss (e.g. IIS application pool recycle)
-                        this.WebServerOrchestrator.HttpContext.Session.Clear();
+                        args.HttpContext.Session.Clear();
                     }
 
                     batchIndex++;
@@ -1445,13 +1445,13 @@ namespace Dotmim.Sync.Tests
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
                 this.WebServerOrchestrator.OnHttpSendingResponse(args =>
                 {
-                    WebServerOrchestrator.TryGetHeaderValue(WebServerOrchestrator.HttpContext.Request.Headers, "dotmim-sync-step", out string iStep);
+                    WebServerOrchestrator.TryGetHeaderValue(args.HttpContext.Request.Headers, "dotmim-sync-step", out string iStep);
                     var step = (HttpStep)Convert.ToInt32(iStep);
 
                     if (batchIndex == 2 && step == HttpStep.GetMoreChanges)
                     {
                         // simulate a session loss (e.g. IIS application pool recycle)
-                        this.WebServerOrchestrator.HttpContext.Session.Clear();
+                        args.HttpContext.Session.Clear();
                     }
 
                     batchIndex++;
