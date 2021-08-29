@@ -49,7 +49,8 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Internally setting schema
         /// </summary>
-        [IgnoreDataMember]
+        //[IgnoreDataMember]
+        [DataMember(Name = "schema", IsRequired = true, EmitDefaultValue = false, Order = 7)]
         public SyncSet SanitizedSchema { get; set; } = new SyncSet();
 
         /// <summary>
