@@ -3,6 +3,7 @@ using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -98,16 +99,27 @@ namespace Dotmim.Sync.Web.Server
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
 
                 var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
-                if (sessionCache == null)
-                    sessionCache = new SessionCache();
 
+                // HttpStep.EnsureSchema is the first call from client when client is new
+                // HttpStep.EnsureScopes is the first call from client when client is not new
+                // This is the only moment where we are initializing the sessionCache and store it in session
+                if (sessionCache == null && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes))
+                {
+                    sessionCache = new SessionCache();
+                    httpContext.Session.Set(sessionId, sessionCache);
+                }
+
+                // if sessionCache is still null, then we are in a step where it should not be null.
+                // Probably because of a weird server restart or something...
+                if (sessionCache == null)
+                    throw new HttpSessionLostException();
+
+                // Check if sanitized schema is still there
                 if (sessionCache.ClientBatchInfo != null
                     && sessionCache.ClientBatchInfo.SanitizedSchema != null && sessionCache.ClientBatchInfo.SanitizedSchema.Tables.Count == 0
                     && schema != null && schema.Tables.Count > 0)
                     foreach (var table in schema.Tables)
                         DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], sessionCache.ClientBatchInfo.SanitizedSchema);
-
-
 
                 // action from user if available
                 action?.Invoke(this);
@@ -119,8 +131,6 @@ namespace Dotmim.Sync.Web.Server
                 // Can be null
                 var clientConverter = this.GetClientConverter(cliConverterKey);
                 this.ClientConverter = clientConverter;
-
-                //HttpHeaderInfo httpHeaderInfo = null;
 
                 byte[] binaryData = null;
                 switch (step)
@@ -231,7 +241,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpResponse, ex);
+                await WriteExceptionAsync(httpRequest, httpResponse, ex);
             }
             finally
             {
@@ -252,7 +262,8 @@ namespace Dotmim.Sync.Web.Server
             // Compress data if client accept Gzip / Deflate
             if (!string.IsNullOrEmpty(encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
             {
-                httpResponse.Headers.Add("Content-Encoding", "gzip");
+                if (!httpResponse.Headers.ContainsKey("Content-Encoding"))
+                    httpResponse.Headers.Add("Content-Encoding", "gzip");
 
                 using var writeSteam = new MemoryStream();
 
@@ -311,7 +322,6 @@ namespace Dotmim.Sync.Web.Server
             }
         }
 
-
         public static bool TryGetHeaderValue(IHeaderDictionary n, string key, out string header)
         {
             if (n.TryGetValue(key, out var vs))
@@ -324,12 +334,9 @@ namespace Dotmim.Sync.Web.Server
             return false;
         }
 
-
-
         internal async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
                                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-
             if (httpMessage == null)
                 throw new ArgumentException("EnsureScopesAsync message could not be null");
 
@@ -382,7 +389,6 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-
         internal async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -417,14 +423,11 @@ namespace Dotmim.Sync.Web.Server
 
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
-
-
         }
 
         internal async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             // Get context from request message
             var ctx = httpMessage.SyncContext;
 
@@ -432,7 +435,6 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             var changes = await base.GetEstimatedChangesCountAsync(httpMessage.Scope, default, default, cancellationToken, progress);
-
 
             var changesResponse = new HttpMessageSendChangesResponse(syncContext)
             {
@@ -447,15 +449,12 @@ namespace Dotmim.Sync.Web.Server
             return changesResponse;
         }
 
-
         internal async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // TODO : check Snapshot with version and scopename
-
             // Check schema.
             // If client has stored the schema, the EnsureScope will not be called on server.
-            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
+            var schema = await EnsureSchemaFromSessionAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // Get context from request message
             var ctx = httpMessage.SyncContext;
@@ -484,7 +483,7 @@ namespace Dotmim.Sync.Web.Server
             return summaryResponse;
         }
 
-        private async Task<SyncSet> EnsureSchemaAsync(HttpContext httpContext, string scopeName, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        private async Task<SyncSet> EnsureSchemaFromSessionAsync(HttpContext httpContext, string scopeName, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             var schema = httpContext.Session.Get<SyncSet>(scopeName);
 
@@ -503,12 +502,8 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
-            // TODO : check Snapshot with version and scopename
-
             // Check schema.
-            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
-
+            var schema = await EnsureSchemaFromSessionAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // Get context from request message
             var ctx = httpMessage.SyncContext;
@@ -568,15 +563,11 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Check schema.
-            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
+            var schema = await EnsureSchemaFromSessionAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
             // ------------------------------------------------------------
-
-            // ensure that the blientBatchInfo is still available in the session - it **must** only be null when the batchIndex is 0!!
-            if (sessionCache.ClientBatchInfo == null && httpMessage.BatchIndex != 0)
-                throw new HttpSessionLostException();
 
             // We are receiving changes from client
             // BatchInfo containing all BatchPartInfo objects
@@ -663,15 +654,11 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Check schema.
-            var schema = await EnsureSchemaAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
+            var schema = await EnsureSchemaFromSessionAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
             // ------------------------------------------------------------
-
-            // ensure that the blientBatchInfo is still available in the session - it **must** only be null when the batchIndex is 0!!
-            if (sessionCache.ClientBatchInfo == null && httpMessage.BatchIndex != 0)
-                throw new HttpSessionLostException();
 
             // We are receiving changes from client
             // BatchInfo containing all BatchPartInfo objects
@@ -758,9 +745,6 @@ namespace Dotmim.Sync.Web.Server
         internal Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (sessionCache.ServerBatchInfo == null)
-                throw new HttpSessionLostException();
-
             return GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
@@ -772,9 +756,6 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (sessionCache.ServerBatchInfo == null)
-                throw new HttpSessionLostException();
-
             var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessage.BatchIndexRequested);
 
             // If we have only one bpi, we can safely delete it
@@ -801,7 +782,7 @@ namespace Dotmim.Sync.Web.Server
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
-            var schema = await EnsureSchemaAsync(httpContext, syncContext.ScopeName, default, default).ConfigureAwait(false);
+            var schema = await EnsureSchemaFromSessionAsync(httpContext, syncContext.ScopeName, default, default).ConfigureAwait(false);
 
             // 1) Create the http message content response
             var changesResponse = new HttpMessageSendChangesResponse(syncContext)
@@ -900,7 +881,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Write exception to output message
         /// </summary>
-        public static async Task WriteExceptionAsync(HttpResponse httpResponse, Exception ex)
+        public async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception ex)
         {
             // Check if it's an unknown error, not managed (yet)
             if (!(ex is SyncException syncException))
@@ -917,12 +898,30 @@ namespace Dotmim.Sync.Web.Server
                 Side = syncException.Side
             };
 
-            var webXMessage = JsonConvert.SerializeObject(webException);
+            var jobject = JObject.FromObject(webException);
+
+            using var ms = new MemoryStream();
+            using var sw = new StreamWriter(ms);
+            using var jtw = new JsonTextWriter(sw);
+
+#if DEBUG
+            jtw.Formatting = Formatting.Indented;
+#endif
+            await jobject.WriteToAsync(jtw);
+
+            await jtw.FlushAsync();
+            await sw.FlushAsync();
+
+            var data = ms.ToArray();
+
+            // data to send back, as the response
+            byte[] compressedData = this.EnsureCompression(httpRequest, httpResponse, data);
 
             httpResponse.Headers.Add("dotmim-sync-error", syncException.TypeName);
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
-            httpResponse.ContentLength = webXMessage.Length;
-            await httpResponse.WriteAsync(webXMessage);
+            httpResponse.ContentLength = compressedData.Length;
+            await httpResponse.Body.WriteAsync(compressedData, 0, compressedData.Length, default).ConfigureAwait(false);
+
         }
 
     }

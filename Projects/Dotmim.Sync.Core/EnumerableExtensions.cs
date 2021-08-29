@@ -109,7 +109,7 @@ namespace Dotmim.Sync
         {
             var options = new ExecutionDataflowBlockOptions
             {
-                MaxDegreeOfParallelism = 1
+                MaxDegreeOfParallelism = maxDegreeOfParallelism
             };
             if (scheduler != null)
                 options.TaskScheduler = scheduler;
