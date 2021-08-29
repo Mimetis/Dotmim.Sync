@@ -794,6 +794,12 @@ namespace Dotmim.Sync.Web.Server
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy
             };
 
+            if (serverBatchInfo != null)
+            {
+                Console.WriteLine($"batchIndexRequested: {batchIndexRequested}");
+                Console.WriteLine($"serverBatchInfo.BatchPartsInfo.Count : {serverBatchInfo.BatchPartsInfo.Count}");
+            }
+
             if (serverBatchInfo == null)
                 throw new Exception("serverBatchInfo is Null and should not be ....");
 
