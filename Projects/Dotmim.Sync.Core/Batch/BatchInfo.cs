@@ -46,12 +46,6 @@ namespace Dotmim.Sync.Batch
             }
         }
 
-        /// <summary>
-        /// Internally setting schema
-        /// </summary>
-        //[IgnoreDataMember]
-        [DataMember(Name = "schema", IsRequired = true, EmitDefaultValue = false, Order = 7)]
-        public SyncSet SanitizedSchema { get; set; } = new SyncSet();
 
         /// <summary>
         /// Is the batch parts are in memory
@@ -102,6 +96,14 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue =false, Order = 6)]
         public string SerializerFactoryKey { get; set; }
+
+
+        /// <summary>
+        /// Internally setting schema
+        /// </summary>
+        //[IgnoreDataMember]
+        [DataMember(Name = "schema", IsRequired = true, EmitDefaultValue = false, Order = 7)]
+        public SyncSet SanitizedSchema { get; set; } = new SyncSet();
 
         /// <summary>
         /// Get the full path of the Batch directory

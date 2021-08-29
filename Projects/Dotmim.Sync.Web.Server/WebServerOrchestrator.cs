@@ -794,6 +794,9 @@ namespace Dotmim.Sync.Web.Server
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy
             };
 
+            if (serverBatchInfo == null)
+                throw new Exception("serverBatchInfo is Null and should not be ....");
+
             // If nothing to do, just send back
             if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count == 0)
             {
