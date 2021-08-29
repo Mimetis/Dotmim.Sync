@@ -450,11 +450,11 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a header is missing in the http request
     /// </summary>
-    public class HttpHeaderMissingExceptiopn : Exception
+    public class HttpHeaderMissingException : Exception
     {
         const string message = "Header {0} is missing.";
 
-        public HttpHeaderMissingExceptiopn(string header) : base(string.Format(message, header)) { }
+        public HttpHeaderMissingException(string header) : base(string.Format(message, header)) { }
     }
 
     /// <summary>
