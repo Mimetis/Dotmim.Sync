@@ -21,6 +21,9 @@ namespace Dotmim.Sync.Web.Server
 
         public DatabaseChangesSelected ServerChangesSelected { get; set; }
         public DatabaseChangesApplied ClientChangesApplied { get; set; }
+
+
+
     }
 
 

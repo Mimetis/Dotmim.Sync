@@ -138,20 +138,15 @@ internal class Program
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("ServerWithSyncNames"));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        var tables = new string[] { "SyncScope" };
-        var setup = new SyncSetup(tables);
-
-        // Works fine, just one report in the sync process
-        setup.Filters.Add("SyncScope", "last_change_datetime", allowNull:true);
-
-        //setup.Tables["ProductCategory"].Columns.AddRange(new[] { "ProductCategoryID", "Name" });
+        
+        var setup = new SyncSetup(oneTable);
 
         var options = new SyncOptions
         {
-            //BatchSize = 5000,
+            BatchSize = 5000,
             //SerializerFactory = new CustomMessagePackSerializerFactory(),
             //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
             //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
