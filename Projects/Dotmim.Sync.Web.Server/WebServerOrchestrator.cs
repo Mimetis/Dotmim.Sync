@@ -8,6 +8,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -887,9 +888,26 @@ namespace Dotmim.Sync.Web.Server
             if (!(ex is SyncException syncException))
                 syncException = new SyncException(ex);
 
+            var message = new StringBuilder();
+            message.AppendLine(syncException.Message);
+            message.AppendLine("-----------------------");
+            message.AppendLine(syncException.StackTrace);
+            message.AppendLine("-----------------------");
+            if (syncException.InnerException != null)
+            {
+                message.AppendLine("-----------------------");
+                message.AppendLine("INNER EXCEPTION");
+                message.AppendLine("-----------------------");
+                message.AppendLine(syncException.InnerException.Message);
+                message.AppendLine("-----------------------");
+                message.AppendLine(syncException.InnerException.StackTrace);
+                message.AppendLine("-----------------------");
+
+            }
+
             var webException = new WebSyncException
             {
-                Message = syncException.Message,
+                Message = message.ToString(),
                 SyncStage = syncException.SyncStage,
                 TypeName = syncException.TypeName,
                 DataSource = syncException.DataSource,
