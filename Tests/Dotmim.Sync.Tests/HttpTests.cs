@@ -1361,7 +1361,8 @@ namespace Dotmim.Sync.Tests
                     if (batchIndex == 1)
                     {
                         // simulate a session loss (e.g. IIS application pool recycle)
-                        args.HttpContext.Session.Clear();
+                        Console.WriteLine("Session is cleared");
+                        //args.HttpContext.Session.Clear();
                     }
 
                     batchIndex++;
@@ -1458,7 +1459,8 @@ namespace Dotmim.Sync.Tests
                     if (batchIndex == 2 && step == HttpStep.GetMoreChanges)
                     {
                         // simulate a session loss (e.g. IIS application pool recycle)
-                        args.HttpContext.Session.Clear();
+                        Console.WriteLine("Session is cleared");
+                        //args.HttpContext.Session.Clear();
                     }
 
                     batchIndex++;
