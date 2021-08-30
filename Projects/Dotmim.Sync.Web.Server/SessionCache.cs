@@ -26,29 +26,33 @@ namespace Dotmim.Sync.Web.Server
 
         public override string ToString()
         {
-            var serverBatchInfoStr = "Null";
-            var serverBatchPartsCountStr = ServerBatchInfo.BatchPartsInfo == null ? "Null" : ServerBatchInfo.BatchPartsInfo.Count.ToString();
-            var serverBatchTablesCountStr = ServerBatchInfo.SanitizedSchema == null ? "Null" : ServerBatchInfo.SanitizedSchema.Tables.Count.ToString();
 
+            var serverBatchInfoStr = "Null";
             if (ServerBatchInfo != null)
+            {
+                var serverBatchPartsCountStr = ServerBatchInfo.BatchPartsInfo == null ? "Null" : ServerBatchInfo.BatchPartsInfo.Count.ToString();
+                var serverBatchTablesCountStr = ServerBatchInfo.SanitizedSchema == null ? "Null" : ServerBatchInfo.SanitizedSchema.Tables.Count.ToString();
                 serverBatchInfoStr = $"Parts:{serverBatchPartsCountStr}. Rows Count:{ServerBatchInfo.RowsCount}. Tables:{serverBatchTablesCountStr}";
+            }
 
             var clientBatchInfoStr = "Null";
-            var clientBatchPartsCountStr = ClientBatchInfo.BatchPartsInfo == null ? "Null" : ClientBatchInfo.BatchPartsInfo.Count.ToString();
-            var clientBatchTablesCountStr = ClientBatchInfo.SanitizedSchema == null ? "Null" : ClientBatchInfo.SanitizedSchema.Tables.Count.ToString();
             if (ClientBatchInfo != null)
+            {
+                var clientBatchPartsCountStr = ClientBatchInfo.BatchPartsInfo == null ? "Null" : ClientBatchInfo.BatchPartsInfo.Count.ToString();
+                var clientBatchTablesCountStr = ClientBatchInfo.SanitizedSchema == null ? "Null" : ClientBatchInfo.SanitizedSchema.Tables.Count.ToString();
                 clientBatchInfoStr = $"Parts:{clientBatchPartsCountStr}. Rows Count:{ClientBatchInfo.RowsCount}. Tables:{clientBatchTablesCountStr}";
+            }
 
             var debug = new StringBuilder();
             debug.AppendLine("{");
-            debug.AppendLine($" \"RemoteClientTimestamp\":\"{RemoteClientTimestamp}\"");
-            debug.AppendLine($" \"ClientBatchInfo\":\"{clientBatchInfoStr}\"");
+            debug.AppendLine($" \"RemoteClientTimestamp\":\"{RemoteClientTimestamp}\",");
+            debug.AppendLine($" \"ClientBatchInfo\":\"{clientBatchInfoStr}\",");
             debug.AppendLine($" \"ServerBatchInfo\":\"{serverBatchInfoStr}\"");
 
             debug.AppendLine("}");
 
             return debug.ToString();
-            
+
         }
 
     }
