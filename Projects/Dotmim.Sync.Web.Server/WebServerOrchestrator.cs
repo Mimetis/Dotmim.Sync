@@ -131,7 +131,7 @@ namespace Dotmim.Sync.Web.Server
                 if (sessionCache == null)
                     throw new HttpSessionLostException();
 
-                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest Init:SessionCache:{sessionCache}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest Init:SessionCache[{httpContext.Session.GetString(sessionId)?.Length}]:{sessionCache}");
 
                 // check session id
                 var tempSessionId = httpContext.Session.GetString("session_id");
@@ -249,7 +249,7 @@ namespace Dotmim.Sync.Web.Server
                 httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
 
-                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End:SessionCache:{sessionCache}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End:SessionCache[{httpContext.Session.GetString(sessionId)?.Length}]:{sessionCache}");
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
@@ -266,11 +266,13 @@ namespace Dotmim.Sync.Web.Server
 
                 await this.InterceptAsync(new HttpSendingResponseArgs(httpContext, this.GetContext(), sessionCache, data, step), cancellationToken).ConfigureAwait(false);
 
-                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End 2:SessionCache:{sessionCache}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End 2:SessionCache[{httpContext.Session.GetString(sessionId)?.Length}]:{sessionCache}");
 
                 sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
 
-                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End Load Again :SessionCache:{sessionCache}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End Load Again :SessionCache[{httpContext.Session.GetString(sessionId)?.Length}]:{sessionCache}");
+
+                await httpContext.Session.CommitAsync(cancellationToken);
 
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
             }
