@@ -268,6 +268,10 @@ namespace Dotmim.Sync.Web.Server
 
                 this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End 2:SessionCache:{sessionCache}");
 
+                sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
+
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End Load Again :SessionCache:{sessionCache}");
+
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
