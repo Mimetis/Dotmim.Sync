@@ -1340,11 +1340,9 @@ namespace Dotmim.Sync.Tests
                 var products = Enumerable.Range(1, rowsToSend).Select(i =>
                     new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{client.ProviderType}" });
 
-                using (var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    clientDbCtx.Product.AddRange(products);
-                    await clientDbCtx.SaveChangesAsync();
-                }
+                using var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                clientDbCtx.Product.AddRange(products);
+                await clientDbCtx.SaveChangesAsync();
             }
 
             // for each client, fake that the sync session is interrupted
@@ -1356,13 +1354,14 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
-                this.WebServerOrchestrator.OnHttpSendingResponse(args =>
+                this.WebServerOrchestrator.OnHttpSendingResponse(async args =>
                 {
-                    if (batchIndex == 1)
+                    // SendChangesInProgress is occuring when server is receiving data from client
+                    // We are droping session on the second batch
+                    if (args.HttpStep == HttpStep.SendChangesInProgress && batchIndex == 1)
                     {
-                        // simulate a session loss (e.g. IIS application pool recycle)
-                        Console.WriteLine("Session is cleared");
-                        //args.HttpContext.Session.Clear();
+                        args.HttpContext.Session.Clear();
+                        await args.HttpContext.Session.CommitAsync();
                     }
 
                     batchIndex++;
@@ -1451,20 +1450,15 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, orch, options);
 
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                this.WebServerOrchestrator.OnHttpSendingResponse(args =>
+                this.WebServerOrchestrator.OnHttpSendingResponse(async args =>
                 {
-                    WebServerOrchestrator.TryGetHeaderValue(args.HttpContext.Request.Headers, "dotmim-sync-step", out string iStep);
-                    var step = (HttpStep)Convert.ToInt32(iStep);
-
-                    if (batchIndex == 2 && step == HttpStep.GetMoreChanges)
+                    // GetMoreChanges is occuring when server is sending back data to client
+                    // We are droping session on the second batch
+                    if (args.HttpStep == HttpStep.GetMoreChanges && batchIndex == 1)
                     {
-                        // simulate a session loss (e.g. IIS application pool recycle)
-                        Console.WriteLine("Session is cleared");
-                        //args.HttpContext.Session.Clear();
+                        args.HttpContext.Session.Clear();
+                        await args.HttpContext.Session.CommitAsync();
                     }
-
-                    batchIndex++;
-
                 });
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
@@ -1811,7 +1805,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server
-                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1000, 1050);
+                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1050);
                 Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
 
                 download += 1000;

@@ -81,7 +81,6 @@ namespace Dotmim.Sync.Web.Server
             var step = (HttpStep)Convert.ToInt32(iStep);
             var readableStream = new MemoryStream();
 
-            SessionCache sessionCache = null;
             try
             {
                 // Copty stream to a readable and seekable stream
@@ -101,7 +100,7 @@ namespace Dotmim.Sync.Web.Server
 
                 // Get schema and clients batch infos / summaries, from session
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
-                sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
+                var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
 
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
@@ -113,8 +112,6 @@ namespace Dotmim.Sync.Web.Server
                     httpContext.Session.SetString("session_id", sessionId);
                 }
 
-                
-
                 // if sessionCache is still null, then we are in a step where it should not be null.
                 // Probably because of a weird server restart or something...
                 if (sessionCache == null)
@@ -124,7 +121,7 @@ namespace Dotmim.Sync.Web.Server
                 var tempSessionId = httpContext.Session.GetString("session_id");
 
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
-                    throw new Exception($"Bad Session Id. Step:{step}. Stored sessionid:{tempSessionId}. Header sessionId:{sessionId}");
+                    throw new HttpSessionLostException();
 
                 // Check if sanitized schema is still there
                 if (sessionCache.ClientBatchInfo != null
@@ -248,11 +245,10 @@ namespace Dotmim.Sync.Web.Server
                 // data to send back, as the response
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
 
-                await this.InterceptAsync(new HttpSendingResponseArgs(httpContext, this.GetContext(), sessionCache, data, step), cancellationToken).ConfigureAwait(false);
-
-                // set again session cache, in case user has changed something
-                httpContext.Session.Set(sessionId, sessionCache);
+                // save session
                 await httpContext.Session.CommitAsync(cancellationToken);
+
+                await this.InterceptAsync(new HttpSendingResponseArgs(httpContext, this.GetContext(), sessionCache, data, step), cancellationToken).ConfigureAwait(false);
 
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
             }
