@@ -109,6 +109,8 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
 
                 this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. --------------------------------------------------");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HttpContext Session Id: {httpContext.Session.Id}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. --------------------------------------------------");
 
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
@@ -121,6 +123,8 @@ namespace Dotmim.Sync.Web.Server
                     httpContext.Session.Set(sessionId, sessionCache);
                     httpContext.Session.SetString("session_id", sessionId);
                 }
+
+                
 
                 // if sessionCache is still null, then we are in a step where it should not be null.
                 // Probably because of a weird server restart or something...
@@ -263,7 +267,6 @@ namespace Dotmim.Sync.Web.Server
                 await this.InterceptAsync(new HttpSendingResponseArgs(httpContext, this.GetContext(), sessionCache, data, step), cancellationToken).ConfigureAwait(false);
 
                 this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. HandleRequest End 2:SessionCache:{sessionCache}");
-                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. --------------------------------------------------");
 
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
             }
@@ -687,8 +690,8 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:ApplyThenGetChangesAsync2 Init. BatchIndex:{httpMessage.BatchIndex}/{httpMessage.BatchCount}");
-            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:ApplyThenGetChangesAsync2 Init. SessionCache:{sessionCache}");
+            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendChangesInProgress Init. BatchIndex:{httpMessage.BatchIndex}/{httpMessage.BatchCount}");
+            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendChangesInProgress Init. SessionCache:{sessionCache}");
 
             // Overriding batch size options value, coming from client
             // having changes from server in batch size or not is decided by the client.
@@ -745,7 +748,7 @@ namespace Dotmim.Sync.Web.Server
             if (!httpMessage.IsLastBatch)
                 return new HttpMessageSummaryResponse(ctx) { Step = HttpStep.SendChangesInProgress };
 
-            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:ApplyThenGetChangesAsync2 End 1. SessionCache:{sessionCache}");
+            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendChangesInProgress End 1. SessionCache:{sessionCache}");
 
             // ------------------------------------------------------------
             // SECOND STEP : apply then return server changes
@@ -792,7 +795,7 @@ namespace Dotmim.Sync.Web.Server
                 summaryResponse.Changes = serverBatchInfo.InMemoryData == null ? new ContainerSet() : serverBatchInfo.InMemoryData.GetContainerSet();
 
             }
-            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:ApplyThenGetChangesAsync2 End 2. SessionCache:{sessionCache}");
+            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendChangesInProgress End 2. SessionCache:{sessionCache}");
             // Get the firt response to send back to client
             return summaryResponse;
 
@@ -815,7 +818,7 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendEndDownloadChangesAsync Init. SessionCache:{sessionCache}");
+            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendEndDownloadChanges Init. SessionCache:{sessionCache}");
             var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessage.BatchIndexRequested);
 
             // If we have only one bpi, we can safely delete it
@@ -830,7 +833,7 @@ namespace Dotmim.Sync.Web.Server
                 if (cleanFolder)
                     sessionCache.ServerBatchInfo.TryRemoveDirectory();
             }
-            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendEndDownloadChangesAsync End. SessionCache:{sessionCache}");
+            this.debugBuilder.AppendLine($"{DateTime.Now}:Step:SendEndDownloadChanges End. SessionCache:{sessionCache}");
 
             return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendEndDownloadChanges };
         }
