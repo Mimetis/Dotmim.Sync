@@ -65,6 +65,6 @@ namespace HelloWebSyncServer.Controllers
         /// </summary>
         [HttpGet]
         [AllowAnonymous]
-        public Task Get() => WebServerManager.WriteHelloAsync(this.HttpContext, WebServerOrchestrator);
+        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, WebServerOrchestrator);
     }
 }

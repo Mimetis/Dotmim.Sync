@@ -18,7 +18,8 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         public IEnumerable<WebServerOrchestrator> WebServerOrchestrators { get; }
 
         // Injected thanks to Dependency Injection
-        public SyncController(IEnumerable<WebServerOrchestrator> webServerOrchestrators) => this.WebServerOrchestrators = webServerOrchestrators;
+        public SyncController(IEnumerable<WebServerOrchestrator> webServerOrchestrators) 
+            => this.WebServerOrchestrators = webServerOrchestrators;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
@@ -27,10 +28,9 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         [HttpPost]
         public async Task Post()
         {
-            if (!WebServerOrchestrator.TryGetHeaderValue(HttpContext.Request.Headers, "dotmim-sync-scope-name", out var scopeName))
-                throw new HttpHeaderMissingException("dotmim-sync-scope-name");
+            var scopeName = WebServerOrchestrator.GetScopeName(HttpContext);
 
-            var orchestrator = WebServerOrchestrators.FirstOrDefault(c => c.ScopeName.Equals(scopeName, SyncGlobalization.DataSourceStringComparison));
+            var orchestrator = WebServerOrchestrators.FirstOrDefault(c => c.ScopeName == scopeName);
 
             await orchestrator.HandleRequestAsync(HttpContext).ConfigureAwait(false);
 
@@ -41,7 +41,7 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public Task Get() => WebServerManager.WriteHelloAsync(this.HttpContext, WebServerOrchestrators);
+        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, WebServerOrchestrators);
 
     }
 }
