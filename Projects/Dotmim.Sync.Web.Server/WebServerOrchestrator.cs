@@ -16,6 +16,8 @@ namespace Dotmim.Sync.Web.Server
 {
     public class WebServerOrchestrator : RemoteOrchestrator
     {
+
+        private StringBuilder debugBuilder = new StringBuilder();
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
@@ -24,6 +26,7 @@ namespace Dotmim.Sync.Web.Server
             : base(provider, options, setup, scopeName)
         {
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
+            this.debugBuilder.AppendLine($"{DateTime.Now}:Instance Creation");
         }
         public WebServerOrchestrator(CoreProvider provider, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
             : this(provider, new SyncOptions(), new SyncSetup(tables), new WebServerOptions(), scopeName)
@@ -108,6 +111,9 @@ namespace Dotmim.Sync.Web.Server
                 // This is the only moment where we are initializing the sessionCache and store it in session
                 if (sessionCache == null && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes))
                 {
+                    this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache Null. Step:{step}.");
+                    this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache Created");
+
                     sessionCache = new SessionCache();
                     httpContext.Session.Set(sessionId, sessionCache);
                     httpContext.Session.SetString("session_id", sessionId);
@@ -118,8 +124,12 @@ namespace Dotmim.Sync.Web.Server
                 if (sessionCache == null)
                     throw new HttpSessionLostException();
 
+                this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache:{sessionCache}");
+
                 // check session id
                 var tempSessionId = httpContext.Session.GetString("session_id");
+
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. Stored sessionid:{tempSessionId}. Header sessionId:{sessionId}");
 
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
                     throw new Exception($"Bad Session Id. Step:{step}. Stored sessionid:{tempSessionId}. Header sessionId:{sessionId}");
@@ -232,6 +242,9 @@ namespace Dotmim.Sync.Web.Server
                 httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
 
+                this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache:{sessionCache}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:Schema:{schema}");
+
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
                 httpResponse.Headers.Add("dotmim-sync-serialization-format", clientSerializerFactory.Key);
@@ -251,38 +264,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                var sb = new StringBuilder();
-
-                if (sessionCache == null)
-                {
-                    sb.AppendLine("sessionCache instance is null");
-                }
-                else
-                {
-                    if (sessionCache.ServerChangesSelected == null)
-                        sb.AppendLine($"sessionCache ServerChangesSelected is null");
-                    else
-                        sb.AppendLine("sessionCache ServerChangesSelected is not null");
-
-                    if (sessionCache.ClientBatchInfo == null)
-                        sb.AppendLine($"sessionCache ClientBatchInfo is null");
-                    else
-                        sb.AppendLine("sessionCache ClientBatchInfo is not null");
-
-                    if (sessionCache.ClientChangesApplied == null)
-                        sb.AppendLine($"sessionCache ClientChangesApplied is null");
-                    else
-                        sb.AppendLine("sessionCache ClientChangesApplied is not null");
-
-                    foreach (var key in httpContext.Session.Keys)
-                    {
-                        sb.AppendLine($"Session key:{key}");
-                        sb.AppendLine(httpContext.Session.GetString(key));
-                    }
-                }
-
-
-                await WriteExceptionAsync(httpRequest, httpResponse, ex, sb.ToString());
+                await WriteExceptionAsync(httpRequest, httpResponse, ex, this.debugBuilder.ToString());
             }
             finally
             {
@@ -396,6 +378,9 @@ namespace Dotmim.Sync.Web.Server
             // Create http response
             var httpResponse = new HttpMessageEnsureScopesResponse(ctx, serverScopeInfo);
 
+
+            this.debugBuilder.AppendLine($"{DateTime.Now}:EnsureScope. SessionCache:{sessionCache}");
+
             return httpResponse;
         }
 
@@ -425,6 +410,7 @@ namespace Dotmim.Sync.Web.Server
 
             var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:EnsureSchema. SessionCache:{sessionCache}");
             return httpResponse;
 
 
@@ -434,6 +420,7 @@ namespace Dotmim.Sync.Web.Server
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:GetChanges Init. SessionCache:{sessionCache}");
             // Overriding batch size options value, coming from client
             // having changes from server in batch size or not is decided by the client.
             // Basically this options is not used on the server, since it's always overriden by the client
@@ -463,6 +450,7 @@ namespace Dotmim.Sync.Web.Server
                 //httpContext.Session.Set(sessionId, sessionCache);
             }
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:GetChanges End. SessionCache:{sessionCache}");
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
         }
@@ -545,6 +533,7 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            this.debugBuilder.AppendLine($"{DateTime.Now}:GetSnapshotAsync Init. SessionCache:{sessionCache}");
             // Check schema.
             var schema = await EnsureSchemaFromSessionAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
 
@@ -563,6 +552,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerChangesSelected = snap.DatabaseChangesSelected;
             //httpContext.Session.Set(sessionId, sessionCache);
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:GetSnapshotAsync End. SessionCache:{sessionCache}");
             // if no snapshot, return empty response
             if (snap.ServerBatchInfo == null)
             {
@@ -580,7 +570,7 @@ namespace Dotmim.Sync.Web.Server
 
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
-            //httpContext.Session.Set(sessionId, sessionCache);
+            this.debugBuilder.AppendLine($"{DateTime.Now}:GetSnapshotAsync End 2. SessionCache:{sessionCache}");
 
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
@@ -593,6 +583,7 @@ namespace Dotmim.Sync.Web.Server
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync Init. SessionCache:{sessionCache}");
             // Overriding batch size options value, coming from client
             // having changes from server in batch size or not is decided by the client.
             // Basically this options is not used on the server, since it's always overriden by the client
@@ -649,6 +640,7 @@ namespace Dotmim.Sync.Web.Server
             if (!httpMessage.IsLastBatch)
                 return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendChangesInProgress };
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync End 1. SessionCache:{sessionCache}");
             // ------------------------------------------------------------
             // SECOND STEP : apply then return server changes
             // ------------------------------------------------------------
@@ -677,6 +669,7 @@ namespace Dotmim.Sync.Web.Server
             if (cleanFolder)
                 sessionCache.ClientBatchInfo.TryRemoveDirectory();
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync End 2. SessionCache:{sessionCache}");
 
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(httpContext, ctx, remoteClientTimestamp, serverBatchInfo, clientChangesApplied, serverChangesSelected, 0);
@@ -689,6 +682,7 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync2 Init. SessionCache:{sessionCache}");
 
             // Overriding batch size options value, coming from client
             // having changes from server in batch size or not is decided by the client.
@@ -745,6 +739,8 @@ namespace Dotmim.Sync.Web.Server
             if (!httpMessage.IsLastBatch)
                 return new HttpMessageSummaryResponse(ctx) { Step = HttpStep.SendChangesInProgress };
 
+            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync2 End 1. SessionCache:{sessionCache}");
+
             // ------------------------------------------------------------
             // SECOND STEP : apply then return server changes
             // ------------------------------------------------------------
@@ -790,6 +786,7 @@ namespace Dotmim.Sync.Web.Server
                 summaryResponse.Changes = serverBatchInfo.InMemoryData == null ? new ContainerSet() : serverBatchInfo.InMemoryData.GetContainerSet();
 
             }
+            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync2 End 2. SessionCache:{sessionCache}");
             // Get the firt response to send back to client
             return summaryResponse;
 
@@ -812,6 +809,7 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            this.debugBuilder.AppendLine($"{DateTime.Now}:SendEndDownloadChangesAsync Init. SessionCache:{sessionCache}");
             var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessage.BatchIndexRequested);
 
             // If we have only one bpi, we can safely delete it
@@ -826,6 +824,7 @@ namespace Dotmim.Sync.Web.Server
                 if (cleanFolder)
                     sessionCache.ServerBatchInfo.TryRemoveDirectory();
             }
+            this.debugBuilder.AppendLine($"{DateTime.Now}:SendEndDownloadChangesAsync End. SessionCache:{sessionCache}");
 
             return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendEndDownloadChanges };
         }
@@ -838,6 +837,8 @@ namespace Dotmim.Sync.Web.Server
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
+            var serverBatchInfoString = serverBatchInfo != null ? JsonConvert.SerializeObject(serverBatchInfo, Formatting.Indented) : "Null";
+            this.debugBuilder.AppendLine($"{DateTime.Now}:GetChangesResponseAsync Init. ServerBatchInfo:{serverBatchInfoString}");
             var schema = await EnsureSchemaFromSessionAsync(httpContext, syncContext.ScopeName, default, default).ConfigureAwait(false);
 
             // 1) Create the http message content response
@@ -864,6 +865,8 @@ namespace Dotmim.Sync.Web.Server
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
 
+                serverBatchInfoString = serverBatchInfo != null ? JsonConvert.SerializeObject(serverBatchInfo, Formatting.Indented) : "Null";
+                this.debugBuilder.AppendLine($"{DateTime.Now}:GetChangesResponseAsync End 1. ServerBatchInfo:{serverBatchInfoString}");
                 return changesResponse;
             }
 
@@ -898,6 +901,8 @@ namespace Dotmim.Sync.Web.Server
 
             batchPartInfo.Clear();
 
+            serverBatchInfoString = serverBatchInfo != null ? JsonConvert.SerializeObject(serverBatchInfo, Formatting.Indented) : "Null";
+            this.debugBuilder.AppendLine($"{DateTime.Now}:GetChangesResponseAsync End 2. ServerBatchInfo:{serverBatchInfoString}");
 
             return changesResponse;
         }

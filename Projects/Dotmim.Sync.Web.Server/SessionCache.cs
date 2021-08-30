@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Dotmim.Sync.Batch;
+using System.Text;
 
 namespace Dotmim.Sync.Web.Server
 {
@@ -14,27 +15,22 @@ namespace Dotmim.Sync.Web.Server
     /// </summary>
     public class SessionCache
     {
-        private BatchInfo serverBatchInfo;
-
         public long RemoteClientTimestamp { get; set; }
 
-        public BatchInfo ServerBatchInfo
-        {
-            get => serverBatchInfo;
-            set
-            {
-                var d = value == null ? "null" : "instance";
-                Console.WriteLine($"Setting ServerBatchInfo value to:{d}");
-
-                serverBatchInfo = value;
-            }
-        }
+        public BatchInfo ServerBatchInfo { get; set; }
         public BatchInfo ClientBatchInfo { get; set; }
 
         public DatabaseChangesSelected ServerChangesSelected { get; set; }
         public DatabaseChangesApplied ClientChangesApplied { get; set; }
 
 
+        public override string ToString()
+        {
+            var txt = JsonConvert.SerializeObject(this, Formatting.Indented);
+
+            return txt;
+            
+        }
 
     }
 

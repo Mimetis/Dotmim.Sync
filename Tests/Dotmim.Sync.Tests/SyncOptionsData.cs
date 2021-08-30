@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Tests
         public IEnumerator<object[]> GetEnumerator()
         {
             yield return new object[] { new SyncOptions { BatchSize = 50 } };
-            yield return new object[] { new SyncOptions { BatchSize = 0 , UseBulkOperations = false} };
+            //yield return new object[] { new SyncOptions { BatchSize = 0 , UseBulkOperations = false} };
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
