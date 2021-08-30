@@ -29,7 +29,7 @@ namespace ConverterWebSyncServer.Controllers
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public Task Get() => WebServerManager.WriteHelloAsync(this.HttpContext, WebServerOrchestrator);
+        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, WebServerOrchestrator);
 
     }
 }

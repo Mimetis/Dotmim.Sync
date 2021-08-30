@@ -1446,7 +1446,7 @@ namespace Dotmim.Sync.Tests
 
                 // restreint parallelism degrees to be sure the batch index is not downloaded at the end
                 // (This will not raise the error if the batchindex 1 is downloaded as the last part)
-                var orch = new WebClientOrchestrator(this.ServiceUri, maxDownladingDegreeOfParallelism:1);
+                var orch = new WebClientOrchestrator(this.ServiceUri, maxDownladingDegreeOfParallelism: 1);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
@@ -1459,11 +1459,14 @@ namespace Dotmim.Sync.Tests
                         args.HttpContext.Session.Clear();
                         await args.HttpContext.Session.CommitAsync();
                     }
+                    
+                    if (args.HttpStep == HttpStep.GetMoreChanges)
+                        batchIndex++;
                 });
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
                 {
-                        var r = await agent.SynchronizeAsync();
+                    var r = await agent.SynchronizeAsync();
                 });
 
                 // Assert
