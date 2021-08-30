@@ -26,7 +26,6 @@ namespace Dotmim.Sync.Web.Server
 
         public override string ToString()
         {
-
             var serverBatchInfoStr = "Null";
             if (ServerBatchInfo != null)
             {
@@ -44,12 +43,9 @@ namespace Dotmim.Sync.Web.Server
             }
 
             var debug = new StringBuilder();
-            debug.AppendLine("{");
-            debug.AppendLine($" \"RemoteClientTimestamp\":\"{RemoteClientTimestamp}\",");
-            debug.AppendLine($" \"ClientBatchInfo\":\"{clientBatchInfoStr}\",");
-            debug.AppendLine($" \"ServerBatchInfo\":\"{serverBatchInfoStr}\"");
-
-            debug.AppendLine("}");
+            debug.Append($" \"RemoteClientTimestamp\":\"{RemoteClientTimestamp}\",");
+            debug.Append($" \"ClientBatchInfo\":\"{clientBatchInfoStr}\",");
+            debug.Append($" \"ServerBatchInfo\":\"{serverBatchInfoStr}\"");
 
             return debug.ToString();
 
