@@ -26,9 +26,23 @@ namespace Dotmim.Sync.Web.Server
 
         public override string ToString()
         {
-            var txt = JsonConvert.SerializeObject(this, Formatting.Indented);
+            var serverBatchInfoStr = "Null";
+            if (ServerBatchInfo != null)
+                serverBatchInfoStr = $"Parts:{ServerBatchInfo.BatchPartsInfo.Count}. Rows Count:{ServerBatchInfo.RowsCount}. Tables:{ServerBatchInfo.SanitizedSchema.Tables.Count}";
 
-            return txt;
+            var clientBatchInfoStr = "Null";
+            if (ClientBatchInfo != null)
+                clientBatchInfoStr = $"Parts:{ClientBatchInfo.BatchPartsInfo.Count}. Rows Count:{ClientBatchInfo.RowsCount}. Tables:{ClientBatchInfo.SanitizedSchema.Tables.Count}";
+
+            var debug = new StringBuilder();
+            debug.AppendLine("{");
+            debug.AppendLine($" \"RemoteClientTimestamp\":\"{RemoteClientTimestamp}\"");
+            debug.AppendLine($" \"ClientBatchInfo\":\"{clientBatchInfoStr}\"");
+            debug.AppendLine($" \"ServerBatchInfo\":\"{serverBatchInfoStr}\"");
+
+            debug.AppendLine("}");
+
+            return debug.ToString();
             
         }
 

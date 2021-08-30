@@ -111,8 +111,8 @@ namespace Dotmim.Sync.Web.Server
                 // This is the only moment where we are initializing the sessionCache and store it in session
                 if (sessionCache == null && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes))
                 {
-                    this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache Null. Step:{step}.");
-                    this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache Created");
+                    this.debugBuilder.AppendLine($"{DateTime.Now}:HandleRequest: SessionCache Null. Step:{step}.");
+                    this.debugBuilder.AppendLine($"{DateTime.Now}:HandleRequest: SessionCache Created");
 
                     sessionCache = new SessionCache();
                     httpContext.Session.Set(sessionId, sessionCache);
@@ -124,12 +124,12 @@ namespace Dotmim.Sync.Web.Server
                 if (sessionCache == null)
                     throw new HttpSessionLostException();
 
-                this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache:{sessionCache}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:HandleRequest Init:SessionCache:{sessionCache}");
 
                 // check session id
                 var tempSessionId = httpContext.Session.GetString("session_id");
 
-                this.debugBuilder.AppendLine($"{DateTime.Now}:Step:{step}. Stored sessionid:{tempSessionId}. Header sessionId:{sessionId}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:HandleRequest Init. Step:{step}. Stored sessionid:{tempSessionId}. Header sessionId:{sessionId}");
 
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
                     throw new Exception($"Bad Session Id. Step:{step}. Stored sessionid:{tempSessionId}. Header sessionId:{sessionId}");
@@ -242,8 +242,8 @@ namespace Dotmim.Sync.Web.Server
                 httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
 
-                this.debugBuilder.AppendLine($"{DateTime.Now}:SessionCache:{sessionCache}");
-                this.debugBuilder.AppendLine($"{DateTime.Now}:Schema:{schema}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:HandleRequest End:SessionCache:{sessionCache}");
+                this.debugBuilder.AppendLine($"{DateTime.Now}:HandleRequest End: Schema:{schema}");
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
