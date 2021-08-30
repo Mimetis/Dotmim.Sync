@@ -682,7 +682,7 @@ namespace Dotmim.Sync.Web.Server
         internal async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync2 Init. SessionCache:{sessionCache}");
+            this.debugBuilder.AppendLine($"{DateTime.Now}:ApplyThenGetChangesAsync2 Init. httpMessage BatchIndex:{httpMessage.BatchIndex}/{httpMessage.BatchCount}. SessionCache:{sessionCache}");
 
             // Overriding batch size options value, coming from client
             // having changes from server in batch size or not is decided by the client.
