@@ -1300,7 +1300,7 @@ namespace Dotmim.Sync.Tests
             }
         }
 
-        //[Fact]
+        [Fact]
         public async Task WithBatchingEnabled_WhenSessionIsLostDuringApplyChanges_ChangesAreNotLost()
         {
             // Arrange
@@ -1396,7 +1396,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-        //[Fact]
+        [Fact]
         public async Task WithBatchingEnabled_WhenSessionIsLostDuringGetChanges_ChangesAreNotLost()
         {
             // Arrange
@@ -1600,7 +1600,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
-        //[Fact]
+        [Fact]
         public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpGettingRequest_ShouldWork()
         {
             // create a server schema without seeding
@@ -1665,7 +1665,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// On Intermittent connection, should work even if server has done its part
         /// </summary>
-        //[Fact]
+        [Fact]
         public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpSendingResponse_ShouldWork()
         {
             // create a server schema without seeding
@@ -1731,7 +1731,7 @@ namespace Dotmim.Sync.Tests
         /// On Intermittent connection, should work even if server has already applied a batch  and then timeout for some reason 
         /// Client will resend the batch again, but that's ok, since we are merging
         /// </summary>
-        //[Fact]
+        [Fact]
         public async Task Intermitent_Connection_SyncPolicy_InsertClientRow_ShouldWork()
         {
             // create a server schema without seeding
