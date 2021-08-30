@@ -27,12 +27,17 @@ namespace Dotmim.Sync.Web.Server
         public override string ToString()
         {
             var serverBatchInfoStr = "Null";
+            var serverBatchPartsCountStr = ServerBatchInfo.BatchPartsInfo == null ? "Null" : ServerBatchInfo.BatchPartsInfo.Count.ToString();
+            var serverBatchTablesCountStr = ServerBatchInfo.SanitizedSchema == null ? "Null" : ServerBatchInfo.SanitizedSchema.Tables.Count.ToString();
+
             if (ServerBatchInfo != null)
-                serverBatchInfoStr = $"Parts:{ServerBatchInfo.BatchPartsInfo.Count}. Rows Count:{ServerBatchInfo.RowsCount}. Tables:{ServerBatchInfo.SanitizedSchema.Tables.Count}";
+                serverBatchInfoStr = $"Parts:{serverBatchPartsCountStr}. Rows Count:{ServerBatchInfo.RowsCount}. Tables:{serverBatchTablesCountStr}";
 
             var clientBatchInfoStr = "Null";
+            var clientBatchPartsCountStr = ClientBatchInfo.BatchPartsInfo == null ? "Null" : ClientBatchInfo.BatchPartsInfo.Count.ToString();
+            var clientBatchTablesCountStr = ClientBatchInfo.SanitizedSchema == null ? "Null" : ClientBatchInfo.SanitizedSchema.Tables.Count.ToString();
             if (ClientBatchInfo != null)
-                clientBatchInfoStr = $"Parts:{ClientBatchInfo.BatchPartsInfo.Count}. Rows Count:{ClientBatchInfo.RowsCount}. Tables:{ClientBatchInfo.SanitizedSchema.Tables.Count}";
+                clientBatchInfoStr = $"Parts:{clientBatchPartsCountStr}. Rows Count:{ClientBatchInfo.RowsCount}. Tables:{clientBatchTablesCountStr}";
 
             var debug = new StringBuilder();
             debug.AppendLine("{");
