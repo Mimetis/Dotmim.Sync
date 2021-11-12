@@ -89,8 +89,10 @@ namespace Dotmim.Sync
         /// Deprovision the orchestrator database based on the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncProvision provision, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<bool> DeprovisionAsync(SyncProvision provision, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
+
             // Create a temporary SyncSet for attaching to the schemaTable
             var tmpSchema = new SyncSet();
 
@@ -104,15 +106,18 @@ namespace Dotmim.Sync
             foreach (var filter in this.Setup.Filters)
                 tmpSchema.Filters.Add(filter);
 
-            return this.DeprovisionAsync(tmpSchema, provision, clientScopeInfo, connection, transaction, cancellationToken, progress);
-        }
+            var isDeprovisioned = await this.DeprovisionAsync(tmpSchema, provision, clientScopeInfo, connection, transaction, cancellationToken, progress);
+
+            return isDeprovisioned;
+
+        }, connection, transaction, cancellationToken);
 
         /// <summary>
         /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
         /// </summary>
         /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task DeprovisionAsync(SyncSet schema, SyncProvision provision, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<bool> DeprovisionAsync(SyncSet schema, SyncProvision provision, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
         {
 

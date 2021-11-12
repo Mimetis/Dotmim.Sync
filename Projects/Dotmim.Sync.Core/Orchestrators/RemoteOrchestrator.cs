@@ -390,7 +390,7 @@ namespace Dotmim.Sync
             => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
             {
                 // Get the min timestamp, where we can without any problem, delete metadatas
-                var histories = await this.GetServerHistoryScopes(connection, transaction, cancellationToken, progress);
+                var histories = await this.GetServerHistoryScopesAsync(connection, transaction, cancellationToken, progress);
 
                 if (histories == null || histories.Count == 0)
                     return new DatabaseMetadatasCleaned();

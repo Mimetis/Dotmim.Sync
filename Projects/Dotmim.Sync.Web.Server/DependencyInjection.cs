@@ -39,7 +39,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // Create provider
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
-
+            
             // Create orchestrator
             var webServerOrchestrator = new WebServerOrchestrator(provider, options, setup, webServerOptions, scopeName);
             serviceCollection.AddSingleton(webServerOrchestrator);

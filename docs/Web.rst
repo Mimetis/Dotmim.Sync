@@ -48,7 +48,13 @@ Once your **ASP.NET** application is created, we're adding the specific web serv
 
 Once we have added these **DMS** packages to our project, we are configuring the Sync provider in the ``Startup`` class, thanks to Dependency Injection.
 
-Be careful, some services are required, but not part of **DMS** (like ``MemoryCache`` for instance)
+| Be careful, some services are required, but not part of **DMS** (like ``.AddDistributedMemoryCache()`` and ``.AddSession()`` for instance.)
+| Do not forget to add the session middleware as well ( ``app.UseSession();`` )
+
+.. note:: ``DMS`` uses a lot of http request during one user's sync. That's why Session is mandatory. Do not forget to add it in your configuration.
+          
+          Having a cache is mandatory to be able to serve multiple requests 
+          for one particular session (representing one sync client)
 
 .. code-block:: csharp
 
@@ -56,30 +62,47 @@ Be careful, some services are required, but not part of **DMS** (like ``MemoryCa
     {
         services.AddControllers();
 
-        // [Required]: To be able to handle multiple sessions
-        services.AddMemoryCache();
+        services.AddDistributedMemoryCache();
+        services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
         // [Required]: Get a connection string to your server data source
-        var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
+        var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
-        // [Required]: Tables list involved in the sync process
+        var options = new SyncOptions { };
+
+        // [Required] Tables involved in the sync process:
         var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-                "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
         // [Required]: Add a SqlSyncProvider acting as the server hub.
-        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables);
+        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options);
+
     }
 
 
-.. note:: We have added a memory cache, through ``services.AddMemoryCache();``. 
-          
-          Having a cache is mandatory to be able to serve multiple requests 
-          for one particular session (representing one sync client)
+    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage();
+        }
+
+        app.UseRouting();
+        app.UseSession();
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
+    }
+
+
 
 Once we have correctly configured our sync process, we can create our controller:
 
 * Create a new controller (for example ``SyncController``)
-* In this newly created controller, inject a ``WebServerManager`` instance.   
+* In this newly created controller, inject your ``WebServerOrchestrator`` instance.   
 * Use this newly injected instance in the ``POST`` method, calling the ``HandleRequestAsync`` method and ... **that's all** !
 * We can optionally add a ``GET`` method, to see our configuration from within the web browser. Useful to check if everything is configured correctly.
 
@@ -89,25 +112,29 @@ Once we have correctly configured our sync process, we can create our controller
     [ApiController]
     public class SyncController : ControllerBase
     {
-        // The WebServerManager instance is useful to manage all 
-        // the Web server orchestrators registered in the Startup.cs
-        private WebServerManager manager;
+        // the Web server orchestrator registered in the Startup.cs
+        // This instance contains your SyncProvider (like SqlSyncProvider or SqlSyncChangeTrackingProvider...)
+        private WebServerOrchestrator orchestrator;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerManager manager) => this.manager = manager;
+        public SyncController(WebServerOrchestrator webServerOrchestrator) 
+            => this.orchestrator = webServerOrchestrator;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
         /// </summary>
+        /// <returns></returns>
         [HttpPost]
-        public async Task Post() => await manager.HandleRequestAsync(this.HttpContext);
+        public Task Post() 
+            => orchestrator.HandleRequestAsync(this.HttpContext);
 
         /// <summary>
         /// This GET handler is optional. It allows you to see the configuration hosted on the server
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public async Task Get() => await manager.HandleRequestAsync(this.HttpContext);
+        public Task Get() 
+            => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
     }
 
 

@@ -16,12 +16,14 @@ Just as a remember, the **Web Server** code looks like this:
     [ApiController]
     public class SyncController : ControllerBase
     {
-        private WebServerManager manager;
+        private WebServerOrchestrator orchestrator;
 
-        public SyncController(WebServerManager manager) => this.manager = manager;
+        public SyncController(WebServerOrchestrator webServerOrchestrator) 
+            => this.orchestrator = webServerOrchestrator;
 
         [HttpPost]
-        public async Task Post() => await manager.HandleRequestAsync(this.HttpContext);
+        public Task Post() 
+            => orchestrator.HandleRequestAsync(this.HttpContext);
     }
 
 As you can see, we are completely integrated within the **ASP.Net Core** architecture. So far, protecting our API is just like protecting any kind of ASP.NET Core Api.
@@ -47,14 +49,16 @@ If you want to rely on a strong **OAUTH2** / **OpenID Connect** provider, please
 Server side
 ^^^^^^^^^^^^^^
 
-| The Server side is pretty simple, if you're using `Azure Active Directory Authentication <https://docs.microsoft.com/en-us/aspnet/core/security/authentication/azure-active-directory/>`_.
-| We are going to protect our Web API to allow only authenticated users to access the sync process.
-| First of all, be sure you've created an `Azure app registration <https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-app-registration>`_.
+We are going to use a **Bearer token** validation on the server side:
+
+* **Unsecure** but easier: Using an hard coded bearer token (Do not use this technic in production)
+* **Secured** but relying on an external token provider: Using for example `Azure Active Directory Authentication <https://docs.microsoft.com/en-us/aspnet/core/security/authentication/azure-active-directory/>`_.
+
 
 Configuration
 -----------------------------
 
-Once it's done, you need to configure your Web API project to be able to secure any controller.
+You need to configure your Web API project to be able to secure any controller.
 
 | In your ``Startup.cs``, you should add authentication services, with JWT Bearer protection.
 | It involves using ``services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>{})``
@@ -67,8 +71,8 @@ Here is a quick sample, **without** relying on any external cloud identity provi
     {
         services.AddControllers();
 
-        // [Required]: Handling multiple sessions
-        services.AddMemoryCache();
+        services.AddDistributedMemoryCache();
+        services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
         // Adding a default authentication system
         JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // => remove default claims
@@ -103,7 +107,8 @@ As an example, if you're using **Azure AD** authentication, your code should be 
         services.AddControllers();
 
         // [Required]: Handling multiple sessions
-        services.AddMemoryCache();
+        services.AddDistributedMemoryCache();
+        services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
         // Using Azure AD Authentication
         services.AddMicrosoftIdentityWebApiAuthentication(Configuration)
@@ -124,7 +129,7 @@ As an example, if you're using **Azure AD** authentication, your code should be 
 .. note:: More on Code Configuration `Here <https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-protected-web-api-app-configuration>`_.
 
 
-Finally, do not forget to add the **Authentication Middleware** as well:
+Finally, do not forget to add the **Authentication Middlewares** (and Session Middleware) as well:
 
 .. code-block:: csharp
 
@@ -143,6 +148,7 @@ Finally, do not forget to add the **Authentication Middleware** as well:
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseSession();
 
         app.UseEndpoints(endpoints =>
         {
@@ -165,12 +171,14 @@ The simplest controller could be written like this, using the ``[Authorize]`` at
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerManager manager;
+        private WebServerOrchestrator orchestrator;
 
-        public SyncController(WebServerManager manager) => this.manager = manager;
+        public SyncController(WebServerOrchestrator webServerOrchestrator) 
+            => this.orchestrator = webServerOrchestrator;
 
         [HttpPost]
-        public async Task Post() => manager.HandleRequestAsync(this.HttpContext);
+        public Task Post() 
+            => orchestrator.HandleRequestAsync(this.HttpContext);
     }
 
 
@@ -182,17 +190,18 @@ Maybe you'll need to expose the ``GET`` method to see the server configuration. 
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerManager manager;
+        private WebServerOrchestrator orchestrator;
 
-        public SyncController(WebServerManager manager) => this.manager = manager;
+        public SyncController(WebServerOrchestrator webServerOrchestrator) 
+            => this.orchestrator = webServerOrchestrator;
 
         [HttpPost]
         [Authorize]
-        public async Task Post() => manager.HandleRequestAsync(this.HttpContext);
+        public async Task Post() => orchestrator.HandleRequestAsync(this.HttpContext);
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task Get() => await manager.HandleRequestAsync(this.HttpContext);
+        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
 
     }
 
@@ -221,7 +230,7 @@ And eventually, you can even have more control, using the ``HttpContext`` instan
             return;
         }
         
-        await manager.HandleRequestAsync(this.HttpContext);
+        await orchestrator.HandleRequestAsync(this.HttpContext);
     }
 
 Client side

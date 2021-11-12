@@ -33,7 +33,7 @@ namespace HelloWebSyncClient
             };
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverOrchestrator, options);
+            var agent = new SyncAgent(clientProvider, serverOrchestrator, options, "Products");
 
             do
             {
