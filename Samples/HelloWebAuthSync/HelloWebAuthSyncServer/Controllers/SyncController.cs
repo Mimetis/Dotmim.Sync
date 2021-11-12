@@ -17,10 +17,10 @@ namespace HelloWebSyncServer.Controllers
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        public WebServerOrchestrator WebServerOrchestrator { get; }
+        private WebServerOrchestrator orchestrator;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerOrchestrator webServerOrchestrator) => this.WebServerOrchestrator = webServerOrchestrator;
+        public SyncController(WebServerOrchestrator webServerOrchestrator) => this.orchestrator = webServerOrchestrator;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
@@ -32,7 +32,7 @@ namespace HelloWebSyncServer.Controllers
             if (HttpContext.User.Identity.IsAuthenticated)
             {
                 // on each request coming from the client, just inject the User Id parameter
-                WebServerOrchestrator.OnHttpGettingRequest(args =>
+                orchestrator.OnHttpGettingRequest(args =>
                 {
                     var pUserId = args.Context.Parameters["UserId"];
 
@@ -45,13 +45,13 @@ namespace HelloWebSyncServer.Controllers
                 });
 
                 // Because we don't want to send back this value, remove it from the response 
-                WebServerOrchestrator.OnHttpSendingResponse(args =>
+                orchestrator.OnHttpSendingResponse(args =>
                 {
                     if (args.Context.Parameters.Contains("UserId"))
                         args.Context.Parameters.Remove("UserId");
                 });
 
-                await WebServerOrchestrator.HandleRequestAsync(this.HttpContext);
+                await orchestrator.HandleRequestAsync(this.HttpContext);
             }
             else
             {
@@ -65,6 +65,6 @@ namespace HelloWebSyncServer.Controllers
         /// </summary>
         [HttpGet]
         [AllowAnonymous]
-        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, WebServerOrchestrator);
+        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
     }
 }

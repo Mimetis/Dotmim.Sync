@@ -189,20 +189,17 @@ We saw that conflicts are resolved on the server side, if you are in an **HTTP**
     [ApiController]
     public class SyncController : ControllerBase
     {
-        private WebServerManager webServerManager;
+        private WebServerOrchestrator orchestrator;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerManager webServerManager) 
-                            => this.webServerManager = webServerManager;
+        public SyncController(WebServerOrchestrator webServerOrchestrator) 
+            => this.orchestrator = webServerOrchestrator;
 
         [HttpPost]
         public async Task Post()
         {
             try
             {
-                // Get Orchestrator regarding the incoming scope name (from http context)
-                var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
-
                 orchestrator.OnApplyChangesFailed(e =>
                 {
                     if (e.Conflict.RemoteRow.Table.TableName == "Region")
@@ -220,21 +217,23 @@ We saw that conflicts are resolved on the server side, if you are in an **HTTP**
                     Debug.WriteLine("{0}\t{1}", pa.Context.SyncStage, pa.Message));
 
                 // handle request
-                await webServerManager.HandleRequestAsync(this.HttpContext, default, progress);
+                await orchestrator.HandleRequestAsync(this.HttpContext, default, progress);
 
             }
             catch (Exception ex)
             {
-                await WebServerManager.WriteExceptionAsync(this.HttpContext.Response, ex);
+                await orchestrator.WriteExceptionAsync(this.HttpContext.Response, ex);
             }
         }
 
         /// <summary>
-        /// This Get handler is optional. It allows you to see the configuration hosted on the server
+        /// This Get handler is optional. 
+        /// It allows you to see the configuration hosted on the server
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public async Task Get() => await webServerManager.HandleRequestAsync(this.HttpContext);
+        public Task Get() 
+            => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
     }
 
 Handling conflicts from the client side

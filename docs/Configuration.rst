@@ -204,9 +204,8 @@ HTTP mode
     public void ConfigureServices(IServiceCollection services)
     {
         services.AddControllers();
-
-        // Mandatory to be able to handle multiple sessions
-        services.AddMemoryCache();
+        services.AddDistributedMemoryCache();
+        services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
         // Get a connection string for your server data source
         var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
@@ -232,6 +231,18 @@ HTTP mode
         // add a SqlSyncProvider acting as the server hub
         services.AddSyncServer<SqlSyncProvider>(connectionString, setup);
     }
+
+    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment())
+            app.UseDeveloperExceptionPage();
+
+        app.UseHttpsRedirection();
+        app.UseRouting();
+        app.UseSession();
+        app.UseEndpoints(endpoints => endpoints.MapControllers());
+    }    
 
 .. warning:: The prefix and suffix properties, are not shared betweeen server and client.
 

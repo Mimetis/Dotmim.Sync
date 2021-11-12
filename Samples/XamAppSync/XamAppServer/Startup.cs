@@ -37,21 +37,23 @@ namespace XamAppServer
             // [Required]: Get a connection string to your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
-            // Sync options
-            var options = new SyncOptions
+            //// Sync options
+            //var options = new SyncOptions
+            //{
+            //    SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),
+            //    BatchSize = 2000,
+            //};
+            var options = new SyncOptions()
             {
-                SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),
-                BatchSize = 2000,
+                DisableConstraintsOnApplyChanges = false,
             };
 
-            //// [Required] Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var tables = new string[] { "dbo.Album", "dbo.Artist", "dbo.Customer", "dbo.Invoice", "dbo.InvoiceItem", "dbo.Track" };
 
             var setup = new SyncSetup(tables);
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, setup, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

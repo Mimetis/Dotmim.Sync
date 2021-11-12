@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the server scope histories
         /// </summary>
-        public virtual Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopes(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
            => RunInTransactionAsync(SyncStage.ScopeLoading, async (ctx, connection, transaction) =>
            {
                List<ServerHistoryScopeInfo> serverHistoryScopes = null;

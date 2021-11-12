@@ -19,6 +19,7 @@ using Serilog;
 using Serilog.Events;
 using System.Data.Common;
 using Dotmim.Sync.MySql;
+using System.Linq;
 #if NET5_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -42,10 +43,8 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        // await CreateSnapshotAsync();
-        //await SyncHttpThroughKestrellAsync();
-        await SynchronizeAsync();
-        // await ScenarioAsync();
+        await SyncHttpThroughKestrellAsync();
+
     }
 
     private static async Task ScenarioAsync()
@@ -141,12 +140,12 @@ internal class Program
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        
+
         var setup = new SyncSetup(oneTable);
 
         var options = new SyncOptions
         {
-            BatchSize = 5000,
+            BatchSize = 100,
             //SerializerFactory = new CustomMessagePackSerializerFactory(),
             //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
             //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
@@ -168,7 +167,26 @@ internal class Program
             Console.WriteLine("Sync start");
             try
             {
-                var s = await agent.SynchronizeAsync(progress);
+                // Remote orchestrator
+                var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, "DefaultScope");
+                // all histories for all client scope
+                var histories = await remoteOrchestrator.GetServerHistoryScopesAsync();
+                
+                // get the correct client scope 
+                var clientScopeId = new Guid("B47C21C2-198D-48CB-9568-7CF1A3333288");
+
+                // get the correct history
+                var history = histories.Where(h => h.Id == clientScopeId).FirstOrDefault();
+
+                var clientScope = new ScopeInfo();
+                clientScope.IsNewScope = false; 
+                clientScope.Id = clientScopeId;
+                clientScope.LastServerSyncTimestamp = history.LastSyncTimestamp;
+                clientScope.Name = "DefaultScope";
+
+                var s = await agent.RemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+
+
                 Console.WriteLine(s);
             }
             catch (SyncException e)
@@ -213,43 +231,22 @@ internal class Program
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
         var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
         var configureServices = new Action<IServiceCollection>(services =>
         {
             var serverOptions = new SyncOptions()
             {
-                BatchSize = 2000,
                 DisableConstraintsOnApplyChanges = false,
-                UseBulkOperations = true,
-                ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins,
-                UseVerboseErrors = true
             };
 
-            var tables = new[] {
-                "Mobile.Report",
-                "Mobile.ReportLine"
-            };
+            var tables = new string[] { "dbo.Album", "dbo.Artist", "dbo.Customer", "dbo.Invoice", "dbo.InvoiceItem", "dbo.Track" };
 
-            var syncSetup = new SyncSetup(tables)
-            {
-                StoredProceduresPrefix = "sp",
-                StoredProceduresSuffix = "",
-                TrackingTablesPrefix = "t",
-                TrackingTablesSuffix = ""
-            };
+            var syncSetup = new SyncSetup(tables);
 
-            // Works fine, just one report in the sync process
-            syncSetup.Filters.Add("Report", "CreatedBy", "Mobile");
-
-            // This crashes. It's trying to bring all the report lines
-            var reportLineFilter = new SetupFilter("ReportLine", "Mobile");
-            reportLineFilter.AddParameter("CreatedBy", DbType.AnsiString, maxLength: 255);
-            reportLineFilter.AddJoin(Join.Left, "Mobile.Report").On("Mobile.ReportLine", "ReportId", "Mobile.Report", "Id");
-            reportLineFilter.AddWhere("CreatedBy", "Report", "CreatedBy", "Mobile");
-            syncSetup.Filters.Add(reportLineFilter);
-
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, syncSetup, serverOptions);
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(serverProvider.ConnectionString, syncSetup, serverOptions);
         });
 
         var serverHandler = new RequestDelegate(async context =>
@@ -281,14 +278,7 @@ internal class Program
 
                     var localOrchestrator = new WebClientOrchestrator(serviceUri);
 
-                    var clientOptions = new SyncOptions
-                    {
-                        ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins,
-                        UseBulkOperations = true,
-                        DisableConstraintsOnApplyChanges = true,
-                        UseVerboseErrors = true
-                    };
-
+                    var clientOptions = new SyncOptions();
 
                     var localProgress = new SynchronousProgress<ProgressArgs>(s =>
                     {
@@ -302,7 +292,6 @@ internal class Program
                     });
 
                     var agent = new SyncAgent(clientProvider, localOrchestrator, clientOptions);
-                    agent.Parameters.Add("CreatedBy", "user1");
 
                     var s = await agent.SynchronizeAsync(localProgress);
                     Console.WriteLine(s);
@@ -326,6 +315,134 @@ internal class Program
 
     }
 
+
+    private static async Task UpdateSetupAndProvisionAsync()
+    {
+        // [Required]: Get a connection string to your server data source
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        // [Required] Tables involved in the sync process:
+        var tables = new string[] {"ProductCategory", "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+
+        var syncSetup = new SyncSetup(tables);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Source}:\t{s.Message}"));
+
+        var orchestrator = new RemoteOrchestrator(serverProvider, new SyncOptions(), syncSetup);
+
+        await orchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers, progress: progress);
+        await orchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers, progress: progress);
+
+    }
+    public static async Task ForceUpgradeClientAsync()
+    {
+        // server provider
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            var serverOptions = new SyncOptions()
+            {
+                DisableConstraintsOnApplyChanges = false,
+            };
+
+            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+
+            var syncSetup = new SyncSetup(tables);
+
+            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, syncSetup, serverOptions);
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            try
+            {
+                var webServerOrchestrator = context.RequestServices.GetService(typeof(WebServerOrchestrator)) as WebServerOrchestrator;
+
+                await webServerOrchestrator.HandleRequestAsync(context);
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+                throw;
+            }
+
+        });
+
+        using var server = new KestrellTestServer(configureServices, false);
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
+        {
+            do
+            {
+                Console.WriteLine("Web sync start");
+                try
+                {
+                    var startTime = DateTime.Now;
+
+                    var remoteOrchestrator = new WebClientOrchestrator(serviceUri);
+
+                    var clientOptions = new SyncOptions();
+
+                    var localProgress = new SynchronousProgress<ProgressArgs>(s =>
+                    {
+                        var tsEnded = TimeSpan.FromTicks(DateTime.Now.Ticks);
+                        var tsStarted = TimeSpan.FromTicks(startTime.Ticks);
+                        var durationTs = tsEnded.Subtract(tsStarted);
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.ProgressPercentage:p}:\t{s.Message}");
+                        Console.ResetColor();
+                    });
+
+
+                    var agent = new SyncAgent(clientProvider, remoteOrchestrator, clientOptions);
+
+                    // fake setup to deprovision one table to migrate
+                    var setup = new SyncSetup(new string[] { "Customer" });
+                    
+                    // creating a localorchestrator with this fake setup
+                    var localOrchestrator = new LocalOrchestrator(clientProvider, clientOptions, setup);
+
+                    // Deprovision all stored procedure for the table from the fake setup
+                    await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+
+                    // getting server scope with new column
+                    var serverFullSchema = await agent.RemoteOrchestrator.GetSchemaAsync().ConfigureAwait(false);
+
+                    // Provision again
+                    await agent.LocalOrchestrator.ProvisionAsync(serverFullSchema).ConfigureAwait(false);
+
+                    // make a sync
+                    var s = await agent.SynchronizeAsync(localProgress);
+                    Console.WriteLine(s);
+                }
+                catch (SyncException e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+                }
+
+
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+        });
+        await server.Run(serverHandler, clientHandler);
+
+    }
 
     private static async Task SynchronizeWithOneFilterAsync()
     {

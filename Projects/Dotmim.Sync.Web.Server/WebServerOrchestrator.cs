@@ -41,11 +41,6 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public IConverter ClientConverter { get; private set; }
 
-        ///// <summary>
-        ///// Gets the current Http Context
-        ///// </summary>
-        //public HttpContext HttpContext { get; private set; }
-
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
@@ -262,7 +257,6 @@ namespace Dotmim.Sync.Web.Server
                 readableStream.Dispose();
             }
         }
-
 
         /// <summary>
         /// Ensure we have a Compression setting or not

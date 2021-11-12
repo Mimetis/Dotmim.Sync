@@ -251,10 +251,6 @@ On the server side, from your controller, just modify the request ``SyncContext`
     [HttpPost]
     public async Task Post()
     {
-
-        // Get Orchestrator regarding the incoming scope name (from http context)
-        var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
-
         // override sync type to force a reinitialization from a particular client
         orchestrator.OnServerScopeLoaded(sla =>
         {
@@ -267,7 +263,7 @@ On the server side, from your controller, just modify the request ``SyncContext`
         });
 
         // handle request
-        await webServerManager.HandleRequestAsync(this.HttpContext);
+        await orchestrator.HandleRequestAsync(this.HttpContext);
     }
 
 

@@ -182,10 +182,11 @@ The ``ASP.NET Core`` web api looks like this, now:
 
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
+        services.AddControllers();
 
-        // Mandatory to be able to handle multiple sessions
-        services.AddMemoryCache();
+        services.AddDistributedMemoryCache();
+        services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
+
             
         // Get a connection string for your server data source
         var connectionString = Configuration.GetSection("ConnectionStrings")["DefaultConnection"];
@@ -212,6 +213,20 @@ The ``ASP.NET Core`` web api looks like this, now:
         services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
     }
 
+    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        if (env.IsDevelopment())
+            app.UseDeveloperExceptionPage();
+
+        app.UseHttpsRedirection();
+        app.UseRouting();
+        app.UseSession();
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
+    }
 
 Client side
 ^^^^^^^^^^^^^^^^^^^^

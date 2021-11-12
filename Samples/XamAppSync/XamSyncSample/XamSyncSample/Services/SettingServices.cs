@@ -26,7 +26,7 @@ namespace XamSyncSample.Services
 
         public string DataSource => $"Data Source={DataSourcePath}";
 
-        public string DataSourceName => "adv002.db";
+        public string DataSourceName => "adv003.db";
         public string BatchDirectoryName => "dms";
 
 
@@ -35,12 +35,12 @@ namespace XamSyncSample.Services
         public string BatchDirectoryPath => Path.Combine(GetLibraryPath(), BatchDirectoryName);
 
         // Testing from emulator
-        //
-        //public string SyncApiUrl => Device.RuntimePlatform == Device.Android ? "https://10.0.2.2:44375/api/sync" : "https://localhost:44375/api/sync";
-        
+
+        public string SyncApiUrl => Device.RuntimePlatform == Device.Android ? "https://10.0.2.2:44375/api/sync" : "https://localhost:44375/api/sync";
+
         // Testing from a device with proxy redirectio, using ngrok
         //
-        public string SyncApiUrl => "https://4cf54f582b0f.ngrok.io/api/sync";
+        //public string SyncApiUrl => "https://4cf54f582b0f.ngrok.io/api/sync";
 
         public int BatchSize => 2000;
     }
