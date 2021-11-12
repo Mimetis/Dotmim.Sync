@@ -1,70 +1,75 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-    <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
-    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+	<PropertyGroup>
+		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
+		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
+		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet5)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet5);$(TargetFrameworkNet6)</TargetFrameworks>
 
-    <Authors>Sébastien Pertus</Authors>
-    <Company>Microsoft</Company>
-    <Title>Dotmim.Sync.Web.Server</Title>
-    <Summary>Web server proxy Sync Provider .Net Standard 2.0</Summary>
-    <Description>Proxy to be able to Sync through an ASP.NET CORE application. Choose a Dotmim.Sync provider and protects your database call through web api calls only. This assembly is meant to be used from your ASP.Net core Web Api project, and will handle all http requests calls.</Description>
-    <PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
-    <AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
-    <RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
-    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.8.1</Version>
-    <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
-    <ApplicationIcon>favicon.ico</ApplicationIcon>
-    <PackageIcon>packageIcon.png</PackageIcon>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <LangVersion>8.0</LangVersion>
-  </PropertyGroup>
+		<Authors>Sébastien Pertus</Authors>
+		<Company>Microsoft</Company>
+		<Title>Dotmim.Sync.Web.Server</Title>
+		<Summary>Web server proxy Sync Provider .Net Standard 2.0</Summary>
+		<Description>Proxy to be able to Sync through an ASP.NET CORE application. Choose a Dotmim.Sync provider and protects your database call through web api calls only. This assembly is meant to be used from your ASP.Net core Web Api project, and will handle all http requests calls.</Description>
+		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+		<AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
+		<RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
+		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
+		<Version>0.8.1</Version>
+		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+		<ApplicationIcon>favicon.ico</ApplicationIcon>
+		<PackageIcon>packageIcon.png</PackageIcon>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<LangVersion>8.0</LangVersion>
+	</PropertyGroup>
 
-  <!--generate NUGET package including symbols ans source on each release build -->
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <IncludeSource>True</IncludeSource>
-    <IncludeSymbols>True</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-  </PropertyGroup>
+	<!--generate NUGET package including symbols ans source on each release build -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<IncludeSource>True</IncludeSource>
+		<IncludeSymbols>True</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Extensions" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Extensions" Version="2.2.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+		<PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+	</ItemGroup>
 
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-    <PackageReference Include="Microsoft.AspNetCore.Hosting.Abstractions" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.2.0" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
+		<PackageReference Include="Microsoft.AspNetCore.Hosting.Abstractions" Version="2.2.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.2.0" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="2.2.0" />
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.2.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="2.2.0" />
+	</ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Include="..\..\docs\assets\packageIcon.png">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="..\..\docs\assets\packageIcon.png">
+			<Pack>True</Pack>
+			<PackagePath></PackagePath>
+		</None>
+	</ItemGroup>
 </Project>

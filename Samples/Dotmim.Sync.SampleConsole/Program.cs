@@ -20,7 +20,7 @@ using Serilog.Events;
 using System.Data.Common;
 using Dotmim.Sync.MySql;
 using System.Linq;
-#if NET5_0
+#if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;

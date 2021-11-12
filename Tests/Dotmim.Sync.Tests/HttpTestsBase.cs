@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Server;
 using Microsoft.Data.SqlClient;
-#if NET5_0 || NETCOREAPP3_1
+#if NET5_0 || NET6_0 || NETCOREAPP3_1
 using MySqlConnector;
 #elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;

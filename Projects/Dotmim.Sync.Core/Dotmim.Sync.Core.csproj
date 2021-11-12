@@ -1,76 +1,81 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-    <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
-    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+	<PropertyGroup>
+		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
+		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
+		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore)</TargetFrameworks>
-    <Authors>Sébastien Pertus</Authors>
-    <Company>Microsoft</Company>
-    <RootNamespace>Dotmim.Sync</RootNamespace>
-    <Title>Dotmim.Sync.Core</Title>
-    <Summary>Manage a sync process beetween two relational databases provider. Core assembly .Net Standard 2.0</Summary>
-    <Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider. Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
-    <PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-    <PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
-    <RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <VersionSuffix>$(VersionSuffix)</VersionSuffix>
-    <Version>0.8.1</Version>
-    <Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
-    <LangVersion>8.0</LangVersion>
-    <ApplicationIcon>favicon.ico</ApplicationIcon>
-    <PackageIcon>packageIcon.png</PackageIcon>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <OutputType>Library</OutputType>
-    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore);$(TargetFrameworkNet6)</TargetFrameworks>
+		<Authors>Sébastien Pertus</Authors>
+		<Company>Microsoft</Company>
+		<RootNamespace>Dotmim.Sync</RootNamespace>
+		<Title>Dotmim.Sync.Core</Title>
+		<Summary>Manage a sync process beetween two relational databases provider. Core assembly .Net Standard 2.0</Summary>
+		<Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider. Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
+		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
+		<Version>0.8.1</Version>
+		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+		<LangVersion>8.0</LangVersion>
+		<ApplicationIcon>favicon.ico</ApplicationIcon>
+		<PackageIcon>packageIcon.png</PackageIcon>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<OutputType>Library</OutputType>
+		<AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
 
-  </PropertyGroup>
+	</PropertyGroup>
 
-  <!--generate NUGET package including symbols ans source on each release build -->
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <IncludeSource>True</IncludeSource>
-    <IncludeSymbols>True</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Serialization\DmBinaryConverter\**" />
-    <EmbeddedResource Remove="Serialization\DmBinaryConverter\**" />
-    <None Remove="Serialization\DmBinaryConverter\**" />
-  </ItemGroup>
+	<!--generate NUGET package including symbols ans source on each release build -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<IncludeSource>True</IncludeSource>
+		<IncludeSymbols>True</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="Serialization\DmBinaryConverter\**" />
+		<EmbeddedResource Remove="Serialization\DmBinaryConverter\**" />
+		<None Remove="Serialization\DmBinaryConverter\**" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Include="..\..\docs\assets\packageIcon.png">
-      <Pack>True</Pack>
-      <PackagePath></PackagePath>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<None Include="..\..\docs\assets\packageIcon.png">
+			<Pack>True</Pack>
+			<PackagePath></PackagePath>
+		</None>
+	</ItemGroup>
 
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
-    <PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
-    <PackageReference Include="System.ComponentModel.TypeConverter" Version="4.3.0" />
-    <PackageReference Include="System.Data.Common" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
-    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="5.0.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+		<PackageReference Include="System.Collections.NonGeneric" Version="4.3.0" />
+		<PackageReference Include="System.ComponentModel.TypeConverter" Version="4.3.0" />
+		<PackageReference Include="System.Data.Common" Version="4.3.0" />
+		<PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="5.0.0" />
+	</ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.0" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.0" />
+	</ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+	</ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="6.0.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
+	</ItemGroup>
 
 </Project>
