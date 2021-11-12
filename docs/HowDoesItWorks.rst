@@ -41,7 +41,7 @@ There is no mention of any ``Orchestrators`` here.
 It's basically because the ``SyncAgent`` instance will create them under the hood, for simplicity.  
 We can rewrite this code, this way:
 
-.. code-block:: cs
+.. code-block:: csharp
 
   // Create 2 providers, one for MySql, one for Sqlite.
   var serverProvider = new MySqlSyncProvider(serverConnectionString);
