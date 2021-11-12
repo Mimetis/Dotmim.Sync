@@ -128,9 +128,12 @@ namespace Dotmim.Sync
 
                 if (version.Minor == 7 && version.Build >= 3)
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 8, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                
+
                 if (version.Minor == 8 && version.Build == 0)
                     version = await UpgdrateTo801Async(context, schema, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                
+                if (version.Minor == 8 && version.Build == 1)
+                    version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 9, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
