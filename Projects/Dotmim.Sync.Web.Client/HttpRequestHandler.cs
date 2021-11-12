@@ -60,8 +60,8 @@ namespace Dotmim.Sync.Web.Client
                     string prefix = "?";
                     foreach (var kvp in ScopeParameters)
                     {
-                        requestUri.AppendFormat("{0}{1}={2}", prefix, Uri.EscapeUriString(kvp.Key),
-                                                Uri.EscapeUriString(kvp.Value));
+                        requestUri.AppendFormat("{0}{1}={2}", prefix, Uri.EscapeDataString(kvp.Key),
+                                                Uri.EscapeDataString(kvp.Value));
                         if (prefix.Equals("?"))
                             prefix = "&";
                     }
