@@ -22,14 +22,14 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone -f net6.0 --logger trx
         name: standalonetests
         displayName: "Standalone Tests"
         continueOnError: true
         env:
           "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests -f net6.0 --logger trx
         name: unittests
         displayName: "Unit Tests"
         continueOnError: true
@@ -41,8 +41,8 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testssqlservertcp5
-    displayName: "Sql TCP .Net 5"
+  - job: testssqlservertcp6
+    displayName: "Sql TCP .Net 6"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -64,7 +64,7 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcp -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcp -f net6.0 --logger trx
         name: sqlservertcptests
         displayName: "SQL Server Tcp Integration Tests"
         continueOnError: true
@@ -146,8 +146,8 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testssqlserverhttp5
-    displayName: "Sql HTTP .Net 5"
+  - job: testssqlserverhttp6
+    displayName: "Sql HTTP .Net 6"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -169,7 +169,7 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttp  -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttp  -f net6.0 --logger trx
         name: sqlservertcptests
         displayName: "SQL Server Http Integration Tests"
         continueOnError: true
@@ -321,8 +321,8 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testssqlserverct5
-    displayName: "Sql CT .Net 5"
+  - job: testssqlserverct6
+    displayName: "Sql CT .Net 6"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -344,7 +344,7 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTracking -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTracking -f net6.0 --logger trx
         name: sqlservertcptests
         displayName: "SQL Server Change Tracking Integration Tests"
         continueOnError: true
@@ -356,8 +356,8 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testsmysqltcp5
-    displayName: "MySql TCP .Net 5"
+  - job: testsmysqltcp6
+    displayName: "MySql TCP .Net 6"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -379,7 +379,7 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlTcp -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlTcp -f net6.0 --logger trx
         name: mysqlintegrationtests
         displayName: "MySql Tcp Integration Tests"
         continueOnError: true
@@ -461,8 +461,8 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testsmysqlhttp5
-    displayName: "MySql HTTP .Net 5"
+  - job: testsmysqlhttp6
+    displayName: "MySql HTTP .Net 6"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -484,7 +484,7 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlHttp  -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MySqlHttp  -f net6.0 --logger trx
         name: mysqlintegrationtests
         displayName: "MySql Http Integration Tests"
         continueOnError: true
@@ -566,8 +566,8 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testmariadbtcp5
-    displayName: "MariaDB TCP .Net 5"
+  - job: testmariadbtcp6
+    displayName: "MariaDB TCP .Net 6"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -589,7 +589,7 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBTcp -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBTcp -f net6.0 --logger trx
         name: mariadbintegrationtests
         displayName: "MariaDB Tcp Integration Tests"
         continueOnError: true
@@ -706,8 +706,8 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
         
-  - job: testmariadbhttp5
-    displayName: "MariaDB HTTP .Net 5"
+  - job: testmariadbhttp6
+    displayName: "MariaDB HTTP .Net 6"
 
     pool:
       # get an Ubuntu image to be able to get the light SQL container
@@ -729,7 +729,7 @@ jobs:
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBHttp -f net5.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.MariaDBHttp -f net6.0 --logger trx
         name: mariadbintegrationtests
         displayName: "MariaDB Http Integration Tests"
         continueOnError: true
@@ -798,9 +798,9 @@ jobs:
 
       # Use the latest .NET SDK
       - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk 5.x'
+        displayName: 'Use .Net Sdk 6.x'
         inputs:
-          version: 5.x
+          version: 6.x
       
       - bash: |
           build=$(Build.BuildId)
@@ -889,9 +889,9 @@ jobs:
 
       # Use the latest .NET SDK
       - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk 5.x'
+        displayName: 'Use .Net Sdk 6.x'
         inputs:
-          version: 5.x
+          version: 6.x
           includePreviewVersions: 'true'
 
       - script: |

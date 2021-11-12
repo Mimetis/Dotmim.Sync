@@ -2,7 +2,8 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-#if NET5_0 || NETCOREAPP3_1
+
+#if NET5_0 || NET6_0 || NETCOREAPP3_1
 using MySqlConnector;
 #elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;
@@ -57,7 +58,7 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
-#if NET5_0 || NETCOREAPP3_1
+#if NET5_0 || NET6_0 || NETCOREAPP3_1
                     case ProviderType.MySql:
                         if (this.Connection != null)
                             optionsBuilder.UseMySql(this.Connection, new MySqlServerVersion(new Version(8, 0, 21)), options => options.EnableRetryOnFailure(5));
@@ -354,7 +355,7 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.ProductId);
 
                 entity.HasIndex(e => e.Name)
-#if NET5_0 || NETCOREAPP3_1
+#if NET5_0 || NET6_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_Product_Name")
 #elif NETCOREAPP2_1
                     .HasName("AK_Product_Name")
@@ -362,7 +363,7 @@ namespace Dotmim.Sync.Tests.Models
                     .IsUnique();
 
                 entity.HasIndex(e => e.ProductNumber)
-#if NET5_0 || NETCOREAPP3_1
+#if NET5_0 || NET6_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_Product_ProductNumber")
 #elif NETCOREAPP2_1
                     .HasName("AK_Product_ProductNumber")
@@ -438,7 +439,7 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.HasIndex(e => e.Name)
-#if NET5_0 || NETCOREAPP3_1
+#if NET5_0 || NET6_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_ProductCategory_Name")
 #elif NETCOREAPP2_1
                     .HasName("AK_ProductCategory_Name")
@@ -481,7 +482,7 @@ namespace Dotmim.Sync.Tests.Models
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
-#if NET5_0 || NETCOREAPP3_1
+#if NET5_0 || NET6_0 || NETCOREAPP3_1
                     .HasDatabaseName("AK_ProductModel_Name")
 #elif NETCOREAPP2_1
                     .HasName("AK_ProductModel_Name")
@@ -856,12 +857,12 @@ namespace Dotmim.Sync.Tests.Models
                 new ProductCategory { ProductCategoryId = "_CLOTHE", Name = "Clothing" },
                 new ProductCategory { ProductCategoryId = "_ACCESS", Name = "Accessories" },
                 new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes" },
-                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes"},
+                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes" },
                 new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames" },
-                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes"},
-                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars"},
+                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes" },
+                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars" },
                 new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets" },
-                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes"}
+                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes" }
 
             );
 
@@ -1077,12 +1078,42 @@ namespace Dotmim.Sync.Tests.Models
 
     }
 
+    //public class DynamicModelCacheKeyFactory : IModelCacheKeyFactory
+    //{
+    //    public object Create(DbContext context)
+    //        => context is AdventureWorksContext dynamicContext
+    //            ? (context.GetType(), dynamicContext.UseIntProperty)
+    //            : (object)context.GetType();
+    //}
 
+#if NET6_0 
+
+    public class MyModelCacheKeyFactory : IModelCacheKeyFactory
+    {
+        public object Create(DbContext context, bool designTime)
+        {
+            AdventureWorksContext adventureWorksContext = (AdventureWorksContext)context;
+
+            var providerType = adventureWorksContext.ProviderType;
+            var useSchema = adventureWorksContext.useSchema;
+            var useSeeding = adventureWorksContext.useSeeding;
+
+            var hashCode = base.GetHashCode() * 397;
+            hashCode ^= useSchema.GetHashCode();
+            hashCode ^= providerType.GetHashCode();
+            hashCode ^= useSeeding.GetHashCode();
+
+            return (hashCode, designTime);
+        }
+    }
+#else
     internal class MyModelCacheKeyFactory : IModelCacheKeyFactory
     {
         public object Create(DbContext context)
             => new MyModelCacheKey(context);
     }
+
+#endif
 
     internal class MyModelCacheKey : ModelCacheKey
     {
@@ -1102,10 +1133,24 @@ namespace Dotmim.Sync.Tests.Models
         }
 
         protected override bool Equals(ModelCacheKey other)
-            => base.Equals(other)
-                && (other as MyModelCacheKey)?.providerType == this.providerType
-                && (other as MyModelCacheKey)?.useSchema == this.useSchema
-                && (other as MyModelCacheKey)?.useSeeding == this.useSeeding;
+        {
+            try
+            {
+                var otherModel = other as MyModelCacheKey;
+                var isequal = base.Equals(other)
+                    && otherModel?.providerType == this.providerType
+                    && otherModel?.useSchema == this.useSchema
+                    && otherModel?.useSeeding == this.useSeeding;
+
+                return isequal;
+
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
+        }
 
         public override int GetHashCode()
         {

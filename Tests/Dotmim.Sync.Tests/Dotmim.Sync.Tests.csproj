@@ -1,82 +1,90 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
-    <TargetFrameworkNetStandard>netcoreapp2.1</TargetFrameworkNetStandard>
-    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+	<PropertyGroup>
+		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
+		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
+		<TargetFrameworkNetStandard>netcoreapp2.1</TargetFrameworkNetStandard>
+		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-    <TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet5)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet5);$(TargetFrameworkNet6)</TargetFrameworks>
 
-    <IsPackable>false</IsPackable>
-    <!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
-    <LangVersion>8.0</LangVersion>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="UnitTests\Mock\**" />
-    <EmbeddedResource Remove="UnitTests\Mock\**" />
-    <None Remove="UnitTests\Mock\**" />
-  </ItemGroup>
+		<IsPackable>false</IsPackable>
+		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
+		<LangVersion>8.0</LangVersion>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="UnitTests\Mock\**" />
+		<EmbeddedResource Remove="UnitTests\Mock\**" />
+		<None Remove="UnitTests\Mock\**" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="MessagePack" Version="2.1.90" />
-    <PackageReference Include="xunit" Version="2.4.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
+	<ItemGroup>
+		<PackageReference Include="MessagePack" Version="2.1.90" />
+		<PackageReference Include="xunit" Version="2.4.1" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+		</PackageReference>
 
-  </ItemGroup>
+	</ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'" >
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="5.0.3" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.3" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.2" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="5.0.9" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="5.0.3" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.3" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
+		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.2" />
+	</ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.0" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
+		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.0" />
+	</ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' " >
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.18" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="5.0.3" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.3" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.2" />
-  </ItemGroup>
-
-
-  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)'">
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.8" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.1.8" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.3" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.2.4" />
-  </ItemGroup>
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.18" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="5.0.3" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.3" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
+		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.2" />
+	</ItemGroup>
 
 
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)'">
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="2.2.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.8" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.8" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.1.8" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.3" />
+		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.2.4" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.MariaDB\Dotmim.Sync.MariaDB.csproj" />
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer.ChangeTracking\Dotmim.Sync.SqlServer.ChangeTracking.csproj" />
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
-    <ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="appsettings.local.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
+
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.MariaDB\Dotmim.Sync.MariaDB.csproj" />
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer.ChangeTracking\Dotmim.Sync.SqlServer.ChangeTracking.csproj" />
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
+		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="appsettings.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="appsettings.local.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Properties\" />
+	</ItemGroup>
 </Project>
