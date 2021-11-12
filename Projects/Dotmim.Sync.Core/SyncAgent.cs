@@ -20,7 +20,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncAgent : IDisposable
     {
-        private static bool SYNC_IN_PROGRESS;
+        private bool syncInProgress;
 
         /// <summary>
         /// Gets or Sets the scope name, defining the tables involved in the sync
@@ -90,10 +90,10 @@ namespace Dotmim.Sync
         {
             lock (this)
             {
-                if (SYNC_IN_PROGRESS)
+                if (syncInProgress)
                     throw new AlreadyInProgressException();
 
-                SYNC_IN_PROGRESS = true;
+                syncInProgress = true;
             }
         }
 
@@ -105,7 +105,7 @@ namespace Dotmim.Sync
             // Enf sync from local provider
             lock (this)
             {
-                SYNC_IN_PROGRESS = false;
+                syncInProgress = false;
             }
         }
 
