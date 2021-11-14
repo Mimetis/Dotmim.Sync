@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
 	<PropertyGroup>
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
@@ -46,8 +45,19 @@
 		</None>
 	</ItemGroup>
 
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' Or '$(TargetFramework)' == '$(TargetFrameworkNetStandard)'">
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.3" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.0" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.12" />
+	</ItemGroup>
+
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Data.SQLite" Version="6.0.0" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
 		<ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
 	</ItemGroup>
