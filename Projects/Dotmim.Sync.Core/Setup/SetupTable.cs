@@ -48,7 +48,7 @@ namespace Dotmim.Sync
         /// Check if SetupTable has columns. If not columns specified, all the columns from server database are retrieved
         /// </summary>
         [IgnoreDataMember]
-        public bool HasColumns => this.Columns?.Count > 0; 
+        public bool HasColumns => this.Columns?.Count > 0;
 
         /// <summary>
         /// Specify a table to add to the sync process
@@ -72,9 +72,11 @@ namespace Dotmim.Sync
             {
                 var parserSchemaName = ParserName.Parse(schemaName);
                 schemaName = parserSchemaName.ObjectName;
+
             }
 
-            this.SchemaName = schemaName;
+            // https://github.com/Mimetis/Dotmim.Sync/issues/621#issuecomment-968369322
+            this.SchemaName = string.IsNullOrEmpty(schemaName) || schemaName.ToLowerInvariant() == "dbo" ? string.Empty : schemaName;
             this.Columns = new SetupColumns();
         }
 

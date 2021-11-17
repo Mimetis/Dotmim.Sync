@@ -43,7 +43,7 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        await SyncHttpThroughKestrellAsync();
+        await SynchronizeAsync();
 
     }
 
@@ -127,8 +127,8 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
-        //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("MediaStore2"));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
@@ -137,15 +137,14 @@ internal class Program
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-
-        var setup = new SyncSetup(oneTable);
+        var setup = new SyncSetup(new string[] { "dbo.Album", "dbo.Artist", "dbo.Customer", "dbo.Invoice", "dbo.InvoiceItem", "dbo.Track" });
 
         var options = new SyncOptions
         {
-            BatchSize = 100,
+            //BatchSize = 100,
             //SerializerFactory = new CustomMessagePackSerializerFactory(),
             //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
             //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
@@ -167,25 +166,7 @@ internal class Program
             Console.WriteLine("Sync start");
             try
             {
-                // Remote orchestrator
-                var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, "DefaultScope");
-                // all histories for all client scope
-                var histories = await remoteOrchestrator.GetServerHistoryScopesAsync();
-                
-                // get the correct client scope 
-                var clientScopeId = new Guid("B47C21C2-198D-48CB-9568-7CF1A3333288");
-
-                // get the correct history
-                var history = histories.Where(h => h.Id == clientScopeId).FirstOrDefault();
-
-                var clientScope = new ScopeInfo();
-                clientScope.IsNewScope = false; 
-                clientScope.Id = clientScopeId;
-                clientScope.LastServerSyncTimestamp = history.LastSyncTimestamp;
-                clientScope.Name = "DefaultScope";
-
-                var s = await agent.RemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
-
+                var s = await agent.SynchronizeAsync();
 
                 Console.WriteLine(s);
             }
