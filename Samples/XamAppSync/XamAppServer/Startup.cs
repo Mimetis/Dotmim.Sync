@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace XamAppServer
@@ -37,23 +38,14 @@ namespace XamAppServer
             // [Required]: Get a connection string to your server data source
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
-            //// Sync options
-            //var options = new SyncOptions
-            //{
-            //    SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),
-            //    BatchSize = 2000,
-            //};
-            var options = new SyncOptions()
-            {
-                DisableConstraintsOnApplyChanges = false,
-            };
+            //var tables = new string[] { "Culinary.RecipeMethodContent" };
 
-            var tables = new string[] { "dbo.Album", "dbo.Artist", "dbo.Customer", "dbo.Invoice", "dbo.InvoiceItem", "dbo.Track" };
+            //var setup = new SyncSetup(tables);
 
-            var setup = new SyncSetup(tables);
+            SyncSetup syncSetup = new SyncSetup() { Tables = new SetupTables() { new SetupTable("RecipeMethodContent", new string[] { "RecipeKey", "Method" }, "Culinary") } };
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, setup, options);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, syncSetup);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

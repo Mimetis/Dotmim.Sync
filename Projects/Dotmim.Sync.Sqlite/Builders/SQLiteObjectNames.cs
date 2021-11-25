@@ -191,26 +191,6 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append($"VALUES ({stringBuilderParametersValues2.ToString()}) ");
             stringBuilder.AppendLine($";");
 
-            //stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
-            //stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
-            //stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
-            //stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
-            //stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
-            //stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
-            //stringBuilder.Append($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
-            //stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
-            //stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
-            //stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
-            //stringBuilder.Append($"OR @sync_force_write = 1");
-            //stringBuilder.AppendLine($";");
-
-
-            //stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted().ToString()}");
-            //stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
-            //stringBuilder.AppendLine($"SELECT {stringBuilderParameters.ToString()} ");
-            //stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
-            //stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
-
             stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
             stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
@@ -231,7 +211,6 @@ namespace Dotmim.Sync.Sqlite
             string empty = string.Empty;
 
             string str1 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
-            //string str2 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
             string str2 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[base]");
 
             // Generate Update command

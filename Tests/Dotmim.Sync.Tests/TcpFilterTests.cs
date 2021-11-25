@@ -201,7 +201,9 @@ namespace Dotmim.Sync.Tests
                 {
                     var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
 
-                    var tableBuilder = client.Provider.GetTableBuilder(syncTable, this.FilterSetup);
+                    var (tableName, trackingTableName) = client.Provider.GetParsers(syncTable, FilterSetup);
+
+                    var tableBuilder = client.Provider.GetTableBuilder(syncTable, tableName, trackingTableName, this.FilterSetup);
 
                     var clientColumns = await tableBuilder.GetColumnsAsync(c, null);
 
@@ -212,7 +214,7 @@ namespace Dotmim.Sync.Tests
 
                         serverConnection.Open();
 
-                        var tableServerManagerFactory = this.Server.Provider.GetTableBuilder(syncTable, this.FilterSetup);
+                        var tableServerManagerFactory = this.Server.Provider.GetTableBuilder(syncTable, tableName, trackingTableName, this.FilterSetup);
                         var serverColumns = await tableServerManagerFactory.GetColumnsAsync(serverConnection, null);
 
                         serverConnection.Close();

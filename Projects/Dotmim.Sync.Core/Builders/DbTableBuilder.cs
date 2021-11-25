@@ -64,7 +64,6 @@ namespace Dotmim.Sync.Builders
         public abstract Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction);
         public abstract Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction);
 
-
         public abstract Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction);
         public abstract Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction);
         public abstract Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction);

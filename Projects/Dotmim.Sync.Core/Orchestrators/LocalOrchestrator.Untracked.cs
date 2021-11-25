@@ -71,6 +71,8 @@ namespace Dotmim.Sync
 
             // Get correct Select incremental changes command 
             var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
+            
+            if (command == null) return 0;
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);

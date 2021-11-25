@@ -132,6 +132,9 @@ namespace Dotmim.Sync
 
             var command = GetCommand(commandType, filter);
 
+            if (command == null)
+                return null;
+
             // Add Parameters
             await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
 

@@ -231,6 +231,8 @@ namespace Dotmim.Sync
                 // Get Select initialize changes command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, setup, true, connection, transaction);
 
+                if (selectIncrementalChangesCommand == null) continue;
+
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, table, null, true, null, selectIncrementalChangesCommand);
 

@@ -20,6 +20,7 @@ using Serilog.Events;
 using System.Data.Common;
 using Dotmim.Sync.MySql;
 using System.Linq;
+using Microsoft.Data.SqlClient;
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -43,8 +44,139 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        await SynchronizeAsync();
+        await SynchronizeUploadOnlyThenDownloadOnlyAsync();
 
+    }
+
+    private static async Task SynchronizeUploadOnlyThenDownloadOnlyAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var options = new SyncOptions
+        {
+            //BatchSize = 100,
+            //SerializerFactory = new CustomMessagePackSerializerFactory(),
+            //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
+            //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+            UseBulkOperations = false,
+            DisableConstraintsOnApplyChanges = true
+        };
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+
+        try
+        {
+            var setup = new SyncSetup(oneTable);
+
+            // First test : Bidirectional
+            var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+            
+            var s = await agent.SynchronizeAsync();
+            Console.WriteLine(s);
+
+            // Second test : UploadOnly
+            setup.Tables[0].SyncDirection = SyncDirection.UploadOnly;
+            s = await agent.SynchronizeAsync();
+            Console.WriteLine(s);
+
+            // Third test : UploadOnly
+            setup.Tables[0].SyncDirection = SyncDirection.DownloadOnly;
+            s = await agent.SynchronizeAsync();
+            Console.WriteLine(s);
+
+        }
+        catch (SyncException e)
+        {
+            Console.WriteLine(e.ToString());
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+        }
+
+
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
+    }
+
+
+    private static async Task SynchronizeOutdatedAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        var setup = new SyncSetup(allTables);
+        var options = new SyncOptions();
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        agent.LocalOrchestrator.OnOutdated(oa =>
+        {
+            Console.WriteLine("Outdated. Reinitiliaze mode");
+            oa.Action = OutdatedAction.Reinitialize;
+        });
+
+        try
+        {
+            Console.WriteLine("First Sync");
+            var s = await agent.SynchronizeAsync();
+            Console.WriteLine(s);
+
+            Console.WriteLine("Generates Outdated date value in Server");
+
+            // Generate a lower sync_timestamp on client
+            var clientConnection = new SqlConnection(DBHelper.GetDatabaseConnectionString(clientDbName));
+            var clientCommand = new SqlCommand($"Update scope_info set scope_last_server_sync_timestamp=-1", clientConnection);
+            clientConnection.Open();
+            clientCommand.ExecuteNonQuery();
+            clientConnection.Close();
+
+
+            Console.WriteLine("Second Sync");
+            var s2 = await agent.SynchronizeAsync();
+            Console.WriteLine(s2);
+
+            Console.WriteLine("Third Sync");
+            var s3 = await agent.SynchronizeAsync();
+            Console.WriteLine(s3);
+
+        }
+        catch (SyncException e)
+        {
+            Console.WriteLine(e.ToString());
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+        }
     }
 
     private static async Task ScenarioAsync()
@@ -127,20 +259,18 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("MediaStore2"));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var clientProvider = new SqlSyncDownloadOnlyProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
-        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        var clientProvider = new SqliteSyncDownloadOnlyProvider(clientDatabaseName);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setup = new SyncSetup(new string[] { "dbo.Album", "dbo.Artist", "dbo.Customer", "dbo.Invoice", "dbo.InvoiceItem", "dbo.Track" });
 
         var options = new SyncOptions
         {
@@ -148,6 +278,8 @@ internal class Program
             //SerializerFactory = new CustomMessagePackSerializerFactory(),
             //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
             //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
+            UseBulkOperations = false,
+            DisableConstraintsOnApplyChanges = true
         };
 
         // Using the Progress pattern to handle progession during the synchronization
@@ -158,8 +290,11 @@ internal class Program
             Console.ResetColor();
         });
 
+        var setup = new SyncSetup(oneTable);
+        setup.Tables[0].SyncDirection = SyncDirection.DownloadOnly;
+
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+        var agent = new SyncAgent(clientProvider, serverProvider, options, oneTable);
 
         do
         {
@@ -167,7 +302,6 @@ internal class Program
             try
             {
                 var s = await agent.SynchronizeAsync();
-
                 Console.WriteLine(s);
             }
             catch (SyncException e)
@@ -296,7 +430,6 @@ internal class Program
 
     }
 
-
     private static async Task UpdateSetupAndProvisionAsync()
     {
         // [Required]: Get a connection string to your server data source
@@ -389,7 +522,7 @@ internal class Program
 
                     // fake setup to deprovision one table to migrate
                     var setup = new SyncSetup(new string[] { "Customer" });
-                    
+
                     // creating a localorchestrator with this fake setup
                     var localOrchestrator = new LocalOrchestrator(clientProvider, clientOptions, setup);
 
@@ -428,25 +561,39 @@ internal class Program
     private static async Task SynchronizeWithOneFilterAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("MediaStore2"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var options = new SyncOptions
+        {
+            DisableConstraintsOnApplyChanges = true
+        };
 
-        // Create a filter on table ProductCategory 
-        var productCategoryFilter = new SetupFilter("ProductCategory");
-        // Parameter ModifiedDate mapped to the ModifiedDate column
-        // Allow Null = true
-        productCategoryFilter.AddParameter("ModifiedDate", "ProductCategory", true);
-        // Since we are using a >= in the query, we should use a custom where
-        productCategoryFilter.AddCustomWhere("base.ModifiedDate >= @ModifiedDate Or @ModifiedDate Is Null");
+        var tables = new string[] { "media.Album", "media.Artist", "media.Customer", "media.Invoice", "media.InvoiceItem", "media.Track" };
 
-        setup.Filters.Add(productCategoryFilter);
+        var setup = new SyncSetup(tables);
 
-        var options = new SyncOptions();
+        var customerFilter = new SetupFilter("Customer", "media");
+        customerFilter.AddParameter("CustomerId", "Customer", "media", false);
+        customerFilter.AddWhere("CustomerId", "Customer", "CustomerId", "media");
+        setup.Filters.Add(customerFilter);
+
+        var invoiceCustomerFilter = new SetupFilter("Invoice", "media");
+        invoiceCustomerFilter.AddParameter("CustomerId", "Customer", "media", false);
+        invoiceCustomerFilter.AddJoin(Join.Inner, "Customer").On("media.Invoice", "CustomerId", "media.Customer", "CustomerId");
+        invoiceCustomerFilter.AddWhere("CustomerId", "Customer", "CustomerId", "media");
+        setup.Filters.Add(invoiceCustomerFilter);
+
+        var invoiceItemCustomerFilter = new SetupFilter("InvoiceItem", "media");
+        invoiceItemCustomerFilter.AddParameter("CustomerId", "Customer", "media", false);
+        invoiceItemCustomerFilter.AddJoin(Join.Inner, "Invoice").On("media.InvoiceItem", "InvoiceId", "media.Invoice", "InvoiceId");
+        invoiceItemCustomerFilter.AddJoin(Join.Inner, "Customer").On("media.Invoice", "CustomerId", "media.Customer", "CustomerId");
+        invoiceCustomerFilter.AddWhere("CustomerId", "Customer", "CustomerId", "media");
+        setup.Filters.Add(invoiceItemCustomerFilter);
+
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
@@ -465,6 +612,9 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
+                if (!agent.Parameters.Contains("CustomerId"))
+                    agent.Parameters.Add("CustomerId", 10);
+
                 var s1 = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
                 // Write results
@@ -1219,11 +1369,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress = new SynchronousProgress<ProgressArgs>(s =>
-                    {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
-                        Console.ResetColor();
-                    });
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
+                    Console.ResetColor();
+                });
 
                     var s = await agent.SynchronizeAsync(progress);
                     Console.WriteLine(s);
@@ -1233,11 +1383,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress2 = new SynchronousProgress<ProgressArgs>(s =>
-                    {
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
-                        Console.ResetColor();
-                    });
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGreen;
+                    Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
+                    Console.ResetColor();
+                });
                     s = await agent2.SynchronizeAsync(progress2);
                     Console.WriteLine(s);
                 }

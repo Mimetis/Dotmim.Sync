@@ -274,7 +274,8 @@ namespace Dotmim.Sync
 
             //return syncAdapter;
 
-            return this.Provider.GetSyncAdapter(tableDescription, setup);
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
+            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, setup);
         }
 
         /// <summary>
@@ -301,7 +302,8 @@ namespace Dotmim.Sync
 
             //return tableBuilder;
 
-            return this.Provider.GetTableBuilder(tableDescription, setup);
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
+            return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, setup);
         }
 
 

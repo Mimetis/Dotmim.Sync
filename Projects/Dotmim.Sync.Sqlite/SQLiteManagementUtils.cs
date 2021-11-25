@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
-    internal static class SqliteManagementUtils
+    public static class SqliteManagementUtils
     {
         public static async Task<SyncTable> GetTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
         {
@@ -192,7 +192,7 @@ namespace Dotmim.Sync.Sqlite
             return triggerExist;
         }
 
-        internal static string JoinOneTablesOnParametersValues(IEnumerable<string> columns, string leftName)
+        public static string JoinOneTablesOnParametersValues(IEnumerable<string> columns, string leftName)
         {
             var stringBuilder = new StringBuilder();
             string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
+        public static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
@@ -238,7 +238,7 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<string> columns, string fromPrefix)
+        public static string WhereColumnAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
@@ -258,7 +258,7 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnIsNull(IEnumerable<string> columns, string fromPrefix)
+        public static string WhereColumnIsNull(IEnumerable<string> columns, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
@@ -276,7 +276,7 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
-        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
+        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));

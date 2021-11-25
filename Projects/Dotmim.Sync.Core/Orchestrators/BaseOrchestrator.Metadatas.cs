@@ -58,29 +58,33 @@ namespace Dotmim.Sync
 
                 var command = await syncAdapter.GetCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
-                // Set the special parameters for delete metadata
-                DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
-
-                var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                // Check if we have a return value instead
-                var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
-
-                if (syncRowCountParam != null)
-                    rowsCleanedCount = (int)syncRowCountParam.Value;
-
-                // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
-                if (rowsCleanedCount > 0)
+                if (command != null)
                 {
-                    var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
+
+                    // Set the special parameters for delete metadata
+                    DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+
+                    var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                    // Check if we have a return value instead
+                    var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+                    if (syncRowCountParam != null)
+                        rowsCleanedCount = (int)syncRowCountParam.Value;
+
+                    // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
+                    if (rowsCleanedCount > 0)
                     {
-                        RowsCleanedCount = rowsCleanedCount,
-                        TimestampLimit = timestampLimit
-                    };
+                        var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
+                        {
+                            RowsCleanedCount = rowsCleanedCount,
+                            TimestampLimit = timestampLimit
+                        };
 
-                    databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                        databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                    }
+
                 }
-
             }
 
             await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection), cancellationToken).ConfigureAwait(false);
@@ -95,6 +99,8 @@ namespace Dotmim.Sync
         internal async Task<bool> InternalUpdateMetadatasAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
+
+            if (command == null) return false;
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
