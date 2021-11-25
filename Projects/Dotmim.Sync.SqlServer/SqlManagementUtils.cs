@@ -671,7 +671,7 @@ namespace Dotmim.Sync.SqlServer
         public static string ColumnsAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
             string str1 = "";
             foreach (var column in columns)
             {

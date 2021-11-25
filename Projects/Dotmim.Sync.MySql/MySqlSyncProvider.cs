@@ -104,26 +104,15 @@ namespace Dotmim.Sync.MySql
         }
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            => new MyTableSqlBuilder(tableDescription, tableName, trackingTableName, setup);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
-
-            var tableBuilder = new MyTableSqlBuilder(tableDescription, tableName, trackingName, setup);
-
-            return tableBuilder;
-        }
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup);
 
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
 
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
-
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
-            var adapter = new MySqlSyncAdapter(tableDescription, tableName, trackingName, setup);
-            return adapter;
-        }
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;

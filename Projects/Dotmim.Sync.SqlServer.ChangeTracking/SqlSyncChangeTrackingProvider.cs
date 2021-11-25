@@ -14,16 +14,12 @@ namespace Dotmim.Sync.SqlServer
 {
     public class SqlSyncChangeTrackingProvider : SqlSyncProvider
     {
-        static String providerType;
+        static string providerType;
 
-        public SqlSyncChangeTrackingProvider() : base()
-        {
-        }
+        public SqlSyncChangeTrackingProvider() : base(){}
 
-        public SqlSyncChangeTrackingProvider(string connectionString) : base()
-        {
-            this.ConnectionString = connectionString;
-        }
+        public SqlSyncChangeTrackingProvider(string connectionString) : base() 
+            => this.ConnectionString = connectionString;
 
         public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder) : base()
         {
@@ -47,41 +43,15 @@ namespace Dotmim.Sync.SqlServer
             }
 
         }
-
-
-        /// <summary>
-        /// Sql server support bulk operations through Table Value parameter
-        /// </summary>
-        public override bool SupportBulkOperations => true;
-
-        /// <summary>
-        /// Sql Server supports to be a server side provider
-        /// </summary>
-        public override bool CanBeServerProvider => true;
-
-
-        public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup);
 
-            var tableBuilder = new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingName, setup);
-
-            return tableBuilder;
-        }
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
 
-        public override DbMetadata GetMetadata() => base.GetMetadata();
-
-
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
-            var adapter = new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingName, setup);
-            return adapter;
-        }
     }
 }

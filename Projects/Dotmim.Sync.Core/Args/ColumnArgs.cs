@@ -8,8 +8,6 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-
-
     public class ColumnCreatedArgs : ProgressArgs
     {
         public string ColumnName { get; }
@@ -68,7 +66,6 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"[{ColumnName}] Dropped.";
-
         public override int EventId => SyncEventsId.ColumnDropped.Id;
     }
 

@@ -50,12 +50,12 @@ namespace Dotmim.Sync
         /// Get a table builder helper which can create object at the table level
         /// </summary>
         /// <returns></returns>
-        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup);
+        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup);
 
         /// <summary>
         /// Get sync adapter which can executes all the commands needed for a complete sync
         /// </summary>
-        public abstract DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup);
+        public abstract DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup);
 
         /// <summary>
         /// Create a Scope Builder, which can create scope table, and scope config

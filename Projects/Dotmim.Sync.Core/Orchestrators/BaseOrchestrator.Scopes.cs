@@ -85,6 +85,8 @@ namespace Dotmim.Sync
             // Get exists command
             var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistScope, scopeType, connection, transaction);
 
+            if (existsCommand == null) return false;
+
             // Just in case, in older version we may have sync_scope_name as primary key;
             DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", scopeId);
             // Set primary key value
@@ -105,8 +107,7 @@ namespace Dotmim.Sync
         {
             var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.DropScopeTable, scopeType, connection, transaction);
 
-            if (command == null)
-                return false;
+            if (command == null) return false;
 
             var action = new ScopeTableDroppingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, connection, transaction);
             await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
@@ -151,8 +152,7 @@ namespace Dotmim.Sync
         {
             var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetScopes, scopeType, connection, transaction);
 
-            if (command == null)
-                return null;
+            if (command == null) return null;
 
             DbSyncAdapter.SetParameterValue(command, "sync_scope_name", scopeName);
 
@@ -265,8 +265,7 @@ namespace Dotmim.Sync
             else
                 command = scopeBuilder.GetCommandAsync(DbScopeCommandType.InsertScope, scopeType, connection, transaction);
 
-            if (command == null)
-                return null;
+            if (command == null) return null;
 
             command = scopeType switch
             {

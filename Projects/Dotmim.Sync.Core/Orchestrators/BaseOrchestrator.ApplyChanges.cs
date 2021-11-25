@@ -107,6 +107,8 @@ namespace Dotmim.Sync
             // Get the row in the local repository
             var command = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
 
+            if (command == null) return null;
+
             // set the primary keys columns as parameters
             syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
 
@@ -163,6 +165,8 @@ namespace Dotmim.Sync
 
             var command = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
 
+            if (command == null) return false;
+
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
 
@@ -189,6 +193,8 @@ namespace Dotmim.Sync
                 throw new ArgumentException("Schema table is not present in the row");
 
             var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
+
+            if (command == null) return false;
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
@@ -241,7 +247,7 @@ namespace Dotmim.Sync
 
                 TableChangesApplied tableChangesApplied = null;
 
-                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this) ;
+                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this);
                 var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
 
                 // getting the table to be applied
@@ -380,6 +386,8 @@ namespace Dotmim.Sync
 
             // Get command
             var command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
+
+            if (command == null) return (0,0);
 
             // Launch any interceptor if available
             var args = new TableChangesBatchApplyingArgs(context, changesTable, applyType, command, connection, transaction);

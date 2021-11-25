@@ -18,7 +18,7 @@ namespace Dotmim.Sync.MariaDB
         DbMetadata dbMetadata;
         static string providerType;
 
-        public override string GetProviderTypeName()=>ProviderType;
+        public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType
         {
@@ -53,10 +53,10 @@ namespace Dotmim.Sync.MariaDB
         /// </summary>
         public override DbMetadata GetMetadata()
         {
-                if (dbMetadata == null)
-                    dbMetadata = new MySqlDbMetadata();
+            if (dbMetadata == null)
+                dbMetadata = new MySqlDbMetadata();
 
-                return dbMetadata;
+            return dbMetadata;
         }
 
         public MariaDBSyncProvider() : base()
@@ -106,25 +106,14 @@ namespace Dotmim.Sync.MariaDB
         }
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            => new MyTableSqlBuilder(tableDescription, tableName, trackingTableName, setup);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup);
 
-            var tableBuilder = new MyTableSqlBuilder(tableDescription, tableName, trackingName, setup);
-
-            return tableBuilder;
-        }
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
-
-
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
-            var adapter = new MySqlSyncAdapter(tableDescription, tableName, trackingName, setup);
-            return adapter;
-        }
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;

@@ -142,23 +142,13 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqliteScopeBuilder(scopeInfoTableName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+        => new SqliteTableBuilder(tableDescription, tableName, trackingTableName, setup);
 
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            => new SqliteSyncAdapter(tableDescription, tableName, trackingTableName, setup);
 
-            var tableBuilder = new SqliteTableBuilder(tableDescription, tableName, trackingName, setup);
-
-            return tableBuilder;
-        }
         public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
-        {
-            var (tableName, trackingName) = GetParsers(tableDescription, setup);
-            var adapter = new SqliteSyncAdapter(tableDescription, tableName, trackingName, setup);
-
-            return adapter;
-        }
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {

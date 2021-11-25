@@ -68,6 +68,9 @@ namespace Dotmim.Sync
         internal async Task InternalDisableConstraintsAsync(SyncContext context, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction = null)
         {
             var command = await syncAdapter.GetCommandAsync(DbCommandType.DisableConstraints, connection, transaction).ConfigureAwait(false);
+
+            if (command == null) return;
+
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
@@ -77,6 +80,9 @@ namespace Dotmim.Sync
         internal async Task InternalEnableConstraintsAsync(SyncContext context, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction)
         {
             var command = await syncAdapter.GetCommandAsync(DbCommandType.EnableConstraints, connection, transaction).ConfigureAwait(false);
+
+            if (command == null) return;
+
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
@@ -86,8 +92,14 @@ namespace Dotmim.Sync
         internal async Task<bool> InternalResetTableAsync(SyncContext context, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction)
         {
             var command = await syncAdapter.GetCommandAsync(DbCommandType.Reset, connection, transaction);
-            var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            return rowCount > 0;
+
+            if (command != null)
+            {
+                var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return rowCount > 0;
+            }
+
+            return true;
         }
 
     }

@@ -97,6 +97,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MutliOrchestratorsWebSyncCl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MutliOrchestratorsWebSyncServer", "MutliOrchestratorsWebSync\MutliOrchestratorsWebSyncServer\MutliOrchestratorsWebSyncServer.csproj", "{7D4E3B4B-10E8-4AAB-B351-65E025B8D16E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomProvider", "CustomProvider\CustomProvider.csproj", "{87182129-E453-480F-96A0-02F7CF031377}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -257,6 +259,10 @@ Global
 		{7D4E3B4B-10E8-4AAB-B351-65E025B8D16E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7D4E3B4B-10E8-4AAB-B351-65E025B8D16E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7D4E3B4B-10E8-4AAB-B351-65E025B8D16E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87182129-E453-480F-96A0-02F7CF031377}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87182129-E453-480F-96A0-02F7CF031377}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87182129-E453-480F-96A0-02F7CF031377}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87182129-E453-480F-96A0-02F7CF031377}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -301,6 +307,7 @@ Global
 		{A280ABCF-A559-491A-9AFD-A3BD61D7BFA0} = {3334B930-49DF-4984-9730-AA4559C02E1C}
 		{43E939BE-B1A0-4245-BC42-B9FBECC158F2} = {A280ABCF-A559-491A-9AFD-A3BD61D7BFA0}
 		{7D4E3B4B-10E8-4AAB-B351-65E025B8D16E} = {A280ABCF-A559-491A-9AFD-A3BD61D7BFA0}
+		{87182129-E453-480F-96A0-02F7CF031377} = {3334B930-49DF-4984-9730-AA4559C02E1C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {FC6BB5E5-6A25-46EF-BAAD-3F5822392673}

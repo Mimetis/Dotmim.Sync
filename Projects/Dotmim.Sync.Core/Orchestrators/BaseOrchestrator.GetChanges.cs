@@ -86,6 +86,8 @@ namespace Dotmim.Sync
                 // Get Command
                 var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
 
+                if (selectIncrementalChangesCommand == null) continue;
+
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
 
@@ -239,6 +241,8 @@ namespace Dotmim.Sync
 
                 // Get Command
                 var command = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
+
+                if (command == null) continue;
 
                 // Set parameters
                 this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, command);

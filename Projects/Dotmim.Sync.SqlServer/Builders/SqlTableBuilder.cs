@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
+using Dotmim.Sync.SqlServer.Manager;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
@@ -14,6 +15,9 @@ namespace Dotmim.Sync.SqlServer.Builders
     /// </summary>
     public class SqlTableBuilder : DbTableBuilder
     {
+        public SqlObjectNames SqlObjectNames { get; }
+        public SqlDbMetadata SqlDbMetadata { get; }
+
         private SqlBuilderProcedure sqlBuilderProcedure;
         private SqlBuilderTable sqlBuilderTable;
         private SqlBuilderTrackingTable sqlBuilderTrackingTable;
@@ -21,6 +25,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public SqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
         {
+            this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingTableName, setup);
+            this.SqlDbMetadata = new SqlDbMetadata();
+
             this.sqlBuilderProcedure = new SqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup);
             this.sqlBuilderTable = new SqlBuilderTable(tableDescription, tableName, trackingTableName, Setup);
             this.sqlBuilderTrackingTable = new SqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);

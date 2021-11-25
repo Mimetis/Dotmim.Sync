@@ -147,12 +147,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// From a SqlParameter, create the declaration
         /// </summary>
-        protected string CreateParameterDeclaration(SqlParameter param)
+        public static string CreateParameterDeclaration(SqlParameter param)
         {
             var stringBuilder3 = new StringBuilder();
             var sqlDbType = param.SqlDbType;
+            var sqlDbMetadata = new SqlDbMetadata();
 
-            string empty = this.sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
+            string empty = sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
 
             if (sqlDbType == SqlDbType.Structured)
             {
@@ -160,7 +161,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             else
             {
-                var sqlDbTypeString = this.sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
+                var sqlDbTypeString = sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
 
                 stringBuilder3.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
 
