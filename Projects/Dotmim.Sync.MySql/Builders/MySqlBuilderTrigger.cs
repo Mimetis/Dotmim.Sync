@@ -12,34 +12,58 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.MySql
+#if MARIADB
+namespace Dotmim.Sync.MariaDB.Builders
+#elif MYSQL
+namespace Dotmim.Sync.MySql.Builders
+#endif
 {
+#if MARIADB
+    public class MariaDBBuilderTrigger
+#elif MYSQL
     public class MySqlBuilderTrigger
+#endif
     {
         private ParserName tableName;
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
-        private MySqlObjectNames mySqlObjectNames;
+        private string timestampValue;
 
+
+#if MARIADB
+        private MariaDBObjectNames mySqlObjectNames;
+        public MariaDBBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        {
+            this.mySqlObjectNames = new MariaDBObjectNames(tableDescription, tableName, trackingName, setup);
+            this.timestampValue = MariaDBObjectNames.TimestampValue;
+#elif MYSQL
+        private MySqlObjectNames mySqlObjectNames;
+        
         public MySqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
+            this.mySqlObjectNames = new MySqlObjectNames(tableDescription, tableName, trackingName, setup);
+            this.timestampValue = MySqlObjectNames.TimestampValue;
+#endif
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
         }
 
+#if MARIADB
+        public MariaDBBuilderTrigger()
+#elif MYSQL
         public MySqlBuilderTrigger()
+#endif
         {
         }
 
-    
+
         public DbCommand CreateDeleteTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
             var triggerName = this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete);
-            
+
             StringBuilder createTrigger = new StringBuilder();
             createTrigger.AppendLine($"CREATE TRIGGER {triggerName} AFTER DELETE ON {tableName.Quoted().ToString()} FOR EACH ROW ");
             createTrigger.AppendLine();
@@ -75,11 +99,13 @@ namespace Dotmim.Sync.MySql
             var filterColumnsString2 = new StringBuilder();
             var filterColumnsString3 = new StringBuilder();
 
+
+
             createTrigger.AppendLine("\t) ");
             createTrigger.AppendLine("\tVALUES (");
             createTrigger.Append(stringBuilderArguments2.ToString());
             createTrigger.AppendLine("\t\t,NULL");
-            createTrigger.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
+            createTrigger.AppendLine($"\t\t,{this.timestampValue}");
             createTrigger.AppendLine("\t\t,1");
             createTrigger.AppendLine("\t\t,utc_timestamp()");
 
@@ -88,7 +114,7 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine("ON DUPLICATE KEY UPDATE");
             createTrigger.AppendLine("\t`update_scope_id` = NULL, ");
             createTrigger.AppendLine("\t`sync_row_is_tombstone` = 1, ");
-            createTrigger.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            createTrigger.AppendLine($"\t`timestamp` = {this.timestampValue}, ");
             createTrigger.AppendLine("\t`last_change_datetime` = utc_timestamp()");
 
             createTrigger.Append(";");
@@ -147,7 +173,7 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine("\tVALUES (");
             createTrigger.Append(stringBuilderArguments2.ToString());
             createTrigger.AppendLine("\t\t,NULL");
-            createTrigger.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
+            createTrigger.AppendLine($"\t\t,{this.timestampValue}");
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,utc_timestamp()");
 
@@ -156,7 +182,7 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine("ON DUPLICATE KEY UPDATE");
             createTrigger.AppendLine("\t`update_scope_id` = NULL, ");
             createTrigger.AppendLine("\t`sync_row_is_tombstone` = 0, ");
-            createTrigger.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            createTrigger.AppendLine($"\t`timestamp` = {this.timestampValue}, ");
             createTrigger.AppendLine("\t`last_change_datetime` = utc_timestamp()");
 
             createTrigger.Append(";");
@@ -180,11 +206,15 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine($"Begin ");
             createTrigger.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()} ");
             createTrigger.AppendLine("\tSET `update_scope_id` = NULL ");
-            createTrigger.AppendLine($"\t\t,`timestamp` = {MySqlObjectNames.TimestampValue}");
+            createTrigger.AppendLine($"\t\t,`timestamp` = {this.timestampValue}");
             createTrigger.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
 
             createTrigger.Append($"\tWhere ");
+#if MARIADB
+            createTrigger.Append(MariaDBManagementUtils.JoinTwoTablesOnClause(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "new"));
+#elif MYSQL
             createTrigger.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "new"));
+#endif
 
             if (this.tableDescription.GetMutableColumns().Count() > 0)
             {
@@ -256,7 +286,7 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine("\tSELECT ");
             createTrigger.Append(stringBuilderArguments2.ToString());
             createTrigger.AppendLine("\t\t,NULL");
-            createTrigger.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
+            createTrigger.AppendLine($"\t\t,{this.timestampValue}");
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,utc_timestamp()");
 
@@ -296,10 +326,10 @@ namespace Dotmim.Sync.MySql
             createTrigger.AppendLine("ON DUPLICATE KEY UPDATE");
             createTrigger.AppendLine("\t`update_scope_id` = NULL, ");
             createTrigger.AppendLine("\t`sync_row_is_tombstone` = 0, ");
-            createTrigger.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            createTrigger.AppendLine($"\t`timestamp` = {this.timestampValue}, ");
             createTrigger.AppendLine("\t`last_change_datetime` = utc_timestamp()");
 
-          
+
             createTrigger.AppendLine(";");
 
             createTrigger.AppendLine("END IF;");

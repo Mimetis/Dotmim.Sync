@@ -7,17 +7,29 @@ using MySqlConnector;
 using MySql.Data.MySqlClient;
 #endif
 
-using Dotmim.Sync.Builders;
 using System.Collections.Generic;
-using System.Linq;
+
+#if MARIADB
+using Dotmim.Sync.MariaDB.Builders;
+#elif MYSQL
 using Dotmim.Sync.MySql.Builders;
+#endif
+
 using System.Data.SqlTypes;
 using System.Text;
 using System.Globalization;
 
+#if MARIADB
+namespace Dotmim.Sync.MariaDB
+#elif MYSQL
 namespace Dotmim.Sync.MySql
+#endif
 {
+#if MARIADB
+    public static class MariaDBExtensionsMethods
+#elif MYSQL
     public static class MySqlExtensionsMethods
+#endif
     {
         public static MySqlParameter[] DeriveParameters(this MySqlConnection connection, 
             MySqlCommand cmd, bool includeReturnValueParameter = false, 
@@ -118,7 +130,11 @@ namespace Dotmim.Sync.MySql
             var modes = new List<string>(new string[3] { "IN", "OUT", "INOUT" });
 
             int pos = 1;
+#if MARIADB
+            var tokenizer = new MariaDBTokenizer(body)
+#elif MYSQL
             var tokenizer = new MySqlTokenizer(body)
+#endif
             {
                 AnsiQuotes = sqlMode.IndexOf("ANSI_QUOTES") != -1,
                 BackslashEscapes = sqlMode.IndexOf("NO_BACKSLASH_ESCAPES") == -1,
@@ -199,7 +215,11 @@ namespace Dotmim.Sync.MySql
             return dt;
         }
 
+#if MARIADB
+        private static string ParseDataType(SyncRow row, MariaDBTokenizer tokenizer)
+#elif MYSQL
         private static string ParseDataType(SyncRow row, MySqlTokenizer tokenizer)
+#endif
         {
             StringBuilder dtd = new StringBuilder(tokenizer.NextToken().ToUpperInvariant());
 
@@ -265,7 +285,11 @@ namespace Dotmim.Sync.MySql
 
         private static string GetDataTypeDefaults(string type, SyncRow row)
         {
+#if MARIADB
+            var metadata = new MariaDBDbMetadata();
+#elif MYSQL
             var metadata = new MySqlDbMetadata();
+#endif
 
             string format = "({0},{1})";
             object precision = row["NUMERIC_PRECISION"];
@@ -286,8 +310,11 @@ namespace Dotmim.Sync.MySql
 
         private static void ParseDataTypeSize(SyncRow row, string size)
         {
+#if MARIADB
+            var metadata = new MariaDBDbMetadata();
+#elif MYSQL
             var metadata = new MySqlDbMetadata();
-
+#endif
             size = size.Trim('(', ')');
             string[] parts = size.Split(',');
 

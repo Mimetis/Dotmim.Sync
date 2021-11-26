@@ -4,9 +4,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Dotmim.Sync.MySql
+#if MARIADB
+namespace Dotmim.Sync.MariaDB.Builders
+#elif MYSQL
+namespace Dotmim.Sync.MySql.Builders
+#endif
 {
+#if MARIADB
+    public class MariaDBObjectNames
+#elif MYSQL
     public class MySqlObjectNames
+#endif
     {
         public const string TimestampValue = "ROUND(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6)) * 10000)";
 
@@ -109,7 +117,11 @@ namespace Dotmim.Sync.MySql
         }
 
 
+#if MARIADB
+        public MariaDBObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+#elif MYSQL
         public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+#endif
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
@@ -193,7 +205,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("\tVALUES (");
             stringBuilder.Append(pkeyValues.ToString());
             stringBuilder.AppendLine("\t\t,@sync_scope_id");
-            stringBuilder.AppendLine($"\t\t,{MySqlObjectNames.TimestampValue}");
+            stringBuilder.AppendLine($"\t\t,{TimestampValue}");
             stringBuilder.AppendLine("\t\t,@sync_row_is_tombstone");
             stringBuilder.AppendLine("\t\t,utc_timestamp()");
 
@@ -202,7 +214,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("ON DUPLICATE KEY UPDATE");
             stringBuilder.AppendLine("\t`update_scope_id` = @sync_scope_id, ");
             stringBuilder.AppendLine("\t`sync_row_is_tombstone` = @sync_row_is_tombstone, ");
-            stringBuilder.AppendLine($"\t`timestamp` = {MySqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"\t`timestamp` = {TimestampValue}, ");
             stringBuilder.AppendLine("\t`last_change_datetime` = utc_timestamp();");
             return stringBuilder.ToString();
         }
@@ -213,7 +225,11 @@ namespace Dotmim.Sync.MySql
             var str1 = new StringBuilder();
             var str2 = new StringBuilder();
             var str3 = new StringBuilder();
+#if MARIADB
+            var str4 = MariaDBManagementUtils.JoinTwoTablesOnClause(this.TableDescription.GetPrimaryKeysColumns(), "`side`", "`base`");
+#elif MYSQL
             var str4 = MySqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.GetPrimaryKeysColumns(), "`side`", "`base`");
+#endif
 
             stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
 
@@ -234,7 +250,7 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($")");
             stringBuilder.Append($"SELECT ");
             stringBuilder.Append(str2.ToString());
-            stringBuilder.AppendLine($", NULL, 0, {MySqlObjectNames.TimestampValue}, now()");
+            stringBuilder.AppendLine($", NULL, 0, {TimestampValue}, now()");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as `base` WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
             stringBuilder.Append(str3.ToString());

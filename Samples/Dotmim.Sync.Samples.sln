@@ -97,7 +97,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MutliOrchestratorsWebSyncCl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MutliOrchestratorsWebSyncServer", "MutliOrchestratorsWebSync\MutliOrchestratorsWebSyncServer\MutliOrchestratorsWebSyncServer.csproj", "{7D4E3B4B-10E8-4AAB-B351-65E025B8D16E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomProvider", "CustomProvider\CustomProvider.csproj", "{87182129-E453-480F-96A0-02F7CF031377}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomProvider", "CustomProvider\CustomProvider.csproj", "{87182129-E453-480F-96A0-02F7CF031377}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.MariaDB", "..\Projects\Dotmim.Sync.MariaDB\Dotmim.Sync.MariaDB.csproj", "{02451C64-D43E-4C4C-A1E1-276EC06DD446}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -263,6 +265,10 @@ Global
 		{87182129-E453-480F-96A0-02F7CF031377}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{87182129-E453-480F-96A0-02F7CF031377}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{87182129-E453-480F-96A0-02F7CF031377}.Release|Any CPU.Build.0 = Release|Any CPU
+		{02451C64-D43E-4C4C-A1E1-276EC06DD446}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{02451C64-D43E-4C4C-A1E1-276EC06DD446}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{02451C64-D43E-4C4C-A1E1-276EC06DD446}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02451C64-D43E-4C4C-A1E1-276EC06DD446}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

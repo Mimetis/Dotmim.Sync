@@ -9,32 +9,55 @@ using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-using Dotmim.Sync.MySql.Builders;
-using System.Diagnostics;
-using System.Collections.Generic;
+
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.MySql
+#if MARIADB
+namespace Dotmim.Sync.MariaDB.Builders
+#elif MYSQL
+namespace Dotmim.Sync.MySql.Builders
+#endif
 {
+#if MARIADB
+    public class MariaDBBuilderProcedure
+#elif MYSQL
     public class MySqlBuilderProcedure
+#endif
     {
         private ParserName tableName;
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
-        private MySqlObjectNames mySqlObjectNames;
-        private MySqlDbMetadata mySqlDbMetadata;
-        internal const string MYSQL_PREFIX_PARAMETER = "in_";
+#if MARIADB
+        private MariaDBObjectNames objectNames;
+        private MariaDBDbMetadata dbMetadata;
+#elif MYSQL
+        private MySqlObjectNames objectNames;
+        private MySqlDbMetadata dbMetadata;
+#endif
+        public const string MYSQL_PREFIX_PARAMETER = "in_";
 
+#if MARIADB
+        public MariaDBBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        {
+            this.tableDescription = tableDescription;
+            this.setup = setup;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.objectNames = new MariaDBObjectNames(this.tableDescription, tableName, trackingName, this.setup);
+            this.dbMetadata = new MariaDBDbMetadata();
+        }
+#elif MYSQL
         public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.mySqlObjectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
-            this.mySqlDbMetadata = new MySqlDbMetadata();
+            this.objectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
+            this.dbMetadata = new MySqlDbMetadata();
         }
+#endif
 
         private void AddPkColumnParametersToCommand(MySqlCommand sqlCommand)
         {
@@ -49,21 +72,20 @@ namespace Dotmim.Sync.MySql
 
         internal MySqlParameter GetMySqlParameter(SyncColumn column)
         {
-            var mySqlDbMetadata = new MySqlDbMetadata();
 
             var parameterName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
 
             var sqlParameter = new MySqlParameter
             {
-                ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{parameterName}",
+                ParameterName = $"{MYSQL_PREFIX_PARAMETER}{parameterName}",
                 DbType = column.GetDbType(),
                 IsNullable = column.AllowDBNull
             };
 
 #if MARIADB
-            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+            (byte precision, byte scale) = this.dbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-            (byte precision, byte scale) = mySqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            (byte precision, byte scale) = this.dbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
 #endif
 
             if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
@@ -96,8 +118,8 @@ namespace Dotmim.Sync.MySql
         internal string CreateParameterDeclaration(MySqlParameter param)
         {
             var stringBuilder3 = new StringBuilder();
-            var stringType = this.mySqlDbMetadata.GetStringFromDbType(param.DbType, param.Size);
-            string precision = this.mySqlDbMetadata.GetPrecisionStringFromDbType(param.DbType, param.Size, param.Precision, param.Scale);
+            var stringType = this.dbMetadata.GetStringFromDbType(param.DbType, param.Size);
+            string precision = this.dbMetadata.GetPrecisionStringFromDbType(param.DbType, param.Size, param.Precision, param.Scale);
             string output = string.Empty;
             string isNull = string.Empty;
             string defaultValue = string.Empty;
@@ -191,7 +213,7 @@ namespace Dotmim.Sync.MySql
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            var quotedProcedureName = this.mySqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+            var quotedProcedureName = this.objectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
 
             var procedureName = ParserName.Parse(quotedProcedureName, "`").ToString();
 
@@ -218,7 +240,7 @@ namespace Dotmim.Sync.MySql
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            var quotedProcedureName = this.mySqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+            var quotedProcedureName = this.objectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
             var commandText = $"drop procedure {quotedProcedureName}";
 
             var command = connection.CreateCommand();
@@ -237,7 +259,7 @@ namespace Dotmim.Sync.MySql
 
             var sqlCommand = new MySqlCommand();
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"SET FOREIGN_KEY_CHECKS=0;"); 
+            stringBuilder.AppendLine($"SET FOREIGN_KEY_CHECKS=0;");
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
             stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
             stringBuilder.AppendLine($"SET FOREIGN_KEY_CHECKS=1;");
@@ -248,7 +270,7 @@ namespace Dotmim.Sync.MySql
         }
         public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
             return CreateProcedureCommand(BuildResetCommand, commandName, connection, transaction);
         }
 
@@ -288,9 +310,17 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
             stringBuilder.AppendLine("SET ts = 0;");
+#if MARIADB
+            stringBuilder.AppendLine($"SELECT `timestamp`, `update_scope_id` FROM {trackingName.Quoted().ToString()} WHERE {MariaDBManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString())} LIMIT 1 INTO ts, t_update_scope_id;");
+#elif MYSQL
             stringBuilder.AppendLine($"SELECT `timestamp`, `update_scope_id` FROM {trackingName.Quoted().ToString()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString())} LIMIT 1 INTO ts, t_update_scope_id;");
+#endif
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} WHERE");
+#if MARIADB
+            stringBuilder.AppendLine(MariaDBManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), ""));
+#elif MYSQL
             stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), ""));
+#endif
             stringBuilder.AppendLine("AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1);");
 
             stringBuilder.AppendLine();
@@ -302,9 +332,17 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()}");
             stringBuilder.AppendLine($"\tSET `update_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 1, ");
+#if MARIADB
+            stringBuilder.AppendLine($"\t\t `timestamp` = {MariaDBObjectNames.TimestampValue}, ");
+#elif MYSQL
             stringBuilder.AppendLine($"\t\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
+#endif
             stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
+#if MARIADB
+            stringBuilder.AppendLine($"\tWHERE {MariaDBManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")};");
+#elif MYSQL
             stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")};");
+#endif
             stringBuilder.AppendLine($"END IF;");
 
 
@@ -314,7 +352,7 @@ namespace Dotmim.Sync.MySql
 
         public DbCommand CreateDeleteCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow);
             return CreateProcedureCommand(BuildDeleteCommand, commandName, connection, transaction);
         }
 
@@ -341,7 +379,7 @@ namespace Dotmim.Sync.MySql
 
         public DbCommand CreateDeleteMetadataCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
             return CreateProcedureCommand(BuildDeleteMetadataCommand, commandName, connection, transaction);
         }
 
@@ -401,7 +439,7 @@ namespace Dotmim.Sync.MySql
 
         public DbCommand CreateSelectRowCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
             return CreateProcedureCommand(BuildSelectRowCommand, commandName, connection, transaction);
         }
 
@@ -473,15 +511,24 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine("SET ts = 0;");
             stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
             stringBuilder.AppendLine($"`timestamp`, `update_scope_id` FROM {trackingName.Quoted().ToString()} ");
+#if MARIADB
+            stringBuilder.AppendLine($"WHERE {MariaDBManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString())} LIMIT 1 ");
+#elif MYSQL
             stringBuilder.AppendLine($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString())} LIMIT 1 ");
+#endif
             stringBuilder.AppendLine($"INTO {listColumnsTmp2.ToString()} ts, t_update_scope_id;");
             stringBuilder.AppendLine();
 
             if (hasMutableColumns)
             {
                 stringBuilder.AppendLine($"UPDATE {tableName.Quoted().ToString()}");
+#if MARIADB
+                stringBuilder.Append($"SET {MariaDBManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
+                stringBuilder.Append($"WHERE {MariaDBManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")}");
+#elif MYSQL
                 stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
                 stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")}");
+#endif
                 stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
@@ -524,9 +571,17 @@ namespace Dotmim.Sync.MySql
             stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()}");
             stringBuilder.AppendLine($"\tSET `update_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 0, ");
+#if MARIADB
+            stringBuilder.AppendLine($"\t\t `timestamp` = {MariaDBObjectNames.TimestampValue}, ");
+#elif MYSQL
             stringBuilder.AppendLine($"\t\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
+#endif
             stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
+#if MARIADB
+            stringBuilder.AppendLine($"\tWHERE {MariaDBManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")};");
+#elif MYSQL
             stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")};");
+#endif
             stringBuilder.AppendLine($"END IF;");
 
             sqlCommand.CommandText = stringBuilder.ToString();
@@ -538,7 +593,7 @@ namespace Dotmim.Sync.MySql
             // Check if we have mutables columns
             var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
 
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
             return this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns, connection, transaction);
         }
 
@@ -559,9 +614,9 @@ namespace Dotmim.Sync.MySql
                     // Get column name and type
                     var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
 #if MARIADB
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MariaDB.MariaDBSyncProvider.ProviderType, MariaDB.MariaDBSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.dbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MariaDB.MariaDBSyncProvider.ProviderType, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.dbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
 #endif
 
 
@@ -584,9 +639,9 @@ namespace Dotmim.Sync.MySql
                     // Get column name and type
                     var columnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
 #if MARIADB
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.dbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.dbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
 #endif
 
                     // Add it as parameter
@@ -693,9 +748,9 @@ namespace Dotmim.Sync.MySql
                 var columnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
                 var parameterName = ParserName.Parse(whereFilter.ParameterName, "`").Unquoted().Normalized().ToString();
 #if MARIADB
-                var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+                var sqlDbType = (MySqlDbType)this.dbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-                var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var sqlDbType = (MySqlDbType)this.dbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
 #endif
 
                 var param = filter.Parameters[parameterName];
@@ -853,7 +908,7 @@ namespace Dotmim.Sync.MySql
 
         public DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(null);
             return CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
 
@@ -864,7 +919,7 @@ namespace Dotmim.Sync.MySql
             if (filter == null)
                 return null;
 
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
             Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(filter);
             return CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
         }
@@ -953,7 +1008,7 @@ namespace Dotmim.Sync.MySql
         }
         public DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
             Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectInitializedChangesCommand(null);
             return CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
         }
@@ -963,7 +1018,7 @@ namespace Dotmim.Sync.MySql
             if (filter == null)
                 return null;
 
-            var commandName = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
             Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(filter);
             return CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
         }

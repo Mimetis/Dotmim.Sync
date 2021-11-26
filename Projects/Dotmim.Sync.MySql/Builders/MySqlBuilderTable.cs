@@ -1,6 +1,5 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.MySql.Builders;
 #if NET5_0 || NET6_0 || NETCOREAPP3_1
 using MySqlConnector;
 #elif NETSTANDARD
@@ -16,15 +15,27 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.MySql
+#if MARIADB
+namespace Dotmim.Sync.MariaDB.Builders
+#elif MYSQL
+namespace Dotmim.Sync.MySql.Builders
+#endif
 {
+#if MARIADB
+    public class MariaDBBuilderTable
+#elif MYSQL
     public class MySqlBuilderTable
+#endif
     {
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
-        private readonly MySqlDbMetadata mySqlDbMetadata;
+#if MARIADB
+        private readonly MariaDBDbMetadata dbMetadata;
+#elif MYSQL
+        private readonly MySqlDbMetadata dbMetadata;
+#endif
 
         private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
@@ -48,13 +59,21 @@ namespace Dotmim.Sync.MySql
 
             return name;
         }
+#if MARIADB
+        public MariaDBBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+#elif MYSQL
         public MySqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+#endif
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.mySqlDbMetadata = new MySqlDbMetadata();
+#if MARIADB
+            this.dbMetadata = new MariaDBDbMetadata();
+#elif MYSQL
+            this.dbMetadata = new MySqlDbMetadata();
+#endif
         }
 
 
@@ -72,11 +91,11 @@ namespace Dotmim.Sync.MySql
                 var columnName = ParserName.Parse(column, "`").Quoted().ToString();
 
 #if MARIADB
-                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-                var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+                var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+                var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-                var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+                var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
 #endif
 
 
@@ -226,11 +245,11 @@ namespace Dotmim.Sync.MySql
             var columnNameString = ParserName.Parse(columnName, "`").Quoted().ToString();
 
 #if MARIADB
-            var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-            var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+            var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+            var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-            var stringType = this.mySqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-            var stringPrecision = this.mySqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
+            var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
 #endif
 
 
@@ -322,7 +341,11 @@ namespace Dotmim.Sync.MySql
 
             reader.Close();
 
+#if MARIADB
+            var mySqlDbMetadata = new MariaDBDbMetadata();
+#elif MYSQL
             var mySqlDbMetadata = new MySqlDbMetadata();
+#endif
 
             foreach (var c in syncTable.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
             {
