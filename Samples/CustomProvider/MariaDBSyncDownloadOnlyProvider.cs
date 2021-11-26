@@ -1,8 +1,8 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.MySql;
-using Dotmim.Sync.MySql.Builders;
+using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.MariaDB.Builders;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
@@ -24,25 +24,25 @@ namespace CustomProvider
     /// This provider does not create any triggers / tracking tables and only 3 stored proc / tables
     /// If your client database is not readonly, any changes from server will overwrite client changes
     /// </summary>
-    public class MySqlSyncDownloadOnlyProvider : MySqlSyncProvider
+    public class MariaDBSyncDownloadOnlyProvider : MariaDBSyncProvider
     {
-        public MySqlSyncDownloadOnlyProvider() { }
-        public MySqlSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
-        public MySqlSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
+        public MariaDBSyncDownloadOnlyProvider() { }
+        public MariaDBSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
+        public MariaDBSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
+            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+            => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
     }
 
     /// <summary>
     /// Table builder builds table, tracking tables, triggers, stored proc, types
     /// </summary>
-    public class MySqlDownloadOnlyTableBuilder : MySqlTableBuilder
+    public class MariaDBDownloadOnlyTableBuilder : MariaDBTableBuilder
     {
-        public MySqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+        public MariaDBDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
             : base(tableDescription, tableName, trackingTableName, setup) { }
 
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
@@ -66,11 +66,11 @@ namespace CustomProvider
     /// <summary>
     /// Sync Adapter gets and executes commands
     /// </summary>
-    public class MySqlDownloadOnlySyncAdapter : MySqlSyncAdapter
+    public class MariaDBDownloadOnlySyncAdapter : MariaDBSyncAdapter
     {
         private ParserName tableName;
 
-        public MySqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
             : base(tableDescription, tableName, trackingName, setup)
         {
             this.tableName = tableName;
@@ -172,7 +172,7 @@ namespace CustomProvider
             var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine($"DELETE FROM {this.tableName.Quoted()} WHERE");
-            stringBuilder.AppendLine($"{MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
+            stringBuilder.AppendLine($"{MariaDBManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
 
             mySqlCommand.CommandText = stringBuilder.ToString();
             return mySqlCommand;

@@ -76,7 +76,7 @@ namespace Dotmim.Sync
             }
 
             // https://github.com/Mimetis/Dotmim.Sync/issues/621#issuecomment-968369322
-            //this.SchemaName = string.IsNullOrEmpty(schemaName) || schemaName.ToLowerInvariant() == "dbo" ? string.Empty : schemaName;
+            this.SchemaName = string.IsNullOrEmpty(schemaName) ? string.Empty : schemaName;
             this.Columns = new SetupColumns();
         }
 
