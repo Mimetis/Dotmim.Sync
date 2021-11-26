@@ -6,23 +6,49 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Dotmim.Sync.Manager;
 
-namespace Dotmim.Sync.MySql
+#if MARIADB
+namespace Dotmim.Sync.MariaDB.Builders
+#elif MYSQL
+namespace Dotmim.Sync.MySql.Builders
+#endif
 {
 
     /// <summary>
     /// The MySqlBuilder class is the MySql implementation of DbBuilder class.
     /// In charge of creating tracking table, stored proc, triggers and adapters.
     /// </summary>
-    public class MyTableSqlBuilder : DbTableBuilder
+#if MARIADB
+    public class MariaDBTableBuilder : DbTableBuilder
+#elif MYSQL
+    public class MySqlTableBuilder : DbTableBuilder
+#endif
     {
 
+#if MARIADB
+        MariaDBObjectNames sqlObjectNames;
+        private MariaDBBuilderProcedure sqlBuilderProcedure;
+        private MariaDBBuilderTable sqlBuilderTable;
+        private MariaDBBuilderTrackingTable sqlBuilderTrackingTable;
+        private MariaDBBuilderTrigger sqlBuilderTrigger;
+
+        public MariaDBTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
+        {
+
+            this.sqlObjectNames = new MariaDBObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
+            this.sqlBuilderProcedure = new MariaDBBuilderProcedure(tableDescription, TableName, TrackingTableName, setup);
+            this.sqlBuilderTable = new MariaDBBuilderTable(tableDescription, TableName, TrackingTableName, setup);
+            this.sqlBuilderTrackingTable = new MariaDBBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderTrigger = new MariaDBBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
+
+        }
+#elif MYSQL
         MySqlObjectNames sqlObjectNames;
         private MySqlBuilderProcedure sqlBuilderProcedure;
         private MySqlBuilderTable sqlBuilderTable;
         private MySqlBuilderTrackingTable sqlBuilderTrackingTable;
         private MySqlBuilderTrigger sqlBuilderTrigger;
 
-        public MyTableSqlBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
+        public MySqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
         {
 
             this.sqlObjectNames = new MySqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
@@ -32,6 +58,7 @@ namespace Dotmim.Sync.MySql
             this.sqlBuilderTrigger = new MySqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
 
         }
+#endif
 
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetCreateSchemaCommandAsync(connection, transaction);

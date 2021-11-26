@@ -11,9 +11,17 @@ using System.Data.Common;
 using System.Text;
 using System.Threading.Tasks;
 
+#if MARIADB
+namespace Dotmim.Sync.MariaDB.Builders
+#elif MYSQL
 namespace Dotmim.Sync.MySql.Builders
+#endif
 {
+#if MARIADB
+    public class MariaDBBuilder : DbBuilder
+#elif MYSQL
     public class MySqlBuilder : DbBuilder
+#endif
     {
         public override async Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {
@@ -38,7 +46,11 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
         {
+#if MARIADB
+            return await MariaDBManagementUtils.GetHelloAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
+#elif MYSQL
             return await MySqlManagementUtils.GetHelloAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
+#endif
         }
     }
 }

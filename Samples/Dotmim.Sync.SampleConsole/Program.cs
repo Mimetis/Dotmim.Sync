@@ -21,6 +21,7 @@ using System.Data.Common;
 using Dotmim.Sync.MySql;
 using System.Linq;
 using Microsoft.Data.SqlClient;
+using Dotmim.Sync.MariaDB;
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -44,76 +45,7 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        await SynchronizeUploadOnlyThenDownloadOnlyAsync();
-
-    }
-
-    private static async Task SynchronizeUploadOnlyThenDownloadOnlyAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
-
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var options = new SyncOptions
-        {
-            //BatchSize = 100,
-            //SerializerFactory = new CustomMessagePackSerializerFactory(),
-            //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
-            //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-            UseBulkOperations = false,
-            DisableConstraintsOnApplyChanges = true
-        };
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-
-        try
-        {
-            var setup = new SyncSetup(oneTable);
-
-            // First test : Bidirectional
-            var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-            
-            var s = await agent.SynchronizeAsync();
-            Console.WriteLine(s);
-
-            // Second test : UploadOnly
-            setup.Tables[0].SyncDirection = SyncDirection.UploadOnly;
-            s = await agent.SynchronizeAsync();
-            Console.WriteLine(s);
-
-            // Third test : UploadOnly
-            setup.Tables[0].SyncDirection = SyncDirection.DownloadOnly;
-            s = await agent.SynchronizeAsync();
-            Console.WriteLine(s);
-
-        }
-        catch (SyncException e)
-        {
-            Console.WriteLine(e.ToString());
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-        }
-
-
-        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        await SynchronizeAsync();
 
     }
 
@@ -259,26 +191,24 @@ internal class Program
     private static async Task SynchronizeAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new SqlSyncDownloadOnlyProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
+        //var clientProvider = new MariaDBSyncDownloadOnlyProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
+
+        var serverProvider = new MariaDBSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
+        var clientProvider = new MariaDBSyncDownloadOnlyProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
-        var clientProvider = new SqliteSyncDownloadOnlyProvider(clientDatabaseName);
+        //var clientProvider = new SqliteSyncDownloadOnlyProvider(clientDatabaseName);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var options = new SyncOptions
         {
-            //BatchSize = 100,
-            //SerializerFactory = new CustomMessagePackSerializerFactory(),
-            //SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots")
-            //ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
-            UseBulkOperations = false,
             DisableConstraintsOnApplyChanges = true
         };
 
@@ -291,10 +221,9 @@ internal class Program
         });
 
         var setup = new SyncSetup(oneTable);
-        setup.Tables[0].SyncDirection = SyncDirection.DownloadOnly;
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, oneTable);
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
         do
         {
@@ -632,8 +561,6 @@ internal class Program
 
         Console.WriteLine("End");
     }
-
-
 
     private static async Task SynchronizeHeavyTableAsync()
     {
@@ -1047,150 +974,6 @@ internal class Program
 
     }
 
-    private static async Task SynchronizeComputedColumnAsync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("tcp_sv_yq0h0pxbfu3"));
-        var clientProvider = new SqliteSyncProvider("sv0DAD1.db");
-        var tables = new string[] { "PricesListDetail" };
-
-        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
-            Console.ResetColor();
-        });
-
-        var options = new SyncOptions { BatchSize = 1000 };
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, tables);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                var r = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
-                // Write results
-                Console.WriteLine(r);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-
-
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-    public static async Task MultiScopesAsync()
-    {
-
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        // Create 2 tables list (one for each scope)
-        string[] productScopeTables = new string[] { "ProductCategory", "ProductModel", "Product" };
-        string[] customersScopeTables = new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
-
-        // Create 2 sync setup with named scope 
-        //var setupProducts = new SyncSetup(productScopeTables, "productScope");
-        //var setupCustomers = new SyncSetup(customersScopeTables, "customerScope");
-
-        var setupProducts = new SyncSetup(productScopeTables);
-        var setupCustomers = new SyncSetup(customersScopeTables);
-
-        // Create 2 agents, one for each scope
-        var agentProducts = new SyncAgent(clientProvider, serverProvider, setupProducts, "productScope");
-        var agentCustomers = new SyncAgent(clientProvider, serverProvider, setupCustomers, "customerScope");
-
-        // Using the Progress pattern to handle progession during the synchronization
-        // We can use the same progress for each agent
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var remoteProgress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"{s.Context.SyncStage}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                Console.WriteLine("Hit 1 for sync Products. Hit 2 for sync customers and sales. 3 for upgrade");
-                var k = Console.ReadKey().Key;
-
-                if (k == ConsoleKey.D1)
-                {
-                    Console.WriteLine(": Sync Products:");
-                    var s1 = await agentProducts.SynchronizeAsync(progress);
-                    Console.WriteLine(s1);
-                }
-                else if (k == ConsoleKey.D2)
-                {
-                    Console.WriteLine(": Sync Customers and Sales:");
-                    var s1 = await agentCustomers.SynchronizeAsync(progress);
-                    Console.WriteLine(s1);
-                }
-                else
-                {
-                    Console.WriteLine(": Upgrade local orchestrator :");
-                    if (await agentCustomers.LocalOrchestrator.NeedsToUpgradeAsync(progress: progress))
-                    {
-                        Console.WriteLine("Upgrade on local orchestrator customerScope:");
-                        await agentCustomers.LocalOrchestrator.UpgradeAsync(progress: progress);
-                    }
-                    if (await agentProducts.LocalOrchestrator.NeedsToUpgradeAsync(progress: progress))
-                    {
-                        Console.WriteLine("Upgrade on local orchestrator productScope:");
-                        await agentProducts.LocalOrchestrator.UpgradeAsync(progress: progress);
-                    }
-                    Console.WriteLine(": Upgrade remote orchestrator :");
-                    if (await agentCustomers.RemoteOrchestrator.NeedsToUpgradeAsync(progress: progress))
-                    {
-                        Console.WriteLine("Upgrade on remote orchestrator customerScope:");
-                        await agentCustomers.RemoteOrchestrator.UpgradeAsync(progress: progress);
-                    }
-                    if (await agentProducts.RemoteOrchestrator.NeedsToUpgradeAsync(progress: progress))
-                    {
-                        Console.WriteLine("Upgrade on remote orchestrator productScope:");
-                        await agentProducts.RemoteOrchestrator.UpgradeAsync(progress: progress);
-                    }
-                }
-
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
-    }
-
-
     /// <summary>
     /// Test a client syncing through a web api
     /// </summary>
@@ -1410,98 +1193,6 @@ internal class Program
     }
 
 
-    private static async Task TestMultiCallToMethodsAsync()
-    {
-        var loop = 5000;
-
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
-
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-
-
-        var options = new SyncOptions();
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, allTables);
-        var orchestrator = agent.LocalOrchestrator;
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        var r = await agent.SynchronizeAsync(progress);
-        Console.WriteLine(r);
-
-        // Be sure commands are loaded
-        //await orchestrator.GetEstimatedChangesCountAsync().ConfigureAwait(false); ;
-        //await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false); ;
-        //await orchestrator.GetLocalTimestampAsync().ConfigureAwait(false);
-        //await orchestrator.GetSchemaAsync().ConfigureAwait(false);
-        //await orchestrator.GetChangesAsync().ConfigureAwait(false);
-
-        await orchestrator.ExistScopeInfoTableAsync(Dotmim.Sync.Builders.DbScopeType.Client, options.ScopeInfoTableName).ConfigureAwait(false);
-        await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false);
-        await orchestrator.GetClientScopeAsync();
-
-        var stopwatch = Stopwatch.StartNew();
-
-        for (int i = 0; i < loop; i++)
-        {
-            //await orchestrator.GetEstimatedChangesCountAsync().ConfigureAwait(false);
-            //await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false);
-            //await orchestrator.GetLocalTimestampAsync().ConfigureAwait(false);
-            //await orchestrator.GetSchemaAsync().ConfigureAwait(false);
-            //await orchestrator.GetChangesAsync().ConfigureAwait(false);
-
-            await orchestrator.ExistScopeInfoTableAsync(Dotmim.Sync.Builders.DbScopeType.Client, options.ScopeInfoTableName).ConfigureAwait(false);
-            await orchestrator.ExistTableAsync(agent.Setup.Tables[0]).ConfigureAwait(false);
-            await orchestrator.GetClientScopeAsync();
-        }
-
-        stopwatch.Stop();
-        var str = $"SQL Server [Connection Pooling, Connection not shared]: {stopwatch.Elapsed.Minutes}:{stopwatch.Elapsed.Seconds}.{stopwatch.Elapsed.Milliseconds}";
-        Console.WriteLine(str);
-
-        var stopwatch2 = Stopwatch.StartNew();
-        using (var connection = agent.LocalOrchestrator.Provider.CreateConnection())
-        {
-            connection.Open();
-            using (var transaction = connection.BeginTransaction())
-            {
-                for (int i = 0; i < loop; i++)
-                {
-                    //await orchestrator.GetEstimatedChangesCountAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
-                    //await orchestrator.ExistTableAsync(agent.Setup.Tables[0], connection: connection, transaction: transaction).ConfigureAwait(false);
-                    //await orchestrator.GetLocalTimestampAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
-                    //await orchestrator.GetSchemaAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
-                    //await orchestrator.GetChangesAsync(connection: connection, transaction: transaction).ConfigureAwait(false);
-
-                    await orchestrator.ExistScopeInfoTableAsync(Dotmim.Sync.Builders.DbScopeType.Client, options.ScopeInfoTableName, connection, transaction).ConfigureAwait(false);
-                    await orchestrator.ExistTableAsync(agent.Setup.Tables[0], connection, transaction).ConfigureAwait(false);
-                    await orchestrator.GetClientScopeAsync(connection, transaction);
-                }
-                transaction.Commit();
-            }
-            connection.Close();
-        }
-        stopwatch2.Stop();
-
-        var str2 = $"SQL Server [Connection Pooling, Connection shared]: {stopwatch2.Elapsed.Minutes}:{stopwatch2.Elapsed.Seconds}.{stopwatch2.Elapsed.Milliseconds}";
-        Console.WriteLine(str2);
-
-        Console.WriteLine("End");
-    }
-
-
     private static async Task SynchronizeWithFiltersAsync()
     {
         // Create 2 Sql Sync providers
@@ -1632,6 +1323,9 @@ internal class Program
 
     private static async Task SynchronizeWithLoggerAsync()
     {
+
+        //docker run -it --name seq -p 5341:80 -e ACCEPT_EULA=Y datalust/seq
+
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
@@ -1650,24 +1344,28 @@ internal class Program
         //    .WriteTo.Console()
         //    .CreateLogger();
 
-        // 1) create a console logger
+        // *) create a console logger
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole().SetMinimumLevel(LogLevel.Trace); });
         //var logger = loggerFactory.CreateLogger("Dotmim.Sync");
         //options.Logger = logger;
 
+        // *) create a seq logger
+        var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
+        var logger = loggerFactory.CreateLogger("Dotmim.Sync");
 
-        // 2) create a serilog logger
+
+        // *) create a serilog logger
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog().SetMinimumLevel(LogLevel.Trace); });
         //var logger = loggerFactory.CreateLogger("SyncAgent");
         //options.Logger = logger;
 
-        //3) Using Serilog with Seq
-        var serilogLogger = new LoggerConfiguration()
-            .Enrich.FromLogContext()
-            .MinimumLevel.Debug()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .WriteTo.Seq("http://localhost:5341")
-            .CreateLogger();
+        // *) Using Serilog with Seq
+        //var serilogLogger = new LoggerConfiguration()
+        //    .Enrich.FromLogContext()
+        //    .MinimumLevel.Debug()
+        //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        //    .WriteTo.Seq("http://localhost:5341")
+        //    .CreateLogger();
 
 
         //var actLogging = new Action<SyncLoggerOptions>(slo =>
@@ -1678,8 +1376,7 @@ internal class Program
 
         ////var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
 
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
-
+        //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
 
         //loggerFactory.AddSerilog(serilogLogger);
 
@@ -1700,7 +1397,8 @@ internal class Program
 
         var options = new SyncOptions();
         options.BatchSize = 500;
-        options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
+        options.Logger = logger;
+        //options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
 
 
         // Creating an agent that will handle all the process

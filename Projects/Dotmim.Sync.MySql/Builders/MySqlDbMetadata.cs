@@ -10,9 +10,17 @@ using MySql.Data.MySqlClient;
 #endif
 
 
+#if MARIADB
+namespace Dotmim.Sync.MariaDB.Builders
+#elif MYSQL
 namespace Dotmim.Sync.MySql.Builders
+#endif
 {
+#if MARIADB
+    public class MariaDBDbMetadata : DbMetadata
+#elif MYSQL
     public class MySqlDbMetadata : DbMetadata
+#endif
     {
         public override int GetMaxLengthFromDbType(DbType dbType, int maxLength)
         {

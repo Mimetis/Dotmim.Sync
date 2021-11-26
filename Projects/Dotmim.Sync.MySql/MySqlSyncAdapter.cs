@@ -10,22 +10,48 @@ using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
+#if MARIADB
+using Dotmim.Sync.MariaDB.Builders;
+#elif MYSQL
 using Dotmim.Sync.MySql.Builders;
+#endif
 using System.Threading.Tasks;
 
+#if MARIADB
+namespace Dotmim.Sync.MariaDB
+#elif MYSQL
 namespace Dotmim.Sync.MySql
+#endif
 {
+
+#if MARIADB
+    public class MariaDBSyncAdapter : DbSyncAdapter
+#elif MYSQL
     public class MySqlSyncAdapter : DbSyncAdapter
+#endif
     {
-        private MySqlObjectNames mySqlObjectNames;
-        private MySqlDbMetadata mySqlDbMetadata;
+
+#if MARIADB
+        public MariaDBObjectNames MySqlObjectNames { get; set; }
+        public MariaDBDbMetadata MySqlDbMetadata { get; set; }
+
+        public MariaDBSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
+        {
+            this.MySqlDbMetadata = new MariaDBDbMetadata();
+            this.MySqlObjectNames = new MariaDBObjectNames(TableDescription, tableName, trackingName, Setup);
+
+        }
+#elif MYSQL
+        public MySqlObjectNames MySqlObjectNames { get; set; }
+        public MySqlDbMetadata MySqlDbMetadata { get; set; }
 
         public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
         {
-            this.mySqlDbMetadata = new MySqlDbMetadata();
-            this.mySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup);
+            this.MySqlDbMetadata = new MySqlDbMetadata();
+            this.MySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup);
 
         }
+#endif
 
         public override bool IsPrimaryKeyViolation(Exception Error) => false;
         public override bool IsUniqueKeyViolation(Exception exception) => false;
@@ -38,81 +64,81 @@ namespace Dotmim.Sync.MySql
             {
                 case DbCommandType.SelectChanges:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
                     break;
                 case DbCommandType.SelectInitializedChanges:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges, filter);
                     break;
                 case DbCommandType.SelectInitializedChangesWithFilters:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
                     break;
                 case DbCommandType.SelectChangesWithFilters:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
                     break;
                 case DbCommandType.SelectRow:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
                     break;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InitializeRow:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
                     break;
                 case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
                     break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.mySqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
                     break;
                 case DbCommandType.EnableConstraints:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.mySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
                 case DbCommandType.DeleteMetadata:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
                     break;
                 case DbCommandType.UpdateMetadata:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
                     break;
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
+                    command.CommandText = this.MySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
                     break;
                 case DbCommandType.UpdateTrigger:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Update, filter);
+                    command.CommandText = this.MySqlObjectNames.GetTriggerCommandName(DbTriggerType.Update, filter);
                     break;
                 case DbCommandType.DeleteTrigger:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete, filter);
+                    command.CommandText = this.MySqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete, filter);
                     break;
                 case DbCommandType.BulkTableType:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
                     break;
                 case DbCommandType.BulkUpdateRows:
                 case DbCommandType.BulkInitializeRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
                     break;
                 case DbCommandType.BulkDeleteRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
                     break;
                 case DbCommandType.UpdateUntrackedRows:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.mySqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
                     break;
                 case DbCommandType.Reset:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.mySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     break;
                 default:
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
@@ -193,12 +219,18 @@ namespace Dotmim.Sync.MySql
         {
             DbParameter p;
 
+#if MARIADB
+            var prefix_parameter = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#elif MYSQL
+            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#endif
+
             foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{columnName}";
+                p.ParameterName = $"{prefix_parameter}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -230,13 +262,17 @@ namespace Dotmim.Sync.MySql
         private void SetDeleteRowParameters(DbCommand command)
         {
             DbParameter p;
-
+#if MARIADB
+            var prefix_parameter = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#elif MYSQL
+            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#endif
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
+                p.ParameterName = $"{prefix_parameter}{quotedColumn}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -267,13 +303,17 @@ namespace Dotmim.Sync.MySql
         private void SetSelectRowParameters(DbCommand command)
         {
             DbParameter p;
-
+#if MARIADB
+            var prefix_parameter = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#elif MYSQL
+            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#endif
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn}";
+                p.ParameterName = $"{prefix_parameter}{quotedColumn}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -322,9 +362,9 @@ namespace Dotmim.Sync.MySql
                     var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
 
 #if MARIADB
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MariaDB.MariaDBSyncProvider.ProviderType, MariaDB.MariaDBSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MariaDB.MariaDBSyncProvider.ProviderType, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
 #endif
                     var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;
@@ -345,9 +385,9 @@ namespace Dotmim.Sync.MySql
                     // Get column name and type
                     var columnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
 #if MARIADB
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
 #elif MYSQL
-                    var sqlDbType = (MySqlDbType)this.mySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
+                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
 #endif
                     // Add it as parameter
                     var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType);

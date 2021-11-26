@@ -105,7 +105,7 @@ namespace Dotmim.Sync.MySql
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MyTableSqlBuilder(tableDescription, tableName, trackingTableName, setup);
+            => new MySqlTableBuilder(tableDescription, tableName, trackingTableName, setup);
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
             => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup);

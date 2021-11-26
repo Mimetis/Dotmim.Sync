@@ -1,4 +1,9 @@
 using Dotmim.Sync.Builders;
+#if MARIADB
+using Dotmim.Sync.MariaDB.Builders;
+#elif MYSQL
+using Dotmim.Sync.MySql.Builders;
+#endif
 
 #if NET5_0 || NET6_0 || NETCOREAPP3_1
 using MySqlConnector;
@@ -15,9 +20,17 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+#if MARIADB
+namespace Dotmim.Sync.MariaDB
+#elif MYSQL
 namespace Dotmim.Sync.MySql
+#endif
 {
+#if MARIADB
+    public static class MariaDBManagementUtils
+#elif MYSQL
     public static class MySqlManagementUtils
+#endif
     {
 
         public static async Task<(string DatabaseName, string EngineVersion)> GetHelloAsync(MySqlConnection connection, MySqlTransaction transaction)
@@ -120,7 +133,7 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        internal static async Task<SyncTable> GetPrimaryKeysForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
 
@@ -150,7 +163,7 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        internal static async Task<SyncTable> GetRelationsForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetRelationsForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
             var commandRelations = @"
             SELECT
@@ -300,7 +313,7 @@ namespace Dotmim.Sync.MySql
             return triggerExist;
         }
 
-        internal static async Task<bool> ProcedureExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string commandName)
+        public static async Task<bool> ProcedureExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string commandName)
         {
             bool procExist;
             var commandNameString = ParserName.Parse(commandName, "`");
@@ -331,7 +344,7 @@ namespace Dotmim.Sync.MySql
             return procExist;
         }
 
-        internal static string JoinTwoTablesOnClause(IEnumerable<SyncColumn> pkeys, string leftName, string rightName)
+        public static string JoinTwoTablesOnClause(IEnumerable<SyncColumn> pkeys, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
             string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
@@ -354,8 +367,14 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        internal static string ColumnsAndParameters(IEnumerable<SyncColumn> pkeys, string fromPrefix)
+        public static string ColumnsAndParameters(IEnumerable<SyncColumn> pkeys, string fromPrefix)
         {
+
+#if MARIADB
+            var prefix_parameter = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#elif MYSQL
+            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+#endif
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string str1 = "";
@@ -367,13 +386,17 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");
+                stringBuilder.Append($"{prefix_parameter}{quotedColumn.Unquoted().Normalized().ToString()}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
         }
 
-        internal static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix)
+#if MARIADB
+        public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysql_prefix = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER)
+#elif MYSQL
+        public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysql_prefix = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER)
+#endif
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
@@ -386,13 +409,17 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");
+                stringBuilder.Append($"{mysql_prefix}{quotedColumn.Unquoted().Normalized().ToString()}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
         }
 
-        internal static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
+#if MARIADB
+        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "", string mysql_prefix = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER)
+#elif MYSQL
+        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "", string mysql_prefix = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER)
+#endif
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
@@ -400,7 +427,7 @@ namespace Dotmim.Sync.MySql
             foreach (var mutableColumn in table.GetMutableColumns())
             {
                 var quotedColumn = ParserName.Parse(mutableColumn, "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted().ToString()} = {MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER}{quotedColumn.Unquoted().Normalized().ToString()}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted().ToString()} = {mysql_prefix}{quotedColumn.Unquoted().Normalized().ToString()}");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();
