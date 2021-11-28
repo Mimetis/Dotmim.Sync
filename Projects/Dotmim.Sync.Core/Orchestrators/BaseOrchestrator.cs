@@ -188,7 +188,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Open a connection
         /// </summary>
-        [DebuggerStepThrough]
+        //[DebuggerStepThrough]
         internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
         {
             // Make an interceptor when retrying to connect

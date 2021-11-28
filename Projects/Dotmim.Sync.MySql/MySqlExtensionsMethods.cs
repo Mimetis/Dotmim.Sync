@@ -25,11 +25,7 @@ namespace Dotmim.Sync.MariaDB
 namespace Dotmim.Sync.MySql
 #endif
 {
-#if MARIADB
-    public static class MariaDBExtensionsMethods
-#elif MYSQL
     public static class MySqlExtensionsMethods
-#endif
     {
         public static MySqlParameter[] DeriveParameters(this MySqlConnection connection, 
             MySqlCommand cmd, bool includeReturnValueParameter = false, 
@@ -130,11 +126,7 @@ namespace Dotmim.Sync.MySql
             var modes = new List<string>(new string[3] { "IN", "OUT", "INOUT" });
 
             int pos = 1;
-#if MARIADB
-            var tokenizer = new MariaDBTokenizer(body)
-#elif MYSQL
             var tokenizer = new MySqlTokenizer(body)
-#endif
             {
                 AnsiQuotes = sqlMode.IndexOf("ANSI_QUOTES") != -1,
                 BackslashEscapes = sqlMode.IndexOf("NO_BACKSLASH_ESCAPES") == -1,
@@ -215,11 +207,7 @@ namespace Dotmim.Sync.MySql
             return dt;
         }
 
-#if MARIADB
-        private static string ParseDataType(SyncRow row, MariaDBTokenizer tokenizer)
-#elif MYSQL
         private static string ParseDataType(SyncRow row, MySqlTokenizer tokenizer)
-#endif
         {
             StringBuilder dtd = new StringBuilder(tokenizer.NextToken().ToUpperInvariant());
 
@@ -283,23 +271,28 @@ namespace Dotmim.Sync.MySql
             return token;
         }
 
+        private static bool IsNumericType(string datatype) => datatype.ToLowerInvariant() switch
+        {
+            "int" or "int16" or "int24" or "int32" or "int64" or "uint16" or "uint24" or "uint32" or "uint64" or "integer" or
+            "numeric" or "decimal" or "dec" or "fixed" or "tinyint" or "mediumint" or "bigint" or "real" or "double" or
+            "float" or "serial" or "smallint" => true,
+            _ => false,
+        };
+
         private static string GetDataTypeDefaults(string type, SyncRow row)
         {
-#if MARIADB
-            var metadata = new MariaDBDbMetadata();
-#elif MYSQL
             var metadata = new MySqlDbMetadata();
-#endif
 
             string format = "({0},{1})";
             object precision = row["NUMERIC_PRECISION"];
 
-            if (metadata.IsNumericType(type) && string.IsNullOrEmpty((string)row["NUMERIC_PRECISION"]))
+            if (IsNumericType(type) && string.IsNullOrEmpty((string)row["NUMERIC_PRECISION"]))
             {
                 row["NUMERIC_PRECISION"] = 10;
                 row["NUMERIC_SCALE"] = 0;
 
-                if (!metadata.SupportScale(type))
+                if (type.ToLowerInvariant() == "numeric" || type.ToLowerInvariant() == "decimal" ||
+                    type.ToLowerInvariant() == "dec" || type.ToLowerInvariant() == "real")
                     format = "({0})";
 
                 return String.Format(format, row["NUMERIC_PRECISION"],
@@ -310,15 +303,11 @@ namespace Dotmim.Sync.MySql
 
         private static void ParseDataTypeSize(SyncRow row, string size)
         {
-#if MARIADB
-            var metadata = new MariaDBDbMetadata();
-#elif MYSQL
             var metadata = new MySqlDbMetadata();
-#endif
             size = size.Trim('(', ')');
             string[] parts = size.Split(',');
 
-            if (!metadata.IsNumericType(row["DATA_TYPE"].ToString()))
+            if (!IsNumericType(row["DATA_TYPE"].ToString()))
             {
                 row["CHARACTER_MAXIMUM_LENGTH"] = Int32.Parse(parts[0]);
                 // will set octet length in a minute

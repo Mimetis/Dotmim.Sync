@@ -16,8 +16,6 @@ namespace Dotmim.Sync.SqlServer
 {
     public static class SqlManagementUtils
     {
-
-
         /// <summary>
         /// Get Table
         /// </summary>

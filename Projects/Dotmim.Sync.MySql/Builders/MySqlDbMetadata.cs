@@ -16,836 +16,378 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-#if MARIADB
-    public class MariaDBDbMetadata : DbMetadata
-#elif MYSQL
     public class MySqlDbMetadata : DbMetadata
-#endif
     {
-        public override int GetMaxLengthFromDbType(DbType dbType, int maxLength)
+        public override DbType GetDbType(SyncColumn columnDefinition)
         {
-            var typeName = GetStringFromDbType(dbType, maxLength);
-            if (IsTextType(typeName))
+            DbType stringDbType;
+            if (columnDefinition.IsUnicode)
+                stringDbType = columnDefinition.MaxLength <= 0 ? DbType.String : DbType.StringFixedLength;
+            else
+                stringDbType = columnDefinition.MaxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
+
+            return columnDefinition.OriginalTypeName.ToLowerInvariant() switch
             {
-                string lowerType = typeName.ToLowerInvariant();
-                switch (lowerType)
-                {
-                    case "varbinary":
-                        return maxLength > 0 ? Math.Min(maxLength, 8000) : 8000;
-                    case "binary":
-                        return maxLength > 0 ? Math.Min(maxLength, 255) : 255;
-                    case "varchar":
-                    case "char":
-                    case "text":
-                    case "nchar":
-                    case "nvarchar":
-                    case "enum":
-                    case "set":
-                        if (maxLength > 0)
-                            return maxLength;
-                        else
-                            return 0;
-                }
-                return 0;
-            }
-            return 0;
+                "int" or "integer" or "mediumint" => columnDefinition.IsUnsigned ? DbType.UInt32 : DbType.Int32,
+                "int16" => DbType.Int16,
+                "int24" or "int32" => DbType.Int32,
+                "int64" => DbType.Int64,
+                "uint16" => DbType.UInt16,
+                "uint24" or "uint32" => DbType.UInt32,
+                "uint64" => DbType.UInt64,
+                "bit" => DbType.Boolean,
+                "numeric" => DbType.VarNumeric,
+                "decimal" or "dec" or "fixed" or "real" or "double" or "float" => DbType.Decimal,
+                "tinyint" => columnDefinition.IsUnsigned ? DbType.Byte : DbType.SByte,
+                "bigint" => columnDefinition.IsUnsigned ? DbType.UInt64 : DbType.Int64,
+                "serial" => DbType.UInt64,
+                "smallint" => columnDefinition.IsUnsigned ? DbType.UInt16 : DbType.Int16,
+                "mediumtext" or "longtext" or "json" or "tinytext" => columnDefinition.IsUnicode ? DbType.String : DbType.AnsiString,
+                "date" => DbType.Date,
+                "datetime" or "newdate" => DbType.DateTime,
+                "blob" or "longblob" or "tinyblob" or "mediumblob" or "binary" or "varbinary" => DbType.Binary,
+                "year" => DbType.Int32,
+                "time" => DbType.Time,
+                "timestamp" => DbType.UInt64,
+                "text" or "set" or "enum" or "nchar" or "nvarchar" or "varchar" => stringDbType,
+                "char" => columnDefinition.MaxLength == 36 ? DbType.Guid : stringDbType,
+
+                _ => throw new Exception($"this db type {columnDefinition.GetDbType()} for column {columnDefinition.ColumnName} is not supported"),
+            };
         }
 
-        public override int GetMaxLengthFromOwnerDbType(object dbType, int maxLength)
+        public override object GetOwnerDbType(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
-            var typeName = GetStringFromOwnerDbType(dbType);
-            if (IsTextType(typeName))
-            {
-                string lowerType = typeName.ToLowerInvariant();
-                switch (lowerType)
-                {
-                    case "mediumtext":
-                    case "longtext":
-                    case "tinyblob":
-                    case "mediumblob":
-                    case "longblob":
-                    case "blob":
-                    case "json":
-                    case "tinytext":
-                        return 0;
-                    case "varbinary":
-                        return maxLength > 0 ? Math.Min(maxLength, 8000) : 8000;
-                    case "binary":
-                        return maxLength > 0 ? Math.Min(maxLength, 255) : 255;
-                    case "text":
-                    case "nchar":
-                    case "nvarchar":
-                    case "varchar":
-                    case "char":
-                    case "enum":
-                    case "set":
-                        if (maxLength > 0)
-                            return maxLength;
-                        else
-                            return 0;
-                }
-                return 0;
-            }
-            return 0;
-        }
+            "char" => columnDefinition.MaxLength == 36 ? MySqlDbType.Guid : MySqlDbType.String,
+            "guid" => MySqlDbType.Guid,
+            "string" => MySqlDbType.String,
+            "varchar" => MySqlDbType.VarChar,
+            "date" => MySqlDbType.Date,
+            "datetime" => MySqlDbType.DateTime,
+            "numeric" or "decimal" or "dec" or "fixed" => MySqlDbType.Decimal,
+            "year" => MySqlDbType.Year,
+            "time" => MySqlDbType.Time,
+            "timestamp" => MySqlDbType.Timestamp,
+            "set" => MySqlDbType.Set,
+            "enum" => MySqlDbType.Enum,
+            "bit" => MySqlDbType.Bit,
+            "byte" => MySqlDbType.Byte,
+            "ubyte" => MySqlDbType.UByte,
+            "tinyint" => columnDefinition.IsUnsigned ? MySqlDbType.UByte : MySqlDbType.Byte,
+            "bool" or "boolean" => MySqlDbType.Byte,
+            "smallint" => columnDefinition.IsUnsigned ? MySqlDbType.UInt16 : MySqlDbType.Int16,
+            "mediumint" => columnDefinition.IsUnsigned ? MySqlDbType.UInt24 : MySqlDbType.Int24,
+            "int" or "integer" => columnDefinition.IsUnsigned ? MySqlDbType.UInt32 : MySqlDbType.Int32,
+            "serial" => MySqlDbType.UInt64,
+            "bigint" => columnDefinition.IsUnsigned ? MySqlDbType.UInt64 : MySqlDbType.Int64,
+            "unit16" => MySqlDbType.UInt16,
+            "uint24" => MySqlDbType.UInt24,
+            "uint32" => MySqlDbType.UInt32,
+            "uint64" => MySqlDbType.UInt64,
+            "int16" => MySqlDbType.Int16,
+            "int24" => MySqlDbType.Int24,
+            "int32" => MySqlDbType.Int32,
+            "int64" => MySqlDbType.Int64,
+            "float" => MySqlDbType.Float,
+            "double" => MySqlDbType.Double,
+            "real" => MySqlDbType.Float,
+            "text" => MySqlDbType.Text,
+            "blob" => MySqlDbType.Blob,
+            "longblob" => MySqlDbType.LongBlob,
+            "longtext" => MySqlDbType.LongText,
+            "mediumblob" => MySqlDbType.MediumBlob,
+            "mediumtext" => MySqlDbType.MediumText,
+            "tinyblob" => MySqlDbType.TinyBlob,
+            "tinytext" => MySqlDbType.TinyText,
+            "binary" => MySqlDbType.Binary,
+            "varbinary" => MySqlDbType.VarBinary,
+            _ => throw new Exception("Unhandled type encountered"),
+        };
 
-        public override object GetOwnerDbTypeFromDbType(DbType dbType)
+        public MySqlDbType GetMySqlDbType(SyncColumn column) => (MySqlDbType)this.GetOwnerDbType(column);
+
+        public MySqlDbType GetOwnerDbTypeFromDbType(SyncColumn columnDefinition) => columnDefinition.GetDbType() switch
         {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                case DbType.Xml:
-                case DbType.String:
-                    return MySqlDbType.LongText;
-                case DbType.StringFixedLength:
-                case DbType.AnsiStringFixedLength:
-                    return MySqlDbType.VarChar;
-                case DbType.Binary:
-                    return MySqlDbType.VarBinary;
-                case DbType.Boolean:
-                    return MySqlDbType.Bit;
-                case DbType.Byte:
-                    return MySqlDbType.UByte;
-                case DbType.Currency:
-                    return MySqlDbType.Decimal;
-                case DbType.Date:
-                    return MySqlDbType.Date;
-                case DbType.DateTime:
-                case DbType.DateTime2:
-                case DbType.DateTimeOffset:
-                    return MySqlDbType.DateTime;
-                case DbType.Decimal:
-                    return MySqlDbType.Decimal;
-                case DbType.Double:
-                    return MySqlDbType.Double;
-                case DbType.Guid:
-                    return MySqlDbType.Guid;
-                case DbType.Int16:
-                    return MySqlDbType.Int16;
-                case DbType.Int32:
-                    return MySqlDbType.Int32;
-                case DbType.Int64:
-                    return MySqlDbType.Int64;
-                case DbType.Object:
-                    return MySqlDbType.LongBlob;
-                case DbType.SByte:
-                    return MySqlDbType.Byte;
-                case DbType.Single:
-                    return MySqlDbType.Float;
-                case DbType.Time:
-                    return MySqlDbType.Time;
-                case DbType.UInt16:
-                    return MySqlDbType.UInt16;
-                case DbType.UInt32:
-                    return MySqlDbType.UInt32;
-                case DbType.UInt64:
-                    return MySqlDbType.UInt64;
-                case DbType.VarNumeric:
-                    return MySqlDbType.Decimal;
-            }
-            throw new Exception($"this type {dbType} is not supported");
-        }
+            DbType.AnsiString or DbType.Xml or DbType.String => MySqlDbType.LongText,
+            DbType.StringFixedLength or DbType.AnsiStringFixedLength => MySqlDbType.VarChar,
+            DbType.Binary => columnDefinition.MaxLength <= 0 || columnDefinition.MaxLength > 8000 ? MySqlDbType.LongBlob : MySqlDbType.VarBinary,
+            DbType.Boolean => MySqlDbType.Bit,
+            DbType.Byte => MySqlDbType.UByte,
+            DbType.Currency => MySqlDbType.Decimal,
+            DbType.Date => MySqlDbType.Date,
+            DbType.DateTime or DbType.DateTime2 or DbType.DateTimeOffset => MySqlDbType.DateTime,
+            DbType.Decimal => MySqlDbType.Decimal,
+            DbType.Double => MySqlDbType.Double,
+            DbType.Guid => MySqlDbType.Guid,
+            DbType.Int16 => MySqlDbType.Int16,
+            DbType.Int32 => MySqlDbType.Int32,
+            DbType.Int64 => MySqlDbType.Int64,
+            DbType.Object => MySqlDbType.LongBlob,
+            DbType.SByte => MySqlDbType.Byte,
+            DbType.Single => MySqlDbType.Float,
+            DbType.Time => MySqlDbType.Time,
+            DbType.UInt16 => MySqlDbType.UInt16,
+            DbType.UInt32 => MySqlDbType.UInt32,
+            DbType.UInt64 => MySqlDbType.UInt64,
+            DbType.VarNumeric => MySqlDbType.Decimal,
+            _ => throw new Exception($"this db type {columnDefinition.GetDbType()} for column {columnDefinition.ColumnName} is not supported")
+        };
 
-        public override (byte precision, byte scale) GetPrecisionFromDbType(DbType dbType, byte precision, byte scale)
+        public override Type GetType(SyncColumn column) => GetMySqlDbType(column) switch
         {
-            // don't care about max length, because binary do not have precision scale
-            var typeName = GetStringFromDbType(dbType, 8000);
-            if (IsNumericType(typeName) && precision == 0)
-            {
-                precision = 10;
-                scale = 0;
-            }
-            if (!SupportScale(typeName) || scale == 0)
-                return (0, 0);
+            MySqlDbType.Decimal or MySqlDbType.NewDecimal => typeof(decimal),
+            MySqlDbType.Byte => typeof(sbyte),
+            MySqlDbType.UByte => typeof(byte),
+            MySqlDbType.Int16 or MySqlDbType.Year => typeof(short),
+            MySqlDbType.Int24 or MySqlDbType.Int32 => typeof(int),
+            MySqlDbType.UInt16 => typeof(ushort),
+            MySqlDbType.Int64 => typeof(long),
+            MySqlDbType.UInt24 or MySqlDbType.UInt32 => typeof(uint),
+            MySqlDbType.Bit or MySqlDbType.UInt64 => typeof(ulong),
+            MySqlDbType.Float => typeof(float),
+            MySqlDbType.Double => typeof(double),
+            MySqlDbType.Time => typeof(TimeSpan),
+            MySqlDbType.Date or MySqlDbType.DateTime or MySqlDbType.Newdate => typeof(DateTime),
+            MySqlDbType.Enum or MySqlDbType.VarString or MySqlDbType.JSON or MySqlDbType.VarChar or MySqlDbType.String or MySqlDbType.TinyText or MySqlDbType.MediumText or MySqlDbType.LongText or MySqlDbType.Text or MySqlDbType.Set => typeof(string),
+            MySqlDbType.Guid => typeof(Guid),
+            MySqlDbType.Timestamp or MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
+            _ => throw new Exception($"In Column {column.ColumnName}, the type {GetMySqlDbType(column)} is not supported"),
+        };
 
-            return (precision, scale);
-        }
-
-        public override (byte precision, byte scale) GetPrecisionFromOwnerDbType(object dbType, byte precision, byte scale)
-        {
-            var typeName = GetStringFromOwnerDbType(dbType);
-            if (IsNumericType(typeName) && precision == 0)
-            {
-                precision = 10;
-                scale = 0;
-            }
-            if (!SupportScale(typeName) || scale == 0)
-                return (0, 0);
-
-            return (precision, scale);
-        }
-
-        public override string GetPrecisionStringFromDbType(DbType dbType, int maxLength, byte precision, byte scale)
-        {
-            if (dbType == DbType.Guid)
-                return "(36)";
-
-            var typeName = GetStringFromDbType(dbType, maxLength);
-            if (IsTextType(typeName))
-            {
-                string lowerType = typeName.ToLowerInvariant();
-                switch (lowerType)
-                {
-                    case "mediumtext":
-                    case "longtext":
-                    case "tinyblob":
-                    case "mediumblob":
-                    case "longblob":
-                    case "blob":
-                    case "json":
-                    case "tinytext":
-                        return string.Empty;
-                    case "varbinary":
-                        return maxLength > 0 ? $"({Math.Min(maxLength, 8000)})" : "(8000)";
-                    case "binary":
-                        return maxLength > 0 ? $"({Math.Min(maxLength, 255)})" : "(255)";
-                    case "text":
-                    case "nchar":
-                    case "nvarchar":
-                    case "varchar":
-                    case "char":
-                    case "enum":
-                    case "set":
-                        if (maxLength > 0)
-                            return $"({maxLength})";
-                        else
-                            return string.Empty;
-                }
-                return string.Empty;
-            }
-
-            if (IsNumericType(typeName) && precision == 0)
-            {
-                precision = 10;
-                scale = 0;
-            }
-            if (SupportScale(typeName) && scale == 0)
-                return String.Format("({0})", precision);
-
-            if (!SupportScale(typeName))
-                return string.Empty;
-
-            return String.Format("({0},{1})", precision, scale);
-        }
-
-        public override string GetPrecisionStringFromOwnerDbType(object dbType, int maxLength, byte precision, byte scale)
-        {
-            MySqlDbType mySqlDbType = (MySqlDbType)dbType;
-
-            if (mySqlDbType == MySqlDbType.Guid)
-                return "(36)";
-
-            var typeName = GetStringFromOwnerDbType(dbType);
-
-            if (IsTextType(typeName))
-            {
-                string lowerType = typeName.ToLowerInvariant();
-                switch (lowerType)
-                {
-                    case "mediumtext":
-                    case "longtext":
-                    case "tinyblob":
-                    case "mediumblob":
-                    case "longblob":
-                    case "blob":
-                    case "json":
-                    case "tinytext":
-                        return string.Empty;
-                    case "varbinary":
-                        return maxLength > 0 ? $"({Math.Min(maxLength, 8000)})" : "(8000)";
-                    case "binary":
-                        return maxLength > 0 ? $"({Math.Min(maxLength, 255)})" : "(255)";
-                    case "text":
-                    case "nchar":
-                    case "nvarchar":
-                    case "varchar":
-                    case "char":
-                    case "enum":
-                    case "set":
-                        if (maxLength > 0)
-                            return $"({maxLength})";
-                        else
-                            return string.Empty;
-
-                }
-                return string.Empty;
-            }
-
-            if (IsNumericType(typeName) && precision == 0)
-            {
-                precision = 10;
-                scale = 0;
-            }
-            if (SupportScale(typeName) && scale == 0)
-                return String.Format("({0})", precision);
-
-            if (!SupportScale(typeName))
-                return string.Empty;
-
-            return String.Format("({0},{1})", precision, scale);
-        }
-
-        public override string GetStringFromDbType(DbType dbType, int maxLength)
-        {
-            string mySqlType = string.Empty;
-            switch (dbType)
-            {
-                case DbType.Binary:
-                    if (maxLength <= 0 || maxLength > 8000)
-                        mySqlType = "LONGBLOB";
-                    else
-                        mySqlType = "VARBINARY";
-                    break;
-                case DbType.Boolean:
-                case DbType.Byte:
-                case DbType.SByte:
-                    mySqlType = "TINYINT";
-                    break;
-                case DbType.Time:
-                    mySqlType = "TIME";
-                    break;
-                case DbType.Date:
-                    mySqlType = "DATE";
-                    break;
-                case DbType.DateTime:
-                case DbType.DateTime2:
-                case DbType.DateTimeOffset:
-                    mySqlType = "DATETIME";
-                    break;
-                case DbType.Currency:
-                case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
-                case DbType.VarNumeric:
-                    mySqlType = "DECIMAL";
-                    break;
-                case DbType.Int16:
-                case DbType.UInt16:
-                    mySqlType = "SMALLINT";
-                    break;
-                case DbType.Int32:
-                case DbType.UInt32:
-                    mySqlType = "INT";
-                    break;
-                case DbType.Int64:
-                case DbType.UInt64:
-                    mySqlType = "BIGINT";
-                    break;
-                case DbType.String:
-                case DbType.AnsiString:
-                case DbType.Xml:
-                    mySqlType = "LONGTEXT";
-                    break;
-                case DbType.StringFixedLength:
-                case DbType.AnsiStringFixedLength:
-                    mySqlType = "VARCHAR";
-                    break;
-                case DbType.Guid:
-                    mySqlType = "CHAR";
-                    break;
-                case DbType.Object:
-                    mySqlType = "LONGBLOB";
-                    break;
-            }
-
-            if (string.IsNullOrEmpty(mySqlType))
-                throw new Exception($"sqltype not valid");
-
-            return mySqlType;
-        }
-
-        public override string GetStringFromOwnerDbType(object ownerType)
-        {
-            MySqlDbType sqlDbType = (MySqlDbType)ownerType;
-
-            switch (sqlDbType)
-            {
-                case MySqlDbType.Decimal:
-                case MySqlDbType.NewDecimal:
-                    return "DECIMAL";
-                case MySqlDbType.Byte:
-                case MySqlDbType.Bool:
-                case MySqlDbType.UByte:
-                    return "TINYINT";
-                case MySqlDbType.Int16:
-                case MySqlDbType.Year:
-                case MySqlDbType.UInt16:
-                    return "SMALLINT";
-                case MySqlDbType.Int24:
-                case MySqlDbType.UInt24:
-                    return "MEDIUMINT";
-                case MySqlDbType.Int32:
-                case MySqlDbType.UInt32:
-                    return "INT";
-                case MySqlDbType.Int64:
-                case MySqlDbType.UInt64:
-                    return "BIGINT";
-                case MySqlDbType.Bit:
-                    return "BIT";
-                case MySqlDbType.Float:
-                    return "FLOAT";
-                case MySqlDbType.Double:
-                    return "DOUBLE";
-                case MySqlDbType.Time:
-                    return "TIME";
-                case MySqlDbType.Date:
-                    return "DATE";
-                case MySqlDbType.DateTime:
-                    return "DATETIME";
-                case MySqlDbType.Newdate:
-                    return "NEWDATE";
-                case MySqlDbType.Enum:
-                    return "ENUM";
-                case MySqlDbType.TinyText:
-                    return "TINYTEXT";
-                case MySqlDbType.MediumText:
-                    return "MEDIUMTEXT";
-                case MySqlDbType.LongText:
-                    return "LONGTEXT";
-                case MySqlDbType.Text:
-                    return "TEXT";
-                case MySqlDbType.JSON:
-                case MySqlDbType.VarChar:
-                case MySqlDbType.VarString:
-                    return "VARCHAR";
-                case MySqlDbType.String:
-                case MySqlDbType.Guid:
-                    return "CHAR";
-                case MySqlDbType.Set:
-                    return "SET";
-                case MySqlDbType.Timestamp:
-                    return "TIMESTAMP";
-                case MySqlDbType.TinyBlob:
-                    return "TINYBLOB";
-                case MySqlDbType.MediumBlob:
-                    return "MEDIUMBLOB";
-                case MySqlDbType.LongBlob:
-                    return "LONGBLOB";
-                case MySqlDbType.Blob:
-                    return "BLOB";
-                case MySqlDbType.VarBinary:
-                    return "VARBINARY";
-                case MySqlDbType.Binary:
-                    return "BINARY";
-                case MySqlDbType.Geometry:
-                    return "GEOMETRY";
-            }
-            throw new Exception("Unhandled type encountered");
-        }
-
-        public override bool IsNumericType(string typeName)
-        {
-            string lowerType = typeName.ToLowerInvariant();
-            switch (lowerType)
-            {
-                case "int":
-                case "int16":
-                case "int24":
-                case "int32":
-                case "int64":
-                case "uint16":
-                case "uint24":
-                case "uint32":
-                case "uint64":
-                case "integer":
-                case "numeric":
-                case "decimal":
-                case "dec":
-                case "fixed":
-                case "tinyint":
-                case "mediumint":
-                case "bigint":
-                case "real":
-                case "double":
-                case "float":
-                case "serial":
-                case "smallint": return true;
-            }
-            return false;
-        }
-
-        public override bool IsTextType(string typeName)
-        {
-            string lowerType = typeName.ToLowerInvariant();
-            switch (lowerType)
-            {
-                case "varbinary":
-                case "binary":
-                case "varchar":
-                case "char":
-                case "text":
-                case "longtext":
-                case "tinytext":
-                case "mediumtext":
-                case "nchar":
-                case "nvarchar":
-                case "enum":
-                case "set":
-                    return true;
-            }
-            return false;
-        }
-
-        public override bool IsValid(SyncColumn columnDefinition)
-        {
-            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
-            {
-                case "int":
-                case "int16":
-                case "int24":
-                case "int32":
-                case "int64":
-                case "uint16":
-                case "uint24":
-                case "uint32":
-                case "uint64":
-                case "bit":
-                case "integer":
-                case "datetime":
-                case "date":
-                case "newdate":
-                case "numeric":
-                case "decimal":
-                case "dec":
-                case "fixed":
-                case "tinyint":
-                case "mediumint":
-                case "bigint":
-                case "real":
-                case "double":
-                case "float":
-                case "serial":
-                case "smallint":
-                case "varchar":
-                case "char":
-                case "text":
-                case "longtext":
-                case "tinytext":
-                case "mediumtext":
-                case "nchar":
-                case "nvarchar":
-                case "enum":
-                case "set":
-                case "blob":
-                case "longblob":
-                case "tinyblob":
-                case "mediumblob":
-                case "binary":
-                case "varbinary":
-                case "year":
-                case "time":
-                case "timestamp":
-                    return true;
-            }
-            return false;
-        }
-
-        public override bool SupportScale(string typeName)
-        {
-            string lowerType = typeName.ToLowerInvariant();
-            switch (lowerType)
-            {
-                case "numeric":
-                case "decimal":
-                case "dec":
-                case "real": return true;
-            }
-            return false;
-        }
-
-        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "int":
-                case "integer":
-                case "mediumint":
-                    return isUnsigned ? DbType.UInt32 : DbType.Int32;
-                case "int16":
-                    return DbType.Int16;
-                case "int24":
-                case "int32":
-                    return DbType.Int32;
-                case "int64":
-                    return DbType.Int64;
-                case "uint16":
-                    return DbType.UInt16;
-                case "uint24":
-                case "uint32":
-                    return DbType.UInt32;
-                case "uint64":
-                    return DbType.UInt64;
-                case "bit":
-                    return DbType.Boolean;
-                case "numeric":
-                    return DbType.VarNumeric;
-                case "decimal":
-                case "dec":
-                case "fixed":
-                case "real":
-                case "double":
-                case "float":
-                    return DbType.Decimal;
-                case "tinyint":
-                    return isUnsigned ? DbType.Byte : DbType.SByte;
-                case "bigint":
-                    return isUnsigned ? DbType.UInt64 : DbType.Int64;
-                case "serial":
-                    return DbType.UInt64;
-                case "smallint":
-                    return isUnsigned ? DbType.UInt16 : DbType.Int16;
-
-                case "mediumtext":
-                case "longtext":
-                case "json":
-                case "tinytext":
-                    return isUnicode ? DbType.String : DbType.AnsiString;
-                case "text":
-                case "nchar":
-                case "nvarchar":
-                case "varchar":
-                case "enum":
-                case "set":
-                    if (isUnicode)
-                        return maxLength <= 0 ? DbType.String : DbType.StringFixedLength;
-                    else
-                        return maxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
-                case "char":
-                    if (maxLength == 36)
-                        return DbType.Guid;
-                    else if (isUnicode)
-                        return maxLength <= 0 ? DbType.String : DbType.StringFixedLength;
-                    else
-                        return maxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
-
-                case "date":
-                    return DbType.Date;
-                case "datetime":
-                case "newdate":
-                    return DbType.DateTime;
-                case "blob":
-                case "longblob":
-                case "tinyblob":
-                case "mediumblob":
-                case "binary":
-                case "varbinary":
-                    return DbType.Binary;
-                case "year":
-                    return DbType.Int32;
-                case "time":
-                    return DbType.Time;
-                case "timestamp":
-                    return DbType.UInt64;
-            }
-            throw new Exception($"this type name {typeName} is not supported");
-        }
-
-        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
-        {
-            return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp";
-        }
-
-        public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
+        public override int GetMaxLength(SyncColumn columnDefinition)
         {
             // blob
-            if (typeName.ToLowerInvariant() == "longblob" || typeName.ToLowerInvariant() == "mediumblob" || typeName.ToLowerInvariant() == "tinyblob")
+            if (columnDefinition.OriginalTypeName.ToLowerInvariant() == "longblob" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "mediumblob" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "tinyblob")
                 return 0;
 
             // text
-            if (typeName.ToLowerInvariant() == "longtext" || typeName.ToLowerInvariant() == "mediumtext" || typeName.ToLowerInvariant() == "tinytext")
+            if (columnDefinition.OriginalTypeName.ToLowerInvariant() == "longtext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "mediumtext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "tinytext")
                 return 0;
 
-            Int32 iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
+            var iMaxLength = columnDefinition.MaxLength > 8000 ? 8000 : Convert.ToInt32(columnDefinition.MaxLength);
             return iMaxLength;
         }
 
-        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
-        {
-            switch (typeName.ToUpperInvariant())
-            {
-                case "CHAR":
-                    if (maxLength == 36)
-                        return MySqlDbType.Guid;
-                    else
-                        return MySqlDbType.String;
-                case "GUID":
-                    return MySqlDbType.Guid;
-                case "STRING":
-                    return MySqlDbType.String;
-                case "VARCHAR":
-                    return MySqlDbType.VarChar;
-                case "DATE":
-                    return MySqlDbType.Date;
-                case "DATETIME":
-                    return MySqlDbType.DateTime;
-                case "NUMERIC":
-                case "DECIMAL":
-                case "DEC":
-                case "FIXED":
-                    return MySqlDbType.Decimal;
-                case "YEAR":
-                    return MySqlDbType.Year;
-                case "TIME":
-                    return MySqlDbType.Time;
-                case "TIMESTAMP":
-                    return MySqlDbType.Timestamp;
-                case "SET":
-                    return MySqlDbType.Set;
-                case "ENUM":
-                    return MySqlDbType.Enum;
-                case "BIT":
-                    return MySqlDbType.Bit;
-                case "BYTE":
-                    return MySqlDbType.Byte;
-                case "UBYTE":
-                    return MySqlDbType.UByte;
-                case "TINYINT":
-                    return isUnsigned ? MySqlDbType.UByte : MySqlDbType.Byte;
-                case "BOOL":
-                case "BOOLEAN":
-                    return MySqlDbType.Byte;
-                case "SMALLINT":
-                    return isUnsigned ? MySqlDbType.UInt16 : MySqlDbType.Int16;
-                case "MEDIUMINT":
-                    return isUnsigned ? MySqlDbType.UInt24 : MySqlDbType.Int24;
-                case "INT":
-                case "INTEGER":
-                    return isUnsigned ? MySqlDbType.UInt32 : MySqlDbType.Int32;
-                case "SERIAL":
-                    return MySqlDbType.UInt64;
-                case "BIGINT":
-                    return isUnsigned ? MySqlDbType.UInt64 : MySqlDbType.Int64;
-                case "UINT16":
-                    return MySqlDbType.UInt16;
-                case "UINT24":
-                    return MySqlDbType.UInt24;
-                case "UINT32":
-                    return MySqlDbType.UInt32;
-                case "UINT64":
-                    return MySqlDbType.UInt64;
-                case "INT16":
-                    return MySqlDbType.Int16;
-                case "INT24":
-                    return MySqlDbType.Int24;
-                case "INT32":
-                    return MySqlDbType.Int32;
-                case "INT64":
-                    return MySqlDbType.Int64;
-                case "FLOAT":
-                    return MySqlDbType.Float;
-                case "DOUBLE":
-                    return MySqlDbType.Double;
-                case "REAL":
-                    return MySqlDbType.Float;
-                case "TEXT":
-                    return MySqlDbType.Text;
-                case "BLOB":
-                    return MySqlDbType.Blob;
-                case "LONGBLOB":
-                    return MySqlDbType.LongBlob;
-                case "LONGTEXT":
-                    return MySqlDbType.LongText;
-                case "MEDIUMBLOB":
-                    return MySqlDbType.MediumBlob;
-                case "MEDIUMTEXT":
-                    return MySqlDbType.MediumText;
-                case "TINYBLOB":
-                    return MySqlDbType.TinyBlob;
-                case "TINYTEXT":
-                    return MySqlDbType.TinyText;
-                case "BINARY":
-                    return MySqlDbType.Binary;
-                case "VARBINARY":
-                    return MySqlDbType.VarBinary;
-            }
-            throw new Exception("Unhandled type encountered");
-        }
-
-        public override byte ValidatePrecision(SyncColumn columnDefinition)
-        {
-            if (IsNumericType(columnDefinition.OriginalTypeName) && columnDefinition.Precision == 0)
-                return 10;
-
-            return columnDefinition.Precision;
-        }
-
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
+        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
         {
             var precision = columnDefinition.Precision;
             var scale = columnDefinition.Scale;
-            if (IsNumericType(columnDefinition.OriginalTypeName) && precision == 0)
+            if (IsNumericType(columnDefinition) && precision == 0)
             {
                 precision = 10;
                 scale = 0;
             }
+            if (!IsSupportingScale(columnDefinition) || scale == 0)
+                return (0, 0);
 
             return (precision, scale);
         }
 
-        public override Type ValidateType(object ownerType)
+        public override byte GetPrecision(SyncColumn columnDefinition)
         {
-            MySqlDbType sqlDbType = (MySqlDbType)ownerType;
-
-            switch (sqlDbType)
-            {
-                case MySqlDbType.Decimal:
-                case MySqlDbType.NewDecimal:
-                    return typeof(decimal);
-                case MySqlDbType.Byte:
-                    return typeof(sbyte);
-                case MySqlDbType.UByte:
-                    return typeof(byte);
-                case MySqlDbType.Int16:
-                case MySqlDbType.Year:
-                    return typeof(short);
-                case MySqlDbType.Int24:
-                case MySqlDbType.Int32:
-                    return typeof(Int32);
-                case MySqlDbType.UInt16:
-                    return typeof(ushort);
-                case MySqlDbType.Int64:
-                    return typeof(long);
-                case MySqlDbType.UInt24:
-                case MySqlDbType.UInt32:
-                    return typeof(UInt32);
-                case MySqlDbType.Bit:
-                case MySqlDbType.UInt64:
-                    return typeof(ulong);
-                case MySqlDbType.Float:
-                    return typeof(float);
-                case MySqlDbType.Double:
-                    return typeof(double);
-                case MySqlDbType.Time:
-                    return typeof(TimeSpan);
-                case MySqlDbType.Date:
-                case MySqlDbType.DateTime:
-                case MySqlDbType.Newdate:
-                    return typeof(DateTime);
-                case MySqlDbType.Enum:
-                case MySqlDbType.VarString:
-                case MySqlDbType.JSON:
-                case MySqlDbType.VarChar:
-                case MySqlDbType.String:
-                case MySqlDbType.TinyText:
-                case MySqlDbType.MediumText:
-                case MySqlDbType.LongText:
-                case MySqlDbType.Text:
-                case MySqlDbType.Set:
-                    return typeof(string);
-                case MySqlDbType.Guid:
-                    return typeof(Guid);
-                case MySqlDbType.Timestamp:
-                case MySqlDbType.TinyBlob:
-                case MySqlDbType.MediumBlob:
-                case MySqlDbType.LongBlob:
-                case MySqlDbType.Blob:
-                case MySqlDbType.Geometry:
-                case MySqlDbType.VarBinary:
-                case MySqlDbType.Binary:
-                    return typeof(byte[]);
-            }
-            throw new Exception("Unhandled type encountered");
+            var (p, _) = GetPrecisionAndScale(columnDefinition);
+            return p;
         }
 
+        public override bool IsSupportingScale(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
+        {
+            "numeric" or "decimal" or "dec" or "real" => true,
+            _ => false,
+        };
+        public override bool IsNumericType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+        {
+            "int" or "int16" or "int24" or "int32" or "int64" or "uint16" or "uint24" or "uint32" or "uint64" or "integer" or
+            "numeric" or "decimal" or "dec" or "fixed" or "tinyint" or "mediumint" or "bigint" or "real" or "double" or
+            "float" or "serial" or "smallint" => true,
+            _ => false,
+        };
+        public override bool IsValid(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
+        {
+            "int" or "int16" or "int24" or "int32" or "int64" or "uint16" or "uint24" or "uint32" or "uint64" or
+            "bit" or "integer" or "datetime" or "date" or "newdate" or "numeric" or "decimal" or "dec" or "fixed" or
+            "tinyint" or "mediumint" or "bigint" or "real" or "double" or "float" or "serial" or "smallint" or
+            "varchar" or "char" or "text" or "longtext" or "tinytext" or "mediumtext" or "nchar" or "nvarchar" or
+            "enum" or "set" or "blob" or "longblob" or "tinyblob" or "mediumblob" or "binary" or "varbinary" or
+            "year" or "time" or "timestamp" => true,
+            _ => false,
+        };
+        public override bool IsReadonly(SyncColumn columnDefinition)
+            => columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp";
+
+
+        // ----------------------------------------------------------------------------------
+
+        public bool IsCompatibleTextType(SyncColumn column, string fromProviderType)
+        {
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+            if (fromProviderType == originalProvider)
+            {
+                return column.OriginalTypeName.ToLowerInvariant() switch
+                {
+                    "varbinary" or "binary" or "varchar" or "char" or "text" or "longtext" or "tinytext" or
+                    "mediumtext" or "nchar" or "nvarchar" or "enum" or "set" => true,
+                    _ => false,
+                };
+            }
+            else
+            {
+                var dbType = (DbType)column.DbType;
+
+                return dbType switch
+                {
+                    DbType.AnsiString or DbType.AnsiStringFixedLength or DbType.Guid or DbType.String or
+                    DbType.StringFixedLength or DbType.Xml => true,
+                    _ => false,
+                };
+            }
+        }
+
+
+
+
+        /// <summary>
+        /// Gets a compatible column definition, like nvarchar(50), int, decimal(8,2)
+        /// </summary>
+        public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
+        {
+
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+            if (fromProviderType == originalProvider && !string.IsNullOrEmpty(column.ExtraProperty1))
+                return column.ExtraProperty1;
+
+            // Fallback on my sql db type extract from simple db type
+            var typeName = this.GetCompatibleStringFromDbType((DbType)column.DbType, column.MaxLength).ToString();
+
+            var argument = GetCompatiblePrecisionStringFromDbType(column, fromProviderType);
+
+            return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
+
+        }
+
+        public string GetStringFromOwnerDbType(MySqlDbType ownerType) => ownerType switch
+        {
+            MySqlDbType.Decimal or MySqlDbType.NewDecimal => "decimal",
+            MySqlDbType.Byte or MySqlDbType.Bool or MySqlDbType.UByte => "tinyint",
+            MySqlDbType.Int16 or MySqlDbType.Year or MySqlDbType.UInt16 => "smallint",
+            MySqlDbType.Int24 or MySqlDbType.UInt24 => "mediumint",
+            MySqlDbType.Int32 or MySqlDbType.UInt32 => "int",
+            MySqlDbType.Int64 or MySqlDbType.UInt64 => "bigint",
+            MySqlDbType.Bit => "bit",
+            MySqlDbType.Float => "float",
+            MySqlDbType.Double => "double",
+            MySqlDbType.Time => "time",
+            MySqlDbType.Date => "date",
+            MySqlDbType.DateTime => "datetime",
+            MySqlDbType.Newdate => "newdate",
+            MySqlDbType.Enum => "enum",
+            MySqlDbType.TinyText => "tinytext",
+            MySqlDbType.MediumText => "mediumtext",
+            MySqlDbType.LongText => "longtext",
+            MySqlDbType.Text => "text",
+            MySqlDbType.JSON or MySqlDbType.VarChar or MySqlDbType.VarString => "varchar",
+            MySqlDbType.String or MySqlDbType.Guid => "char",
+            MySqlDbType.Set => "set",
+            MySqlDbType.Timestamp => "timestamp",
+            MySqlDbType.TinyBlob => "tinyblob",
+            MySqlDbType.MediumBlob => "mediumblob",
+            MySqlDbType.LongBlob => "longblob",
+            MySqlDbType.Blob => "blob",
+            MySqlDbType.VarBinary => "varbinary",
+            MySqlDbType.Binary => "binary",
+            MySqlDbType.Geometry => "geometry",
+            _ => throw new Exception("Unhandled type encountered"),
+        };
+
+        public string GetCompatibleStringFromDbType(DbType dbType, int maxLength) => dbType switch
+        {
+            DbType.Binary => maxLength <= 0 || maxLength > 8000 ? "longblob" : "varbinary",
+            DbType.Boolean => "bit",
+            DbType.Byte or DbType.SByte => "tinyint",
+            DbType.Time => "time",
+            DbType.Date => "date",
+            DbType.DateTime or DbType.DateTime2 or DbType.DateTimeOffset => "datetime",
+            DbType.Currency or DbType.Decimal or DbType.Double or DbType.Single or DbType.VarNumeric => "decimal",
+            DbType.Int16 or DbType.UInt16 => "smallint",
+            DbType.Int32 or DbType.UInt32 => "int",
+            DbType.Int64 or DbType.UInt64 => "bigint",
+            DbType.String or DbType.AnsiString or DbType.Xml => "longtext",
+            DbType.StringFixedLength or DbType.AnsiStringFixedLength => "varchar",
+            DbType.Guid => "char",
+            DbType.Object => "longblob",
+            _ => throw new Exception($"sqltype not valid"),
+        };
+
+        public (byte precision, byte scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
+        {
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif      
+            // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            //var mySqlDbType = fromProviderType == originalProvider ?
+            //    this.GetMySqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            return GetPrecisionAndScale(column);
+
+        }
+
+        public int GetCompatibleMaxLength(SyncColumn column, string fromProviderType)
+        {
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+
+            var mySqlDbType = fromProviderType == originalProvider ?
+                this.GetMySqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            return mySqlDbType switch
+            {
+                MySqlDbType.VarBinary => column.MaxLength > 0 ? Math.Min(column.MaxLength, 8000) : 8000,
+                MySqlDbType.Binary => column.MaxLength > 0 ? Math.Min(column.MaxLength, 255) : 255,
+                MySqlDbType.VarChar or MySqlDbType.String or MySqlDbType.Text or MySqlDbType.Enum or MySqlDbType.Set => Math.Max(0, column.MaxLength),
+                _ => 0
+            };
+
+        }
+
+        public string GetCompatiblePrecisionStringFromDbType(SyncColumn column, string fromProviderType)
+        {
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+            if (column.GetDbType() == DbType.Guid)
+                return "(36)";
+
+            var mySqlDbType = fromProviderType == originalProvider ?
+                this.GetMySqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            var precision = column.Precision;
+            var scale = column.Scale;
+
+            return mySqlDbType switch
+            {
+                MySqlDbType.Decimal or
+                MySqlDbType.Float or
+                MySqlDbType.Double => string.Format("({0},{1})", precision, scale),
+                MySqlDbType.VarChar or MySqlDbType.Text or MySqlDbType.Enum or MySqlDbType.Set => column.MaxLength > 0 ? $"({column.MaxLength})" : string.Empty,
+                MySqlDbType.Binary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 255)})" : "(255)",
+                MySqlDbType.VarBinary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 8000)})" : "(8000)",
+                _ => string.Empty
+            };
+        
+        }
     }
 }

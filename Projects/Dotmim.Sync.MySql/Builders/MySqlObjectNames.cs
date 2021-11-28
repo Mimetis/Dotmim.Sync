@@ -10,11 +10,7 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-#if MARIADB
-    public class MariaDBObjectNames
-#elif MYSQL
     public class MySqlObjectNames
-#endif
     {
         public const string TimestampValue = "ROUND(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6)) * 10000)";
 
@@ -117,11 +113,7 @@ namespace Dotmim.Sync.MySql.Builders
         }
 
 
-#if MARIADB
-        public MariaDBObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-#elif MYSQL
         public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-#endif
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
@@ -225,11 +217,7 @@ namespace Dotmim.Sync.MySql.Builders
             var str1 = new StringBuilder();
             var str2 = new StringBuilder();
             var str3 = new StringBuilder();
-#if MARIADB
-            var str4 = MariaDBManagementUtils.JoinTwoTablesOnClause(this.TableDescription.GetPrimaryKeysColumns(), "`side`", "`base`");
-#elif MYSQL
             var str4 = MySqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.GetPrimaryKeysColumns(), "`side`", "`base`");
-#endif
 
             stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
 

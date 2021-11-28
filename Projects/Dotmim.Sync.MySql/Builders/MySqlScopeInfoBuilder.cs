@@ -20,18 +20,10 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-#if MARIADB
-    public class MariaDBScopeInfoBuilder : DbScopeBuilder
-#elif MYSQL
     public class MySqlScopeInfoBuilder : DbScopeBuilder
-#endif
     {
 
-#if MARIADB
-        public MariaDBScopeInfoBuilder(string scopeTableName) : base(scopeTableName)
-#elif MYSQL
         public MySqlScopeInfoBuilder(string scopeTableName) : base(scopeTableName)
-#endif
         {
             base.ScopeInfoTableName = ParserName.Parse(scopeTableName, "`");
         }
@@ -250,11 +242,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
-#if MARIADB
-            var commandText = $"Select {MariaDBObjectNames.TimestampValue}";
-#elif MYSQL
             var commandText = $"Select {MySqlObjectNames.TimestampValue}";
-#endif
 
             var command = connection.CreateCommand();
 

@@ -155,7 +155,6 @@ namespace Dotmim.Sync
             if (schemaTable.Columns.Count > 0)
                 schemaTable.Columns.Clear();
 
-
             IEnumerable<SyncColumn> lstColumns;
 
             // Validate columns list from setup table if any
@@ -184,7 +183,7 @@ namespace Dotmim.Sync
             {
                 // First of all validate if the column is currently supported
                 if (!this.Provider.GetMetadata().IsValid(column))
-                    throw new UnsupportedColumnTypeException(column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
+                    throw new UnsupportedColumnTypeException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName()); ;
 
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
                 if (columnNameLower == "sync_scope_id"
@@ -197,40 +196,31 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_timestamp"
                     || columnNameLower == "sync_row_is_tombstone"
                     )
-                    throw new UnsupportedColumnNameException(column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
+                    throw new UnsupportedColumnNameException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName()); ;
 
-                // Validate max length
-                column.MaxLength = this.Provider.GetMetadata().ValidateMaxLength(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
-
-                // Gets the datastore owner dbType (could be SqlDbtype, MySqlDbType, SqliteDbType, NpgsqlDbType & so on ...)
-                var datastoreDbType = this.Provider.GetMetadata().ValidateOwnerDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
-
-                // once we have the datastore type, we can have the managed type
-                var columnType = this.Provider.GetMetadata().ValidateType(datastoreDbType);
-
-                // Set the correct type
-                column.SetType(columnType);
-
-                // and the DbType
-                column.DbType = (int)this.Provider.GetMetadata().ValidateDbType(column.OriginalTypeName, column.IsUnsigned, column.IsUnicode, column.MaxLength);
+                // Gets the max length
+                column.MaxLength = this.Provider.GetMetadata().GetMaxLength(column);
 
                 // Gets the owner dbtype (SqlDbType, OracleDbType, MySqlDbType, NpsqlDbType & so on ...)
                 // Sqlite does not have it's own type, so it's DbType too
-                column.OriginalDbType = datastoreDbType.ToString();
+                column.OriginalDbType = this.Provider.GetMetadata().GetOwnerDbType(column).ToString();
 
-                // Validate if column should be readonly
-                column.IsReadOnly = this.Provider.GetMetadata().ValidateIsReadonly(column);
+                // get the downgraded DbType
+                column.DbType = (int)this.Provider.GetMetadata().GetDbType(column);
+
+                // Gets the column readonly's propertye
+                column.IsReadOnly = this.Provider.GetMetadata().IsReadonly(column);
 
                 // set position ordinal
                 column.Ordinal = ordinal;
                 ordinal++;
 
                 // Validate the precision and scale properties
-                if (this.Provider.GetMetadata().IsNumericType(column.OriginalTypeName))
+                if (this.Provider.GetMetadata().IsNumericType(column))
                 {
-                    if (this.Provider.GetMetadata().SupportScale(column.OriginalTypeName))
+                    if (this.Provider.GetMetadata().IsSupportingScale(column))
                     {
-                        var (p, s) = this.Provider.GetMetadata().ValidatePrecisionAndScale(column);
+                        var (p, s) = this.Provider.GetMetadata().GetPrecisionAndScale(column);
                         column.Precision = p;
                         column.PrecisionSpecified = true;
                         column.Scale = s;
@@ -238,21 +228,26 @@ namespace Dotmim.Sync
                     }
                     else
                     {
-                        column.Precision = this.Provider.GetMetadata().ValidatePrecision(column);
+                        column.Precision = this.Provider.GetMetadata().GetPrecision(column);
                         column.PrecisionSpecified = true;
                         column.ScaleSpecified = false;
                     }
 
                 }
 
+                // Get the managed type
+                // Important to set it at the end, because we are altering column.DataType here
+                column.SetType(this.Provider.GetMetadata().GetType(column));
+
                 // if setup table has no columns, we add all columns from db
                 // otherwise check if columns exist in the data source
                 if (setupTable.Columns == null || setupTable.Columns.Count <= 0 || setupTable.Columns.Contains(column.ColumnName))
                     schemaTable.Columns.Add(column);
+
                 // If column does not allow null value and is not compute
                 // We will not be able to insert a row, so raise an error
                 else if (!column.AllowDBNull && !column.IsCompute && !column.IsReadOnly && string.IsNullOrEmpty(column.DefaultValue))
-                    throw new Exception($"Column {column.ColumnName} is not part of your setup. But it seems this columns is mandatory in your data source.");
+                    throw new Exception($"In table {setupTable.GetFullName()}, column {column.ColumnName} is not part of your setup. But it seems this columns is mandatory in your data source.");
 
             }
         }
@@ -284,7 +279,7 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_row_is_tombstone"
                     || columnNameLower == "last_change_datetime"
                     )
-                    throw new UnsupportedPrimaryKeyColumnNameException(columnKey.ColumnName, columnKey.OriginalTypeName, this.Provider.GetProviderTypeName());
+                    throw new UnsupportedPrimaryKeyColumnNameException(schemaTable.GetFullName(), columnKey.ColumnName, columnKey.OriginalTypeName, this.Provider.GetProviderTypeName());
 
 
                 schemaTable.PrimaryKeys.Add(columnKey.ColumnName);

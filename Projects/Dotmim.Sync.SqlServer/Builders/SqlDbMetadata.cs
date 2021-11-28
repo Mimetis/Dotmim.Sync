@@ -10,7 +10,6 @@ namespace Dotmim.Sync.SqlServer.Manager
 {
     public class SqlDbMetadata : DbMetadata
     {
-
         // Even if precision max can be 38 on SQL Server, prefer go for 28, to not having a truncation
         // public const Byte PRECISION_MAX = 28;
         // 2021/02/16 : Trying to resverse back to 38
@@ -18,149 +17,168 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public const byte SCALE_MAX = 18;
 
-        /// <summary>
-        /// Gets the DbType issue from the server type name
-        /// </summary>
-        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "bigint":
-                    return DbType.Int64;
-                case "binary":
-                    return DbType.Binary;
-                case "bit":
-                    return DbType.Boolean;
-                case "char":
-                    return DbType.AnsiStringFixedLength;
-                case "date":
-                    return DbType.Date;
-                case "datetime":
-                    return DbType.DateTime;
-                case "datetime2":
-                    return DbType.DateTime2;
-                case "datetimeoffset":
-                    return DbType.DateTimeOffset;
-                case "decimal":
-                    return DbType.Decimal;
-                case "float":
-                    return DbType.Double;
-                case "int":
-                    return DbType.Int32;
-                case "money":
-                case "smallmoney":
-                    return DbType.Currency;
-                case "nchar":
-                    return DbType.StringFixedLength;
-                case "numeric":
-                    return DbType.VarNumeric;
-                case "nvarchar":
-                    return maxLength <= 0 ? DbType.String : DbType.StringFixedLength;
-                case "real":
-                    return DbType.Decimal;
-                case "smalldatetime":
-                    return DbType.DateTime;
-                case "smallint":
-                    return DbType.Int16;
-                case "sql_variant":
-                case "variant":
-                    return DbType.Object;
-                case "time":
-                    return DbType.Time;
-                case "timestamp":
-                    return DbType.Int64;
-                case "tinyint":
-                    return DbType.Int16;
-                case "uniqueidentifier":
-                    return DbType.Guid;
-                case "varbinary":
-                    return DbType.Binary;
-                case "varchar":
-                    return maxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
-                case "xml":
-                    return DbType.String;
-            }
-            throw new Exception($"this type {typeName} is not supported");
-        }
+        public SqlDbMetadata() { }
 
         /// <summary>
-        /// Gets the SqlDbType issued from the server type name
+        /// Gets the DbType issue from the database
         /// </summary>
-        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
+        public override DbType GetDbType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
         {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "bigint":
-                    return SqlDbType.BigInt;
-                case "binary":
-                    return SqlDbType.Binary;
-                case "bit":
-                    return SqlDbType.Bit;
-                case "char":
-                    return SqlDbType.Char;
-                case "date":
-                    return SqlDbType.Date;
-                case "datetime":
-                    return SqlDbType.DateTime;
-                case "datetime2":
-                    return SqlDbType.DateTime2;
-                case "datetimeoffset":
-                    return SqlDbType.DateTimeOffset;
-                case "decimal":
-                    return SqlDbType.Decimal;
-                case "float":
-                    return SqlDbType.Float;
-                case "int":
-                    return SqlDbType.Int;
-                case "money":
-                    return SqlDbType.Money;
-                case "smallmoney":
-                    return SqlDbType.SmallMoney;
-                case "nchar":
-                    return SqlDbType.NChar;
-                case "numeric":
-                    return SqlDbType.Decimal;
-                case "nvarchar":
-                    return SqlDbType.NVarChar;
-                case "real":
-                    return SqlDbType.Real;
-                case "smalldatetime":
-                    return SqlDbType.SmallDateTime;
-                case "smallint":
-                    return SqlDbType.SmallInt;
-                case "sql_variant":
-                case "variant":
-                    return SqlDbType.Variant;
-                case "time":
-                    return SqlDbType.Time;
-                case "timestamp":
-                    return SqlDbType.Timestamp;
-                case "tinyint":
-                    return SqlDbType.TinyInt;
-                case "uniqueidentifier":
-                    return SqlDbType.UniqueIdentifier;
-                case "varbinary":
-                    return SqlDbType.VarBinary;
-                case "varchar":
-                    return SqlDbType.VarChar;
-                case "xml":
-                    return SqlDbType.Xml;
-            }
-            throw new Exception($"this type name {typeName} is not supported");
-        }
+            "bigint" => DbType.Int64,
+            "binary" => DbType.Binary,
+            "bit" => DbType.Boolean,
+            "char" => DbType.AnsiStringFixedLength,
+            "date" => DbType.Date,
+            "datetime" => DbType.DateTime,
+            "datetime2" => DbType.DateTime2,
+            "datetimeoffset" => DbType.DateTimeOffset,
+            "decimal" => DbType.Decimal,
+            "float" => DbType.Double,
+            "int" => DbType.Int32,
+            "money" => DbType.Currency,
+            "smallmoney" => DbType.Currency,
+            "nchar" => DbType.StringFixedLength,
+            "numeric" => DbType.VarNumeric,
+            "nvarchar" => column.MaxLength <= 0 ? DbType.String : DbType.StringFixedLength,
+            "real" => DbType.Decimal,
+            "smalldatetime" => DbType.DateTime,
+            "smallint" => DbType.Int16,
+            "sql_variant" => DbType.Object,
+            "variant" => DbType.Object,
+            "time" => DbType.Time,
+            "timestamp" => DbType.Int64,
+            "tinyint" => DbType.Int16,
+            "uniqueidentifier" => DbType.Guid,
+            "varbinary" => DbType.Binary,
+            "varchar" => column.MaxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength,
+            "xml" => DbType.String,
+            _ => throw new Exception($"this type {column.OriginalTypeName} for column {column.ColumnName} is not supported")
+        };
+
+        /// <summary>
+        /// Gets the SqlDbType issued from the database
+        /// </summary>
+        public override object GetOwnerDbType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+        {
+            "bigint" => SqlDbType.BigInt,
+            "binary" => SqlDbType.Binary,
+            "bit" => SqlDbType.Bit,
+            "char" => SqlDbType.Char,
+            "date" => SqlDbType.Date,
+            "datetime" => SqlDbType.DateTime,
+            "datetime2" => SqlDbType.DateTime2,
+            "datetimeoffset" => SqlDbType.DateTimeOffset,
+            "decimal" => SqlDbType.Decimal,
+            "float" => SqlDbType.Float,
+            "int" => SqlDbType.Int,
+            "money" => SqlDbType.Money,
+            "smallmoney" => SqlDbType.SmallMoney,
+            "nchar" => SqlDbType.NChar,
+            "numeric" => SqlDbType.Decimal,
+            "nvarchar" => SqlDbType.NVarChar,
+            "real" => SqlDbType.Real,
+            "smalldatetime" => SqlDbType.SmallDateTime,
+            "smallint" => SqlDbType.SmallInt,
+            "sql_variant" => SqlDbType.Variant,
+            "variant" => SqlDbType.Variant,
+            "time" => SqlDbType.Time,
+            "timestamp" => SqlDbType.Timestamp,
+            "tinyint" => SqlDbType.TinyInt,
+            "uniqueidentifier" => SqlDbType.UniqueIdentifier,
+            "varbinary" => SqlDbType.VarBinary,
+            "varchar" => SqlDbType.VarChar,
+            "xml" => SqlDbType.Xml,
+            _ => throw new Exception($"this type {column.OriginalTypeName} for column {column.ColumnName} is not supported")
+        };
+
+        /// <summary>
+        /// Gets the SqlDbType issued from the database
+        /// </summary>
+        public SqlDbType GetSqlDbType(SyncColumn column) => (SqlDbType)this.GetOwnerDbType(column);
+
+        /// <summary>
+        /// Gets the SqlDbType issued from the downgraded DbType
+        /// </summary>
+        public SqlDbType GetOwnerDbTypeFromDbType(SyncColumn column) => column.GetDbType() switch
+        {
+            DbType.AnsiString => SqlDbType.VarChar,
+            DbType.AnsiStringFixedLength => SqlDbType.VarChar,
+            DbType.Binary => SqlDbType.VarBinary,
+            DbType.Boolean => SqlDbType.Bit,
+            DbType.Byte => SqlDbType.TinyInt,
+            DbType.Currency => SqlDbType.Money,
+            DbType.Date => SqlDbType.Date,
+            DbType.DateTime => SqlDbType.DateTime,
+            DbType.DateTime2 => SqlDbType.DateTime2,
+            DbType.DateTimeOffset => SqlDbType.DateTimeOffset,
+            DbType.Decimal => SqlDbType.Decimal,
+            DbType.Double => SqlDbType.Decimal,
+            DbType.Guid => SqlDbType.UniqueIdentifier,
+            DbType.Int16 => SqlDbType.SmallInt,
+            DbType.Int32 => SqlDbType.Int,
+            DbType.Int64 => SqlDbType.BigInt,
+            DbType.Object => SqlDbType.Variant,
+            DbType.SByte => SqlDbType.SmallInt,
+            DbType.Single => SqlDbType.Decimal,
+            DbType.String => SqlDbType.NVarChar,
+            DbType.StringFixedLength => SqlDbType.NVarChar,
+            DbType.Time => SqlDbType.Time,
+            DbType.UInt16 => SqlDbType.Int,
+            DbType.UInt32 => SqlDbType.BigInt,
+            DbType.UInt64 => SqlDbType.BigInt,
+            DbType.VarNumeric => SqlDbType.Decimal,
+            DbType.Xml => SqlDbType.NVarChar,
+            _ => throw new Exception($"this db type {column.GetDbType()} for column {column.ColumnName} is not supported")
+        };
+
+        /// <summary>
+        /// Gets a managed type from a SqlDbType
+        /// </summary>
+        public override Type GetType(SyncColumn column) => GetSqlDbType(column) switch
+        {
+            SqlDbType.BigInt => Type.GetType("System.Int64"),
+            SqlDbType.Binary => Type.GetType("System.Byte[]"),
+            SqlDbType.Bit => Type.GetType("System.Boolean"),
+            SqlDbType.Char => Type.GetType("System.String"),
+            SqlDbType.Date => Type.GetType("System.DateTime"),
+            SqlDbType.DateTime => Type.GetType("System.DateTime"),
+            SqlDbType.DateTime2 => Type.GetType("System.DateTime"),
+            SqlDbType.DateTimeOffset => Type.GetType("System.DateTimeOffset"),
+            SqlDbType.Decimal => Type.GetType("System.Decimal"),
+            SqlDbType.Float => Type.GetType("System.Double"),
+            SqlDbType.Int => Type.GetType("System.Int32"),
+            SqlDbType.Money => Type.GetType("System.Decimal"),
+            SqlDbType.NChar => Type.GetType("System.String"),
+            SqlDbType.NVarChar => Type.GetType("System.String"),
+            SqlDbType.Real => Type.GetType("System.Single"),
+            SqlDbType.SmallDateTime => Type.GetType("System.DateTime"),
+            SqlDbType.SmallInt => Type.GetType("System.Int16"),
+            SqlDbType.SmallMoney => Type.GetType("System.Decimal"),
+            SqlDbType.Structured => Type.GetType("System.Byte[]"),
+            SqlDbType.Time => Type.GetType("System.TimeSpan"),
+            SqlDbType.Timestamp => Type.GetType("System.Byte[]"),
+            SqlDbType.TinyInt => Type.GetType("System.Byte"),
+            SqlDbType.Udt => Type.GetType("System.Byte[]"),
+            SqlDbType.UniqueIdentifier => Type.GetType("System.Guid"),
+            SqlDbType.VarBinary => Type.GetType("System.Byte[]"),
+            SqlDbType.VarChar => Type.GetType("System.String"),
+            SqlDbType.Variant => Type.GetType("System.Object"),
+            SqlDbType.Xml => Type.GetType("System.String"),
+            _ => throw new Exception($"In Column {column.ColumnName}, the type {GetSqlDbType(column)} is not supported"),
+        };
 
         /// <summary>
         /// Gets the max length autorized
         /// </summary>
-        public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
+        public override int GetMaxLength(SyncColumn column)
         {
-            var sqlDbType = (SqlDbType)ValidateOwnerDbType(typeName, isUnsigned, isUnicode, maxLength);
+            var sqlDbType = GetSqlDbType(column);
 
-            var iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
+            var iMaxLength = column.MaxLength > 8000 ? 8000 : Convert.ToInt32(column.MaxLength);
 
             // special length for nchar and nvarchar
             if ((sqlDbType == SqlDbType.NChar || sqlDbType == SqlDbType.NVarChar) && iMaxLength > 0)
-                iMaxLength = iMaxLength / 2;
+                iMaxLength /= 2;
 
             if (iMaxLength > 0 && sqlDbType != SqlDbType.VarChar && sqlDbType != SqlDbType.NVarChar &&
                 sqlDbType != SqlDbType.Char && sqlDbType != SqlDbType.NChar &&
@@ -170,514 +188,140 @@ namespace Dotmim.Sync.SqlServer.Manager
             return iMaxLength;
         }
 
-        /// <summary>
-        /// Gets a Sql type name from a DbType enum value
-        /// </summary>
-        public override string GetStringFromDbType(DbType dbType, int maxlength)
+        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
+            => CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
+
+        public override byte GetPrecision(SyncColumn columnDefinition)
         {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                    return "varchar";
-                case DbType.Binary:
-                    return "varbinary";
-                case DbType.Boolean:
-                    return "bit";
-                case DbType.Byte:
-                    return "tinyint";
-                case DbType.Currency:
-                    return "money";
-                case DbType.Date:
-                    return "date";
-                case DbType.DateTime:
-                    return "datetime";
-                case DbType.DateTime2:
-                    return "datetime2";
-                case DbType.DateTimeOffset:
-                    return "datetimeoffset";
-                case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
-                    return "decimal";
-                case DbType.VarNumeric:
-                    return "numeric";
-                case DbType.Guid:
-                    return "uniqueidentifier";
-                case DbType.Int16:
-                    return "smallint";
-                case DbType.Int32:
-                case DbType.UInt16:
-                    return "int";
-                case DbType.Int64:
-                case DbType.UInt32:
-                case DbType.UInt64:
-                    return "bigint";
-                case DbType.SByte:
-                    return "smallint";
-                case DbType.String:
-                case DbType.StringFixedLength:
-                case DbType.Xml:
-                    return "nvarchar";
-                case DbType.Time:
-                    return "time";
-                case DbType.Object:
-                    return "sql_variant";
-            }
-            throw new Exception($"this DbType {dbType.ToString()} is not supported");
+            var (p, _) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
+
+            return p;
         }
 
-        /// <summary>
-        /// Gets a Sql type name form a SqlDbType enum value
-        /// </summary>
-        public override string GetStringFromOwnerDbType(object ownerType)
+        public override bool IsSupportingScale(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
         {
-            SqlDbType sqlDbType = (SqlDbType)ownerType;
+            "decimal" or "real" or "float" or "numeric" or "money" or "smallmoney" => true,
+            _ => false,
+        };
+        public override bool IsNumericType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+        {
+            "bigint" or "decimal" or "float" or "int" or "numeric" or "real" or "smallint" or "tinyint" or "money" or "smallmoney" => true,
+            _ => false,
+        };
+        public override bool IsValid(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
+        {
+            "bigint" or "binary" or "bit" or "char" or "date" or "datetime" or "datetime2" or "datetimeoffset" or "decimal"
+            or "float" or "int" or "money" or "nchar" or "numeric" or "nvarchar" or "real" or "smalldatetime" or "smallint" or "smallmoney"
+            or "sql_variant" or "variant" or "time" or "timestamp" or "tinyint" or "uniqueidentifier" or "varbinary" or "varchar" or "xml" => true,
+            _ => false,
+        };
+        public override bool IsReadonly(SyncColumn columnDefinition)
+            => columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" || columnDefinition.IsCompute;
+
+        //------------------------------------------------------------------------
+
+        /// <summary>
+        /// Gets a compatible column definition, like nvarchar(50), int, decimal(8,2)
+        /// </summary>
+        public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
+        {
+            string argument = string.Empty;
+
+            // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
+                this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 
             switch (sqlDbType)
             {
-                case SqlDbType.BigInt:
-                    return "bigint";
-                case SqlDbType.Binary:
-                    return "binary";
-                case SqlDbType.Bit:
-                    return "bit";
-                case SqlDbType.Char:
-                    return "char";
-                case SqlDbType.Date:
-                    return "date";
-                case SqlDbType.DateTime:
-                    return "datetime";
-                case SqlDbType.DateTime2:
-                    return "datetime2";
-                case SqlDbType.DateTimeOffset:
-                    return "datetimeoffset";
-                case SqlDbType.Decimal:
-                    return "decimal";
-                case SqlDbType.Float:
-                    return "float";
-                case SqlDbType.Int:
-                    return "int";
-                case SqlDbType.Money:
-                    return "money";
-                case SqlDbType.NChar:
-                    return "nchar";
                 case SqlDbType.NVarChar:
-                    return "nvarchar";
-                case SqlDbType.Real:
-                    return "real";
-                case SqlDbType.SmallDateTime:
-                    return "smalldatetime";
-                case SqlDbType.SmallInt:
-                    return "smallint";
-                case SqlDbType.SmallMoney:
-                    return "smallmoney";
-                case SqlDbType.Time:
-                    return "time";
-                case SqlDbType.Timestamp:
-                    return "timestamp";
-                case SqlDbType.TinyInt:
-                    return "tinyint";
-                case SqlDbType.UniqueIdentifier:
-                    return "uniqueidentifier";
+                    if (column.MaxLength > 0 && column.MaxLength <= 4000)
+                        argument = $"({column.MaxLength})";
+                    else
+                        argument = "(MAX)";
+                    break;
                 case SqlDbType.VarBinary:
-                    return "varbinary";
                 case SqlDbType.VarChar:
-                    return "varchar";
-                case SqlDbType.Variant:
-                    return "sql_variant";
-                case SqlDbType.Xml:
-                    return "xml";
-            }
-            throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
-        }
-
-
-        public override string GetPrecisionStringFromDbType(DbType dbType, int maxLength, byte precision, byte scale)
-        {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                    if (maxLength > 0 && maxLength <= 8000)
-                        return $"({maxLength})";
+                    if (column.MaxLength > 0 && column.MaxLength <= 8000)
+                        argument = $"({column.MaxLength})";
                     else
-                        return $"(MAX)";
-                case DbType.String:
-                    if (maxLength > 0 && maxLength <= 4000)
-                        return $"({maxLength})";
-                    else
-                        return $"(MAX)";
-                case DbType.AnsiStringFixedLength:
-                case DbType.Binary:
-                    if (maxLength > 0 && maxLength <= 8000)
-                        return $"({maxLength})";
-                    else
-                        return $"(MAX)";
-                case DbType.StringFixedLength:
-                    return $"({Math.Min(4000, maxLength)})";
-                case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
-                case DbType.VarNumeric:
-                    var (p, s) = CoercePrecisionAndScale(precision, scale);
+                        argument = "(MAX)";
+                    break;
+                case SqlDbType.NChar:
+                    argument = $"({Math.Min(4000, column.MaxLength)})";
+                    break;
+                case SqlDbType.Char:
+                case SqlDbType.Binary:
+                    argument = $"({Math.Min(8000, column.MaxLength)})";
+                    break;
+                case SqlDbType.Decimal:
+                    var (p, s) = this.GetPrecisionAndScale(column);
 
                     if (p > 0 && s <= 0)
-                        return $"({ p})";
+                        argument = $"({p})";
                     else if (p > 0 && s > 0)
-                        return $"({ p}, {s})";
-                    else
-                        return string.Empty;
+                        argument = $"({p}, {s})";
+                    break;
+                default:
+                    argument = string.Empty;
+                    break;
             }
-            return string.Empty;
+
+            string typeName = fromProviderType == SqlSyncProvider.ProviderType ? column.OriginalTypeName.ToLowerInvariant() : sqlDbType.ToString().ToLowerInvariant();
+            typeName = typeName == "variant" ? "sql_variant" : typeName;
+
+            return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
 
         }
 
-        private static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
+        /// <summary>
+        /// Gets a compatible precision and scale
+        /// </summary>
+        public (byte precision, byte scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
+        {
+            // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
+                this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            return sqlDbType switch
+            {
+                SqlDbType.Decimal => CoercePrecisionAndScale(column.Precision, column.Scale),
+                _ => (0, 0),
+            };
+        }
+
+        public int GetCompatibleMaxLength(SyncColumn column, string fromProviderType)
+        {
+            // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
+                this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            return sqlDbType switch
+            {
+                SqlDbType.Binary or SqlDbType.Char or SqlDbType.NChar or SqlDbType.NVarChar or SqlDbType.VarBinary or SqlDbType.VarChar => column.MaxLength,
+                _ => 0,
+            };
+        }
+
+        /// <summary>
+        /// Check precision and scale
+        /// </summary>
+        public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
         {
             byte p = Convert.ToByte(precision);
             byte s = Convert.ToByte(scale);
             if (p > PRECISION_MAX)
-            {
                 p = PRECISION_MAX;
-                //s = SCALE_MAX;
-            }
 
             if (s > SCALE_MAX)
-            {
                 s = SCALE_MAX;
-            }
+
             // scale should always be lesser than precision
             if (s >= p)
-            {
                 s = (byte)(p - 1);
-            }
 
             return (p, s);
         }
 
-        /// <summary>
-        /// return the precision | maxlength string used when generating scripts
-        /// </summary>
-        public override string GetPrecisionStringFromOwnerDbType(object ownerDbType, int maxLength, byte precision, byte scale)
-        {
-            SqlDbType sqlDbType = (SqlDbType)ownerDbType;
-            switch (sqlDbType)
-            {
-                case SqlDbType.NVarChar:
-                    if (maxLength > 0 && maxLength <= 4000)
-                        return $"({maxLength})";
-                    else
-                        return "(MAX)";
-                case SqlDbType.VarBinary:
-                case SqlDbType.VarChar:
-                    if (maxLength > 0 && maxLength <= 8000)
-                        return $"({maxLength})";
-                    else
-                        return "(MAX)";
-                case SqlDbType.NChar:
-                    return $"({Math.Min(4000, maxLength)})";
-                case SqlDbType.Char:
-                case SqlDbType.Binary:
-                    return $"({Math.Min(8000, maxLength)})";
-                case SqlDbType.Decimal:
-                    var (p, s) = CoercePrecisionAndScale(precision, scale);
-
-                    if (p > 0 && s <= 0)
-                        return $"({ p})";
-                    else if (p > 0 && s > 0)
-                        return $"({ p}, {s})";
-                    else
-                        return string.Empty;
-                default:
-                    return string.Empty;
-            }
-        }
-
-        /// <summary>
-        /// Gets the corresponding SqlDbType from a classic DbType
-        /// </summary>
-        public override object GetOwnerDbTypeFromDbType(DbType dbType)
-        {
-            // Fallback on DbType
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                    return SqlDbType.VarChar;
-                case DbType.Binary:
-                    return SqlDbType.VarBinary;
-                case DbType.Boolean:
-                    return SqlDbType.Bit;
-                case DbType.Byte:
-                    return SqlDbType.TinyInt;
-                case DbType.Currency:
-                    return SqlDbType.Money;
-                case DbType.Date:
-                    return SqlDbType.Date;
-                case DbType.DateTime:
-                    return SqlDbType.DateTime;
-                case DbType.DateTime2:
-                    return SqlDbType.DateTime2;
-                case DbType.DateTimeOffset:
-                    return SqlDbType.DateTimeOffset;
-                case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
-                case DbType.VarNumeric:
-                    return SqlDbType.Decimal;
-                case DbType.Guid:
-                    return SqlDbType.UniqueIdentifier;
-                case DbType.Int16:
-                    return SqlDbType.SmallInt;
-                case DbType.Int32:
-                case DbType.UInt16:
-                    return SqlDbType.Int;
-                case DbType.Int64:
-                case DbType.UInt32:
-                case DbType.UInt64:
-                    return SqlDbType.BigInt;
-                case DbType.SByte:
-                    return SqlDbType.SmallInt;
-                case DbType.String:
-                case DbType.StringFixedLength:
-                case DbType.Xml:
-                    return SqlDbType.NVarChar;
-                case DbType.Time:
-                    return SqlDbType.Time;
-                case DbType.Object:
-                    return SqlDbType.Variant;
-            }
-
-            throw new Exception($"this type {dbType} is not supported");
-
-        }
-
-        /// <summary>
-        /// Gets a managed type from a SqlDbType
-        /// </summary>
-        public override Type ValidateType(object ownerType)
-        {
-            SqlDbType sqlDbType = (SqlDbType)ownerType;
-
-            switch (sqlDbType)
-            {
-                case SqlDbType.BigInt:
-                    return Type.GetType("System.Int64");
-                case SqlDbType.Binary:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.Bit:
-                    return Type.GetType("System.Boolean");
-                case SqlDbType.Char:
-                    return Type.GetType("System.String");
-                case SqlDbType.Date:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.DateTime:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.DateTime2:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.DateTimeOffset:
-                    return Type.GetType("System.DateTimeOffset");
-                case SqlDbType.Decimal:
-                    return Type.GetType("System.Decimal");
-                case SqlDbType.Float:
-                    return Type.GetType("System.Double");
-                case SqlDbType.Int:
-                    return Type.GetType("System.Int32");
-                case SqlDbType.Money:
-                    return Type.GetType("System.Decimal");
-                case SqlDbType.NChar:
-                    return Type.GetType("System.String");
-                case SqlDbType.NVarChar:
-                    return Type.GetType("System.String");
-                case SqlDbType.Real:
-                    return Type.GetType("System.Single");
-                case SqlDbType.SmallDateTime:
-                    return Type.GetType("System.DateTime");
-                case SqlDbType.SmallInt:
-                    return Type.GetType("System.Int16");
-                case SqlDbType.SmallMoney:
-                    return Type.GetType("System.Decimal");
-                case SqlDbType.Structured:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.Time:
-                    return Type.GetType("System.TimeSpan");
-                case SqlDbType.Timestamp:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.TinyInt:
-                    return Type.GetType("System.Byte");
-                case SqlDbType.Udt:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.UniqueIdentifier:
-                    return Type.GetType("System.Guid");
-                case SqlDbType.VarBinary:
-                    return Type.GetType("System.Byte[]");
-                case SqlDbType.VarChar:
-                    return Type.GetType("System.String");
-                case SqlDbType.Variant:
-                    return Type.GetType("System.Object");
-                case SqlDbType.Xml:
-                    return Type.GetType("System.String");
-            }
-            throw new Exception($"this SqlDbType {ownerType.ToString()} is not supported");
-        }
-
-        public override bool SupportScale(string typeName)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "decimal":
-                case "real":
-                case "float":
-                case "numeric":
-                case "money":
-                case "smallmoney":
-                    return true;
-            }
-            return false;
-        }
-        public override bool IsNumericType(string typeName)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "bigint":
-                case "decimal":
-                case "float":
-                case "int":
-                case "numeric":
-                case "real":
-                case "smallint":
-                case "tinyint":
-                case "money":
-                case "smallmoney":
-                    return true;
-            }
-            return false;
-        }
-
-        public override bool IsTextType(string typeName)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "char":
-                case "nchar":
-                case "nvarchar":
-                case "varchar":
-                case "xml":
-                    return true;
-            }
-            return false;
-        }
-
-        public override bool IsValid(SyncColumn columnDefinition)
-        {
-            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
-            {
-                case "bigint":
-                case "binary":
-                case "bit":
-                case "char":
-                case "date":
-                case "datetime":
-                case "datetime2":
-                case "datetimeoffset":
-                case "decimal":
-                case "float":
-                case "int":
-                case "money":
-                case "nchar":
-                case "numeric":
-                case "nvarchar":
-                case "real":
-                case "smalldatetime":
-                case "smallint":
-                case "smallmoney":
-                case "sql_variant":
-                case "variant":
-                case "time":
-                case "timestamp":
-                case "tinyint":
-                case "uniqueidentifier":
-                case "varbinary":
-                case "varchar":
-                case "xml":
-                    return true;
-            }
-            return false;
-        }
-
-       
-
-        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
-        {
-            return columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" ||
-                   columnDefinition.IsCompute;
-        }
-
-        public override byte ValidatePrecision(SyncColumn columnDefinition)
-        {
-            var (p, s) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
-            
-            return p;
-        }
-
-        public override (byte precision, byte scale) GetPrecisionFromOwnerDbType(object ownerDbType, byte precision, byte scale)
-        {
-            SqlDbType sqlDbType = (SqlDbType)ownerDbType;
-            switch (sqlDbType)
-            {
-                case SqlDbType.Decimal:
-                    return CoercePrecisionAndScale(precision, scale);
-            }
-            return (0, 0);
-        }
-
-        public override (byte precision, byte scale) GetPrecisionFromDbType(DbType dbType, byte precision, byte scale)
-        {
-            switch (dbType)
-            {
-                case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
-                case DbType.VarNumeric:
-                    return CoercePrecisionAndScale(precision, scale);
-            }
-            return (0, 0);
-        }
-
-        public override int GetMaxLengthFromDbType(DbType dbType, int maxLength)
-        {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                case DbType.Binary:
-                case DbType.String:
-                case DbType.StringFixedLength:
-                    return maxLength;
-            }
-            return 0;
-        }
-
-        public override int GetMaxLengthFromOwnerDbType(object ownerDbType, int maxLength)
-        {
-            SqlDbType sqlDbType = (SqlDbType)ownerDbType;
-            switch (sqlDbType)
-            {
-                case SqlDbType.Binary:
-                case SqlDbType.Char:
-                case SqlDbType.NChar:
-                case SqlDbType.NVarChar:
-                case SqlDbType.VarBinary:
-                case SqlDbType.VarChar:
-                    return maxLength;
-            }
-            return 0;
-        }
-
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
-        {
-            return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
-        }
     }
 
 }

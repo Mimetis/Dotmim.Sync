@@ -18,6 +18,22 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync.SampleConsole
 {
 
+    public class MariaDBSyncProvider2 : MariaDBSyncProvider
+    {
+        public MariaDBSyncProvider2() { }
+        public MariaDBSyncProvider2(string connectionString) : base(connectionString) { }
+        public MariaDBSyncProvider2(MySqlConnectionStringBuilder builder) : base(builder) { }
+
+        public override DbBuilder GetDatabaseBuilder() => new MariaDBDownloadOnlyBuilder();
+    }
+
+    public class MariaDBDownloadOnlyBuilder : MySqlBuilder
+    {
+        public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
+        {
+            return Task.CompletedTask;
+        }
+    }
     /// <summary>
     /// Use this provider if your client database does not need to upload any data to the server.
     /// This provider does not create any triggers / tracking tables and only 3 stored proc / tables
@@ -39,7 +55,7 @@ namespace Dotmim.Sync.SampleConsole
     /// <summary>
     /// Table builder builds table, tracking tables, triggers, stored proc, types
     /// </summary>
-    public class MariaDBDownloadOnlyTableBuilder : MariaDBTableBuilder
+    public class MariaDBDownloadOnlyTableBuilder : MySqlTableBuilder
     {
         public MariaDBDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
             : base(tableDescription, tableName, trackingTableName, setup) { }
@@ -65,7 +81,7 @@ namespace Dotmim.Sync.SampleConsole
     /// <summary>
     /// Sync Adapter gets and executes commands
     /// </summary>
-    public class MariaDBDownloadOnlySyncAdapter : MariaDBSyncAdapter
+    public class MariaDBDownloadOnlySyncAdapter : MySqlSyncAdapter
     {
         private ParserName tableName;
 
@@ -96,10 +112,10 @@ namespace Dotmim.Sync.SampleConsole
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
-                case DbCommandType.Reset:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
-                    break;
+                //case DbCommandType.Reset:
+                //    command.CommandType = CommandType.StoredProcedure;
+                //    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                //    break;
                 default:
                     return null;
             }
@@ -138,8 +154,9 @@ namespace Dotmim.Sync.SampleConsole
             var stringBuilder = new StringBuilder();
             var hasMutableColumns = this.TableDescription.GetMutableColumns(false).Any();
 
-            var selectAllColumnsString = new StringBuilder();
             var setUpdateAllColumnsString = new StringBuilder();
+            var allColumnsString = new StringBuilder();
+            var allColumnsValuesString = new StringBuilder();
 
             string empty = string.Empty;
             foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
@@ -147,13 +164,23 @@ namespace Dotmim.Sync.SampleConsole
                 var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
 
-                selectAllColumnsString.Append($"{empty}@{parameterColumnName} as {mutableColumnName}");
-                setUpdateAllColumnsString.Append($"{empty}{mutableColumnName}=`side`.{mutableColumnName}");
+                allColumnsString.Append($"{empty}{mutableColumnName}");
+                allColumnsValuesString.Append($"{empty}@{parameterColumnName}");
+
+                empty = ", ";
+            }
+            empty = string.Empty;
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
+            {
+                var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
+                setUpdateAllColumnsString.Append($"{empty}{mutableColumnName}=@{parameterColumnName}");
                 empty = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted()}");
-            stringBuilder.AppendLine($"SELECT * FROM (SELECT {selectAllColumnsString}) as `side`");
+            stringBuilder.AppendLine($"INSERT IGNORE INTO {tableName.Quoted()} ");
+            stringBuilder.AppendLine($"({allColumnsString})");
+            stringBuilder.AppendLine($"VALUES ({allColumnsValuesString})");
             if (hasMutableColumns)
             {
                 stringBuilder.AppendLine($"ON DUPLICATE KEY");
@@ -171,7 +198,7 @@ namespace Dotmim.Sync.SampleConsole
             var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine($"DELETE FROM {this.tableName.Quoted()} WHERE");
-            stringBuilder.AppendLine($"{MariaDBManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
+            stringBuilder.AppendLine($"{MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
 
             mySqlCommand.CommandText = stringBuilder.ToString();
             return mySqlCommand;

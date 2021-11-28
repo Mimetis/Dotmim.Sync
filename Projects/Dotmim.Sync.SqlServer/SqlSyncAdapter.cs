@@ -41,7 +41,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             var dataType = column.GetDataType();
             var dbType = column.GetDbType();
 
-            var sqlDbType = (SqlDbType)this.SqlMetadata.TryGetOwnerDbType(column.OriginalDbType, dbType, false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var sqlDbType = this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ?
+                this.SqlMetadata.GetSqlDbType(column) : this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
 
             // Since we validate length before, it's not mandatory here.
             // let's say.. just in case..
@@ -85,14 +86,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 if (column.PrecisionSpecified && column.ScaleSpecified)
                 {
-                    var (p, s) = this.SqlMetadata.ValidatePrecisionAndScale(column);
+                    var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
 
                 }
 
                 if (column.PrecisionSpecified)
                 {
-                    var p = this.SqlMetadata.ValidatePrecision(column);
+                    var p = this.SqlMetadata.GetPrecision(column);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p);
                 }
 

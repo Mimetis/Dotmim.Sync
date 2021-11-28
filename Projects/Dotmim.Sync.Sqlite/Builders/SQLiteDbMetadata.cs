@@ -10,122 +10,98 @@ namespace Dotmim.Sync.Sqlite
 {
     public class SqliteDbMetadata : DbMetadata
     {
-        public override int GetMaxLengthFromDbType(DbType dbType, int maxLength)
-        {
-            return 0;
-        }
 
-        public override int GetMaxLengthFromOwnerDbType(object dbType, int maxLength)
+        public override DbType GetDbType(SyncColumn columnDefinition)
         {
-            return GetMaxLengthFromDbType((DbType)dbType, maxLength);
-        }
-
-        public override object GetOwnerDbTypeFromDbType(DbType dbType)
-        {
-            return dbType;
-        }
-
-        public override (byte precision, byte scale) GetPrecisionFromDbType(DbType dbType, byte precision, byte scale)
-        {
-            return (0, 0);
-        }
-
-        public override (byte precision, byte scale) GetPrecisionFromOwnerDbType(object dbType, byte precision, byte scale)
-        {
-            return GetPrecisionFromDbType((DbType)dbType, precision, scale);
-        }
-
-        public override string GetPrecisionStringFromDbType(DbType dbType, int maxLength, byte precision, byte scale)
-        {
-            return string.Empty;
-        }
-
-        public override string GetPrecisionStringFromOwnerDbType(object dbType, int maxLength, byte precision, byte scale)
-        {
-            return GetPrecisionStringFromDbType((DbType)dbType, maxLength, precision, scale);
-        }
-
-        public override string GetStringFromDbType(DbType dbType, int maxlength)
-        {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                case DbType.String:
-                case DbType.StringFixedLength:
-                case DbType.Xml:
-                case DbType.Time:
-                case DbType.DateTimeOffset:
-                case DbType.Guid:
-                    return "text";
-                case DbType.Binary:
-                case DbType.Object:
-                    return "blob";
-                case DbType.Boolean:
-                case DbType.Byte:
-                case DbType.Int16:
-                case DbType.Int32:
-                case DbType.UInt16:
-                case DbType.Int64:
-                case DbType.UInt32:
-                case DbType.UInt64:
-                case DbType.SByte:
-                    return "integer";
-                case DbType.Date:
-                case DbType.DateTime:
-                case DbType.DateTime2:
-                    return "datetime";
-                case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
-                case DbType.Currency:
-                case DbType.VarNumeric:
-                    return "numeric";
-            }
-            throw new Exception($"this DbType {dbType.ToString()} is not supported");
-        }
-
-        public override string GetStringFromOwnerDbType(object ownerType)
-        {
-            var dbType = ValidateDbType(ownerType.ToString(), true, true, 0);
-            return GetStringFromDbType(dbType, 8000);
-        }
-
-        public override bool IsNumericType(string typeName)
-        {
-            typeName = typeName.ToLowerInvariant();
-            
-            if (typeName.Contains("("))
-                typeName = typeName.Substring(0, typeName.IndexOf("("));
-
-            return typeName == "numeric" || typeName == "decimal" || typeName == "real"
-                || typeName == "integer" || typeName == "bigint"
-                ;
-        }
-
-        public override bool IsTextType(string typeName)
-        {
-            typeName = typeName.ToLowerInvariant();
+            var typeName = columnDefinition.OriginalTypeName.ToLowerInvariant();
 
             if (typeName.Contains("("))
                 typeName = typeName.Substring(0, typeName.IndexOf("("));
 
-            return typeName.ToLowerInvariant() == "text" || typeName.ToLowerInvariant() == "varchar";
+            return typeName.ToLowerInvariant() switch
+            {
+                "bit" => DbType.Boolean,
+                "integer" or "bigint" => DbType.Int64,
+                "numeric" or "real" or "float" => DbType.Double,
+                "decimal" => DbType.Decimal,
+                "blob" or "image" => DbType.Binary,
+                "datetime" => DbType.DateTime,
+                "time" => DbType.Time,
+                "text" or "varchar" => DbType.String,
+                _ => throw new Exception($"this type {columnDefinition.OriginalTypeName} for column {columnDefinition.ColumnName} is not supported")
+            };
         }
 
-        public bool IsTextType(DbType dbType)
+        public override object GetOwnerDbType(SyncColumn columnDefinition)
         {
-            switch (dbType)
+            var typeName = columnDefinition.OriginalTypeName.ToLowerInvariant();
+
+            if (typeName.Contains("("))
+                typeName = typeName.Substring(0, typeName.IndexOf("("));
+
+            return typeName.ToLowerInvariant() switch
             {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                case DbType.String:
-                case DbType.StringFixedLength:
-                case DbType.Xml:
-                case DbType.Guid:
-                    return true;
-            }
-            return false;
+                "bit" or "integer" or "bigint" => SqliteType.Integer,
+                "numeric" or "decimal" or "real" or "float" => SqliteType.Real,
+                "blob" or "image" => SqliteType.Blob,
+                "datetime" or "time" or "varchar" or "text" => SqliteType.Text,
+                _ => throw new Exception($"this type {columnDefinition.OriginalTypeName} for column {columnDefinition.ColumnName} is not supported")
+            };
+        }
+
+        public SqliteType GetOwnerDbTypeFromDbType(SyncColumn columnDefinition) => columnDefinition.GetDbType() switch
+        {
+            DbType.AnsiString or DbType.AnsiStringFixedLength or DbType.String or DbType.StringFixedLength or DbType.Xml or 
+            DbType.Time or DbType.DateTimeOffset or DbType.Guid or DbType.Date or DbType.DateTime or DbType.DateTime2 => SqliteType.Text,
+            DbType.Binary or DbType.Object => SqliteType.Blob,
+            DbType.Boolean or DbType.Byte or DbType.Int16 or DbType.Int32 or DbType.UInt16 or DbType.Int64 or DbType.UInt32 or 
+            DbType.UInt64 or DbType.SByte => SqliteType.Integer,
+            DbType.Decimal or DbType.Double or DbType.Single or DbType.Currency or DbType.VarNumeric => SqliteType.Real,
+            _ => throw new Exception($"In Column {columnDefinition.ColumnName}, the type {columnDefinition.GetDbType()} is not supported"),
+        };
+
+        public SqliteType GetSqliteType(SyncColumn column) => (SqliteType)this.GetOwnerDbType(column);
+
+        public override Type GetType(SyncColumn columnDefinition)
+        {
+            var dbType = (SqliteType)GetOwnerDbType(columnDefinition);
+
+            return dbType switch
+            {
+                SqliteType.Integer => typeof(long),
+                SqliteType.Real => typeof(double),
+                SqliteType.Text => typeof(string),
+                SqliteType.Blob => typeof(object),
+                _ => throw new Exception($"In Column {columnDefinition.ColumnName}, the type {dbType} is not supported"),
+            };
+        }
+
+        public override int GetMaxLength(SyncColumn columnDefinition) 
+            => columnDefinition.MaxLength > int.MaxValue ? int.MaxValue : Convert.ToInt32(columnDefinition.MaxLength);
+
+        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition) => (0, 0);
+
+        public override byte GetPrecision(SyncColumn columnDefinition) => columnDefinition.Precision;
+
+        public override bool IsSupportingScale(SyncColumn columnDefinition) => GetSqliteType(columnDefinition) == SqliteType.Real;
+
+        public override bool IsNumericType(SyncColumn columnDefinition)
+        {
+            var sqliteType = GetSqliteType(columnDefinition);
+            return sqliteType == SqliteType.Integer || sqliteType == SqliteType.Real;
+        }
+
+        public bool IsTextType(SyncColumn columnDefinition)
+        {
+            var dbType = (DbType)columnDefinition.DbType;
+
+            return dbType switch
+            {
+                DbType.AnsiString or DbType.AnsiStringFixedLength or 
+                DbType.String or DbType.StringFixedLength or 
+                DbType.Xml or DbType.Guid => true,
+                _ => false,
+            };
         }
 
         public override bool IsValid(SyncColumn columnDefinition)
@@ -135,132 +111,41 @@ namespace Dotmim.Sync.Sqlite
             if (typeName.Contains("("))
                 typeName = typeName.Substring(0, typeName.IndexOf("("));
 
-            switch (typeName)
+            return typeName switch
             {
-                case "integer":
-                case "float":
-                case "decimal":
-                case "bit":
-                case "bigint":
-                case "numeric":
-                case "blob":
-                case "image":
-                case "datetime":
-                case "time":
-                case "text":
-                case "varchar":
-                case "real":
-                    return true;
-            }
-            return false;
+                "integer" or "float" or "decimal" or "bit" or "bigint" or "numeric" or "blob" or "image" or 
+                "datetime" or "time" or "text" or "varchar" or "real" => true,
+                _ => false,
+            };
         }
 
-        public override bool SupportScale(string typeName)
-        {
-            return typeName.ToLowerInvariant() == "numeric" || typeName.ToLowerInvariant() == "decimal"
-                || typeName.ToLowerInvariant() == "real" || typeName.ToLowerInvariant() == "float";
-        }
+        public override bool IsReadonly(SyncColumn columnDefinition) => false;
 
-        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
-        {
-            if (typeName.Contains("("))
-                typeName = typeName.Substring(0, typeName.IndexOf("("));
 
-            switch (typeName.ToLowerInvariant())
+        // ----------------------------------------------------------------------------------
+
+
+        /// <summary>
+        /// Gets a compatible column definition
+        /// </summary>
+        public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
+        {
+            if (fromProviderType == SqliteSyncProvider.ProviderType)
+                return column.OriginalTypeName;
+
+            // Fallback on my sql db type extract from simple db type
+            var sqliteType = this.GetOwnerDbTypeFromDbType(column);
+
+            return sqliteType switch
             {
-                case "bit":
-                    return DbType.Boolean;
-                case "integer":
-                case "bigint":
-                    return DbType.Int64;
-                case "numeric":
-                case "real":
-                case "float":
-                    return DbType.Double;
-                case "decimal":
-                    return DbType.Decimal;
-                case "blob":
-                case "image":
-                    return DbType.Binary;
-                case "datetime":
-                    return DbType.DateTime;
-                case "time":
-                    return DbType.Time;
-                case "text":
-                case "varchar":
-                    return DbType.String;
+                SqliteType.Integer => "integer",
+                SqliteType.Real => "numeric",
+                SqliteType.Text => "text",
+                SqliteType.Blob => "blob",
+                _ => throw new Exception($"In Column {column.ColumnName}, the type {column.GetDbType()} is not supported"),
+            };
 
-            }
-            throw new Exception($"this type name {typeName} is not supported");
         }
 
-        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
-        {
-            return false;
-        }
-
-        public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
-        {
-            Int32 iMaxLength = maxLength > Int32.MaxValue ? Int32.MaxValue : Convert.ToInt32(maxLength);
-            return iMaxLength;
-        }
-
-        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
-        {
-            if (typeName.Contains("("))
-                typeName = typeName.Substring(0, typeName.IndexOf("("));
-
-            switch (typeName.ToLowerInvariant())
-            {
-                case "bit":
-                case "integer":
-                case "bigint":
-                    return SqliteType.Integer;
-                case "numeric":
-                case "decimal":
-                case "real":
-                case "float":
-                    return SqliteType.Real;
-                case "blob":
-                case "image":
-                    return SqliteType.Blob;
-                case "datetime":
-                case "time":
-                case "varchar":
-                case "text":
-                    return SqliteType.Text;
-
-            }
-            throw new Exception($"this type name {typeName} is not supported");
-        }
-
-        public override byte ValidatePrecision(SyncColumn columnDefinition)
-        {
-            return columnDefinition.Precision;
-        }
-
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
-        {
-            return (columnDefinition.Precision, columnDefinition.Scale);
-        }
-
-        public override Type ValidateType(object ownerType)
-        {
-            var dbType = (SqliteType)ownerType;
-
-            switch (dbType)
-            {
-                case SqliteType.Integer:
-                    return typeof(long);
-                case SqliteType.Real:
-                    return typeof(double);
-                case SqliteType.Text:
-                    return typeof(string);
-                case SqliteType.Blob:
-                    return typeof(object);
-            }
-            throw new Exception($"this DbType {ownerType.ToString()} is not supported");
-   
-        }
     }
 }
