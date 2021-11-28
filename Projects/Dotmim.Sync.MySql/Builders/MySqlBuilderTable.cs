@@ -21,21 +21,13 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-#if MARIADB
-    public class MariaDBBuilderTable
-#elif MYSQL
     public class MySqlBuilderTable
-#endif
     {
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
-#if MARIADB
-        private readonly MariaDBDbMetadata dbMetadata;
-#elif MYSQL
         private readonly MySqlDbMetadata dbMetadata;
-#endif
 
         private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
@@ -59,26 +51,25 @@ namespace Dotmim.Sync.MySql.Builders
 
             return name;
         }
-#if MARIADB
-        public MariaDBBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-#elif MYSQL
         public MySqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-#endif
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-#if MARIADB
-            this.dbMetadata = new MariaDBDbMetadata();
-#elif MYSQL
             this.dbMetadata = new MySqlDbMetadata();
-#endif
         }
 
 
         public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
+
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+
             var stringBuilder = new StringBuilder();
             string empty = string.Empty;
 
@@ -89,18 +80,7 @@ namespace Dotmim.Sync.MySql.Builders
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = ParserName.Parse(column, "`").Quoted().ToString();
-
-#if MARIADB
-                var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-                var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-#elif MYSQL
-                var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-#endif
-
-
-                var columnType = $"{stringType} {stringPrecision}";
-
+                var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
                 var identity = string.Empty;
 
                 if (column.IsAutoIncrement)
@@ -117,7 +97,18 @@ namespace Dotmim.Sync.MySql.Builders
                 if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString}");
+                string defaultValue = string.Empty;
+                //if (this.tableDescription.OriginalProvider == originalProvider)
+                //    if (!string.IsNullOrEmpty(column.DefaultValue))
+                //    {
+                //        string tmp = column.DefaultValue;
+                //        if (!tmp.StartsWith("'") && !this.dbMetadata.IsNumericType(column))
+                //            tmp = $"'{tmp}'";
+
+                //        defaultValue = $"DEFAULT {tmp}";
+                //    }
+
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {defaultValue}");
                 empty = ",";
             }
 
@@ -243,18 +234,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             var column = this.tableDescription.Columns[columnName];
             var columnNameString = ParserName.Parse(columnName, "`").Quoted().ToString();
-
-#if MARIADB
-            var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-            var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-#elif MYSQL
-            var stringType = this.dbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-            var stringPrecision = this.dbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-#endif
-
-
-            var columnType = $"{stringType} {stringPrecision}";
-
+            var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
             var identity = string.Empty;
 
             if (column.IsAutoIncrement)
@@ -341,35 +321,25 @@ namespace Dotmim.Sync.MySql.Builders
 
             reader.Close();
 
-#if MARIADB
-            var mySqlDbMetadata = new MariaDBDbMetadata();
-#elif MYSQL
             var mySqlDbMetadata = new MySqlDbMetadata();
-#endif
 
             foreach (var c in syncTable.Rows.OrderBy(r => Convert.ToUInt64(r["ordinal_position"])))
             {
-                var typeName = c["data_type"].ToString();
-                var name = c["column_name"].ToString();
-                var isUnsigned = c["column_type"] != DBNull.Value && ((string)c["column_type"]).Contains("unsigned");
-
                 var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
 
-                //// Gets the datastore owner dbType 
-                //var datastoreDbType = (MySqlDbType)mySqlDbMetadata.ValidateOwnerDbType(typeName, isUnsigned, false, maxLengthLong);
-
-                //// once we have the datastore type, we can have the managed type
-                //var columnType = mySqlDbMetadata.ValidateType(datastoreDbType);
-
-                var sColumn = new SyncColumn(name)
+                var sColumn = new SyncColumn(c["column_name"].ToString())
                 {
-                    OriginalTypeName = typeName,
+                    OriginalTypeName = c["data_type"].ToString(),
                     Ordinal = Convert.ToInt32(c["ordinal_position"]),
                     MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong,
                     Precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"]) : (byte)0,
                     Scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"]) : (byte)0,
                     AllowDBNull = (string)c["is_nullable"] != "NO",
-                    DefaultValue = c["COLUMN_DEFAULT"].ToString()
+                    DefaultValue = c["COLUMN_DEFAULT"].ToString(),
+                    ExtraProperty1 = c["column_type"] != DBNull.Value ? c["column_type"].ToString() : null,
+                    IsUnsigned = c["column_type"] != DBNull.Value && ((string)c["column_type"]).Contains("unsigned"),
+                    IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).ToLowerInvariant().Contains("uni")
+
                 };
 
                 var extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;
@@ -380,9 +350,6 @@ namespace Dotmim.Sync.MySql.Builders
                     sColumn.AutoIncrementSeed = 1;
                     sColumn.AutoIncrementStep = 1;
                 }
-
-                sColumn.IsUnsigned = isUnsigned;
-                sColumn.IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).ToLowerInvariant().Contains("uni");
 
                 columns.Add(sColumn);
 

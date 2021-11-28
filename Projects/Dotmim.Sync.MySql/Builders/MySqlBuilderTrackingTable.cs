@@ -21,11 +21,7 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-#if MARIADB
-    public class MariaDBBuilderTrackingTable
-#elif MYSQL
     public class MySqlBuilderTrackingTable
-#endif
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -33,17 +29,10 @@ namespace Dotmim.Sync.MySql.Builders
         private readonly SyncTable tableDescription;
 
 
-#if MARIADB
-        private readonly MariaDBDbMetadata dbMetadata;
-        public MariaDBBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-        {
-            this.dbMetadata = new MariaDBDbMetadata();
-#elif MYSQL
         private readonly MySqlDbMetadata dbMetadata;
         public MySqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.dbMetadata = new MySqlDbMetadata();
-#endif
             this.tableDescription = tableDescription;
             this.tableName = tableName;
             this.trackingName = trackingName;
@@ -59,19 +48,7 @@ namespace Dotmim.Sync.MySql.Builders
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-
-#if MARIADB
-                var columnTypeString = this.dbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-                var columnPrecisionString = this.dbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-#elif MYSQL
-                var columnTypeString = this.dbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-                var columnPrecisionString = this.dbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.tableDescription.OriginalProvider, MySqlSyncProvider.ProviderType);
-#endif
-
-                var unQuotedColumnType = ParserName.Parse(columnTypeString, "`").Unquoted().Normalized().ToString();
-
-                var columnType = $"{unQuotedColumnType} {columnPrecisionString}";
-
+                var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
                 stringBuilder.AppendLine($"{columnName} {columnType} NOT NULL, ");
             }
 

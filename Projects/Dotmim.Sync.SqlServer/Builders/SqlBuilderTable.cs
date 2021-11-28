@@ -35,6 +35,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
+
+
         private Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
         private static string GetRandomString() =>
@@ -73,10 +75,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var column in this.tableDescription.Columns)
             {
                 var columnName = ParserName.Parse(column).Quoted().ToString();
-
-                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var columnType = $"{columnTypeString} {columnPrecisionString}";
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
                 var identity = string.Empty;
 
                 if (column.IsAutoIncrement)
@@ -236,7 +235,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var columns = new List<SyncColumn>();
             // Get the columns definition
             var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
-            var sqlDbMetadata = new SqlDbMetadata();
 
             foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {
@@ -372,10 +370,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var column = this.tableDescription.Columns[columnName];
             var columnNameString = ParserName.Parse(column).Quoted().ToString();
+            var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
 
-            var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-            var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-            var columnType = $"{columnTypeString} {columnPrecisionString}";
             var identity = string.Empty;
 
             if (column.IsAutoIncrement)

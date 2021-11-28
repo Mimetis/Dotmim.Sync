@@ -24,24 +24,9 @@ namespace Dotmim.Sync.MySql
 #endif
 {
 
-#if MARIADB
-    public class MariaDBSyncAdapter : DbSyncAdapter
-#elif MYSQL
     public class MySqlSyncAdapter : DbSyncAdapter
-#endif
     {
 
-#if MARIADB
-        public MariaDBObjectNames MySqlObjectNames { get; set; }
-        public MariaDBDbMetadata MySqlDbMetadata { get; set; }
-
-        public MariaDBSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
-        {
-            this.MySqlDbMetadata = new MariaDBDbMetadata();
-            this.MySqlObjectNames = new MariaDBObjectNames(TableDescription, tableName, trackingName, Setup);
-
-        }
-#elif MYSQL
         public MySqlObjectNames MySqlObjectNames { get; set; }
         public MySqlDbMetadata MySqlDbMetadata { get; set; }
 
@@ -51,8 +36,6 @@ namespace Dotmim.Sync.MySql
             this.MySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup);
 
         }
-#endif
-
         public override bool IsPrimaryKeyViolation(Exception Error) => false;
         public override bool IsUniqueKeyViolation(Exception exception) => false;
 
@@ -163,7 +146,7 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.SelectChangesWithFilters:
                 case DbCommandType.SelectInitializedChanges:
                 case DbCommandType.SelectInitializedChangesWithFilters:
-                    this.SetSelecteChangesParameters(command, filter);
+                    this.SetSelectChangesParameters(command, filter);
                     break;
                 case DbCommandType.SelectRow:
                     this.SetSelectRowParameters(command);
@@ -219,11 +202,7 @@ namespace Dotmim.Sync.MySql
         {
             DbParameter p;
 
-#if MARIADB
-            var prefix_parameter = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-#elif MYSQL
             var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-#endif
 
             foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
@@ -262,11 +241,7 @@ namespace Dotmim.Sync.MySql
         private void SetDeleteRowParameters(DbCommand command)
         {
             DbParameter p;
-#if MARIADB
-            var prefix_parameter = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-#elif MYSQL
             var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-#endif
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
@@ -303,11 +278,7 @@ namespace Dotmim.Sync.MySql
         private void SetSelectRowParameters(DbCommand command)
         {
             DbParameter p;
-#if MARIADB
-            var prefix_parameter = MariaDBBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-#elif MYSQL
             var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-#endif
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
@@ -334,8 +305,14 @@ namespace Dotmim.Sync.MySql
             command.Parameters.Add(p);
         }
 
-        private void SetSelecteChangesParameters(DbCommand command, SyncFilter filter = null)
+        private void SetSelectChangesParameters(DbCommand command, SyncFilter filter = null)
         {
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+
             var p = command.CreateParameter();
             p.ParameterName = "sync_min_timestamp";
             p.DbType = DbType.Int64;
@@ -360,12 +337,13 @@ namespace Dotmim.Sync.MySql
                 {
                     // Get column name and type
                     var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
+                    var syncColumn = new SyncColumn(columnName)
+                    {
+                        DbType = (int)param.DbType.Value,
+                        MaxLength = param.MaxLength,
+                    };
+                    var sqlDbType = this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(syncColumn);
 
-#if MARIADB
-                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MariaDB.MariaDBSyncProvider.ProviderType, MariaDB.MariaDBSyncProvider.ProviderType);
-#elif MYSQL
-                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, MySqlSyncProvider.ProviderType, MySqlSyncProvider.ProviderType);
-#endif
                     var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;
                     customParameterFilter.IsNullable = param.AllowNull;
@@ -384,11 +362,11 @@ namespace Dotmim.Sync.MySql
 
                     // Get column name and type
                     var columnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
-#if MARIADB
-                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MariaDB.MariaDBSyncProvider.ProviderType);
-#elif MYSQL
-                    var sqlDbType = (MySqlDbType)this.MySqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, MySqlSyncProvider.ProviderType);
-#endif
+
+
+                    var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
+                        this.MySqlDbMetadata.GetMySqlDbType(columnFilter) : this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
+
                     // Add it as parameter
                     var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     sqlParamFilter.Size = columnFilter.MaxLength;

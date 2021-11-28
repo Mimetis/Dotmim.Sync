@@ -36,7 +36,7 @@ namespace Dotmim.Sync.SqlServer
                     return providerType;
 
                 var type = typeof(SqlSyncProvider);
-                providerType = $"{type.Name}, {type.ToString()}";
+                providerType = $"{type.Name}, {type}";
 
                 return providerType;
             }

@@ -58,7 +58,7 @@ namespace Dotmim.Sync.MariaDB
         public override DbMetadata GetMetadata()
         {
             if (dbMetadata == null)
-                dbMetadata = new MariaDBDbMetadata();
+                dbMetadata = new MySqlDbMetadata();
 
             return dbMetadata;
         }
@@ -111,13 +111,13 @@ namespace Dotmim.Sync.MariaDB
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBTableBuilder(tableDescription, tableName, trackingTableName, setup);
+            => new MySqlTableBuilder(tableDescription, tableName, trackingTableName, setup);
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBSyncAdapter(tableDescription, tableName, trackingTableName, setup);
+            => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup);
 
-        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MariaDBScopeInfoBuilder(scopeInfoTableName);
-        public override DbBuilder GetDatabaseBuilder() => new MariaDBBuilder();
+        public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
+        public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;

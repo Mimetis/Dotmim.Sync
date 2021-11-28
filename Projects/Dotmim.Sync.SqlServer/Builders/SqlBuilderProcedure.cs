@@ -46,7 +46,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlCommand = connection.CreateCommand();
 
-                sqlCommand.Transaction = transaction;
+            sqlCommand.Transaction = transaction;
 
             sqlCommand.CommandText = text;
 
@@ -74,7 +74,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlCommand = connection.CreateCommand();
 
-                sqlCommand.Transaction = transaction;
+            sqlCommand.Transaction = transaction;
 
             sqlCommand.CommandText = text;
 
@@ -122,12 +122,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
-            var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var sqlDbType = this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType ?
+                this.sqlDbMetadata.GetSqlDbType(column) : this.sqlDbMetadata.GetOwnerDbTypeFromDbType(column);
+
 
             sqlParameter.SqlDbType = sqlDbType;
             sqlParameter.IsNullable = column.AllowDBNull;
 
-            var (p, s) = this.sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var (p, s) = this.sqlDbMetadata.GetCompatibleColumnPrecisionAndScale(column, this.tableDescription.OriginalProvider);
 
             if (p > 0)
             {
@@ -136,7 +138,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     sqlParameter.Scale = s;
             }
 
-            var m = this.sqlDbMetadata.TryGetOwnerMaxLength(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+            var m = this.sqlDbMetadata.GetCompatibleMaxLength(column, this.tableDescription.OriginalProvider);
 
             if (m > 0)
                 sqlParameter.Size = m;
@@ -153,17 +155,23 @@ namespace Dotmim.Sync.SqlServer.Builders
             var sqlDbType = param.SqlDbType;
             var sqlDbMetadata = new SqlDbMetadata();
 
-            string empty = sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
-
             if (sqlDbType == SqlDbType.Structured)
             {
                 stringBuilder3.Append(string.Concat(param.ParameterName, " ", param.TypeName, " READONLY"));
             }
             else
             {
-                var sqlDbTypeString = sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
+                var tmpColumn = new SyncColumn(param.ParameterName)
+                {
+                    OriginalDbType = sqlDbType.ToString(),
+                    OriginalTypeName = sqlDbType.ToString().ToLowerInvariant(),
+                    MaxLength = param.Size,
+                    Precision = param.Precision,
+                    Scale = param.Scale
+                };
 
-                stringBuilder3.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
+                string columnDeclarationString = sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(tmpColumn, SqlSyncProvider.ProviderType);
+                stringBuilder3.Append($"{param.ParameterName} {columnDeclarationString}");
 
                 if (param.Value != null)
                     stringBuilder3.Append($" = {param.Value}");
@@ -295,12 +303,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{ParserName.Parse(c).Quoted().ToString()} {quotedColumnType}, ");
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
+                stringBuilder.Append($"{ParserName.Parse(c).Quoted().ToString()} {columnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
@@ -399,13 +403,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
 
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
+                stringBuilder.Append($"{columnName} {columnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
 
@@ -609,13 +609,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
-
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
+                stringBuilder.Append($"{columnName} {columnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
 
@@ -772,12 +767,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(c).Quoted().ToString();
                 var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
 
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
 
-                stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} {nullString}");
+                stringBuilder.AppendLine($"{str}{columnName} {columnType} {nullString}");
                 str = ", ";
             }
             //stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
@@ -841,12 +833,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
 
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
 
-                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
+                stringBuilder.Append($"{columnName} {columnType}, ");
             }
             stringBuilder.Append(" PRIMARY KEY (");
 
@@ -1002,12 +991,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     // Get column name and type
                     var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
-                    var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, SqlSyncProvider.ProviderType, SqlSyncProvider.ProviderType);
+                    var sqlDbType = this.sqlDbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType });
 
-                    var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType);
-                    customParameterFilter.Size = param.MaxLength;
-                    customParameterFilter.IsNullable = param.AllowNull;
-                    customParameterFilter.Value = param.DefaultValue;
+                    var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType)
+                    {
+                        Size = param.MaxLength,
+                        IsNullable = param.AllowNull,
+                        Value = param.DefaultValue
+                    };
                     sqlCommand.Parameters.Add(customParameterFilter);
                 }
                 else
@@ -1022,13 +1013,17 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     // Get column name and type
                     var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
-                    var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, SqlSyncProvider.ProviderType);
+
+                    var sqlDbType = tableFilter.OriginalProvider == SqlSyncProvider.ProviderType ?
+                        this.sqlDbMetadata.GetSqlDbType(columnFilter) : this.sqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
                     // Add it as parameter
-                    var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
-                    sqlParamFilter.Size = columnFilter.MaxLength;
-                    sqlParamFilter.IsNullable = param.AllowNull;
-                    sqlParamFilter.Value = param.DefaultValue;
+                    var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType)
+                    {
+                        Size = columnFilter.MaxLength,
+                        IsNullable = param.AllowNull,
+                        Value = param.DefaultValue
+                    };
                     sqlCommand.Parameters.Add(sqlParamFilter);
                 }
 
@@ -1127,7 +1122,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
                 var parameterName = ParserName.Parse(whereFilter.ParameterName).Unquoted().Normalized().ToString();
-                var sqlDbType = (SqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, SqlSyncProvider.ProviderType);
 
                 var param = filter.Parameters[parameterName];
 

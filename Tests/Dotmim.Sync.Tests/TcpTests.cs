@@ -148,9 +148,7 @@ namespace Dotmim.Sync.Tests
             HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
             foreach (var client in Clients)
-            {
                 HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
-            }
 
             this.stopwatch.Stop();
 
@@ -248,6 +246,7 @@ namespace Dotmim.Sync.Tests
                             Assert.Equal(serverColumn.ScaleSpecified, clientColumn.ScaleSpecified);
 
                             Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
+                            Assert.Equal(serverColumn.ExtraProperty1, clientColumn.ExtraProperty1);
                             Assert.Equal(serverColumn.OriginalDbType, clientColumn.OriginalDbType);
 
                             // We don't replicate unique indexes

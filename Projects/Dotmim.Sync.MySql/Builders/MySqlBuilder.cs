@@ -17,28 +17,26 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-#if MARIADB
-    public class MariaDBBuilder : DbBuilder
-#elif MYSQL
     public class MySqlBuilder : DbBuilder
-#endif
     {
-        public override async Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
+        public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {
-            using var dbCommand = connection.CreateCommand();
-            dbCommand.CommandText = $"set global innodb_stats_on_metadata=0;";
+            return Task.CompletedTask;
 
-            bool alreadyOpened = connection.State == ConnectionState.Open;
+            //using var dbCommand = connection.CreateCommand();
+            //dbCommand.CommandText = $"set global innodb_stats_on_metadata=0;";
 
-            if (!alreadyOpened)
-                await connection.OpenAsync().ConfigureAwait(false);
+            //bool alreadyOpened = connection.State == ConnectionState.Open;
 
-            dbCommand.Transaction = transaction;
+            //if (!alreadyOpened)
+            //    await connection.OpenAsync().ConfigureAwait(false);
 
-            await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            //dbCommand.Transaction = transaction;
 
-            if (!alreadyOpened)
-                connection.Close();
+            //await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            //if (!alreadyOpened)
+            //    connection.Close();
         }
 
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
@@ -46,11 +44,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
         {
-#if MARIADB
-            return await MariaDBManagementUtils.GetHelloAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
-#elif MYSQL
             return await MySqlManagementUtils.GetHelloAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
-#endif
         }
     }
 }

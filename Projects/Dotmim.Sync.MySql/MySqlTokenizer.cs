@@ -9,11 +9,7 @@ namespace Dotmim.Sync.MariaDB
 namespace Dotmim.Sync.MySql
 #endif
 {
-#if MARIADB
-    internal class MariaDBTokenizer
-#elif MYSQL
     internal class MySqlTokenizer
-#endif
     {
         private string sql;
 
@@ -31,22 +27,14 @@ namespace Dotmim.Sync.MySql
 
         private int pos;
 
-#if MARIADB
-        public MariaDBTokenizer()
-#elif MYSQL
         public MySqlTokenizer()
-#endif
         {
             backslashEscapes = true;
             multiLine = true;
             pos = 0;
         }
 
-#if MARIADB
-        public MariaDBTokenizer(string input)
-#elif MYSQL
         public MySqlTokenizer(string input)
-#endif
           : this()
         {
             sql = input;

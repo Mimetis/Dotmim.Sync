@@ -17,31 +17,9 @@ namespace Dotmim.Sync.MySql.Builders
     /// The MySqlBuilder class is the MySql implementation of DbBuilder class.
     /// In charge of creating tracking table, stored proc, triggers and adapters.
     /// </summary>
-#if MARIADB
-    public class MariaDBTableBuilder : DbTableBuilder
-#elif MYSQL
     public class MySqlTableBuilder : DbTableBuilder
-#endif
     {
 
-#if MARIADB
-        MariaDBObjectNames sqlObjectNames;
-        private MariaDBBuilderProcedure sqlBuilderProcedure;
-        private MariaDBBuilderTable sqlBuilderTable;
-        private MariaDBBuilderTrackingTable sqlBuilderTrackingTable;
-        private MariaDBBuilderTrigger sqlBuilderTrigger;
-
-        public MariaDBTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
-        {
-
-            this.sqlObjectNames = new MariaDBObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
-            this.sqlBuilderProcedure = new MariaDBBuilderProcedure(tableDescription, TableName, TrackingTableName, setup);
-            this.sqlBuilderTable = new MariaDBBuilderTable(tableDescription, TableName, TrackingTableName, setup);
-            this.sqlBuilderTrackingTable = new MariaDBBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
-            this.sqlBuilderTrigger = new MariaDBBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
-
-        }
-#elif MYSQL
         MySqlObjectNames sqlObjectNames;
         private MySqlBuilderProcedure sqlBuilderProcedure;
         private MySqlBuilderTable sqlBuilderTable;
@@ -58,8 +36,6 @@ namespace Dotmim.Sync.MySql.Builders
             this.sqlBuilderTrigger = new MySqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
 
         }
-#endif
-
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetCreateSchemaCommandAsync(connection, transaction);
         public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)

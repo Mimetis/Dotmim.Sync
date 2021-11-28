@@ -18,11 +18,7 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-#if MARIADB
-    public class MariaDBBuilderTrigger
-#elif MYSQL
     public class MySqlBuilderTrigger
-#endif
     {
         private ParserName tableName;
         private ParserName trackingName;
@@ -31,31 +27,19 @@ namespace Dotmim.Sync.MySql.Builders
         private string timestampValue;
 
 
-#if MARIADB
-        private MariaDBObjectNames mySqlObjectNames;
-        public MariaDBBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-        {
-            this.mySqlObjectNames = new MariaDBObjectNames(tableDescription, tableName, trackingName, setup);
-            this.timestampValue = MariaDBObjectNames.TimestampValue;
-#elif MYSQL
         private MySqlObjectNames mySqlObjectNames;
         
         public MySqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.mySqlObjectNames = new MySqlObjectNames(tableDescription, tableName, trackingName, setup);
             this.timestampValue = MySqlObjectNames.TimestampValue;
-#endif
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
         }
 
-#if MARIADB
-        public MariaDBBuilderTrigger()
-#elif MYSQL
         public MySqlBuilderTrigger()
-#endif
         {
         }
 
@@ -210,11 +194,7 @@ namespace Dotmim.Sync.MySql.Builders
             createTrigger.AppendLine("\t\t,`last_change_datetime` = utc_timestamp()");
 
             createTrigger.Append($"\tWhere ");
-#if MARIADB
-            createTrigger.Append(MariaDBManagementUtils.JoinTwoTablesOnClause(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "new"));
-#elif MYSQL
             createTrigger.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "new"));
-#endif
 
             if (this.tableDescription.GetMutableColumns().Count() > 0)
             {

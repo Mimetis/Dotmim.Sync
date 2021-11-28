@@ -36,14 +36,11 @@ namespace Dotmim.Sync.Sqlite
             foreach (var column in this.TableDescription.Columns)
             {
                 var columnName = ParserName.Parse(column).Quoted().ToString();
-
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-                var columnType = $"{columnTypeString} {columnPrecisionString}";
+                var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(column, TableDescription.OriginalProvider);
 
                 // check case
                 string casesensitive = "";
-                if (this.sqliteDbMetadata.IsTextType(column.GetDbType()))
+                if (this.sqliteDbMetadata.IsTextType(column))
                 {
                     casesensitive = SyncGlobalization.IsCaseSensitive() ? "" : "COLLATE NOCASE";
 
@@ -136,13 +133,8 @@ namespace Dotmim.Sync.Sqlite
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-
-                var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(pkColumn.OriginalDbType, pkColumn.GetDbType(), false, false, pkColumn.MaxLength, pkColumn.Precision, pkColumn.Scale, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(columnTypeString).Quoted().ToString();
-                quotedColumnType += columnPrecisionString;
-
-                stringBuilder.AppendLine($"{quotedColumnName} {quotedColumnType} NOT NULL COLLATE NOCASE, ");
+                var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, TableDescription.OriginalProvider);
+                stringBuilder.AppendLine($"{quotedColumnName} {columnType} NOT NULL COLLATE NOCASE, ");
             }
 
             // adding the tracking columns
@@ -681,13 +673,11 @@ namespace Dotmim.Sync.Sqlite
             var column = this.TableDescription.Columns[columnName];
             var columnNameString = ParserName.Parse(column).Quoted().ToString();
 
-            var columnTypeString = this.sqliteDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-            var columnPrecisionString = this.sqliteDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.TableDescription.OriginalProvider, SqliteSyncProvider.ProviderType);
-            var columnType = $"{columnTypeString} {columnPrecisionString}";
+            var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(column, TableDescription.OriginalProvider);
 
             // check case
             string casesensitive = "";
-            if (this.sqliteDbMetadata.IsTextType(column.GetDbType()))
+            if (this.sqliteDbMetadata.IsTextType(column))
             {
                 casesensitive = SyncGlobalization.IsCaseSensitive() ? "" : "COLLATE NOCASE";
 

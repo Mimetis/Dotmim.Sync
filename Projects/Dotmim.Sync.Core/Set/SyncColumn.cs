@@ -78,6 +78,8 @@ namespace Dotmim.Sync
         [DataMember(Name = "dv", IsRequired = false, EmitDefaultValue = false, Order = 21)]
         public string DefaultValue { get; set; }
 
+        [DataMember(Name = "ext1", IsRequired = false, EmitDefaultValue = false, Order = 22)]
+        public string ExtraProperty1 { get; set; }
 
 
 
@@ -140,6 +142,7 @@ namespace Dotmim.Sync
             clone.Scale = this.Scale;
             clone.ScaleSpecified = this.ScaleSpecified;
             clone.DefaultValue = this.DefaultValue;
+            clone.ExtraProperty1 = this.ExtraProperty1;
             return clone;
         }
 
@@ -405,7 +408,8 @@ namespace Dotmim.Sync
                string.Equals(this.OriginalDbType, column.OriginalDbType, sc) &&
                string.Equals(this.OriginalTypeName, column.OriginalTypeName, sc) &&
                this.DbType == column.DbType &&
-               string.Equals(this.DefaultValue, column.DefaultValue, sc);
+               string.Equals(this.DefaultValue, column.DefaultValue, sc) &&
+               string.Equals(this.ExtraProperty1, column.ExtraProperty1, sc);
 
         }
 

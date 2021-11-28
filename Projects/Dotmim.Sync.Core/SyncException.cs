@@ -382,18 +382,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class UnsupportedColumnTypeException : Exception
     {
-        const string message = "The Column {0} of type {1} from provider {2} is not currently supported.";
+        const string message = "In table {0}, the Column {1} of type {2} from provider {3} is not currently supported.";
 
-        public UnsupportedColumnTypeException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
+        public UnsupportedColumnTypeException(string tableName, string columnName, string columnType, string provider) : base(string.Format(message, tableName, columnName, columnType, provider)) { }
     }
     /// <summary>
     /// Occurs when a column name is not supported by the Dotmim.Sync framework
     /// </summary>
     public class UnsupportedColumnNameException : Exception
     {
-        const string message = "The Column name {0} is not allowed. Please consider to change the column name.";
+        const string message = "In table {0}, the Column name {1} is not allowed. Please consider to change the column name.";
 
-        public UnsupportedColumnNameException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
+        public UnsupportedColumnNameException(string tableName, string columnName, string columnType, string provider) :
+            base(string.Format(message, tableName, columnName, columnType, provider))
+        { }
     }
 
     /// <summary>
@@ -401,9 +403,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class UnsupportedPrimaryKeyColumnNameException : Exception
     {
-        const string message = "The Column name {0} is not allowed as a primary key. Please consider to change the column name or choose another primary key for your table.";
+        const string message = "In table {0}, the Column name {1} is not allowed as a primary key. Please consider to change the column name or choose another primary key for your table.";
 
-        public UnsupportedPrimaryKeyColumnNameException(string columnName, string columnType, string provider) : base(string.Format(message, columnName, columnType, provider)) { }
+        public UnsupportedPrimaryKeyColumnNameException(string tableName, string columnName, string columnType, string provider)
+            : base(string.Format(message, tableName, columnName, columnType, provider)) { }
     }
 
 
