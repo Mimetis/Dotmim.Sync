@@ -152,10 +152,11 @@ namespace Dotmim.Sync
                             if (bptis != null)
                             {
                                 // Statistics
-                                var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName);
-
-                                // we are applying a snapshot where it can't have any deletes, obviously
-                                tableChangesSelected.Upserts = bptis.Sum(bpti => bpti.RowsCount);
+                                var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName)
+                                {
+                                    // we are applying a snapshot where it can't have any deletes, obviously
+                                    Upserts = bptis.Sum(bpti => bpti.RowsCount)
+                                };
 
                                 if (tableChangesSelected.Upserts > 0)
                                     changesSelected.TableChangesSelected.Add(tableChangesSelected);
@@ -260,7 +261,7 @@ namespace Dotmim.Sync
                         var row = this.CreateSyncRowFromReader(dataReader, changesSetTable);
 
                         // Add the row to the changes set
-                        changesSetTable.Rows.Add(row);
+                        changesSetTable.Rows.Add(row); 
 
                         // Set the correct state to be applied
                         if (row.RowState == DataRowState.Deleted)
@@ -292,7 +293,8 @@ namespace Dotmim.Sync
                         batchIndex++;
 
                         // we know the datas are serialized here, so we can flush  the set
-                        changesSet.Clear();
+                        changesSet.Dispose();
+                        changesSetTable.Dispose();
 
                         // Recreate an empty ContainerSet and a ContainerTable
                         changesSet = new SyncSet();
@@ -301,9 +303,12 @@ namespace Dotmim.Sync
 
                         // Init the row memory size
                         rowsMemorySize = 0L;
+
+                        GC.Collect();
                     }
 
                     dataReader.Close();
+                    GC.Collect();
 
                     // We don't report progress if no table changes is empty, to limit verbosity
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)

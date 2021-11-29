@@ -194,11 +194,11 @@ internal class Program
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var clientProvider = new MariaDBSyncDownloadOnlyProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
 
-        var serverProvider = new MariaDBSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
-        var clientProvider = new MariaDBSyncDownloadOnlyProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
+        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
+        //var clientProvider = new MariaDBSyncDownloadOnlyProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("ServerWithSyncNames"));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
@@ -220,7 +220,7 @@ internal class Program
             Console.ResetColor();
         });
 
-        var setup = new SyncSetup(oneTable);
+        var setup = new SyncSetup(allTables);
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);

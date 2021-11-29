@@ -198,7 +198,11 @@ namespace Dotmim.Sync.Batch
             // The batch part creation process will serialize the changesSet to the disk
 
             // Serialize the file !
-            await SerializeAsync(set.GetContainerSet(), fileName, directoryFullPath, serializerFactory, orchestrator);
+            var containerSet = set.GetContainerSet();
+            await SerializeAsync(containerSet, fileName, directoryFullPath, serializerFactory, orchestrator);
+            
+            containerSet.Dispose();
+            containerSet = null;
 
             bpi = new BatchPartInfo { FileName = fileName };
             bpi.Index = batchIndex;
