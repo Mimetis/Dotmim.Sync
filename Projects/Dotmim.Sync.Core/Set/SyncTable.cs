@@ -148,11 +148,13 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable Clone()
         {
-            var clone = new SyncTable();
-            clone.OriginalProvider = this.OriginalProvider;
-            clone.SchemaName = this.SchemaName;
-            clone.SyncDirection = this.SyncDirection;
-            clone.TableName = this.TableName;
+            var clone = new SyncTable
+            {
+                OriginalProvider = this.OriginalProvider,
+                SchemaName = this.SchemaName,
+                SyncDirection = this.SyncDirection,
+                TableName = this.TableName
+            };
 
             foreach (var c in this.Columns)
                 clone.Columns.Add(c.Clone());

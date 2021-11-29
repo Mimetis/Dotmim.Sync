@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
@@ -38,6 +39,9 @@ namespace Dotmim.Sync
 
                 var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
 
+                // contains list of table that have been done
+                var doneTables = new List<SyncTable>();
+
                 // Disable check constraints
                 // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
                 // Report this disabling constraints brefore opening a transaction
@@ -59,17 +63,27 @@ namespace Dotmim.Sync
                 // 1) Applying Inserts and Updates. Apply in table order
                 // -----------------------------------------------------
                 if (hasChanges)
+                {
+                    doneTables.Clear();
                     foreach (var table in schemaTables)
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
+                    {
+                        await this.InternalApplyTableChangesAsync(context, table, message, doneTables, connection,
                             transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                    }
+                }
 
                 // -----------------------------------------------------
                 // 2) Applying Deletes. Do not apply deletes if we are in a new database
                 // -----------------------------------------------------
                 if (!message.IsNew && hasChanges)
+                {
+                    doneTables.Clear();
                     foreach (var table in schemaTables.Reverse())
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
+                    {
+                        await this.InternalApplyTableChangesAsync(context, table, message, doneTables, connection,
                             transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                    }
+                }
 
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
@@ -216,7 +230,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
         /// </summary>
-        private async Task InternalApplyTableChangesAsync(SyncContext context, SyncTable schemaTable, MessageApplyChanges message,
+        private async Task InternalApplyTableChangesAsync(SyncContext context, SyncTable schemaTable, MessageApplyChanges message, List<SyncTable> doneTables,
             DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -250,12 +264,19 @@ namespace Dotmim.Sync
                 var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this);
                 var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
 
+                // List of batchpartinfos during the iteration
+                var batchPartinfos = new List<BatchPartInfo>();
+
                 // getting the table to be applied
                 // we may have multiple batch files, so we can have multipe sync tables with the same name
                 // We can say that dmTable may be contained in several files
                 while (await enumeratorOfTable.MoveNextAsync())
                 {
-                    var syncTable = enumeratorOfTable.Current;
+                    var syncTable = enumeratorOfTable.Current.SyncTable;
+
+                    // add curent batch part info 
+                    if (enumeratorOfTable.Current.BatchPartInfo != null)
+                        batchPartinfos.Add(enumeratorOfTable.Current.BatchPartInfo);
 
                     if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count == 0)
                         continue;
@@ -334,7 +355,45 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(tableChangesBatchAppliedArgs, cancellationToken).ConfigureAwait(false);
                         this.ReportProgress(context, progress, tableChangesBatchAppliedArgs, connection, transaction);
                     }
+
                 }
+
+                // table processeed
+                // we can add it to the list of done tables
+                doneTables.Add(schemaTable);
+
+                // Let's see if we can close the batchpartinfo
+                // we can close it if all the tables contains in the bpiTables are already processed
+                foreach (var batchPartinInfo in batchPartinfos)
+                {
+                    var isDoneTable = false;
+                    // for each table in the current file
+                    foreach (var batchPartTableInfo in batchPartinInfo.Tables)
+                    {
+                        // check if all tables in batch part info are done
+                        isDoneTable = doneTables.Any(doneTable =>
+                        {
+                            var sc = SyncGlobalization.DataSourceStringComparison;
+                            var innerTableSchemaName = string.IsNullOrEmpty(doneTable.SchemaName) ? string.Empty : doneTable.SchemaName;
+                            var batchPartTableSchemaName = string.IsNullOrEmpty(batchPartTableInfo.SchemaName) ? string.Empty : batchPartTableInfo.SchemaName;
+                            return string.Equals(doneTable.TableName, batchPartTableInfo.TableName, sc) && string.Equals(innerTableSchemaName, batchPartTableSchemaName);
+                        });
+
+                        // the current table is not done yet, don't need to continue to iterate
+                        // over the other tables information
+                        if (!isDoneTable)
+                            break;
+
+                    }
+
+                    if (isDoneTable)
+                    {
+                        batchPartinInfo.Data.Dispose();
+                        batchPartinInfo.Data = null;
+                    }
+                }
+
+
 
                 // Report the overall changes applied for the current table
                 if (tableChangesApplied != null)
@@ -387,7 +446,7 @@ namespace Dotmim.Sync
             // Get command
             var command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
 
-            if (command == null) return (0,0);
+            if (command == null) return (0, 0);
 
             // Launch any interceptor if available
             var args = new TableChangesBatchApplyingArgs(context, changesTable, applyType, command, connection, transaction);

@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Batch
     [DataContract(Name = "bi"), Serializable]
     public class BatchInfo
     {
-   
+
         /// <summary>
         /// Ctor for serializer
         /// </summary>
@@ -94,7 +94,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Gets or Sets the Serialization Factory Key used to serialize this batch info (if not in memory)
         /// </summary>
-        [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue =false, Order = 6)]
+        [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public string SerializerFactoryKey { get; set; }
 
 
@@ -174,7 +174,7 @@ namespace Dotmim.Sync.Batch
             return false;
         }
 
-        public async IAsyncEnumerable<SyncTable> GetTableAsync(string tableName, string schemaName, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
+        public async IAsyncEnumerable<(SyncTable SyncTable, BatchPartInfo BatchPartInfo)> GetTableAsync(string tableName, string schemaName, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
@@ -186,7 +186,7 @@ namespace Dotmim.Sync.Batch
                 this.SerializerFactoryKey = null;
 
                 if (this.InMemoryData != null && this.InMemoryData.HasTables)
-                    yield return this.InMemoryData.Tables[tableName, schemaName];
+                    yield return (this.InMemoryData.Tables[tableName, schemaName], null);
             }
             else
             {
@@ -208,13 +208,13 @@ namespace Dotmim.Sync.Batch
 
                         if (batchTable != null)
                         {
-                            yield return batchTable;
+                            yield return (batchTable, batchPartinInfo);
 
                             // We may need this same BatchPartInfo for another table, 
                             // but we dispose it anyway, because memory can be quickly a bottleneck
                             // if batchpartinfos are resident in memory
-                            batchPartinInfo.Data.Dispose();
-                            batchPartinInfo.Data = null;
+                            //batchPartinInfo.Data.Dispose();
+                            //batchPartinInfo.Data = null;
                         }
                     }
                 }
