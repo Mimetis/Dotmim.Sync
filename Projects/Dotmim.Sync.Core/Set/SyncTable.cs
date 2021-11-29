@@ -123,7 +123,7 @@ namespace Dotmim.Sync
         public void Dispose()
         {
             this.Dispose(true);
-            GC.SuppressFinalize(this);
+            //GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool cleanup)
@@ -132,10 +132,16 @@ namespace Dotmim.Sync
             if (cleanup)
             {
                 if (this.Rows != null)
+                {
                     this.Rows.Clear();
+                    this.Rows = null;
+                }
 
                 if (this.Columns != null)
+                {
                     this.Columns.Clear();
+                    this.Columns = null;
+                }
 
                 this.Schema = null;
             }

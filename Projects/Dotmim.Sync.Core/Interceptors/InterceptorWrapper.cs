@@ -64,7 +64,7 @@ namespace Dotmim.Sync
         public void Dispose()
         {
             this.Dispose(true);
-            GC.SuppressFinalize(this);
+            //GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool cleanup) => this.wrapperAsync = null;

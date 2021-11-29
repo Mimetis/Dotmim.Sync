@@ -159,7 +159,7 @@ namespace Dotmim.Sync
             if (this.Filters != null)
                 this.Filters.Schema = null;
 
-            GC.SuppressFinalize(this);
+            //GC.SuppressFinalize(this);
         }
 
         protected virtual void Dispose(bool cleanup)
@@ -168,13 +168,22 @@ namespace Dotmim.Sync
             if (cleanup)
             {
                 if (this.Tables != null)
+                {
                     this.Tables.Clear();
+                    this.Tables = null;
+                }
 
                 if (this.Relations != null)
+                {
                     this.Relations.Clear();
+                    this.Relations = null;
+                }
 
                 if (this.Filters != null)
+                {
                     this.Filters.Clear();
+                    this.Filters = null;
+                }
             }
 
             // Dispose unmanaged ressources
