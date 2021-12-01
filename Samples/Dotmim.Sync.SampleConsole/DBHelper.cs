@@ -22,6 +22,10 @@ namespace Dotmim.Sync.SampleConsole
 
         }
 
+        public static string GetConnectionString(string connectionStringName) =>
+            configuration.GetSection("ConnectionStrings")[connectionStringName];
+
+
         public static string GetDatabaseConnectionString(string dbName) =>
             string.Format(configuration.GetSection("ConnectionStrings")["SqlConnection"], dbName);
 

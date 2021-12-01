@@ -33,13 +33,11 @@ namespace Dotmim.Sync.SampleConsole
 
     public class MariaDBDownloadOnlyBuilder : MySqlBuilder
     {
-        public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
-        {
-            return Task.CompletedTask;
-        }
+        //public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
+        //{
+        //    return Task.CompletedTask;
+        //}
     }
-
-
 
     /// <summary>
     /// Use this provider if your client database does not need to upload any data to the server.
