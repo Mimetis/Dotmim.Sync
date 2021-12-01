@@ -178,11 +178,6 @@ namespace Dotmim.Sync
 
                     foreach (DbStoredProcedureType storedProcedureType in allStoredProcedures)
                     {
-                        // if we are iterating on bulk, but provider do not support it, just loop through and continue
-                        if ((storedProcedureType is DbStoredProcedureType.BulkTableType || storedProcedureType is DbStoredProcedureType.BulkUpdateRows || storedProcedureType is DbStoredProcedureType.BulkDeleteRows)
-                            && !this.Provider.SupportBulkOperations)
-                            continue;
-
                         var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Drop storedProcedure if already exists

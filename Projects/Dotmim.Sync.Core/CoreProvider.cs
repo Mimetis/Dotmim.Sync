@@ -78,11 +78,6 @@ namespace Dotmim.Sync
         public string ConnectionString { get; set; }
 
         /// <summary>
-        /// Gets a boolean indicating if the provider can use bulk operations
-        /// </summary>
-        public abstract bool SupportBulkOperations { get; }
-
-        /// <summary>
         /// Gets a boolean indicating if the provider can be a server side provider
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
@@ -90,7 +85,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the default isolation level used during transaction
         /// </summary>
-        public virtual IsolationLevel IsolationLevel { get; } = IsolationLevel.ReadCommitted;
+        public virtual IsolationLevel IsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+
+        /// <summary>
+        /// Gets or Sets the number of line for every batch bulk operations
+        /// </summary>
+        public virtual int BulkBatchMaxLinesCount { get; set; } = 10000;
 
         /// <summary>
         /// Get naming tables

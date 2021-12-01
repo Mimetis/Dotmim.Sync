@@ -203,7 +203,7 @@ namespace Dotmim.Sync.MySql.Builders
                 DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
                 DbStoredProcedureType.DeleteMetadata => this.CreateDeleteMetadataCommand(connection, transaction),
                 DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
-                _ => throw new NotImplementedException($"this DbStoredProcedureType {storedProcedureType} has no command to create.")
+                _ => null,
             };
 
             return Task.FromResult(command);
@@ -214,7 +214,14 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+                storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
+                return Task.FromResult<DbCommand>(null);
+
             var quotedProcedureName = this.objectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+
+            if (string.IsNullOrEmpty(quotedProcedureName))
+                return Task.FromResult<DbCommand>(null);
 
             var procedureName = ParserName.Parse(quotedProcedureName, "`").ToString();
 
@@ -241,7 +248,15 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+                storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
+                return Task.FromResult<DbCommand>(null);
+
             var quotedProcedureName = this.objectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+
+            if (string.IsNullOrEmpty(quotedProcedureName))
+                return Task.FromResult<DbCommand>(null);
+
             var commandText = $"drop procedure {quotedProcedureName}";
 
             var command = connection.CreateCommand();
@@ -591,7 +606,7 @@ namespace Dotmim.Sync.MySql.Builders
                 {
                     // Get column name and type
                     var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
-                    var sqlDbType = this.dbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType, MaxLength= param.MaxLength });
+                    var sqlDbType = this.dbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType, MaxLength = param.MaxLength });
 
                     var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;

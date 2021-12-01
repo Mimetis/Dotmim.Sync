@@ -24,9 +24,6 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract class DbSyncAdapter
     {
-        internal const int BATCH_SIZE = 10000;
-
-
         // Internal commands cache
         private ConcurrentDictionary<string, Lazy<SyncCommand>> commands = new ConcurrentDictionary<string, Lazy<SyncCommand>>();
 
@@ -58,7 +55,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a command from the current adapter
         /// </summary>
-        public abstract DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null);
+        public abstract (DbCommand Command, bool IsBatchCommand) GetCommand(DbCommandType commandType, SyncFilter filter = null);
 
         /// <summary>
         /// Add parameters to a command
@@ -125,15 +122,15 @@ namespace Dotmim.Sync
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters
         /// </summary>
-        public async Task<DbCommand> GetCommandAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        public async Task<(DbCommand Command, bool IsBatch)> GetCommandAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             // Create the key
             var commandKey = $"{connection.DataSource}-{connection.Database}-{this.TableDescription.GetFullName()}-{commandType}";
 
-            var command = GetCommand(commandType, filter);
+            var (command, isBatch) = GetCommand(commandType, filter);
 
             if (command == null)
-                return null;
+                return (null, false);
 
             // Add Parameters
             await this.AddCommandParametersAsync(commandType, command, connection, transaction, filter).ConfigureAwait(false);
@@ -159,7 +156,7 @@ namespace Dotmim.Sync
 
             // lazyCommand.Metadata is a boolean indicating if the command is already prepared on the server
             if (lazyCommand.Value.IsPrepared == true)
-                return command;
+                return (command, isBatch);
 
             // Testing The Prepare() performance increase
             command.Prepare();
@@ -169,7 +166,7 @@ namespace Dotmim.Sync
 
             commands.AddOrUpdate(commandKey, lazyCommand, (key, lc) => new Lazy<SyncCommand>(() => lc.Value));
 
-            return command;
+            return (command, isBatch);
         }
 
         /// <summary>

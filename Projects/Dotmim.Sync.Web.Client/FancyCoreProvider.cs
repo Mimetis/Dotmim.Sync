@@ -17,11 +17,9 @@ namespace Dotmim.Sync.Web.Client
 
         public override string GetProviderTypeName() => "Fancy";
 
-        public override bool SupportBulkOperations => throw new NotImplementedException();
-
         public override bool CanBeServerProvider => true;
 
-        public override DbConnection CreateConnection() => throw new NotImplementedException();
+         public override DbConnection CreateConnection() => throw new NotImplementedException();
 
         public override DbBuilder GetDatabaseBuilder() => throw new NotImplementedException();
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup) => throw new NotImplementedException();

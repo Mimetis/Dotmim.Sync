@@ -181,14 +181,11 @@ namespace Dotmim.Sync.Batch
             if (serializedBytes == null)
                 serializedBytes = await serializer.SerializeAsync(set);
 
-
             f.Write(serializedBytes, 0, serializedBytes.Length);
-
-            //await f.FlushAsync();
         }
 
         /// <summary>
-        /// Create a new BPI, and serialize the changeset if not in memory
+        /// Create a new BPI, and serialize the changeset
         /// </summary>
         internal static async Task<BatchPartInfo> CreateBatchPartInfoAsync(int batchIndex, SyncSet set, string fileName, string directoryFullPath, bool isLastBatch, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
         {

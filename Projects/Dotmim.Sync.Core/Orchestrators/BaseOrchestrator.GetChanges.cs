@@ -4,6 +4,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -32,7 +33,6 @@ namespace Dotmim.Sync
             // batch info containing changes
             BatchInfo batchInfo;
 
-
             // Statistics about changes that are selected
             DatabaseChangesSelected changesSelected;
 
@@ -46,7 +46,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, message, connection, transaction), cancellationToken).ConfigureAwait(false);
 
             // create local directory
-            if (message.BatchSize > 0 && !string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
+            if (!string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
                 Directory.CreateDirectory(message.BatchDirectory);
 
             changesSelected = new DatabaseChangesSelected();
@@ -54,19 +54,24 @@ namespace Dotmim.Sync
             // numbers of batch files generated
             var batchIndex = 0;
 
-            // Check if we are in batch mode
-            var isBatch = message.BatchSize > 0;
-
-            // Create a batch info in memory (if !isBatch) or serialized on disk (if isBatch)
+            // Create a batch 
             // batchinfo generate a schema clone with scope columns if needed
-            batchInfo = new BatchInfo(!isBatch, message.Schema, message.BatchDirectory);
+            batchInfo = new BatchInfo(message.Schema, message.BatchDirectory);
+
+            if (Directory.Exists(batchInfo.GetDirectoryFullPath()))
+                Directory.Delete(batchInfo.GetDirectoryFullPath(), true);
+
+            Directory.CreateDirectory(batchInfo.GetDirectoryFullPath());
 
             // Clean SyncSet, we will add only tables we need in the batch info
             var changesSet = new SyncSet();
 
             var cptSyncTable = 0;
             var currentProgress = context.ProgressPercentage;
-            foreach (var syncTable in message.Schema.Tables)
+
+            var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+            foreach (var syncTable in schemaTables)
             {
                 // tmp count of table for report progress pct
                 cptSyncTable++;
@@ -95,6 +100,13 @@ namespace Dotmim.Sync
                 var args = new TableChangesSelectingArgs(context, syncTable, selectIncrementalChangesCommand, connection, transaction);
                 await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
 
+                var tableName = ParserName.Parse(syncTable).Unquoted().Normalized().ToString();
+                var fileName = BatchInfo.GenerateNewFileName2(tableName, "json");
+                var fullPath = Path.Combine(batchInfo.GetDirectoryFullPath(), fileName);
+
+                var streamWriter = new StreamWriter(fullPath);
+                var writer = new JsonTextWriter(streamWriter) { CloseOutput = true };
+
                 if (!args.Cancel && args.Command != null)
                 {
                     // Statistics
@@ -106,63 +118,165 @@ namespace Dotmim.Sync
                     // Get the reader
                     using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("t");
+                    writer.WriteStartArray();
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("n");
+                    writer.WriteValue(tableChangesSelected.TableName);
+                    writer.WritePropertyName("s");
+                    writer.WriteValue(tableChangesSelected.SchemaName);
+                    writer.WritePropertyName("r");
+                    writer.WriteStartArray();
+                    writer.WriteWhitespace(Environment.NewLine);
+
                     // memory size total
                     double rowsMemorySize = 0L;
 
+                    var rowsCountInBatch = 0;
                     while (dataReader.Read())
                     {
                         // Create a row from dataReader
-                        var row = CreateSyncRowFromReader(dataReader, changesSetTable);
+                        var row = CreateSyncRowFromReader2(dataReader, changesSetTable);
+                        rowsCountInBatch++;
 
                         // Add the row to the changes set
                         changesSetTable.Rows.Add(row);
 
                         // Set the correct state to be applied
-                        if (row.RowState == DataRowState.Deleted)
+                        if ((int)row[0] == (int)DataRowState.Deleted)
                             tableChangesSelected.Deletes++;
-                        else if (row.RowState == DataRowState.Modified)
+                        else if ((int)row[0] == (int)DataRowState.Modified)
                             tableChangesSelected.Upserts++;
 
-                        // calculate row size if in batch mode
-                        if (isBatch)
+                        var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
+                        var finalFieldSize = fieldsSize / 1024d;
+
+                        if (finalFieldSize > message.BatchSize)
+                            throw new RowOverSizedException(finalFieldSize.ToString());
+
+                        writer.WriteStartArray();
+
+                        for (var i = 0; i < row.Length; i++)
+                            writer.WriteValue(row[i]);
+
+                        writer.WriteEndArray();
+                        writer.WriteWhitespace(Environment.NewLine);
+                        writer.Flush();
+
+                        // Calculate the new memory size
+                        rowsMemorySize += finalFieldSize;
+
+                        var currentBatchSize = streamWriter.BaseStream.Position / 1024;
+
+                        // Next line if we don't reach the batch size yet.
+                        if (currentBatchSize <= message.BatchSize)
+                            continue;
+
+                        // Check interceptor
+                        var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
+                        await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
+                        var bpi = new BatchPartInfo { FileName = fileName };
+
+                        // Create the info on the batch part
+                        BatchPartTableInfo tableInfo = new BatchPartTableInfo
                         {
-                            var fieldsSize = ContainerTable.GetRowSizeFromDataRow(row.ToArray());
-                            var finalFieldSize = fieldsSize / 1024d;
+                            TableName = tableChangesSelected.TableName,
+                            SchemaName = tableChangesSelected.SchemaName,
+                            RowsCount = rowsCountInBatch
 
-                            if (finalFieldSize > message.BatchSize)
-                                throw new RowOverSizedException(finalFieldSize.ToString());
+                        };
+                        bpi.Tables = new BatchPartTableInfo[] { tableInfo };
+                        bpi.RowsCount = rowsCountInBatch;
+                        bpi.IsLastBatch = false;
+                        bpi.Index = batchIndex;
+                        batchInfo.RowsCount += rowsCountInBatch;
+                        batchInfo.BatchPartsInfo.Add(bpi);
 
-                            // Calculate the new memory size
-                            rowsMemorySize += finalFieldSize;
+                        writer.WriteEndArray();
+                        writer.WriteEndObject();
 
-                            // Next line if we don't reach the batch size yet.
-                            if (rowsMemorySize <= message.BatchSize)
-                                continue;
+                        writer.WriteEndArray();
+                        writer.WriteEndObject();
+                        writer.Flush();
+                        writer.Close();
 
-                            // Check interceptor
-                            var batchTableChangesSelectedArgs = new TableChangesSelectedArgs(context, changesSetTable, tableChangesSelected, connection, transaction);
-                            await this.InterceptAsync(batchTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+                        // increment batch index
+                        batchIndex++;
 
-                            // add changes to batchinfo
-                            await batchInfo.AddChangesAsync(changesSet, batchIndex, false, message.SerializerFactory, this).ConfigureAwait(false);
+                        // we know the datas are serialized here, so we can flush  the set
+                        changesSet.Clear();
 
-                            // increment batch index
-                            batchIndex++;
+                        // Recreate an empty ContainerSet and a ContainerTable
+                        changesSet = new SyncSet();
 
-                            // we know the datas are serialized here, so we can flush  the set
-                            changesSet.Clear();
+                        changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
-                            // Recreate an empty ContainerSet and a ContainerTable
-                            changesSet = new SyncSet();
+                        // Init the row memory size
+                        rowsMemorySize = 0L;
 
-                            changesSetTable = DbSyncAdapter.CreateChangesTable(message.Schema.Tables[syncTable.TableName, syncTable.SchemaName], changesSet);
 
-                            // Init the row memory size
-                            rowsMemorySize = 0L;
-                        }
+                        fileName = BatchInfo.GenerateNewFileName2(tableName, "json");
+                        fullPath = Path.Combine(batchInfo.GetDirectoryFullPath(), fileName);
+
+                        streamWriter = new StreamWriter(fullPath);
+                        writer = new JsonTextWriter(streamWriter) { CloseOutput = true };
+                        rowsCountInBatch = 0;
+
+                        writer.WriteStartObject();
+                        writer.WritePropertyName("t");
+                        writer.WriteStartArray();
+                        writer.WriteStartObject();
+                        writer.WritePropertyName("n");
+                        writer.WriteValue(tableChangesSelected.TableName);
+                        writer.WritePropertyName("s");
+                        writer.WriteValue(tableChangesSelected.SchemaName);
+                        writer.WritePropertyName("r");
+                        writer.WriteStartArray();
+                        writer.WriteWhitespace(Environment.NewLine);
+
                     }
 
                     dataReader.Close();
+
+
+                    writer.WriteEndArray();
+                    writer.WriteEndObject();
+
+                    writer.WriteEndArray();
+                    writer.WriteEndObject();
+                    writer.Flush();
+                    writer.Close();
+
+
+                    // Check if we have ..something.
+                    // Delete folder if nothing
+                    // Add the BPI to BI if something
+                    if (rowsCountInBatch == 0 && File.Exists(fullPath))
+                    {
+                        File.Delete(fullPath);
+                    }
+                    else
+                    {
+                        var bpi2 = new BatchPartInfo { FileName = fileName };
+
+                        // Create the info on the batch part
+                        BatchPartTableInfo tableInfo2 = new BatchPartTableInfo
+                        {
+                            TableName = tableChangesSelected.TableName,
+                            SchemaName = tableChangesSelected.SchemaName,
+                            RowsCount = rowsCountInBatch
+                        };
+                        bpi2.Tables = new BatchPartTableInfo[] { tableInfo2 };
+                        bpi2.RowsCount = rowsCountInBatch;
+                        bpi2.IsLastBatch = true;
+                        bpi2.Index = batchIndex;
+                        batchInfo.RowsCount += rowsCountInBatch;
+                        batchInfo.BatchPartsInfo.Add(bpi2);
+                        batchIndex++;
+
+                    }
 
                     // We don't report progress if no table changes is empty, to limit verbosity
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
@@ -181,18 +295,15 @@ namespace Dotmim.Sync
                 }
             }
 
-            // We are in batch mode, and we are at the last batchpart info
-            // Even if we don't have rows inside, we return the changesSet, since it contains at least schema
-            if (changesSet != null && changesSet.HasTables && changesSet.HasRows)
-            {
-                await batchInfo.AddChangesAsync(changesSet, batchIndex, true, message.SerializerFactory, this).ConfigureAwait(false);
-            }
-
             //Set the total rows count contained in the batch info
             batchInfo.RowsCount = changesSelected.TotalChangesSelected;
+            //batchInfo.Timestamp = message.LastTimestamp;
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();
+
+            if (batchInfo.RowsCount <= 0)
+                batchInfo.Clear(true);
 
             // Raise database changes selected
             if (changesSelected.TotalChangesSelected > 0 || changesSelected.TotalChangesSelectedDeletes > 0 || changesSelected.TotalChangesSelectedUpdates > 0)
@@ -302,11 +413,8 @@ namespace Dotmim.Sync
         /// </summary>
         internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(MessageGetChangesBatch message)
         {
-            // Get config
-            var isBatched = message.BatchSize > 0;
-
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo(!isBatched, message.Schema, message.BatchDirectory); ;
+            var batchInfo = new BatchInfo(message.Schema, message.BatchDirectory); ;
 
             // Create a new empty in-memory batch info
             return Task.FromResult((batchInfo, new DatabaseChangesSelected()));
@@ -324,7 +432,6 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, SyncTable syncTable, SyncSetup setup, bool isNew, DbConnection connection, DbTransaction transaction)
         {
-            DbCommand command;
             DbCommandType dbCommandType;
 
             SyncFilter tableFilter = null;
@@ -350,7 +457,7 @@ namespace Dotmim.Sync
                 dbCommandType = DbCommandType.SelectChanges;
 
             // Get correct Select incremental changes command 
-            command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction, tableFilter);
+            var (command, _) = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction, tableFilter);
 
             return command;
         }
@@ -417,15 +524,47 @@ namespace Dotmim.Sync
                 var columnValueObject = dataReader.GetValue(i);
                 var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
 
-                row[columnName] = columnValue;
-
+                row[i] = columnValue;
             }
 
             row.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
-
             return row;
         }
 
+
+        /// <summary>
+        /// Create a new SyncRow from a dataReader.
+        /// </summary>
+        internal object[] CreateSyncRowFromReader2(IDataReader dataReader, SyncTable table)
+        {
+            // Create a new row, based on table structure
+
+            var buffer = new object[table.Columns.Count + 1];
+
+            bool isTombstone = false;
+
+            for (var i = 0; i < dataReader.FieldCount; i++)
+            {
+                var columnName = dataReader.GetName(i);
+
+                // if we have the tombstone value, do not add it to the table
+                if (columnName == "sync_row_is_tombstone")
+                {
+                    isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                    continue;
+                }
+                if (columnName == "sync_update_scope_id")
+                    continue;
+
+                var columnValueObject = dataReader.GetValue(i);
+                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+
+                buffer[i + 1] = columnValue;
+            }
+
+            buffer[0] = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
+            return buffer;
+        }
 
 
 

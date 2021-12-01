@@ -6,7 +6,6 @@ namespace Dotmim.Sync.Batch
 {
     public enum BatchType
     {
-        InMemory,
         Files,
         Archive
 

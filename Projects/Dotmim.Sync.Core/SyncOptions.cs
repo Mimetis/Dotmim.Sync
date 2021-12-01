@@ -39,7 +39,7 @@ namespace Dotmim.Sync
 
          /// <summary>
         /// Gets or Sets the size used (approximatively in kb, depending on the serializer) for each batch file, in batch mode. 
-        /// Default is 0 (no batch mode)
+        /// Default is 1000 
         /// </summary>
         public int BatchSize { get; set; }
 
@@ -47,12 +47,6 @@ namespace Dotmim.Sync
         /// Gets or Sets the log level for sync operations. Default value is false.
         /// </summary>
         public bool UseVerboseErrors { get; set; }
-
-        /// <summary>
-        /// Gets or Sets if we should use the bulk operations. Default is true.
-        /// If provider does not support bulk operations, this option is overrided to false.
-        /// </summary>
-        public bool UseBulkOperations { get; set; }
 
         /// <summary>
         /// Gets or Sets if we should clean tracking table metadatas.
@@ -99,10 +93,9 @@ namespace Dotmim.Sync
         public SyncOptions()
         {
             this.BatchDirectory = GetDefaultUserBatchDiretory();
-            this.BatchSize = 0;
+            this.BatchSize = 1000;
             this.CleanMetadatas = true;
             this.CleanFolder = true;
-            this.UseBulkOperations = true;
             this.UseVerboseErrors = false;
             this.DisableConstraintsOnApplyChanges = false;
             this.ScopeInfoTableName = DefaultScopeInfoTableName;

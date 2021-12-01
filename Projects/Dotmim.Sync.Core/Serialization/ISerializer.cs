@@ -24,4 +24,14 @@ namespace Dotmim.Sync.Serialization
         Task<T> DeserializeAsync(Stream ms);
         Task<byte[]> SerializeAsync(T obj);
     }
+
+
+    public interface IFastForwardSerializer
+    {
+        Task OpenAsync();
+
+        Task WriteRowAsync(object[] row);
+
+        Task CloseAsync();
+    }
 }

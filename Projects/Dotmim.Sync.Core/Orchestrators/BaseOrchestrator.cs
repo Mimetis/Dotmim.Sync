@@ -528,10 +528,6 @@ namespace Dotmim.Sync
         internal virtual async Task<bool> InternalCanCleanFolderAsync(SyncContext context, BatchInfo batchInfo,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            // if in memory, the batch file is not actually serialized on disk
-            if (batchInfo.InMemory)
-                return false;
-
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 
             var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync();

@@ -78,16 +78,18 @@ namespace Dotmim.Sync.SampleConsole
         /// <summary>
         /// Returning null for all non used commands (from case default)
         /// </summary>
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new MySqlCommand();
             switch (nameType)
             {
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InitializeRow:
-                    return CreateUpdateCommand();
+                    command = CreateUpdateCommand();
+                    break;
                 case DbCommandType.DeleteRow:
-                    return CreateDeleteCommand();
+                    command = CreateDeleteCommand();
+                    break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
@@ -101,10 +103,10 @@ namespace Dotmim.Sync.SampleConsole
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     break;
                 default:
-                    return null;
+                    return (null, false);
             }
 
-            return command;
+            return (command, false);
         }
 
         public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)

@@ -123,6 +123,24 @@ namespace Dotmim.Sync
             return block.Completion;
         }
 
+        //public static async Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int maxDegreeOfParallelism = 10)
+        //{
+        //    using var semaphore = new SemaphoreSlim(initialCount: maxDegreeOfParallelism, maxCount: maxDegreeOfParallelism);
+        //    var tasks = source.Select(async item =>
+        //    {
+        //        await semaphore.WaitAsync();
+        //        try
+        //        {
+        //            await body(item);
+        //        }
+        //        finally
+        //        {
+        //            semaphore.Release();
+        //        }
+        //    });
+        //    await Task.WhenAll(tasks);
+        //}
+
         //public static Task ForEachAsync<T>(this IEnumerable<T> source, int dop, Func<T, Task> body)
         //{
         //    async Task AwaitPartition(IEnumerator<T> partition)

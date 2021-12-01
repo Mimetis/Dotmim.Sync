@@ -26,6 +26,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<SqlParameter>>();
 
+        public static DateTime SqlDateMin = new DateTime(1753, 1, 1);
+
         public SqlObjectNames SqlObjectNames { get; set; }
         public SqlDbMetadata SqlMetadata { get; set; }
 
@@ -166,10 +168,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.SmallDateTime:
                                     if (columnType != typeof(DateTime))
                                         rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
+                                    if (rowValue < SqlDateMin)
+                                        rowValue = SqlDateMin;
                                     break;
                                 case SqlDbType.DateTimeOffset:
                                     if (columnType != typeof(DateTimeOffset))
                                         rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
+                                    if (rowValue < SqlDateMin)
+                                        rowValue = SqlDateMin;
                                     break;
                                 case SqlDbType.Decimal:
                                     if (columnType != typeof(decimal))
@@ -329,94 +335,103 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqlCommand();
+            bool isBatch = false;
             switch (nameType)
             {
                 case DbCommandType.SelectChanges:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectInitializedChanges:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectInitializedChangesWithFilters:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectChangesWithFilters:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InitializeRow:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                    isBatch = true;
                     break;
                 case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    isBatch = true;
                     break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.EnableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.DeleteMetadata:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateMetadata:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Update, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.DeleteTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.BulkTableType:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
-                    break;
-                case DbCommandType.BulkUpdateRows:
-                case DbCommandType.BulkInitializeRows:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
-                    break;
-                case DbCommandType.BulkDeleteRows:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateUntrackedRows:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.Reset:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    isBatch = false;
                     break;
                 default:
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
             }
 
-            return command;
+            return (command, isBatch);
         }
 
         /// <summary>

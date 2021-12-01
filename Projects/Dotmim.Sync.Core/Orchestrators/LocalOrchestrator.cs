@@ -201,10 +201,8 @@ namespace Dotmim.Sync
 
             // Create the message containing everything needed to apply changes
             var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, this.Setup, policy,
-                            this.Options.DisableConstraintsOnApplyChanges,
-                            this.Options.UseBulkOperations, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
+                            this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
                             serverBatchInfo, this.Options.SerializerFactory);
-
 
             // Call apply changes on provider
             (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(ctx, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

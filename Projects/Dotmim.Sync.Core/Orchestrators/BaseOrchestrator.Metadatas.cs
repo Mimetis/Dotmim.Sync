@@ -56,7 +56,7 @@ namespace Dotmim.Sync
                 // Create sync adapter
                 var syncAdapter = this.GetSyncAdapter(syncTable, setup);
 
-                var command = await syncAdapter.GetCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
+                var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
                 if (command != null)
                 {
@@ -98,7 +98,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<bool> InternalUpdateMetadatasAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
             if (command == null) return false;
 

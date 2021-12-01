@@ -2,6 +2,7 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -64,12 +65,9 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 if (hasChanges)
                 {
-                    doneTables.Clear();
                     foreach (var table in schemaTables)
-                    {
-                        await this.InternalApplyTableChangesAsync(context, table, message, doneTables, connection,
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
                             transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                    }
                 }
 
                 // -----------------------------------------------------
@@ -77,12 +75,9 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 if (!message.IsNew && hasChanges)
                 {
-                    doneTables.Clear();
                     foreach (var table in schemaTables.Reverse())
-                    {
-                        await this.InternalApplyTableChangesAsync(context, table, message, doneTables, connection,
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
                             transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                    }
                 }
 
                 // Re enable check constraints
@@ -93,7 +88,6 @@ namespace Dotmim.Sync
                 // Dispose data
                 message.Changes.Clear(false);
             }
-
 
             // Before cleaning, check if we are not applying changes from a snapshotdirectory
             var cleanFolder = message.CleanFolder;
@@ -119,7 +113,7 @@ namespace Dotmim.Sync
         private async Task<SyncRow> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
 
             if (command == null) return null;
 
@@ -177,7 +171,7 @@ namespace Dotmim.Sync
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
 
             if (command == null) return false;
 
@@ -206,7 +200,7 @@ namespace Dotmim.Sync
             if (row.Table == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
 
             if (command == null) return false;
 
@@ -227,10 +221,193 @@ namespace Dotmim.Sync
             return rowUpdatedCount > 0;
         }
 
+        ///// <summary>
+        ///// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
+        ///// </summary>
+        //private async Task InternalApplyTableChangesAsync2(SyncContext context, SyncTable schemaTable, MessageApplyChanges message, List<SyncTable> doneTables,
+        //    DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
+        //    CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        //{
+
+        //    // Only table schema is replicated, no datas are applied
+        //    if (schemaTable.SyncDirection == SyncDirection.None)
+        //        return;
+
+        //    // if we are in upload stage, so check if table is not download only
+        //    if (context.SyncWay == SyncWay.Upload && schemaTable.SyncDirection == SyncDirection.DownloadOnly)
+        //        return;
+
+        //    // if we are in download stage, so check if table is not download only
+        //    if (context.SyncWay == SyncWay.Download && schemaTable.SyncDirection == SyncDirection.UploadOnly)
+        //        return;
+
+        //    var hasChanges = message.Changes.HasData(schemaTable.TableName, schemaTable.SchemaName);
+
+        //    // Each table in the messages contains scope columns. Don't forget it
+        //    if (hasChanges)
+        //    {
+        //        // launch interceptor if any
+        //        var args = new TableChangesApplyingArgs(context, schemaTable, applyType, connection, transaction);
+        //        await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+
+        //        if (args.Cancel)
+        //            return;
+
+        //        TableChangesApplied tableChangesApplied = null;
+
+        //        var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this);
+        //        var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
+
+        //        // List of batchpartinfos during the iteration
+        //        var batchPartinfos = new List<BatchPartInfo>();
+
+        //        // getting the table to be applied
+        //        // we may have multiple batch files, so we can have multipe sync tables with the same name
+        //        // We can say that dmTable may be contained in several files
+        //        while (await enumeratorOfTable.MoveNextAsync())
+        //        {
+        //            var syncTable = enumeratorOfTable.Current.SyncTable;
+
+        //            // add curent batch part info 
+        //            if (enumeratorOfTable.Current.BatchPartInfo != null)
+        //                batchPartinfos.Add(enumeratorOfTable.Current.BatchPartInfo);
+
+        //            if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count == 0)
+        //                continue;
+
+        //            // Creating a filtered view of my rows with the correct applyType
+        //            var filteredRows = syncTable.Rows.Where(r => r.RowState == applyType);
+
+        //            // no filtered rows, go next container table
+        //            if (filteredRows.Count() == 0)
+        //                continue;
+
+        //            // Create an empty Set that wil contains filtered rows to apply
+        //            // Need Schema for culture & case sensitive properties
+        //            var changesSet = syncTable.Schema.Clone(false);
+        //            var schemaChangesTable = syncTable.Clone();
+        //            changesSet.Tables.Add(schemaChangesTable);
+        //            schemaChangesTable.Rows.AddRange(filteredRows.ToList());
+
+        //            // what kind of command to execute
+        //            var init = message.IsNew || context.SyncType != SyncType.Normal;
+        //            DbCommandType dbCommandType = applyType == DataRowState.Deleted ? DbCommandType.DeleteRow : (init ? DbCommandType.InitializeRow : DbCommandType.UpdateRow);
+
+        //            // Apply the changes batch
+        //            var (rowsApplied, conflictsResolvedCount) = await this.InternalApplyChangesBatchAsync(context, dbCommandType, schemaChangesTable, message, applyType, connection, transaction, cancellationToken).ConfigureAwait(false);
+
+        //            // Any failure ?
+        //            var changedFailed = filteredRows.Count() - conflictsResolvedCount - rowsApplied;
+
+        //            // We may have multiple batch files, so we can have multipe sync tables with the same name
+        //            // We can say that a syncTable may be contained in several files
+        //            // That's why we should get an applied changes instance if already exists from a previous batch file
+        //            tableChangesApplied = changesApplied.TableChangesApplied.FirstOrDefault(tca =>
+        //            {
+        //                var sc = SyncGlobalization.DataSourceStringComparison;
+
+        //                var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
+        //                var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
+
+        //                return tca.TableName.Equals(schemaTable.TableName, sc) &&
+        //                       sn.Equals(otherSn, sc) &&
+        //                       tca.State == applyType;
+        //            });
+
+        //            if (tableChangesApplied == null)
+        //            {
+        //                tableChangesApplied = new TableChangesApplied
+        //                {
+        //                    TableName = schemaTable.TableName,
+        //                    SchemaName = schemaTable.SchemaName,
+        //                    Applied = rowsApplied,
+        //                    ResolvedConflicts = conflictsResolvedCount,
+        //                    Failed = changedFailed,
+        //                    State = applyType,
+        //                    TotalRowsCount = message.Changes.RowsCount,
+        //                    TotalAppliedCount = changesApplied.TotalAppliedChanges + rowsApplied
+        //                };
+        //                changesApplied.TableChangesApplied.Add(tableChangesApplied);
+        //            }
+        //            else
+        //            {
+        //                tableChangesApplied.Applied += rowsApplied;
+        //                tableChangesApplied.TotalAppliedCount = changesApplied.TotalAppliedChanges;
+        //                tableChangesApplied.ResolvedConflicts += conflictsResolvedCount;
+        //                tableChangesApplied.Failed += changedFailed;
+        //            }
+
+        //            // we've got 0.25% to fill here 
+        //            var progresspct = rowsApplied * 0.25d / tableChangesApplied.TotalRowsCount;
+        //            context.ProgressPercentage += progresspct;
+
+        //            var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
+
+        //            // Report the batch changes applied
+        //            // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+        //            if (tableChangesBatchAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
+        //            {
+        //                await this.InterceptAsync(tableChangesBatchAppliedArgs, cancellationToken).ConfigureAwait(false);
+        //                this.ReportProgress(context, progress, tableChangesBatchAppliedArgs, connection, transaction);
+        //            }
+
+        //        }
+
+        //        // table processeed
+        //        // we can add it to the list of done tables
+        //        doneTables.Add(schemaTable);
+
+        //        // Let's see if we can close the batchpartinfo
+        //        // we can close it if all the tables contains in the bpiTables are already processed
+        //        foreach (var batchPartinInfo in batchPartinfos)
+        //        {
+        //            var isDoneTable = false;
+        //            // for each table in the current file
+        //            foreach (var batchPartTableInfo in batchPartinInfo.Tables)
+        //            {
+        //                // check if all tables in batch part info are done
+        //                isDoneTable = doneTables.Any(doneTable =>
+        //                {
+        //                    var sc = SyncGlobalization.DataSourceStringComparison;
+        //                    var innerTableSchemaName = string.IsNullOrEmpty(doneTable.SchemaName) ? string.Empty : doneTable.SchemaName;
+        //                    var batchPartTableSchemaName = string.IsNullOrEmpty(batchPartTableInfo.SchemaName) ? string.Empty : batchPartTableInfo.SchemaName;
+        //                    return string.Equals(doneTable.TableName, batchPartTableInfo.TableName, sc) && string.Equals(innerTableSchemaName, batchPartTableSchemaName);
+        //                });
+
+        //                // the current table is not done yet, don't need to continue to iterate
+        //                // over the other tables information
+        //                if (!isDoneTable)
+        //                    break;
+
+        //            }
+
+        //            if (isDoneTable)
+        //            {
+        //                batchPartinInfo.Data.Dispose();
+        //                batchPartinInfo.Data = null;
+        //            }
+        //        }
+
+
+
+        //        // Report the overall changes applied for the current table
+        //        if (tableChangesApplied != null)
+        //        {
+        //            var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
+
+        //            // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+        //            if (tableChangesAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
+        //                await this.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
+        //        }
+
+        //    }
+        //}
+
+
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
         /// </summary>
-        private async Task InternalApplyTableChangesAsync(SyncContext context, SyncTable schemaTable, MessageApplyChanges message, List<SyncTable> doneTables,
+        private async Task InternalApplyTableChangesAsync(SyncContext context, SyncTable schemaTable, MessageApplyChanges message,
             DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -261,48 +438,40 @@ namespace Dotmim.Sync
 
                 TableChangesApplied tableChangesApplied = null;
 
-                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this);
-                var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
+                // Get all batch part with lines in them for the current table
+                var tableInfo = new BatchPartTableInfo(schemaTable.TableName, schemaTable.SchemaName);
 
-                // List of batchpartinfos during the iteration
-                var batchPartinfos = new List<BatchPartInfo>();
+                // what kind of command to execute
+                var init = message.IsNew || context.SyncType != SyncType.Normal;
+                DbCommandType dbCommandType = applyType == DataRowState.Deleted ? DbCommandType.DeleteRow : (init ? DbCommandType.InitializeRow : DbCommandType.UpdateRow);
 
-                // getting the table to be applied
-                // we may have multiple batch files, so we can have multipe sync tables with the same name
-                // We can say that dmTable may be contained in several files
-                while (await enumeratorOfTable.MoveNextAsync())
+                var bpiTables = message.Changes.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.Tables.Any(t => t.EqualsByName(tableInfo))).OrderBy(t => t.Index);
+
+                // I've got all files for my table
+                foreach (var batchPartinInfo in bpiTables)
                 {
-                    var syncTable = enumeratorOfTable.Current.SyncTable;
+                    var fullPath = Path.Combine(message.Changes.DirectoryRoot, message.Changes.DirectoryName, batchPartinInfo.FileName);
 
-                    // add curent batch part info 
-                    if (enumeratorOfTable.Current.BatchPartInfo != null)
-                        batchPartinfos.Add(enumeratorOfTable.Current.BatchPartInfo);
+                    // tmp sync table with only writable columns
+                    var changesSet = schemaTable.Schema.Clone(false);
+                    var schemaChangesTable = DbSyncAdapter.CreateChangesTable(schemaTable, changesSet);
 
-                    if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count == 0)
+                    foreach (var syncRow in GetSyncRows(fullPath, schemaChangesTable))
+                    {
+                        if (syncRow.RowState != applyType)
+                            continue;
+
+                        schemaChangesTable.Rows.Add(syncRow);
+                    }
+
+                    if (schemaChangesTable.Rows.Count <= 0)
                         continue;
-
-                    // Creating a filtered view of my rows with the correct applyType
-                    var filteredRows = syncTable.Rows.Where(r => r.RowState == applyType);
-
-                    // no filtered rows, go next container table
-                    if (filteredRows.Count() == 0)
-                        continue;
-
-                    // Create an empty Set that wil contains filtered rows to apply
-                    // Need Schema for culture & case sensitive properties
-                    var changesSet = syncTable.Schema.Clone(false);
-                    var schemaChangesTable = syncTable.Clone();
-                    changesSet.Tables.Add(schemaChangesTable);
-                    schemaChangesTable.Rows.AddRange(filteredRows.ToList());
-
-                    // Should we use bulk operations ?                    
-                    var usBulk = message.UseBulkOperations && this.Provider.SupportBulkOperations;
 
                     // Apply the changes batch
-                    var (rowsApplied, conflictsResolvedCount) = await this.InternalApplyChangesBatchAsync(context, usBulk, schemaChangesTable, message, applyType, connection, transaction, cancellationToken).ConfigureAwait(false);
+                    var (rowsApplied, conflictsResolvedCount) = await this.InternalApplyChangesBatchAsync(context, dbCommandType, schemaChangesTable, message, applyType, connection, transaction, cancellationToken).ConfigureAwait(false);
 
                     // Any failure ?
-                    var changedFailed = filteredRows.Count() - conflictsResolvedCount - rowsApplied;
+                    var changedFailed = schemaChangesTable.Rows.Count - conflictsResolvedCount - rowsApplied;
 
                     // We may have multiple batch files, so we can have multipe sync tables with the same name
                     // We can say that a syncTable may be contained in several files
@@ -356,44 +525,11 @@ namespace Dotmim.Sync
                         this.ReportProgress(context, progress, tableChangesBatchAppliedArgs, connection, transaction);
                     }
 
+                    schemaChangesTable.Dispose();
+                    schemaChangesTable = null;
+                    changesSet.Dispose();
+                    changesSet = null;
                 }
-
-                // table processeed
-                // we can add it to the list of done tables
-                doneTables.Add(schemaTable);
-
-                // Let's see if we can close the batchpartinfo
-                // we can close it if all the tables contains in the bpiTables are already processed
-                foreach (var batchPartinInfo in batchPartinfos)
-                {
-                    var isDoneTable = false;
-                    // for each table in the current file
-                    foreach (var batchPartTableInfo in batchPartinInfo.Tables)
-                    {
-                        // check if all tables in batch part info are done
-                        isDoneTable = doneTables.Any(doneTable =>
-                        {
-                            var sc = SyncGlobalization.DataSourceStringComparison;
-                            var innerTableSchemaName = string.IsNullOrEmpty(doneTable.SchemaName) ? string.Empty : doneTable.SchemaName;
-                            var batchPartTableSchemaName = string.IsNullOrEmpty(batchPartTableInfo.SchemaName) ? string.Empty : batchPartTableInfo.SchemaName;
-                            return string.Equals(doneTable.TableName, batchPartTableInfo.TableName, sc) && string.Equals(innerTableSchemaName, batchPartTableSchemaName);
-                        });
-
-                        // the current table is not done yet, don't need to continue to iterate
-                        // over the other tables information
-                        if (!isDoneTable)
-                            break;
-
-                    }
-
-                    if (isDoneTable)
-                    {
-                        batchPartinInfo.Data.Dispose();
-                        batchPartinInfo.Data = null;
-                    }
-                }
-
-
 
                 // Report the overall changes applied for the current table
                 if (tableChangesApplied != null)
@@ -408,10 +544,12 @@ namespace Dotmim.Sync
             }
         }
 
+
+
         /// <summary>
         /// Internally apply a batch changes from a table
         /// </summary>
-        private async Task<(int AppliedRowsCount, int ConflictsResolvedCount)> InternalApplyChangesBatchAsync(SyncContext context, bool useBulkOperation,
+        private async Task<(int AppliedRowsCount, int ConflictsResolvedCount)> InternalApplyChangesBatchAsync(SyncContext context, DbCommandType dbCommandType,
                                           SyncTable changesTable, MessageApplyChanges message, DataRowState applyType,
                                           DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
         {
@@ -423,28 +561,8 @@ namespace Dotmim.Sync
             var syncAdapter = this.GetSyncAdapter(changesTable, message.Setup);
             syncAdapter.ApplyType = applyType;
 
-            DbCommandType dbCommandType;
-
-            if (applyType == DataRowState.Deleted)
-            {
-                dbCommandType = useBulkOperation ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow;
-            }
-            else
-            {
-                var init = message.IsNew || context.SyncType != SyncType.Normal;
-                dbCommandType = useBulkOperation ? (init ? DbCommandType.BulkInitializeRows : DbCommandType.BulkUpdateRows) : (init ? DbCommandType.InitializeRow : DbCommandType.UpdateRow);
-            }
-
-            //// Get correct command type
-            //var dbCommandType = applyType switch
-            //{
-            //    DataRowState.Deleted => useBulkOperation ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow,
-            //    DataRowState.Modified => useBulkOperation ? (message.IsNew ? DbCommandType.BulkInitializeRows : DbCommandType.BulkUpdateRows) : (message.IsNew ? DbCommandType.InitializeRow : DbCommandType.UpdateRow),
-            //    _ => throw new UnknownException("RowState not valid during ApplyBulkChanges operation"),
-            //};
-
             // Get command
-            var command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
+            var (command, isBatch) = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
 
             if (command == null) return (0, 0);
 
@@ -465,16 +583,20 @@ namespace Dotmim.Sync
 
             int appliedRowsTmp = 0;
 
-            for (int step = 0; step < itemsArrayCount; step += DbSyncAdapter.BATCH_SIZE)
+            var cmdText = args.Command.CommandText;
+
+            for (int step = 0; step < itemsArrayCount; step += this.Provider.BulkBatchMaxLinesCount)
             {
                 // get upper bound max value
-                var taken = step + DbSyncAdapter.BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : DbSyncAdapter.BATCH_SIZE;
+                var taken = step + this.Provider.BulkBatchMaxLinesCount >= itemsArrayCount ? itemsArrayCount - step : this.Provider.BulkBatchMaxLinesCount;
 
                 var arrayStepChanges = changesTable.Rows.Skip(step).Take(taken);
 
-                if (useBulkOperation)
+                if (isBatch)
                 {
                     var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
+
+                    command.CommandText = cmdText;
 
                     // execute the batch, through the provider
                     await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
@@ -778,5 +900,48 @@ namespace Dotmim.Sync
             return conflict;
         }
 
+        private static IEnumerable<SyncRow> GetSyncRows(string file, SyncTable table)
+        {
+            JsonSerializer serializer = new JsonSerializer();
+            using var reader = new JsonTextReader(new StreamReader(file));
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "t")
+                {
+                    while (reader.Read() && reader.TokenType != JsonToken.EndArray)
+                    {
+                        if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "n")
+                        {
+                            //Console.WriteLine($"Table Name:{reader.ReadAsString()}");
+                            reader.Read();
+                            //Console.WriteLine($"Schema Name:{reader.ReadAsString()}");
+
+                            while (reader.Read() && reader.TokenType != JsonToken.EndObject)
+                            {
+                                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "r")
+                                {
+                                    // Go to children of the array
+                                    reader.Read();
+                                    // read all array
+                                    while (reader.Read() && reader.TokenType != JsonToken.EndArray)
+                                    {
+                                        if (reader.TokenType == JsonToken.StartArray)
+                                        {
+                                            var array = serializer.Deserialize<object[]>(reader);
+
+                                            var row = table.NewRow();
+                                            row.FromArray(array);
+                                            yield return row;
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
     }
 }

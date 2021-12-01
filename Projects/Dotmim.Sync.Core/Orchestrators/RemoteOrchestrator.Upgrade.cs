@@ -276,21 +276,18 @@ namespace Dotmim.Sync
                 args = new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
                 this.ReportProgress(context, progress, args, connection, transaction);
 
-                // Upgrade Bulk Update stored procedure
-                if (this.Provider.SupportBulkOperations)
+                var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
+                    DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (existsBulkUpdateSP)
                 {
-                    var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
-                        DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    if (existsBulkUpdateSP)
-                        await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     args = new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
                     this.ReportProgress(context, progress, args, connection, transaction);
                 }
-
             }
-
             return newVersion;
         }
 

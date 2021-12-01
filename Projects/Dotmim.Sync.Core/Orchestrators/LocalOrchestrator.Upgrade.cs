@@ -119,7 +119,7 @@ namespace Dotmim.Sync
 
                 if (version.Minor == 7 && version.Build == 0)
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 7, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                
+
                 if (version.Minor == 7 && version.Build == 1)
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 7, 2), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -274,12 +274,12 @@ namespace Dotmim.Sync
                 this.ReportProgress(context, progress, args, connection, transaction);
 
                 // Upgrade Bulk Update stored procedure
-                if (this.Provider.SupportBulkOperations)
+                var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
+                    DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (existsBulkUpdateSP)
                 {
-                    var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
-                        DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    if (existsBulkUpdateSP)
-                        await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     args = new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);

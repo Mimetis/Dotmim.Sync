@@ -16,8 +16,7 @@ namespace Dotmim.Sync
         /// Be careful policy could be differente from the schema (especially on client side, it's the reverse one, by default)
         /// </summary>
         public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
-                                    ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges, 
-                                    bool useBulkOperations, bool cleanMetadatas, bool cleanFolder, bool snapshotApplied, BatchInfo changes, ISerializerFactory serializerFactory)
+                                    ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges,bool cleanMetadatas, bool cleanFolder, bool snapshotApplied, BatchInfo changes, ISerializerFactory serializerFactory)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
@@ -27,7 +26,6 @@ namespace Dotmim.Sync
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.Policy = policy;
             this.DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges;
-            this.UseBulkOperations = useBulkOperations;
             this.CleanMetadatas = cleanMetadatas;
             this.CleanFolder = cleanFolder;
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));

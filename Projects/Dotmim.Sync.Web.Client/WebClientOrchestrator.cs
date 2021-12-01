@@ -307,7 +307,7 @@ namespace Dotmim.Sync.Web.Client
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
-                clientBatchInfo = new BatchInfo(true, schema);
+                clientBatchInfo = new BatchInfo(schema);
 
             // Get sanitized schema, without readonly columns
             var sanitizedSchema = clientBatchInfo.SanitizedSchema;
@@ -321,18 +321,15 @@ namespace Dotmim.Sync.Web.Client
 
             // If not in memory and BatchPartsInfo.Count == 0, nothing to send.
             // But we need to send something, so generate a little batch part
-            if (clientBatchInfo.InMemory || (!clientBatchInfo.InMemory && clientBatchInfo.BatchPartsInfo.Count == 0))
+            if (clientBatchInfo.BatchPartsInfo.Count == 0)
             {
                 var changesToSend = new HttpMessageSendChangesRequest(ctx, scope);
 
-                if (this.Converter != null && clientBatchInfo.InMemoryData != null && clientBatchInfo.InMemoryData.HasRows)
-                    this.BeforeSerializeRows(clientBatchInfo.InMemoryData);
-
-                var containerSet = clientBatchInfo.InMemoryData == null ? new ContainerSet() : clientBatchInfo.InMemoryData.GetContainerSet();
+                var containerSet = new ContainerSet();
                 changesToSend.Changes = containerSet;
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
-                changesToSend.BatchCount = clientBatchInfo.InMemoryData == null ? 0 : clientBatchInfo.BatchPartsInfo == null ? 0 : clientBatchInfo.BatchPartsInfo.Count;
+                changesToSend.BatchCount = clientBatchInfo.BatchPartsInfo == null ? 0 : clientBatchInfo.BatchPartsInfo.Count;
                 var inMemoryRowsCount = changesToSend.Changes.RowsCount();
 
                 ctx.ProgressPercentage += 0.125;
@@ -404,11 +401,8 @@ namespace Dotmim.Sync.Web.Client
             var initialPctProgress = 0.55;
             ctx.ProgressPercentage = initialPctProgress;
 
-            // Get if we need to work in memory or serialize things
-            var workInMemoryLocally = this.Options.BatchSize == 0;
-
             // Create the BatchInfo
-            var serverBatchInfo = new BatchInfo(workInMemoryLocally, schema);
+            var serverBatchInfo = new BatchInfo(schema);
 
             HttpMessageSummaryResponse summaryResponseContent = null;
 
@@ -428,35 +422,6 @@ namespace Dotmim.Sync.Web.Client
 
 
             //-----------------------
-            // In Memory Mode
-            //-----------------------
-            // response contains the rows because we are in memory mode
-            if (summaryResponseContent.Changes != null && workInMemoryLocally)
-            {
-                var changesSet = new SyncSet();
-
-                foreach (var tbl in summaryResponseContent.Changes.Tables)
-                    DbSyncAdapter.CreateChangesTable(serverBatchInfo.SanitizedSchema.Tables[tbl.TableName, tbl.SchemaName], changesSet);
-
-                changesSet.ImportContainerSet(summaryResponseContent.Changes, false);
-
-
-                if (this.Converter != null)
-                    AfterDeserializedRows(changesSet);
-
-                // Create a BatchPartInfo instance
-                await serverBatchInfo.AddChangesAsync(changesSet, 0, true, this.Options.SerializerFactory, this);
-
-                // Raise response from server containing one finale batch changes 
-                var args3 = new HttpGettingServerChangesResponseArgs(serverBatchInfo, 0, serverBatchInfo.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args3, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args3);
-
-                return (summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ConflictResolutionPolicy,
-                     summaryResponseContent.ClientChangesApplied, summaryResponseContent.ServerChangesSelected);
-            }
-
-            //-----------------------
             // In Batch Mode
             //-----------------------
             // From here, we need to serialize everything on disk
@@ -467,10 +432,6 @@ namespace Dotmim.Sync.Web.Client
 
             serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
             serverBatchInfo.DirectoryName = batchDirectoryName;
-
-            //// hook to get the last batch part info at the end
-            //var bpis = serverBatchInfo.BatchPartsInfo.Where(bpi => !bpi.IsLastBatch);
-            //var lstbpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
 
             // If we have a snapshot we are raising the batches downloading process that will occurs
             var args1 = new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost());
@@ -564,7 +525,7 @@ namespace Dotmim.Sync.Web.Client
             var batchDirectoryFullPath = Path.Combine(batchDirectoryRoot, batchDirectoryName);
 
             // Create the BatchInfo serialized (forced because in a snapshot call, so we are obviously serialized on disk)
-            var serverBatchInfo = new BatchInfo(false, schema, batchDirectoryRoot, batchDirectoryName);
+            var serverBatchInfo = new BatchInfo(schema, batchDirectoryRoot, batchDirectoryName);
 
             // Firstly, get the snapshot summary
             var changesToSend = new HttpMessageSendChangesRequest(ctx, null);
@@ -677,10 +638,6 @@ namespace Dotmim.Sync.Web.Client
             // Get context or create a new one
             var ctx = this.GetContext();
 
-            // Get if we need to work in memory or serialize things
-            var workInMemoryLocally = this.Options.BatchSize == 0;
-
-
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
@@ -734,7 +691,7 @@ namespace Dotmim.Sync.Web.Client
 
 
             // Create the BatchInfo
-            var serverBatchInfo = new BatchInfo(workInMemoryLocally, schema);
+            var serverBatchInfo = new BatchInfo(schema);
 
             HttpMessageSummaryResponse summaryResponseContent = null;
 
@@ -751,34 +708,6 @@ namespace Dotmim.Sync.Web.Client
             if (summaryResponseContent.BatchInfo.BatchPartsInfo != null)
                 foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
                     serverBatchInfo.BatchPartsInfo.Add(bpi);
-
-
-            //-----------------------
-            // In Memory Mode
-            //-----------------------
-            // response contains the rows because we are in memory mode
-            if (summaryResponseContent.Changes != null && workInMemoryLocally)
-            {
-                var changesSet = new SyncSet();
-
-                foreach (var tbl in summaryResponseContent.Changes.Tables)
-                    DbSyncAdapter.CreateChangesTable(serverBatchInfo.SanitizedSchema.Tables[tbl.TableName, tbl.SchemaName], changesSet);
-
-                changesSet.ImportContainerSet(summaryResponseContent.Changes, false);
-
-                if (this.Converter != null)
-                    AfterDeserializedRows(changesSet);
-
-                // Create a BatchPartInfo instance
-                await serverBatchInfo.AddChangesAsync(changesSet, 0, true, this.Options.SerializerFactory, this);
-
-                // Raise response from server containing one finale batch changes 
-                var args3 = new HttpGettingServerChangesResponseArgs(serverBatchInfo, 0, serverBatchInfo.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args3, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args3);
-
-                return (summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected);
-            }
 
             //-----------------------
             // In Batch Mode

@@ -15,7 +15,7 @@ namespace Dotmim.Sync
             if (value == null)
                 return default;
 
-            provider = provider ?? CultureInfo.InvariantCulture;
+            provider ??= CultureInfo.InvariantCulture;
 
             var typeOfT = typeof(T);
             var typeOfU = value.GetType();

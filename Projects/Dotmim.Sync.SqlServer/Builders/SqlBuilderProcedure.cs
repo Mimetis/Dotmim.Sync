@@ -34,6 +34,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
+            
+            if (storedProcedureType == DbStoredProcedureType.BulkInitRows)
+                return Task.FromResult<DbCommand>(null);
 
             var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
 
@@ -64,8 +67,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
-
         {
+            if (storedProcedureType == DbStoredProcedureType.BulkInitRows)
+                return Task.FromResult<DbCommand>(null);
+
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
             var text = $"DROP PROCEDURE {commandName};";
 
@@ -97,7 +102,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 DbStoredProcedureType.BulkUpdateRows => this.CreateBulkUpdateCommand(connection, transaction),
                 DbStoredProcedureType.BulkDeleteRows => this.CreateBulkDeleteCommand(connection, transaction),
                 DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
-                _ => throw new NotImplementedException($"this DbStoredProcedureType {storedProcedureType} has no command to create.")
+                _ => null,
             };
 
             return Task.FromResult(command);

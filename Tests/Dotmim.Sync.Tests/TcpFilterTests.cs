@@ -1235,7 +1235,7 @@ namespace Dotmim.Sync.Tests
                         if (addProp == "Reinitialize")
                         {
                             var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
-                            var command = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.Table.GetFilter());
+                            var (command, isBatch) = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.Table.GetFilter());
                             tcs.Command = command;
                         }
                     }

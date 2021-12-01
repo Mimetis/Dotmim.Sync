@@ -84,32 +84,38 @@ namespace Dotmim.Sync.SampleConsole
         /// <summary>
         /// return null for all no used commands
         /// </summary>
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
-            var command = new SqliteCommand();
+            DbCommand command;
             switch (nameType)
             {
                 case DbCommandType.UpdateRow:
-                    return CreateUpdateCommand();
+                    command = CreateUpdateCommand();
+                    break;
                 case DbCommandType.InitializeRow:
-                    return CreateInitiliazeRowCommand();
+                    command = CreateInitiliazeRowCommand();
+                    break;
                 case DbCommandType.DeleteRow:
-                    return CreateDeleteCommand();
+                    command = CreateDeleteCommand();
+                    break;
                 case DbCommandType.DisableConstraints:
+                    command = new SqliteCommand();
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.sqliteObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
                     break;
                 case DbCommandType.EnableConstraints:
+                    command = new SqliteCommand();
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.sqliteObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
                 case DbCommandType.Reset:
-                    return CreateResetCommand();
+                    command = CreateResetCommand();
+                    break;
                 default:
-                    return null;
+                    return (null, false);
             }
 
-            return command;
+            return (command, false);
         }
 
         /// <summary>

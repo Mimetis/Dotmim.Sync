@@ -151,16 +151,6 @@ namespace Dotmim.Sync.Web.Server
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
                         break;
 
-                    // version < 0.8    
-                    case HttpStep.SendChanges:
-                        var m2 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m2.SyncContext, sessionCache, step), cancellationToken).ConfigureAwait(false);
-                        await this.InterceptAsync(new HttpGettingClientChangesArgs(m2, httpContext.Request.Host.Host, sessionCache), cancellationToken).ConfigureAwait(false);
-                        var s2 = await this.ApplyThenGetChangesAsync(httpContext, m2, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
-                        await this.InterceptAsync(new HttpSendingServerChangesArgs(s2, httpContext.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s2);
-                        break;
-
                     // version >= 0.8    
                     case HttpStep.SendChangesInProgress:
                         var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
@@ -338,7 +328,7 @@ namespace Dotmim.Sync.Web.Server
         /// Get the current client session id
         /// </summary>
         public static string GetClientSessionId(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-session-id", out var val) ? val : null;
-        
+
         /// <summary>
         /// Get the current Step
         /// </summary>
@@ -420,9 +410,6 @@ namespace Dotmim.Sync.Web.Server
             // Basically this options is not used on the server, since it's always overriden by the client
             this.Options.BatchSize = clientBatchSize;
 
-            // Get if we need to serialize data or making everything in memory
-            var clientWorkInMemory = clientBatchSize == 0;
-
             // Get context from request message
             var ctx = httpMessage.SyncContext;
 
@@ -435,13 +422,10 @@ namespace Dotmim.Sync.Web.Server
             var clientChangesApplied = new DatabaseChangesApplied();
 
             // Save the server batch info object to cache if not working in memory
-            if (!clientWorkInMemory)
-            {
-                sessionCache.RemoteClientTimestamp = changes.RemoteClientTimestamp;
-                sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
-                sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
-                sessionCache.ClientChangesApplied = clientChangesApplied;
-            }
+            sessionCache.RemoteClientTimestamp = changes.RemoteClientTimestamp;
+            sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
+            sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
+            sessionCache.ClientChangesApplied = clientChangesApplied;
 
             // Get the firt response to send back to client
             return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
@@ -567,102 +551,6 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Get changes from 
         /// </summary>
-        internal async Task<HttpMessageSendChangesResponse> ApplyThenGetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
-                        int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-
-            // Overriding batch size options value, coming from client
-            // having changes from server in batch size or not is decided by the client.
-            // Basically this options is not used on the server, since it's always overriden by the client
-            this.Options.BatchSize = clientBatchSize;
-
-            // Get if we need to serialize data or making everything in memory
-            var clientWorkInMemory = clientBatchSize == 0;
-
-            // Get context from request message
-            var ctx = httpMessage.SyncContext;
-
-            // Set the context coming from the client
-            this.SetContext(ctx);
-
-            // Check schema.
-            var schema = await EnsureSchemaFromSessionAsync(httpContext, httpMessage.SyncContext.ScopeName, progress, cancellationToken).ConfigureAwait(false);
-
-            // ------------------------------------------------------------
-            // FIRST STEP : receive client changes
-            // ------------------------------------------------------------
-
-            // We are receiving changes from client
-            // BatchInfo containing all BatchPartInfo objects
-            // Retrieve batchinfo instance if exists
-            // Get batch info from session cache if exists, otherwise create it
-            if (sessionCache.ClientBatchInfo == null)
-            {
-                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, schema, this.Options.BatchDirectory);
-                //httpContext.Session.Set(sessionId, sessionCache);
-            }
-
-            // create the in memory changes set
-            var changesSet = new SyncSet();
-
-            foreach (var table in httpMessage.Changes.Tables)
-                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
-
-            changesSet.ImportContainerSet(httpMessage.Changes, false);
-
-            // If client has made a conversion on each line, apply the reverse side of it
-            if (this.ClientConverter != null && changesSet.HasRows)
-                AfterDeserializedRows(changesSet, this.ClientConverter);
-
-            // add changes to the batch info
-            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this.Options.SerializerFactory, this);
-
-            //httpContext.Session.Set(sessionId, sessionCache);
-
-            // Clear the httpMessage set
-            if (!clientWorkInMemory && httpMessage.Changes != null)
-                httpMessage.Changes.Clear();
-
-            // Until we don't have received all the batches, wait for more
-            if (!httpMessage.IsLastBatch)
-                return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendChangesInProgress };
-
-            // ------------------------------------------------------------
-            // SECOND STEP : apply then return server changes
-            // ------------------------------------------------------------
-
-            // get changes
-            var (remoteClientTimestamp, serverBatchInfo, _, clientChangesApplied, serverChangesSelected) =
-                   await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
-
-
-            // Save the server batch info object to cache if not working in memory
-            if (!clientWorkInMemory)
-            {
-                sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
-                sessionCache.ServerBatchInfo = serverBatchInfo;
-                sessionCache.ServerChangesSelected = serverChangesSelected;
-                sessionCache.ClientChangesApplied = clientChangesApplied;
-                //httpContext.Session.Set(sessionId, sessionCache);
-            }
-
-            // delete the folder (not the BatchPartInfo, because we have a reference on it)
-            var cleanFolder = this.Options.CleanFolder;
-
-            if (cleanFolder)
-                cleanFolder = await this.InternalCanCleanFolderAsync(ctx, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
-
-            if (cleanFolder)
-                sessionCache.ClientBatchInfo.TryRemoveDirectory();
-
-            // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, ctx, remoteClientTimestamp, serverBatchInfo, clientChangesApplied, serverChangesSelected, 0);
-
-        }
-
-        /// <summary>
-        /// Get changes from 
-        /// </summary>
         internal async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -671,9 +559,6 @@ namespace Dotmim.Sync.Web.Server
             // Basically this options is not used on the server, since it's always overriden by the client
             this.Options.BatchSize = clientBatchSize;
 
-            // Get if we need to serialize data or making everything in memory
-            var clientWorkInMemory = clientBatchSize == 0;
-
             // Get context from request message
             var ctx = httpMessage.SyncContext;
 
@@ -693,7 +578,7 @@ namespace Dotmim.Sync.Web.Server
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
             {
-                sessionCache.ClientBatchInfo = new BatchInfo(clientWorkInMemory, schema, this.Options.BatchDirectory);
+                sessionCache.ClientBatchInfo = new BatchInfo(schema, this.Options.BatchDirectory);
                 //httpContext.Session.Set(sessionId, sessionCache);
             }
 
@@ -714,7 +599,7 @@ namespace Dotmim.Sync.Web.Server
             //httpContext.Session.Set(sessionId, sessionCache);
 
             // Clear the httpMessage set
-            if (!clientWorkInMemory && httpMessage.Changes != null)
+            if (httpMessage.Changes != null)
                 httpMessage.Changes.Clear();
 
             // Until we don't have received all the batches, wait for more
@@ -730,14 +615,11 @@ namespace Dotmim.Sync.Web.Server
                    await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache if not working in memory
-            if (!clientWorkInMemory)
-            {
-                sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
-                sessionCache.ServerBatchInfo = serverBatchInfo;
-                sessionCache.ServerChangesSelected = serverChangesSelected;
-                sessionCache.ClientChangesApplied = clientChangesApplied;
-                //httpContext.Session.Set(sessionId, sessionCache);
-            }
+            sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
+            sessionCache.ServerBatchInfo = serverBatchInfo;
+            sessionCache.ServerChangesSelected = serverChangesSelected;
+            sessionCache.ClientChangesApplied = clientChangesApplied;
+            //httpContext.Session.Set(sessionId, sessionCache);
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
             var cleanFolder = this.Options.CleanFolder;
@@ -758,14 +640,6 @@ namespace Dotmim.Sync.Web.Server
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
             };
 
-            if (clientWorkInMemory)
-            {
-                if (this.ClientConverter != null && serverBatchInfo.InMemoryData != null && serverBatchInfo.InMemoryData.HasRows)
-                    BeforeSerializeRows(serverBatchInfo.InMemoryData, this.ClientConverter);
-
-                summaryResponse.Changes = serverBatchInfo.InMemoryData == null ? new ContainerSet() : serverBatchInfo.InMemoryData.GetContainerSet();
-
-            }
             // Get the firt response to send back to client
             return summaryResponse;
 
@@ -834,14 +708,12 @@ namespace Dotmim.Sync.Web.Server
                 throw new Exception("serverBatchInfo is Null and should not be ....");
 
             // If nothing to do, just send back
-            if (serverBatchInfo.InMemory || serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count == 0)
+            if (serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count == 0)
             {
-                if (this.ClientConverter != null && serverBatchInfo.InMemoryData != null && serverBatchInfo.InMemoryData.HasRows)
-                    BeforeSerializeRows(serverBatchInfo.InMemoryData, this.ClientConverter);
 
-                changesResponse.Changes = serverBatchInfo.InMemoryData == null ? new ContainerSet() : serverBatchInfo.InMemoryData.GetContainerSet();
+                changesResponse.Changes = new ContainerSet();
                 changesResponse.BatchIndex = 0;
-                changesResponse.BatchCount = serverBatchInfo.InMemoryData == null ? 0 : serverBatchInfo.BatchPartsInfo == null ? 0 : serverBatchInfo.BatchPartsInfo.Count;
+                changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo == null ? 0 : serverBatchInfo.BatchPartsInfo.Count;
                 changesResponse.IsLastBatch = true;
                 changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
 

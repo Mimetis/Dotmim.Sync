@@ -70,7 +70,7 @@ namespace Dotmim.Sync
                 throw new MissingTrackingTableException(tableBuilder.TableDescription.GetFullName());
 
             // Get correct Select incremental changes command 
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
             
             if (command == null) return 0;
 
