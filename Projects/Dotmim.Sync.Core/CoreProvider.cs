@@ -90,7 +90,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the number of line for every batch bulk operations
         /// </summary>
-        public virtual int BulkBatchMaxLinesCount { get; set; } = 10000;
+        public virtual int BulkBatchMaxLinesCount { get; set; } = 100000;
 
         /// <summary>
         /// Get naming tables

@@ -18,6 +18,8 @@ namespace Dotmim.Sync
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
         public Collection<SyncColumn> InnerCollection { get; set; } = new Collection<SyncColumn>();
 
+        private Dictionary<string, int> indexes = new();
+
         /// <summary>
         /// Column's schema
         /// </summary>
@@ -39,17 +41,22 @@ namespace Dotmim.Sync
         /// <summary>
         /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema
         /// </summary>
-        public void EnsureColumns(SyncTable table)
-        {
-            this.Table = table;
-        }
+        public void EnsureColumns(SyncTable table) => this.Table = table;
 
         /// <summary>
         /// Get a Column by its name
         /// </summary>
-        public SyncColumn this[string columnName] => 
-            InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
+        public SyncColumn this[string columnName]
+        {
+            get
+            {
+                //InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
+                if (indexes.ContainsKey(columnName.ToLowerInvariant()))
+                    return InnerCollection[indexes[columnName.ToLowerInvariant()]];
 
+                return null;
+            }
+        }
 
         /// <summary>
         /// Add a new Column to the Schema Column collection
@@ -106,14 +113,22 @@ namespace Dotmim.Sync
         {
             // now reordered correctly, affect new Ordinal property
             for (int i = 0; i < this.InnerCollection.Count; i++)
-                this.InnerCollection[i].Ordinal = i;
+            {
+                var column = this.InnerCollection[i];
+                this.indexes[column.ColumnName.ToLowerInvariant()] = i;
+                column.Ordinal = i;
+            }
 
         }
 
         /// <summary>
         /// Clear all the relations
         /// </summary>
-        public void Clear() => this.InnerCollection.Clear();
+        public void Clear()
+        {
+            this.InnerCollection.Clear();
+            this.indexes.Clear();
+        }
 
         public SyncColumn this[int index] => InnerCollection[index];
         public int Count => InnerCollection.Count;

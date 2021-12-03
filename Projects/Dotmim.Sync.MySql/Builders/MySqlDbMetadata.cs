@@ -212,9 +212,7 @@ namespace Dotmim.Sync.MySql.Builders
             "year" or "time" or "timestamp" => true,
             _ => false,
         };
-        public override bool IsReadonly(SyncColumn columnDefinition)
-            => columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp";
-
+        public override bool IsReadonly(SyncColumn columnDefinition) => false;
 
         // ----------------------------------------------------------------------------------
 
@@ -388,7 +386,7 @@ namespace Dotmim.Sync.MySql.Builders
                 MySqlDbType.VarBinary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 8000)})" : "(8000)",
                 _ => string.Empty
             };
-        
+
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿
 
 using Dotmim.Sync.Serialization;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -221,9 +222,20 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// generate a batch file name
         /// </summary>
-        public static string GenerateNewFileName2(string tableName = null, string extension = "batch")
+        public static string GenerateNewFileName2(string batchIndex, string tableName, string extension)
         {
-            return $"{tableName}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
+            if (batchIndex.Length == 1)
+                batchIndex = $"000{batchIndex}";
+            else if (batchIndex.Length == 2)
+                batchIndex = $"00{batchIndex}";
+            else if (batchIndex.Length == 3)
+                batchIndex = $"0{batchIndex}";
+            else if (batchIndex.Length == 4)
+                batchIndex = $"{batchIndex}";
+            else
+                throw new OverflowException("too much batches !!!");
+
+            return $"{batchIndex}_{tableName}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
         }
 
         /// <summary>

@@ -264,7 +264,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
 
             // re-apply scope is new flag
-            newClientScopeInfo.IsNewScope = isNew;
+            newClientScopeInfo.IsNewScope = false;
 
             return (changesApplied, newClientScopeInfo);
 

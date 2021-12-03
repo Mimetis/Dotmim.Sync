@@ -132,6 +132,7 @@ namespace Dotmim.Sync
             }
 
             await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
+
         }
 
         /// <summary>

@@ -57,7 +57,7 @@ namespace Dotmim.Sync.SampleConsole
             => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
 
         // Max number of lines in batch bulk init operation
-        public override int BulkBatchMaxLinesCount => 100;
+        public override int BulkBatchMaxLinesCount => 1000;
     }
 
     /// <summary>
