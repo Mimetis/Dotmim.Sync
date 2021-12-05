@@ -66,9 +66,17 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 if (hasChanges)
                 {
-                    foreach (var table in schemaTables)
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection,
-                            transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                    //foreach (var table in schemaTables)
+                    await schemaTables.ForEachAsync(async table =>
+                    {
+                        var dconnection = this.Provider.CreateConnection();
+                        await dconnection.OpenAsync().ConfigureAwait(false);
+                        var dtransaction = dconnection.BeginTransaction();
+                        await this.InternalApplyTableChangesAsync(context, table, message, dconnection,
+                                    dtransaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                        dtransaction.Commit();
+                        dconnection.Close();
+                    });
                 }
 
                 // -----------------------------------------------------

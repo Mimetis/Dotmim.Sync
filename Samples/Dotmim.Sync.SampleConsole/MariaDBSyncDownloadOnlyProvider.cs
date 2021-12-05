@@ -51,13 +51,13 @@ namespace Dotmim.Sync.SampleConsole
         public MariaDBSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
+            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, this.BulkBatchMaxLinesCount);
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
             => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
 
         // Max number of lines in batch bulk init operation
-        public override int BulkBatchMaxLinesCount => 1000;
+        public override int BulkBatchMaxLinesCount => 100;
     }
 
     /// <summary>
@@ -92,11 +92,13 @@ namespace Dotmim.Sync.SampleConsole
     public class MariaDBDownloadOnlySyncAdapter : MySqlSyncAdapter
     {
         private ParserName tableName;
+        private readonly int bulkBatchMaxLinesCount;
 
-        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, int bulkBatchMaxLinesCount)
             : base(tableDescription, tableName, trackingName, setup)
         {
             this.tableName = tableName;
+            this.bulkBatchMaxLinesCount = bulkBatchMaxLinesCount;
         }
 
         /// <summary>
@@ -112,7 +114,7 @@ namespace Dotmim.Sync.SampleConsole
                     command = CreateUpdateCommand();
                     break;
                 case DbCommandType.InitializeRow:
-                    command = CreateBulkInitializeCommand();
+                    command = CreateBulkInitializeCommand(this.bulkBatchMaxLinesCount);
                     isBatch = true;
                     break;
                 case DbCommandType.DeleteRow:
@@ -202,6 +204,70 @@ namespace Dotmim.Sync.SampleConsole
         }
 
         public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
+        {
+            using var ms = new MemoryStream();
+            using var sw = new StreamWriter(ms);
+            var shouldDispose = false;
+            MySqlCommand batchCommand;
+
+            var lstItems = arrayItems.ToList();
+
+            if (lstItems.Count == bulkBatchMaxLinesCount)
+            {
+                batchCommand = cmd as MySqlCommand;
+                batchCommand.Parameters.Clear();
+            }
+            else
+            {
+                batchCommand = CreateBulkInitializeCommand(lstItems.Count);
+                batchCommand.Connection = connection as MySqlConnection;
+                batchCommand.Transaction = transaction as MySqlTransaction;
+                shouldDispose = true;
+            }
+
+            for (int i = 0; i < lstItems.Count; i++)
+            {
+                var row = lstItems[i];
+
+                int columnIndex = 0;
+                foreach (var column in schemaChangesTable.Columns)
+                {
+                    var parameterColumnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+                    var parameterName = $"@p{i}_{parameterColumnName}";
+                    batchCommand.Parameters.AddWithValue(parameterName, row[columnIndex]);
+                    columnIndex++;
+                }
+            }
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                using var dataReader = await batchCommand.ExecuteReaderAsync().ConfigureAwait(false);
+
+                dataReader.Close();
+
+                if (shouldDispose)
+                    batchCommand.Dispose();
+
+            }
+            catch (DbException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
+        }
+
+        public async Task ExecuteBatchCommandAsync2(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
             using var ms = new MemoryStream();
             using var sw = new StreamWriter(ms);
@@ -341,7 +407,49 @@ namespace Dotmim.Sync.SampleConsole
             return mySqlCommand;
         }
 
-        private MySqlCommand CreateBulkInitializeCommand()
+
+
+        private MySqlCommand CreateBulkInitializeCommand(int nbLines = 1)
+        {
+            var mySqlCommand = new MySqlCommand();
+            var stringBuilder = new StringBuilder();
+
+            var allColumnsString = new StringBuilder();
+            var dbMetadata = new MySqlDbMetadata();
+
+            string empty = string.Empty;
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            {
+                var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                allColumnsString.Append($"{empty}{mutableColumnName}");
+                empty = ", ";
+            }
+
+            stringBuilder.AppendLine($"INSERT IGNORE INTO {tableName.Quoted()} ");
+            stringBuilder.AppendLine($"({allColumnsString})");
+            stringBuilder.AppendLine("VALUES ");
+
+            string commaValues = " ";
+            for (int i = 0; i < nbLines; i++)
+            {
+                stringBuilder.Append($"{commaValues}(");
+                empty = "";
+                foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+                {
+                    var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
+                    stringBuilder.Append($"{empty}@p{i}_{parameterColumnName}");
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine(")");
+                commaValues = ",";
+            }
+
+            mySqlCommand.CommandText = stringBuilder.ToString();
+            return mySqlCommand;
+        }
+
+
+        private MySqlCommand CreateBulkInitializeCommand2()
         {
             var mySqlCommand = new MySqlCommand();
             var stringBuilder = new StringBuilder();
