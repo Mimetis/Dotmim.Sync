@@ -16,49 +16,62 @@ namespace Dotmim.Sync
         /// Ensure the scope (Client, Server or ServerHistpory) is created
         /// The scope contains all about last sync, schema and scope and local / remote timestamp 
         /// </summary>
-        public virtual Task<bool> CreateScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, bool overwrite = false,
-                             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-           => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
-           {
-               bool hasBeenCreated = false;
+        public virtual async Task<bool> CreateScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Provisioning;
+            try
+            {
+                bool hasBeenCreated = false;
 
-               // Get table builder
-               var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
+                // Get table builder
+                var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
+                var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-               var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // should create only if not exists OR if overwrite has been set
+                var shouldCreate = !exists || overwrite;
+                if (shouldCreate)
+                {
+                    // Drop trigger if already exists
+                    if (exists && overwrite)
+                        await InternalDropScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-               // should create only if not exists OR if overwrite has been set
-               var shouldCreate = !exists || overwrite;
+                    hasBeenCreated = await InternalCreateScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
 
-               if (shouldCreate)
-               {
-                   // Drop trigger if already exists
-                   if (exists && overwrite)
-                       await InternalDropScopeInfoTableAsync(ctx, scopeType, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
 
-                   hasBeenCreated = await InternalCreateScopeInfoTableAsync(ctx, scopeType, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                return hasBeenCreated;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
 
-               }
-
-               return hasBeenCreated;
-
-           }, connection, transaction, cancellationToken);
+        }
 
 
         /// <summary>
         /// Check if a scope info table exists
         /// </summary>
-        public Task<bool> ExistScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        public async Task<bool> ExistScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // Get table builder
-            var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
-
-            var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            return exists;
-
-        }, connection, transaction, cancellationToken);
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.None;
+            try
+            {
+                var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
+                var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
 
         /// <summary>
@@ -202,7 +215,7 @@ namespace Dotmim.Sync
                 // create a new scope id for the current owner (could be server or client as well)
                 T scope = scopeType switch
                 {
-                    DbScopeType.Client => new ScopeInfo { Id = Guid.NewGuid(), Name = scopeName, IsNewScope = true, LastSync = null, LastServerSyncTimestamp= null, LastSyncTimestamp = null, Version = SyncVersion.Current.ToString() } as T,
+                    DbScopeType.Client => new ScopeInfo { Id = Guid.NewGuid(), Name = scopeName, IsNewScope = true, LastSync = null, LastServerSyncTimestamp = null, LastSyncTimestamp = null, Version = SyncVersion.Current.ToString() } as T,
                     DbScopeType.Server => new ServerScopeInfo { Name = scopeName, LastCleanupTimestamp = 0, Version = SyncVersion.Current.ToString() } as T,
                     _ => throw new NotImplementedException($"Type {typeof(T).Name} is not implemented when trying to get a single instance")
                 };
@@ -346,7 +359,7 @@ namespace Dotmim.Sync
                 Version = reader["sync_scope_version"] as string,
                 LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync")) : null,
                 LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? (long?)reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : null,
-                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long?)reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) :null,
+                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? (long?)reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : null,
                 LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L
             };
 

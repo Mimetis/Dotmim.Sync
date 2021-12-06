@@ -45,7 +45,7 @@ namespace Dotmim.Sync
             this.ChangesSelected = changesSelected;
         }
 
-        public override string Source => Connection.Database;
+        public override string Source => Connection?.Database;
         public override string Message => $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}";
 
         public long? Timestamp { get; }

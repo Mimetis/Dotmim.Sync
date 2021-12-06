@@ -113,7 +113,7 @@ namespace Dotmim.Sync.SampleConsole
                 case DbCommandType.UpdateRow:
                     command = CreateUpdateCommand();
                     break;
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     command = CreateBulkInitializeCommand(this.bulkBatchMaxLinesCount);
                     isBatch = true;
                     break;
@@ -318,7 +318,7 @@ namespace Dotmim.Sync.SampleConsole
                     this.SetDeleteRowParameters(command);
                     return Task.CompletedTask; ;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     this.SetUpdateRowParameters(command);
                     return Task.CompletedTask; ;
                 default:

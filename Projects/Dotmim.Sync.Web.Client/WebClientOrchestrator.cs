@@ -31,7 +31,7 @@ namespace Dotmim.Sync.Web.Client
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;
         public Dictionary<string, string> ScopeParameters => this.httpRequestHandler.ScopeParameters;
 
-        private object locker = new object();
+        private object locker = new();
 
         /// <summary>
         /// Gets or Sets custom converter for all rows
@@ -278,7 +278,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         internal override async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy,
                                       DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
-            ApplyThenGetChangesAsync(ScopeInfo scope, BatchInfo clientBatchInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            ApplyThenGetChangesAsync(ScopeInfo scope, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             SyncSet schema;
@@ -292,7 +292,7 @@ namespace Dotmim.Sync.Web.Client
             if (scope.Schema == null)
             {
                 // Make a remote call to get Schema from remote provider
-                var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 schema = serverScopeInfo.Schema;
             }
             else
@@ -394,8 +394,8 @@ namespace Dotmim.Sync.Web.Client
 
             // Now we have sent all the datas to the server and now :
             // We have a FIRST response from the server with new datas 
-            // 1) Could be the only one response (enough or InMemory is set on the server side)
-            // 2) Could bt the first response and we need to download all batchs
+            // 1) Could be the only one response 
+            // 2) Could be the first response and we need to download all batchs
 
             ctx.SyncStage = SyncStage.ChangesSelecting;
             var initialPctProgress = 0.55;
@@ -441,7 +441,10 @@ namespace Dotmim.Sync.Web.Client
             // function used to download one part
             var dl = new Func<BatchPartInfo, Task>(async (bpi) =>
             {
-                var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, bpi.Index);
+                var tableName = bpi.Tables[0].TableName;
+                var schemaName = bpi.Tables[0].SchemaName;
+                var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, tableName, schemaName, bpi.Index);
+
                 var serializer3 = this.Options.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                 var binaryData3 = await serializer3.SerializeAsync(changesToSend3).ConfigureAwait(false);
                 var step3 = HttpStep.GetMoreChanges;
@@ -467,7 +470,7 @@ namespace Dotmim.Sync.Web.Client
                 this.ReportProgress(ctx, progress, args3);
             });
 
-            // Parrallel download of all bpis except the last one (which will launch the delete directory on the server side)
+            // Parrallel download of all bpis (which will launch the delete directory on the server side)
             await serverBatchInfo.BatchPartsInfo.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
 
             // Send order of end of download
@@ -475,7 +478,10 @@ namespace Dotmim.Sync.Web.Client
 
             if (lastBpi != null)
             {
-                var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(ctx, lastBpi.Index);
+                var tableName = lastBpi.Tables[0].TableName;
+                var schemaName = lastBpi.Tables[0].SchemaName;
+                var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(ctx, tableName, schemaName, lastBpi.Index);
+
                 var serializerEndOfDownloadChanges = this.Options.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                 var binaryData3 = await serializerEndOfDownloadChanges.SerializeAsync(endOfDownloadChanges).ConfigureAwait(false);
 
@@ -500,7 +506,7 @@ namespace Dotmim.Sync.Web.Client
 
 
         public override async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
-          GetSnapshotAsync(SyncSet schema = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+          GetSnapshotAsync(SyncSet schema = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             // Get context or create a new one
@@ -512,7 +518,7 @@ namespace Dotmim.Sync.Web.Client
             // Make a remote call to get Schema from remote provider
             if (schema == null)
             {
-                var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.EnsureSchemaAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 schema = serverScopeInfo.Schema;
                 schema.EnsureSchema();
             }
@@ -571,9 +577,11 @@ namespace Dotmim.Sync.Web.Client
             await serverBatchInfo.BatchPartsInfo.ForEachAsync(async bpi =>
             {
                 // Create the message enveloppe
-                Debug.WriteLine($"CLIENT bpi.FileName:{bpi.FileName}. bpi.Index:{bpi.Index}");
+                Debug.WriteLine($"CLIENT bpi.FileName:{bpi.FileName}. bpi.TableName:{bpi.Tables[0].TableName}  bpi.Index:{bpi.Index}");
 
-                var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, bpi.Index);
+                var tableName = bpi.Tables[0].TableName;
+                var schemaName = bpi.Tables[0].SchemaName;
+                var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, tableName, schemaName, bpi.Index);
                 var serializer3 = this.Options.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                 var binaryData3 = await serializer3.SerializeAsync(changesToSend3);
                 var step3 = HttpStep.GetMoreChanges;
@@ -595,7 +603,7 @@ namespace Dotmim.Sync.Web.Client
                 await this.InterceptAsync(args3, cancellationToken).ConfigureAwait(false);
                 this.ReportProgress(ctx, progress, args3);
 
-            }, this.MaxDownladingDegreeOfParallelism);
+            }, 1);
 
             // Reaffect context
             this.SetContext(summaryResponseContent.SyncContext);
@@ -616,13 +624,13 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Not Allowed from WebClientOrchestrator
         /// </summary>
-        public override Task<bool> NeedsToUpgradeAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> NeedsToUpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
                         => throw new NotImplementedException();
 
         /// <summary>
         /// Not Allowed from WebClientOrchestrator
         /// </summary>
-        public override Task<bool> UpgradeAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
                         => throw new NotImplementedException();
 
 
@@ -728,7 +736,10 @@ namespace Dotmim.Sync.Web.Client
             // function used to download one part
             var dl = new Func<BatchPartInfo, Task>(async (bpi) =>
             {
-                var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, bpi.Index);
+                var tableName = bpi.Tables[0].TableName;
+                var schemaName = bpi.Tables[0].SchemaName;
+
+                var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, tableName, schemaName, bpi.Index);
                 var serializer3 = this.Options.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                 var binaryData3 = await serializer3.SerializeAsync(changesToSend3).ConfigureAwait(false);
                 var step3 = HttpStep.GetMoreChanges;

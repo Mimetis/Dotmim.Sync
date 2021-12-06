@@ -21,86 +21,32 @@ namespace Dotmim.Sync
         /// Create a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTrackingTableAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        public async Task<bool> CreateTrackingTableAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            bool hasBeenCreated = false;
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Provisioning;
 
-            var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
-
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
-
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
-
-            var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            if (!schemaExists)
-                await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // should create only if not exists OR if overwrite has been set
-            var shouldCreate = !exists || overwrite;
-
-            if (shouldCreate)
+            try
             {
-                // Drop if already exists and we need to overwrite
-                if (exists && overwrite)
-                    await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                bool hasBeenCreated = false;
 
-                hasBeenCreated = await InternalCreateTrackingTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            return hasBeenCreated;
+                var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
-        }, connection, transaction, cancellationToken);
+                if (schemaTable == null)
+                    throw new MissingTableException(table.GetFullName());
 
-
-        /// <summary>
-        /// Check if a tracking table exists
-        /// </summary>
-        /// <param name="table">A table from your Setup instance, you want to check if the corresponding tracking table exists</param>
-        public Task<bool> ExistTrackingTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
-        {
-            // Fake sync table without column definitions. Not need for making a check exists call
-            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
-
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
-
-            var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            return exists;
-
-        }, connection, transaction, cancellationToken);
-
-        /// <summary>
-        /// Create a tracking table
-        /// </summary>
-        /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTrackingTablesAsync(bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
-        {
-            var atLeastOneHasBeenCreated = false;
-
-            var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            foreach (var schemaTable in schema.Tables)
-            {
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!schemaExists)
-                    await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
                 var shouldCreate = !exists || overwrite;
@@ -109,88 +55,201 @@ namespace Dotmim.Sync
                 {
                     // Drop if already exists and we need to overwrite
                     if (exists && overwrite)
-                        await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    var hasBeenCreated = await InternalCreateTrackingTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    if (hasBeenCreated)
-                        atLeastOneHasBeenCreated = true;
-
+                    hasBeenCreated = await InternalCreateTrackingTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return hasBeenCreated;
             }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
-            return atLeastOneHasBeenCreated;
 
-        }, connection, transaction, cancellationToken);
+        /// <summary>
+        /// Check if a tracking table exists
+        /// </summary>
+        /// <param name="table">A table from your Setup instance, you want to check if the corresponding tracking table exists</param>
+        public async Task<bool> ExistTrackingTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.None;
+            try
+            {
+                // Fake sync table without column definitions. Not need for making a check exists call
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+
+                // Get table builder
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+
+                var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
+
+        /// <summary>
+        /// Create a tracking table
+        /// </summary>
+        /// <param name="table">A table from your Setup instance you want to create</param>
+        public async Task<bool> CreateTrackingTablesAsync(bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Provisioning;
+            try
+            {
+                var atLeastOneHasBeenCreated = false;
+
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                foreach (var schemaTable in schema.Tables)
+                {
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+
+                    var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (!schemaExists)
+                        await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // should create only if not exists OR if overwrite has been set
+                    var shouldCreate = !exists || overwrite;
+
+                    if (shouldCreate)
+                    {
+                        // Drop if already exists and we need to overwrite
+                        if (exists && overwrite)
+                            await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        var hasBeenCreated = await InternalCreateTrackingTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        if (hasBeenCreated)
+                            atLeastOneHasBeenCreated = true;
+
+                    }
+                }
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return atLeastOneHasBeenCreated;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// Drop a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public Task<bool> DropTrackingTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
+        public async Task<bool> DropTrackingTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            bool hasBeenDropped = false;
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Deprovisioning;
+            try
+            {
+                bool hasBeenDropped = false;
 
-            // Fake sync table without column definitions. Not needed for making drop call
-            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+                // Fake sync table without column definitions. Not needed for making drop call
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                // Get table builder
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-            var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            if (exists)
-                hasBeenDropped = await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (exists)
+                    hasBeenDropped = await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            return hasBeenDropped;
+                await runner.CommitAsync().ConfigureAwait(false);
 
-        }, connection, transaction, cancellationToken);
+                return hasBeenDropped;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+
+        }
 
         /// <summary>
         /// Drop all tracking tables
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> DropTrackingTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
+        public async Task<bool> DropTrackingTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            bool atLeastOneTrackingTableHasBeenDropped = false;
-
-            var schemaTables = new List<SyncTable>();
-            foreach(var table in this.Setup.Tables.Reverse())
-                schemaTables.Add(new SyncTable(table.TableName, table.SchemaName));
-
-            foreach (var schemaTable in schemaTables)
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Deprovisioning;
+            try
             {
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                bool atLeastOneTrackingTableHasBeenDropped = false;
 
-                var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schemaTables = new List<SyncTable>();
+                foreach (var table in this.Setup.Tables.Reverse())
+                    schemaTables.Add(new SyncTable(table.TableName, table.SchemaName));
 
-                if (exists)
-                    atLeastOneTrackingTableHasBeenDropped = await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                foreach (var schemaTable in schemaTables)
+                {
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
+                    var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (exists)
+                        atLeastOneTrackingTableHasBeenDropped = await InternalDropTrackingTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return atLeastOneTrackingTableHasBeenDropped;
             }
-
-            return atLeastOneTrackingTableHasBeenDropped;
-
-        }, connection, transaction, cancellationToken);
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// Rename a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to rename the tracking table</param>
-        public Task<bool> RenameTrackingTableAsync(SyncTable syncTable, ParserName oldTrackingTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        public async Task<bool> RenameTrackingTableAsync(SyncTable syncTable, ParserName oldTrackingTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Provisioning;
+            try
+            {
+                // Get table builder
+                var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
 
-            await InternalRenameTrackingTableAsync(ctx, this.Setup, oldTrackingTableName, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await InternalRenameTrackingTableAsync(ctx, this.Setup, oldTrackingTableName, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            return true;
+                await runner.CommitAsync().ConfigureAwait(false);
 
-        }, connection, transaction, cancellationToken);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// Internal create tracking table routine

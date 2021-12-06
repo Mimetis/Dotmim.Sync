@@ -84,7 +84,7 @@ namespace Dotmim.Sync.SampleConsole
             switch (nameType)
             {
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     command = CreateUpdateCommand();
                     break;
                 case DbCommandType.DeleteRow:
@@ -124,7 +124,7 @@ namespace Dotmim.Sync.SampleConsole
                     this.SetDeleteRowParameters(command);
                     return Task.CompletedTask; ;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     this.SetUpdateRowParameters(command);
                     return Task.CompletedTask; ;
                 default:

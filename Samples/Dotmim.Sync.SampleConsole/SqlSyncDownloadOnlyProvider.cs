@@ -278,7 +278,7 @@ namespace Dotmim.Sync.SampleConsole
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
                     break;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
                     isBatch = true;

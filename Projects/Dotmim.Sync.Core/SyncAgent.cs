@@ -481,7 +481,7 @@ namespace Dotmim.Sync
 
                         // If one of the comparison is false, we make a migration
                         if (!hasSameOptions || !hasSameStructure)
-                            clientScopeInfo = await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Setup, serverScopeInfo.Schema, cancellationToken, progress).ConfigureAwait(false);
+                            clientScopeInfo = await this.LocalOrchestrator.MigrationAsync(clientScopeInfo.Setup, serverScopeInfo.Setup, serverScopeInfo.Schema, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                         // Affect local setup (equivalent to this.Setup)
                         this.LocalOrchestrator.Setup = serverScopeInfo.Setup;
@@ -520,19 +520,22 @@ namespace Dotmim.Sync
                     if (fromScratch)
                     {
                         // Get snapshot files
-                        var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(this.Schema, cancellationToken, progress).ConfigureAwait(false);
+                        var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(this.Schema, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                         // Apply snapshot
                         if (serverSnapshotChanges.ServerBatchInfo != null)
                         {
                             (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
-                                clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, serverSnapshotChanges.DatabaseChangesSelected, cancellationToken, progress).ConfigureAwait(false);
+                                clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, serverSnapshotChanges.DatabaseChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
                         }
                     }
 
+                    // Get if we have already applied a snapshot, so far we don't need to reset table even if we are i Reinitialize Mode
+                    var snapshotApplied = result.SnapshotChangesAppliedOnClient != null;
+
                     context.ProgressPercentage = 0.3;
                     // apply is 25%, get changes is 20%
-                    var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
+                    var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     if (cancellationToken.IsCancellationRequested)
                         cancellationToken.ThrowIfCancellationRequested();
@@ -540,15 +543,12 @@ namespace Dotmim.Sync
                     // Policy is always Server policy, so reverse this policy to get the client policy
                     var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
-                    // Get if we have already applied a snapshot, so far we don't need to reset table even if we are i Reinitialize Mode
-                    var snapshotApplied = result.SnapshotChangesAppliedOnClient != null;
-
                     // apply is 25%
                     context.ProgressPercentage = 0.75;
                     var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
                         clientScopeInfo, this.Schema, serverChanges.ServerBatchInfo,
                         clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
-                        serverChanges.ServerChangesSelected, cancellationToken, progress).ConfigureAwait(false);
+                        serverChanges.ServerChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     completeTime = DateTime.UtcNow;
                     this.LocalOrchestrator.CompleteTime = completeTime;

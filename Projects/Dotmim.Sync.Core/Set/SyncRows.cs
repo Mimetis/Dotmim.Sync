@@ -136,7 +136,6 @@ namespace Dotmim.Sync
             if (primaryKeysColumn.Count != criteriaKeysColumn.Count)
                 throw new ArgumentOutOfRangeException($"Can't make a query on primary keys since number of primary keys columns in criterias is not matching the number of primary keys columns in this table");
 
-
             var filteredRow = this.rows.FirstOrDefault(itemRow =>
             {
                 for (int i = 0; i < primaryKeysColumn.Count; i++)
@@ -159,6 +158,40 @@ namespace Dotmim.Sync
             return filteredRow;
         }
 
+
+        /// <summary>
+        /// Make a filter on primarykeys
+        /// </summary>
+        public static SyncRow GetRowByPrimaryKeys(SyncRow criteria, List<SyncRow> rows, SyncTable schemaTable )
+        {
+            // Get the primarykeys to get the ordinal
+            var primaryKeysColumn = schemaTable.GetPrimaryKeysColumns().ToList();
+            var criteriaKeysColumn = criteria.Table.GetPrimaryKeysColumns().ToList();
+
+            if (primaryKeysColumn.Count != criteriaKeysColumn.Count)
+                throw new ArgumentOutOfRangeException($"Can't make a query on primary keys since number of primary keys columns in criterias is not matching the number of primary keys columns in this table");
+
+            var filteredRow = rows.FirstOrDefault(itemRow =>
+            {
+                for (int i = 0; i < primaryKeysColumn.Count; i++)
+                {
+                    var syncColumn = primaryKeysColumn[i];
+
+                    object critValue = SyncTypeConverter.TryConvertTo(criteria[syncColumn.ColumnName], syncColumn.GetDataType());
+                    object itemValue = SyncTypeConverter.TryConvertTo(itemRow[syncColumn.ColumnName], syncColumn.GetDataType());
+
+                    if (!critValue.Equals(itemValue))
+                        return false;
+
+                    //if (!criteria[syncColumn.ColumnName].Equals(itemRow[syncColumn.ColumnName]))
+                    //    return false;
+
+                }
+                return true;
+            });
+
+            return filteredRow;
+        }
 
 
         /// <summary>

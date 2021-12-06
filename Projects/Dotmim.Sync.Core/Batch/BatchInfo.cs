@@ -235,7 +235,7 @@ namespace Dotmim.Sync.Batch
             else
                 throw new OverflowException("too much batches !!!");
 
-            return $"{batchIndex}_{tableName}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
+            return $"{tableName}_{batchIndex}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
         }
 
         /// <summary>

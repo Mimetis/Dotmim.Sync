@@ -66,11 +66,14 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
                     break;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
                     break;
                 case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
                     break;
@@ -142,10 +145,13 @@ namespace Dotmim.Sync.MySql
                     this.SetDeleteMetadataParameters(command);
                     break;
                 case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
                     this.SetDeleteRowParameters(command);
                     break;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
                     this.SetUpdateRowParameters(command);
                     break;
                 case DbCommandType.UpdateMetadata:
@@ -309,16 +315,6 @@ namespace Dotmim.Sync.MySql
             p.ParameterName = "sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
-
-            //p = command.CreateParameter();
-            //p.ParameterName = "sync_index";
-            //p.DbType = DbType.Int64;
-            //command.Parameters.Add(p);
-
-            //p = command.CreateParameter();
-            //p.ParameterName = "sync_batch_size";
-            //p.DbType = DbType.Int64;
-            //command.Parameters.Add(p);
 
             if (filter == null)
                 return;

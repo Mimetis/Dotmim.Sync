@@ -21,73 +21,25 @@ namespace Dotmim.Sync
         /// Create a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public Task<bool> CreateTableAsync(SyncTable syncTable, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        public async Task<bool> CreateTableAsync(SyncTable syncTable, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var hasBeenCreated = false;
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Provisioning;
 
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
-
-            var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            if (!schemaExists)
-                await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // should create only if not exists OR if overwrite has been set
-            var shouldCreate = !exists || overwrite;
-
-            if (shouldCreate)
+            try
             {
-                // Drop if already exists and we need to overwrite
-                if (exists && overwrite)
-                    await InternalDropTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var hasBeenCreated = false;
 
-                hasBeenCreated = await InternalCreateTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
-
-            return hasBeenCreated;
-
-        }, connection, transaction, cancellationToken);
-
-        /// <summary>
-        /// Create all tables
-        /// </summary>
-        /// <param name="schema">A complete schema you want to create, containing table, primary keys and relations</param>
-        public Task<bool> CreateTablesAsync(SyncSet schema, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
-        {
-            var atLeastOneHasBeenCreated = false;
-
-            // Sorting tables based on dependencies between them
-            var schemaTables = schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
-
-            // if we overwritten all tables, we need to delete all of them, before recreating them
-            if (overwrite)
-            {
-                foreach (var schemaTable in schemaTables.Reverse())
-                {
-                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
-                    var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    
-                    if (exists)
-                        await InternalDropTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
-            }
-            // Then create them
-            foreach (var schemaTable in schema.Tables)
-            {
                 // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
 
-                var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!schemaExists)
-                    await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
                 var shouldCreate = !exists || overwrite;
@@ -96,94 +48,193 @@ namespace Dotmim.Sync
                 {
                     // Drop if already exists and we need to overwrite
                     if (exists && overwrite)
-                        await InternalDropTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalDropTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    var hasBeenCreated = await InternalCreateTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    if (hasBeenCreated)
-                        atLeastOneHasBeenCreated = true;
+                    hasBeenCreated = await InternalCreateTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return hasBeenCreated;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
             }
 
-            return atLeastOneHasBeenCreated;
+        }
 
-        }, connection, transaction, cancellationToken);
+        /// <summary>
+        /// Create all tables
+        /// </summary>
+        /// <param name="schema">A complete schema you want to create, containing table, primary keys and relations</param>
+        public async Task<bool> CreateTablesAsync(SyncSet schema, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Provisioning;
+            try
+            {
+                var atLeastOneHasBeenCreated = false;
+
+                // Sorting tables based on dependencies between them
+                var schemaTables = schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+                // if we overwritten all tables, we need to delete all of them, before recreating them
+                if (overwrite)
+                {
+                    foreach (var schemaTable in schemaTables.Reverse())
+                    {
+                        var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                        var exists = await InternalExistsTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        if (exists)
+                            await InternalDropTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+                }
+                // Then create them
+                foreach (var schemaTable in schema.Tables)
+                {
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+
+                    var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (!schemaExists)
+                        await InternalCreateSchemaAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    var exists = await InternalExistsTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // should create only if not exists OR if overwrite has been set
+                    var shouldCreate = !exists || overwrite;
+
+                    if (shouldCreate)
+                    {
+                        // Drop if already exists and we need to overwrite
+                        if (exists && overwrite)
+                            await InternalDropTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        var hasBeenCreated = await InternalCreateTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        if (hasBeenCreated)
+                            atLeastOneHasBeenCreated = true;
+                    }
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return atLeastOneHasBeenCreated;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
 
         /// <summary>
         /// Check if a table exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, you want to check if it exists</param>
-        public Task<bool> ExistTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        public async Task<bool> ExistTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // Fake sync table without column definitions. Not need for making a check exists call
-            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.None;
+            try
+            {
+                // Fake sync table without column definitions. Not need for making a check exists call
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                // Get table builder
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-            var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            return exists;
+                await runner.CommitAsync().ConfigureAwait(false);
 
-        }, connection, transaction, cancellationToken);
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// Drop a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public Task<bool> DropTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
+        public async Task<bool> DropTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var hasBeenDropped = false;
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Deprovisioning;
+            try
+            {
+                var hasBeenDropped = false;
 
-            var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
-            var schemaTable = schema.Tables[table.TableName, table.SchemaName];
+                if (schemaTable == null)
+                    throw new MissingTableException(table.GetFullName());
 
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
+                // Get table builder
+                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                var exists = await InternalExistsTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (exists)
+                    hasBeenDropped = await InternalDropTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            if (exists)
-                hasBeenDropped = await InternalDropTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
 
-            return hasBeenDropped;
-
-        }, connection, transaction, cancellationToken);
+                return hasBeenDropped;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// Drop all tables, declared in the Setup instance
         /// </summary>
-        public Task<bool> DropTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Deprovisioning, async (ctx, connection, transaction) =>
+        public async Task<bool> DropTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            bool atLeastOneTableHasBeenDropped = false;
-
-            var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // Sorting tables based on dependencies between them
-            var schemaTables = schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
-
-            foreach (var schemaTable in schemaTables.Reverse())
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.Deprovisioning;
+            try
             {
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+                bool atLeastOneTableHasBeenDropped = false;
 
-                var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (exists)
-                    atLeastOneTableHasBeenDropped = await InternalDropTableAsync(ctx, this.Setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // Sorting tables based on dependencies between them
+                var schemaTables = schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+                foreach (var schemaTable in schemaTables.Reverse())
+                {
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
+
+                    var exists = await InternalExistsTableAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (exists)
+                        atLeastOneTableHasBeenDropped = await InternalDropTableAsync(ctx, this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return atLeastOneTableHasBeenDropped;
             }
-
-            return atLeastOneTableHasBeenDropped;
-
-        }, connection, transaction, cancellationToken);
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
 
         /// <summary>
@@ -367,14 +418,14 @@ namespace Dotmim.Sync
             return exists;
 
         }
-        
+
         /// <summary>
         /// Internal exists column procedure routine
         /// </summary>
         internal async Task<bool> InternalExistsColumnAsync(SyncContext ctx, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
-            var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName,connection, transaction).ConfigureAwait(false);
+            var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName, connection, transaction).ConfigureAwait(false);
 
             if (existsCommand == null)
                 return false;

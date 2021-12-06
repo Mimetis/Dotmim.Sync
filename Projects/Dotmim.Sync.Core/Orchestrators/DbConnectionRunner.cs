@@ -62,12 +62,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Commit the transaction and call an interceptor
         /// </summary>
-        public async Task CommitAsync()
+        public async Task CommitAsync(bool autoClose=true)
         {
             await this.Orchestrator.InterceptAsync(
                 new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.CancellationToken).ConfigureAwait(false);
 
-            this.Transaction.Commit();
+            if (!this.AlreadyInTransaction && this.Transaction != null)
+                this.Transaction.Commit();
+
+            if (autoClose)
+                await CloseAsync();
+        }
+
+        /// <summary>
+        /// Commit the transaction and call an interceptor
+        /// </summary>
+        public async Task CloseAsync()
+        {
+            if (!this.AlreadyOpened && this.Connection != null)
+                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken).ConfigureAwait(false);
         }
 
         public Task RollbackAsync() => Task.Run(() => this.Transaction.Rollback());
@@ -90,7 +103,10 @@ namespace Dotmim.Sync
                 if (disposing)
                 {
                     if (!this.AlreadyInTransaction && this.Transaction != null)
+                    {
                         this.Transaction.Dispose();
+                        this.Transaction = null;
+                    }
 
                     if (!this.AlreadyOpened && this.Connection != null)
                     {
@@ -98,6 +114,7 @@ namespace Dotmim.Sync
                             this.Connection.Close();
 
                         this.Connection.Dispose();
+                        this.Connection = null;
                     }
                 }
                 disposedValue = true;
@@ -107,12 +124,16 @@ namespace Dotmim.Sync
         public async ValueTask DisposeAsync()
         {
             if (!this.AlreadyInTransaction && this.Transaction != null)
+            {
                 this.Transaction.Dispose();
+                this.Transaction = null;
+            }
 
             if (!this.AlreadyOpened && this.Connection != null)
             {
                 await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken).ConfigureAwait(false);
                 this.Connection.Dispose();
+                this.Connection = null;
             }
 
             this.Dispose(false);

@@ -20,41 +20,55 @@ namespace Dotmim.Sync
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
+        public virtual async Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.SchemaReading;
+            try
             {
-                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 return schema;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
 
-            }, connection, transaction, cancellationToken);
+        }
 
 
         /// <summary>
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
-            {
-                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, this.Setup, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+        public virtual async Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.SchemaReading;
 
-                if (schemaTable == null)
-                    throw new MissingTableException(table.GetFullName());
+            var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Create a temporary SyncSet for attaching to the schemaTable
-                var schema = new SyncSet();
+            if (schemaTable == null)
+                throw new MissingTableException(table.GetFullName());
 
-                // Add this table to schema
-                schema.Tables.Add(schemaTable);
+            // Create a temporary SyncSet for attaching to the schemaTable
+            var schema = new SyncSet();
 
-                schema.EnsureSchema();
+            // Add this table to schema
+            schema.Tables.Add(schemaTable);
 
-                // copy filters from setup
-                foreach (var filter in this.Setup.Filters)
-                    schema.Filters.Add(filter);
+            schema.EnsureSchema();
 
-                return schemaTable;
-            }, connection, transaction, cancellationToken);
+            // copy filters from setup
+            foreach (var filter in this.Setup.Filters)
+                schema.Filters.Add(filter);
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
+            return schemaTable;
+        }
 
         /// <summary>
         /// update configuration object with tables desc from server database

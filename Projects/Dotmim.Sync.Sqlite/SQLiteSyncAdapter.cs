@@ -62,12 +62,15 @@ namespace Dotmim.Sync.Sqlite
                     this.SetDeleteMetadataParameters(command);
                     break;
                 case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
                     this.SetDeleteRowParameters(command);
                     break;
                 case DbCommandType.UpdateRow:
+                case DbCommandType.UpdateRows:
                     this.SetUpdateRowParameters(command);
                     break;
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.InsertRows:
                     this.SetInitializeRowParameters(command);
                     break;
                 case DbCommandType.Reset:

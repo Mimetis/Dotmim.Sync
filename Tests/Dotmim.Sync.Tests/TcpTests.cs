@@ -1393,11 +1393,12 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
+                var schema = await agent.LocalOrchestrator.GetSchemaAsync();
+
                 using var connection = client.Provider.CreateConnection();
                 await connection.OpenAsync();
                 using var transaction = connection.BeginTransaction();
 
-                var schema = await agent.LocalOrchestrator.GetSchemaAsync(connection, transaction);
 
                 var tablePricesListCategory = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["PricesListCategory"], agent.Setup);
                 Assert.NotNull(tablePricesListCategory);

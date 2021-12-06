@@ -92,7 +92,7 @@ namespace Dotmim.Sync.SampleConsole
                 case DbCommandType.UpdateRow:
                     command = CreateUpdateCommand();
                     break;
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     command = CreateInitiliazeRowCommand();
                     break;
                 case DbCommandType.DeleteRow:

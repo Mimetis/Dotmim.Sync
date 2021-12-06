@@ -180,7 +180,7 @@ namespace Dotmim.Sync
             if (args.Connection == null || args.Connection != connection)
                 args.Connection = connection;
 
-            if (args.Transaction== null || args.Transaction != transaction)
+            if (args.Transaction == null || args.Transaction != transaction)
                 args.Transaction = transaction;
 
             progress.Report(args);
@@ -249,6 +249,19 @@ namespace Dotmim.Sync
             this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 
             throw syncException;
+        }
+
+        internal SyncException GetSyncError(Exception exception)
+        {
+            var syncException = new SyncException(exception, this.GetContext().SyncStage);
+
+            // try to let the provider enrich the exception
+            this.Provider.EnsureSyncException(syncException);
+            syncException.Side = this.Side;
+
+            this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
+
+            return syncException;
         }
 
         /// <summary>
@@ -392,15 +405,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get hello from database
         /// </summary>
-        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
-                               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
-            // get database builder
-            var databaseBuilder = this.Provider.GetDatabaseBuilder();
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.None;
+            try
+            {
+                // get database builder
+                var databaseBuilder = this.Provider.GetDatabaseBuilder();
+                var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
 
-            var hello = await databaseBuilder.GetHelloAsync(connection, transaction);
+                await runner.CommitAsync().ConfigureAwait(false);
 
-            return (context, hello.DatabaseName, hello.Version);
+                return (ctx, hello.DatabaseName, hello.Version);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+
         }
 
 

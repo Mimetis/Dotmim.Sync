@@ -17,50 +17,73 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        public Task<bool> ResetTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        public async Task<bool> ResetTableAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // using a fake SyncTable based on SetupTable, since we don't need columns
-            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.None;
+            try
+            {
+                // using a fake SyncTable based on SetupTable, since we don't need columns
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+                var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
+                await this.InternalResetTableAsync(ctx, syncAdapter, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
 
-            var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
-
-            await this.InternalResetTableAsync(ctx, syncAdapter, connection, transaction).ConfigureAwait(false);
-
-            return true;
-        }, connection, transaction, cancellationToken);
+        }
 
         /// <summary>
         /// Disabling constraints on one table
         /// </summary>
-        public Task<bool> DisableConstraintsAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        public async Task<bool> DisableConstraintsAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // using a fake SyncTable based on SetupTable, since we don't need columns
-            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.None;
+            try
+            {
+                // using a fake SyncTable based on SetupTable, since we don't need columns
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+                var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
+                await this.InternalDisableConstraintsAsync(ctx, syncAdapter, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
 
-            var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
-
-            await this.InternalDisableConstraintsAsync(ctx, syncAdapter, connection, transaction).ConfigureAwait(false);
-
-            return true;
-        }, connection, transaction, cancellationToken);
+        }
 
         /// <summary>
         /// Enabling constraints on one table
         /// </summary>
-        public Task<bool> EnableConstraintsAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.None, async (ctx, connection, transaction) =>
+        public async Task<bool> EnableConstraintsAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // using a fake SyncTable based on SetupTable, since we don't need columns
-            var schemaTable = new SyncTable(table.TableName, table.SchemaName);
-
-            var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
-
-            await this.InternalEnableConstraintsAsync(ctx, syncAdapter, connection, transaction).ConfigureAwait(false);
-
-            return true;
-        }, connection, transaction, cancellationToken);
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.None;
+            try
+            {
+                // using a fake SyncTable based on SetupTable, since we don't need columns
+                var schemaTable = new SyncTable(table.TableName, table.SchemaName);
+                var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
+                await this.InternalEnableConstraintsAsync(ctx, syncAdapter, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// Disabling all constraints on synced tables

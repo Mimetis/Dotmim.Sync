@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Builders
             }
 
             var name = this.withQuotes ? parsedName.QuotedObjectName : this.ObjectName;
-            name = this.withNormalized ? name.Replace(" ", "_").Replace(".", "_") : name;
+            name = this.withNormalized ? name.Replace(" ", "_").Replace(".", "_").Replace("-", "_") : name;
             sb.Append(name);
 
             // now we have the correct string, reset options for the next time we call the same instance

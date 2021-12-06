@@ -48,7 +48,7 @@ namespace Dotmim.Sync.MySql.Builders
                 "blob" or "longblob" or "tinyblob" or "mediumblob" or "binary" or "varbinary" => DbType.Binary,
                 "year" => DbType.Int32,
                 "time" => DbType.Time,
-                "timestamp" => DbType.UInt64,
+                "timestamp" => DbType.DateTime,
                 "text" or "set" or "enum" or "nchar" or "nvarchar" or "varchar" => stringDbType,
                 "char" => columnDefinition.MaxLength == 36 ? DbType.Guid : stringDbType,
 
@@ -148,10 +148,10 @@ namespace Dotmim.Sync.MySql.Builders
             MySqlDbType.Float => typeof(float),
             MySqlDbType.Double => typeof(double),
             MySqlDbType.Time => typeof(TimeSpan),
-            MySqlDbType.Date or MySqlDbType.DateTime or MySqlDbType.Newdate => typeof(DateTime),
+            MySqlDbType.Date or MySqlDbType.DateTime or MySqlDbType.Newdate or MySqlDbType.Timestamp => typeof(DateTime),
             MySqlDbType.Enum or MySqlDbType.VarString or MySqlDbType.JSON or MySqlDbType.VarChar or MySqlDbType.String or MySqlDbType.TinyText or MySqlDbType.MediumText or MySqlDbType.LongText or MySqlDbType.Text or MySqlDbType.Set => typeof(string),
             MySqlDbType.Guid => typeof(Guid),
-            MySqlDbType.Timestamp or MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
+            MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
             _ => throw new Exception($"In Column {column.ColumnName}, the type {GetMySqlDbType(column)} is not supported"),
         };
 

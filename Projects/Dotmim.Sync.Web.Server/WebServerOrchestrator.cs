@@ -388,7 +388,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await base.EnsureSchemaAsync(connection: default, default, cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
             var schema = serverScopeInfo.Schema;
             schema.EnsureSchema();
@@ -427,8 +427,11 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
             sessionCache.ClientChangesApplied = clientChangesApplied;
 
+            string tableName = changes.ServerBatchInfo.BatchPartsInfo == null || changes.ServerBatchInfo.BatchPartsInfo.Count == 0 ? string.Empty : changes.ServerBatchInfo.BatchPartsInfo[0].Tables[0].TableName;
+            string schemaName = changes.ServerBatchInfo.BatchPartsInfo == null || changes.ServerBatchInfo.BatchPartsInfo.Count == 0 ? string.Empty : changes.ServerBatchInfo.BatchPartsInfo[0].Tables[0].SchemaName;
+            
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
+            return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, tableName, schemaName, 0);
         }
 
         internal async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
@@ -469,7 +472,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // get changes
-            var snap = await this.GetSnapshotAsync(schema, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(schema, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(ctx)
             {
@@ -518,7 +521,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // get changes
-            var snap = await this.GetSnapshotAsync(schema, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(schema, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
@@ -545,7 +548,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
+            return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, null, null, 0);
         }
 
         /// <summary>
@@ -612,7 +615,7 @@ namespace Dotmim.Sync.Web.Server
 
             // get changes
             var (remoteClientTimestamp, serverBatchInfo, _, clientChangesApplied, serverChangesSelected) =
-                   await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, cancellationToken, progress).ConfigureAwait(false);
+                   await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache if not working in memory
             sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
@@ -653,7 +656,7 @@ namespace Dotmim.Sync.Web.Server
         {
             return GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
-                sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
+                sessionCache.ServerChangesSelected, httpMessage.TableName, httpMessage.SchemaName, httpMessage.BatchIndexRequested);
         }
 
         /// <summary>
@@ -684,7 +687,7 @@ namespace Dotmim.Sync.Web.Server
         /// Create a response message content based on a requested index in a server batch info
         /// </summary>
         private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
-                              DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
+                              DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, string tableName, string schemaName, int batchIndexRequested)
         {
             var serverBatchInfoStr = "Null";
             if (serverBatchInfo != null)
@@ -710,7 +713,6 @@ namespace Dotmim.Sync.Web.Server
             // If nothing to do, just send back
             if (serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count == 0)
             {
-
                 changesResponse.Changes = new ContainerSet();
                 changesResponse.BatchIndex = 0;
                 changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo == null ? 0 : serverBatchInfo.BatchPartsInfo.Count;
@@ -726,8 +728,18 @@ namespace Dotmim.Sync.Web.Server
                 }
             }
 
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
             // Get the batch part index requested
-            var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
+            var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d =>
+            {
+                var currentSchemaName = d.Tables[0].SchemaName == null ? string.Empty : d.Tables[0].SchemaName;
+                var currentTableName = d.Tables[0].TableName;
+
+                var schemaNamestr = schemaName == null ? string.Empty : schemaName;
+
+                return string.Equals(tableName, currentTableName, sc) && string.Equals(schemaNamestr, currentSchemaName) && d.Index == batchIndexRequested;
+            });
 
             // if we are not in memory, we set the BI in session, to be able to get it back on next request
 
@@ -901,13 +913,14 @@ namespace Dotmim.Sync.Web.Server
             foreach (var webOrchestrator in orchestrators)
             {
 
+                SyncContext ctx = null;
                 string dbName = null;
                 string version = null;
                 string exceptionMessage = null;
                 bool hasException = false;
                 try
                 {
-                    (dbName, version) = await webOrchestrator.GetHelloAsync();
+                    (ctx, dbName, version) = await webOrchestrator.GetHelloAsync();
                 }
                 catch (Exception ex)
                 {

@@ -169,21 +169,7 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
-                    var allStoredProcedures = new List<DbStoredProcedureType>();
-
-                    foreach (var spt in Enum.GetValues(typeof(DbStoredProcedureType)))
-                        allStoredProcedures.Add((DbStoredProcedureType)spt);
-
-                    allStoredProcedures.Reverse();
-
-                    foreach (DbStoredProcedureType storedProcedureType in allStoredProcedures)
-                    {
-                        var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Drop storedProcedure if already exists
-                        if (exists)
-                            await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
+                    await InternalDropStoredProceduresAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Removing cached commands
                     var syncAdapter = this.GetSyncAdapter(schemaTable, setup);
@@ -192,14 +178,7 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.Triggers))
                 {
-                    foreach (DbTriggerType triggerType in Enum.GetValues(typeof(DbTriggerType)))
-                    {
-                        var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Drop trigger if already exists
-                        if (exists)
-                            await InternalDropTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
+                    await InternalDropTriggersAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.TrackingTable))

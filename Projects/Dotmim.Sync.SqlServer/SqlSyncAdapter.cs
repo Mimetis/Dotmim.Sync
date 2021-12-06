@@ -367,12 +367,23 @@ namespace Dotmim.Sync.SqlServer.Builders
                     isBatch = false;
                     break;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                    isBatch = false;
+                    break;
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
                     isBatch = true;
                     break;
                 case DbCommandType.DeleteRow:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                    isBatch = false;
+                    break;
+                case DbCommandType.DeleteRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
                     isBatch = true;

@@ -1393,11 +1393,21 @@ namespace Dotmim.Sync.SqlServer.Builders
                 CommandTimeout = 0
             };
 
+            var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
+            sqlCommand.Parameters.Add(pTimestamp);
+
             // Add filter parameters
             if (filter != null)
                 this.CreateFilterParameters(sqlCommand, filter);
 
-            var stringBuilder = new StringBuilder("SELECT");
+            var stringBuilder = new StringBuilder();
+
+            // if we have a filter we may have joins that will duplicate lines
+            if (filter != null)
+                stringBuilder.AppendLine("SELECT DISTINCT");
+            else
+                stringBuilder.AppendLine("SELECT");
+
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
             for (var i = 0; i < columns.Count; i++)
             {
@@ -1412,32 +1422,49 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
 
             // ----------------------------------
+            // Make Left Join
+            // ----------------------------------
+            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+
+            string empty = "";
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+                empty = " AND ";
+            }
+
+            // ----------------------------------
             // Custom Joins
             // ----------------------------------
             if (filter != null)
                 stringBuilder.Append(CreateFilterCustomJoins(filter));
 
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("WHERE (");
 
             // ----------------------------------
             // Where filters and Custom Where string
             // ----------------------------------
             if (filter != null)
             {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine("WHERE (");
                 var createFilterWhereSide = CreateFilterWhereSide(filter);
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
-
                 stringBuilder.Append(createFilterWhereSide);
 
-                if (!string.IsNullOrEmpty(createFilterCustomWheres))
-                {
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
-                    stringBuilder.Append(createFilterCustomWheres);
-                }
-                stringBuilder.AppendLine(")");
+
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                stringBuilder.Append(createFilterCustomWheres);
+
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
             }
             // ----------------------------------
+
+
+            stringBuilder.AppendLine("\t([side].[timestamp] > @sync_min_timestamp OR  @sync_min_timestamp IS NULL)");
+            stringBuilder.AppendLine(")");
 
             sqlCommand.CommandText = stringBuilder.ToString();
 

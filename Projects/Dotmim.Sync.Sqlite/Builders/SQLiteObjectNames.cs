@@ -200,7 +200,8 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($";");
             var cmdtext = stringBuilder.ToString();
 
-            this.AddCommandName(DbCommandType.InitializeRow, cmdtext);
+            this.AddCommandName(DbCommandType.InsertRow, cmdtext);
+            this.AddCommandName(DbCommandType.InsertRows, cmdtext);
         }
 
         private void CreateUpdateCommandText()
@@ -283,6 +284,7 @@ namespace Dotmim.Sync.Sqlite
             var cmdtext = stringBuilder.ToString();
 
             this.AddCommandName(DbCommandType.UpdateRow, cmdtext);
+            this.AddCommandName(DbCommandType.UpdateRows, cmdtext);
         }
 
         //private void CreateUpdateCommandTextBack(bool hasMutableColumns)
@@ -412,6 +414,7 @@ namespace Dotmim.Sync.Sqlite
             var cmdText = stringBuilder.ToString();
 
             this.AddCommandName(DbCommandType.DeleteRow, cmdText);
+            this.AddCommandName(DbCommandType.DeleteRows, cmdText);
         }
         private void CreateSelectRowCommandText()
         {

@@ -26,21 +26,33 @@ namespace Dotmim.Sync
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="progress">Progress args</param>
-        public virtual Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.MetadataCleaning, async (ctx, connection, transaction) =>
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!timeStampStart.HasValue)
                 return null;
 
-            // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
-            // No need columns or primary keys to be able to deprovision a table
-            SyncSet schema = new SyncSet(this.Setup);
+            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.MetadataCleaning;
 
-            var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart.Value, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            try
+            {
+                // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
+                // No need columns or primary keys to be able to deprovision a table
+                SyncSet schema = new SyncSet(this.Setup);
 
-            return databaseMetadatasCleaned;
+                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-        }, connection, transaction, cancellationToken);
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return databaseMetadatasCleaned;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+
+        }
 
 
         internal virtual async Task<DatabaseMetadatasCleaned> InternalDeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit,
