@@ -161,18 +161,15 @@ namespace Dotmim.Sync
                     if (this.resolution == ConflictResolution.MergeRow)
                     {
                         var finalRowArray = this.Conflict.RemoteRow.ToArray();
-                        var finalTable = this.Conflict.RemoteRow.Table.Clone();
-                        var finalSet = this.Conflict.RemoteRow.Table.Schema.Clone(false);
+                        var finalTable = this.Conflict.RemoteRow.SchemaTable.Clone();
+                        var finalSet = this.Conflict.RemoteRow.SchemaTable.Schema.Clone(false);
                         finalSet.Tables.Add(finalTable);
-                        this.FinalRow = new SyncRow(finalTable.Columns.Count);
-                        this.FinalRow.Table = finalTable;
-
-                        this.FinalRow.FromArray(finalRowArray);
+                        this.FinalRow = new SyncRow(this.Conflict.RemoteRow.SchemaTable, finalRowArray);
                         finalTable.Rows.Add(this.FinalRow);
                     }
                     else if (this.FinalRow != null)
                     {
-                        var finalSet = this.FinalRow.Table.Schema;
+                        var finalSet = this.FinalRow.SchemaTable.Schema;
                         this.FinalRow.Clear();
                         finalSet.Clear();
                         finalSet.Dispose();

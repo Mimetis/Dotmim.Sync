@@ -26,12 +26,4 @@ namespace Dotmim.Sync.Serialization
     }
 
 
-    public interface IFastForwardSerializer
-    {
-        Task OpenAsync();
-
-        Task WriteRowAsync(object[] row);
-
-        Task CloseAsync();
-    }
 }

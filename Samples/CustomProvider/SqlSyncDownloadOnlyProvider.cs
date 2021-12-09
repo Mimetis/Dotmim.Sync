@@ -39,8 +39,8 @@ namespace CustomProvider
     /// </summary>
     public class SqlDownloadOnlyTableBuilder : SqlTableBuilder
     {
-        public SqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) 
-            : base(tableDescription, tableName, trackingTableName, setup){}
+        public SqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+            : base(tableDescription, tableName, trackingTableName, setup) { }
 
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
@@ -86,11 +86,9 @@ namespace CustomProvider
                 var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
 
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.SqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString).Quoted().ToString();
-                quotedColumnType += this.SqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.TableDescription.OriginalProvider, SqlSyncProvider.ProviderType);
+                var columnType = this.SqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.TableDescription.OriginalProvider);
 
-                stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} {nullString}");
+                stringBuilder.AppendLine($"{str}{columnName} {columnType} {nullString}");
                 str = ", ";
             }
             //stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
@@ -262,8 +260,9 @@ namespace CustomProvider
         /// <summary>
         /// Returning null for all non used commands (from case default)
         /// </summary>
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
+            var isBatch = false;
             var command = new SqlCommand();
             switch (nameType)
             {
@@ -279,24 +278,26 @@ namespace CustomProvider
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
                     break;
-                case DbCommandType.BulkUpdateRows:
-                case DbCommandType.BulkInitializeRows:
+                case DbCommandType.UpdateRow:
+                case DbCommandType.InsertRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                    isBatch = true;
                     break;
-                case DbCommandType.BulkDeleteRows:
+                case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    isBatch = true;
                     break;
                 case DbCommandType.Reset:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     break;
                 default:
-                    return null;
+                    return (null, false);
             }
 
-            return command;
+            return (command, isBatch);
         }
 
     }

@@ -52,5 +52,6 @@ namespace Dotmim.Sync.Serialization
 
             return ms.ToArray();
         }
+
     }
 }

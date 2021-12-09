@@ -274,7 +274,8 @@ namespace Dotmim.Sync.MySql.Builders
         public string GetStringFromOwnerDbType(MySqlDbType ownerType) => ownerType switch
         {
             MySqlDbType.Decimal or MySqlDbType.NewDecimal => "decimal",
-            MySqlDbType.Byte or MySqlDbType.Bool or MySqlDbType.UByte => "tinyint",
+            MySqlDbType.Bool => "bit",
+            MySqlDbType.Byte or MySqlDbType.UByte => "tinyint",
             MySqlDbType.Int16 or MySqlDbType.Year or MySqlDbType.UInt16 => "smallint",
             MySqlDbType.Int24 or MySqlDbType.UInt24 => "mediumint",
             MySqlDbType.Int32 or MySqlDbType.UInt32 => "int",

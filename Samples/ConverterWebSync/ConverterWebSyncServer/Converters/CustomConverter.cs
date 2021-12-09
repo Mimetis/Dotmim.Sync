@@ -11,40 +11,47 @@ namespace ConverterWebSyncServer.Converters
     {
         public string Key => "cuscom";
 
-        public void BeforeSerialize(SyncRow row)
+        public void BeforeSerialize(object[] row, SyncTable schemaTable)
         {
             // Each row belongs to a Table with its own Schema
             // Easy to filter if needed
-            if (row.Table.TableName != "Product")
+            if (schemaTable.TableName != "Product")
                 return;
 
+            var photoColumn = schemaTable.Columns["ThumbNailPhoto"];
+            var index = schemaTable.Columns.IndexOf(photoColumn);
             // Encode a specific column, named "ThumbNailPhoto"
-            if (row["ThumbNailPhoto"] != null)
-                row["ThumbNailPhoto"] = Convert.ToBase64String((byte[])row["ThumbNailPhoto"]);
+            if (row[index] != null)
+                row[index] = Convert.ToBase64String((byte[])row[index]);
 
             // Convert all DateTime columns to ticks
-            foreach (var col in row.Table.Columns.Where(c => c.GetDataType() == typeof(DateTime)))
+            foreach (var col in schemaTable.Columns.Where(c => c.GetDataType() == typeof(DateTime)))
             {
-                if (row[col.ColumnName] != null)
-                    row[col.ColumnName] = ((DateTime)row[col.ColumnName]).Ticks;
+                var colIndex = schemaTable.Columns.IndexOf(col);
+                if (row[colIndex] != null)
+                    row[colIndex] = ((DateTime)row[colIndex]).Ticks;
             }
         }
 
-        public void AfterDeserialized(SyncRow row)
+        public void AfterDeserialized(object[] row, SyncTable schemaTable)
         {
             // Only convert for table Product
-            if (row.Table.TableName != "Product")
+            if (schemaTable.TableName != "Product")
                 return;
 
+            var photoColumn = schemaTable.Columns["ThumbNailPhoto"];
+            var index = schemaTable.Columns.IndexOf(photoColumn);
             // Decode photo
-            row["ThumbNailPhoto"] = Convert.FromBase64String((string)row["ThumbNailPhoto"]);
+            row[index] = Convert.FromBase64String((string)row[index]);
 
             // Convert all DateTime back from ticks
-            foreach (var col in row.Table.Columns.Where(c => c.GetDataType() == typeof(DateTime)))
+            foreach (var col in schemaTable.Columns.Where(c => c.GetDataType() == typeof(DateTime)))
             {
-                if (row[col.ColumnName] != null)
-                    row[col.ColumnName] = new DateTime(Convert.ToInt64(row[col.ColumnName]));
+                var colIndex = schemaTable.Columns.IndexOf(col);
+                if (row[colIndex] != null)
+                    row[colIndex] = new DateTime(Convert.ToInt64(row[colIndex]));
             }
         }
+
     }
 }

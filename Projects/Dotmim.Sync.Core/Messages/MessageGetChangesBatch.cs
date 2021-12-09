@@ -11,12 +11,13 @@ namespace Dotmim.Sync
     public class MessageGetChangesBatch
     {
         public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
-                                      int batchSize, string batchDirectory, ISerializerFactory serializerFactory)
+                                      int batchSize, string batchDirectory, ILocalSerializer localSerializer)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
-            this.SerializerFactory = serializerFactory;
+            //this.SerializerFactory = serializerFactory;
+            this.LocalSerializer = localSerializer;
             this.ExcludingScopeId = excludingScopeId;
             this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
@@ -67,10 +68,14 @@ namespace Dotmim.Sync
         /// </summary>
         public string BatchDirectory { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the Serializer factory used when batch mode is enabled
-        /// </summary>
-        public ISerializerFactory SerializerFactory { get; set; }
+        ///// <summary>
+        ///// Gets or Sets the Serializer used to serialize rows
+        ///// </summary>
+        //public ISerializerFactory SerializerFactory { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the Local Serializer, used to buffer rows when reading from datasource
+        /// </summary>
+        public ILocalSerializer LocalSerializer { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
@@ -292,7 +293,7 @@ namespace Dotmim.Sync.Web.Server
                 // var clientSerializerFactory = this.WebServerOptions.Serializers[serAndsize.f];
                 // return (clientBatchSize, clientSerializerFactory);
 
-                return (clientBatchSize, this.Options.SerializerFactory);
+                return (clientBatchSize, this.WebServerOptions.SerializerFactory);
             }
             catch
             {
@@ -427,11 +428,8 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
             sessionCache.ClientChangesApplied = clientChangesApplied;
 
-            string tableName = changes.ServerBatchInfo.BatchPartsInfo == null || changes.ServerBatchInfo.BatchPartsInfo.Count == 0 ? string.Empty : changes.ServerBatchInfo.BatchPartsInfo[0].Tables[0].TableName;
-            string schemaName = changes.ServerBatchInfo.BatchPartsInfo == null || changes.ServerBatchInfo.BatchPartsInfo.Count == 0 ? string.Empty : changes.ServerBatchInfo.BatchPartsInfo[0].Tables[0].SchemaName;
-            
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, tableName, schemaName, 0);
+            return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
         }
 
         internal async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
@@ -548,7 +546,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, null, null, 0);
+            return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
         }
 
         /// <summary>
@@ -582,24 +580,49 @@ namespace Dotmim.Sync.Web.Server
             if (sessionCache.ClientBatchInfo == null)
             {
                 sessionCache.ClientBatchInfo = new BatchInfo(schema, this.Options.BatchDirectory);
-                //httpContext.Session.Set(sessionId, sessionCache);
+                sessionCache.ClientBatchInfo.CreateDirectory();
             }
 
-            // create the in memory changes set
-            var changesSet = new SyncSet();
+            if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
+            {
+                // we have only one table here
+                var containerTable = httpMessage.Changes.Tables[0];
+                var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[containerTable.TableName, containerTable.SchemaName]);
+                var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
+                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, this.Options.LocalSerializer.Extension);
+                var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
 
-            foreach (var table in httpMessage.Changes.Tables)
-                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+                // If client has made a conversion on each line, apply the reverse side of it
+                if (this.ClientConverter != null)
+                    AfterDeserializedRows(containerTable, schemaTable, this.ClientConverter);
 
-            changesSet.ImportContainerSet(httpMessage.Changes, false);
+                // open the file and write table header
+                await this.Options.LocalSerializer.OpenFileAsync(fullPath, schemaTable);
 
-            // If client has made a conversion on each line, apply the reverse side of it
-            if (this.ClientConverter != null && changesSet.HasRows)
-                AfterDeserializedRows(changesSet, this.ClientConverter);
+                foreach (var row in containerTable.Rows)
+                    await this.Options.LocalSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable);
 
-            // add changes to the batch info
-            await sessionCache.ClientBatchInfo.AddChangesAsync(changesSet, httpMessage.BatchIndex, httpMessage.IsLastBatch, this.Options.SerializerFactory, this);
-            //httpContext.Session.Set(sessionId, sessionCache);
+                // Close file
+                await this.Options.LocalSerializer.CloseFileAsync(fullPath, schemaTable);
+
+                // Create the info on the batch part
+                BatchPartTableInfo tableInfo = new BatchPartTableInfo
+                {
+                    TableName = containerTable.TableName,
+                    SchemaName = containerTable.SchemaName,
+                    RowsCount = containerTable.Rows.Count
+
+                };
+                var bpi = new BatchPartInfo { FileName = fileName };
+                bpi.Tables = new BatchPartTableInfo[] { tableInfo };
+                bpi.RowsCount = tableInfo.RowsCount;
+                bpi.IsLastBatch = httpMessage.IsLastBatch;
+                bpi.Index = httpMessage.BatchIndex;
+                sessionCache.ClientBatchInfo.RowsCount += bpi.RowsCount;
+                sessionCache.ClientBatchInfo.BatchPartsInfo.Add(bpi);
+
+
+            }
 
             // Clear the httpMessage set
             if (httpMessage.Changes != null)
@@ -617,12 +640,11 @@ namespace Dotmim.Sync.Web.Server
             var (remoteClientTimestamp, serverBatchInfo, _, clientChangesApplied, serverChangesSelected) =
                    await base.ApplyThenGetChangesAsync(httpMessage.Scope, sessionCache.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
-            // Save the server batch info object to cache if not working in memory
+            // Set session cache infos
             sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
             sessionCache.ServerBatchInfo = serverBatchInfo;
             sessionCache.ServerChangesSelected = serverChangesSelected;
             sessionCache.ClientChangesApplied = clientChangesApplied;
-            //httpContext.Session.Set(sessionId, sessionCache);
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
             var cleanFolder = this.Options.CleanFolder;
@@ -633,6 +655,11 @@ namespace Dotmim.Sync.Web.Server
             if (cleanFolder)
                 sessionCache.ClientBatchInfo.TryRemoveDirectory();
 
+            // Retro compatiblité to version < 0.9.3
+            if (serverBatchInfo.BatchPartsInfo == null)
+                serverBatchInfo.BatchPartsInfo = new List<BatchPartInfo>();
+
+
             var summaryResponse = new HttpMessageSummaryResponse(ctx)
             {
                 BatchInfo = serverBatchInfo,
@@ -642,6 +669,33 @@ namespace Dotmim.Sync.Web.Server
                 ServerChangesSelected = serverChangesSelected,
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
             };
+
+
+            // Compatibility with last versions where InMemory is set
+            if (clientBatchSize <= 0)
+            {
+                var containerSet = new ContainerSet();
+                foreach (var table in serverBatchInfo.SanitizedSchema.Tables)
+                {
+                    var containerTable = new ContainerTable(table);
+                    foreach (var part in serverBatchInfo.GetBatchPartsInfo(table))
+                    {
+                        var paths = serverBatchInfo.GetBatchPartInfoPath(part);
+                        foreach (var syncRow in this.Options.LocalSerializer.ReadRowsFromFile(paths.FullPath, table))
+                        {
+                            containerTable.Rows.Add(syncRow.ToArray());
+                        }
+                    }
+                    if (containerTable.Rows.Count > 0)
+                        containerSet.Tables.Add(containerTable);
+                }
+
+                summaryResponse.Changes = containerSet;
+                summaryResponse.BatchInfo.BatchPartsInfo.Clear();
+                summaryResponse.BatchInfo.BatchPartsInfo = null;
+
+            }
+
 
             // Get the firt response to send back to client
             return summaryResponse;
@@ -656,8 +710,71 @@ namespace Dotmim.Sync.Web.Server
         {
             return GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
-                sessionCache.ServerChangesSelected, httpMessage.TableName, httpMessage.SchemaName, httpMessage.BatchIndexRequested);
+                sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
         }
+
+        /// <summary>
+        /// Create a response message content based on a requested index in a server batch info
+        /// </summary>
+        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
+                              DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
+        {
+            var schema = await EnsureSchemaFromSessionAsync(httpContext, syncContext.ScopeName, default, default).ConfigureAwait(false);
+
+            // 1) Create the http message content response
+            var changesResponse = new HttpMessageSendChangesResponse(syncContext)
+            {
+                ServerChangesSelected = serverChangesSelected,
+                ClientChangesApplied = clientChangesApplied,
+                ServerStep = HttpStep.GetMoreChanges,
+                ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy
+            };
+
+            if (serverBatchInfo == null)
+                throw new Exception("serverBatchInfo is Null and should not be ....");
+
+            // If nothing to do, just send back
+            if (serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count <= 0)
+            {
+                changesResponse.Changes = new ContainerSet();
+                changesResponse.BatchIndex = 0;
+                changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo == null ? 0 : serverBatchInfo.BatchPartsInfo.Count;
+                changesResponse.IsLastBatch = true;
+                changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
+                return changesResponse;
+            }
+
+            // Get the batch part index requested
+            var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
+
+            // Get the updatable schema for the only table contained in the batchpartinfo
+            var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName]);
+
+            // Generate the ContainerSet containing rows to send to the user
+            var containerSet = new ContainerSet();
+            var containerTable = new ContainerTable(schemaTable);
+            var fullPath = Path.Combine(serverBatchInfo.GetDirectoryFullPath(), batchPartInfo.FileName);
+            containerSet.Tables.Add(containerTable);
+
+            // read rows from file
+            foreach (var row in this.Options.LocalSerializer.ReadRowsFromFile(fullPath, schemaTable))
+                containerTable.Rows.Add(row.ToArray());
+
+            // if client request a conversion on each row, apply the conversion
+            if (this.ClientConverter != null && containerTable.HasRows)
+                BeforeSerializeRows(containerTable, schemaTable, this.ClientConverter);
+
+            // generate the response
+            changesResponse.Changes = containerSet;
+            changesResponse.BatchIndex = batchIndexRequested;
+            changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo.Count;
+            changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
+            changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
+            changesResponse.ServerStep = batchPartInfo.IsLastBatch ? HttpStep.GetMoreChanges : HttpStep.GetChangesInProgress;
+
+            return changesResponse;
+        }
+
 
         /// <summary>
         /// This method is only used when batch mode is enabled on server and we need send to the server the order to delete tmp folder 
@@ -684,133 +801,27 @@ namespace Dotmim.Sync.Web.Server
 
 
         /// <summary>
-        /// Create a response message content based on a requested index in a server batch info
-        /// </summary>
-        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
-                              DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, string tableName, string schemaName, int batchIndexRequested)
-        {
-            var serverBatchInfoStr = "Null";
-            if (serverBatchInfo != null)
-            {
-                var serverBatchPartsCountStr = serverBatchInfo.BatchPartsInfo == null ? "Null" : serverBatchInfo.BatchPartsInfo.Count.ToString();
-                var serverBatchTablesCountStr = serverBatchInfo.SanitizedSchema == null ? "Null" : serverBatchInfo.SanitizedSchema.Tables.Count.ToString();
-                serverBatchInfoStr = $"Parts:{serverBatchPartsCountStr}. Rows Count:{serverBatchInfo.RowsCount}. Tables:{serverBatchTablesCountStr}";
-            }
-            var schema = await EnsureSchemaFromSessionAsync(httpContext, syncContext.ScopeName, default, default).ConfigureAwait(false);
-
-            // 1) Create the http message content response
-            var changesResponse = new HttpMessageSendChangesResponse(syncContext)
-            {
-                ServerChangesSelected = serverChangesSelected,
-                ClientChangesApplied = clientChangesApplied,
-                ServerStep = HttpStep.GetMoreChanges,
-                ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy
-            };
-
-            if (serverBatchInfo == null)
-                throw new Exception("serverBatchInfo is Null and should not be ....");
-
-            // If nothing to do, just send back
-            if (serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count == 0)
-            {
-                changesResponse.Changes = new ContainerSet();
-                changesResponse.BatchIndex = 0;
-                changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo == null ? 0 : serverBatchInfo.BatchPartsInfo.Count;
-                changesResponse.IsLastBatch = true;
-                changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
-
-                serverBatchInfoStr = "Null";
-                if (serverBatchInfo != null)
-                {
-                    var serverBatchPartsCountStr = serverBatchInfo.BatchPartsInfo == null ? "Null" : serverBatchInfo.BatchPartsInfo.Count.ToString();
-                    var serverBatchTablesCountStr = serverBatchInfo.SanitizedSchema == null ? "Null" : serverBatchInfo.SanitizedSchema.Tables.Count.ToString();
-                    serverBatchInfoStr = $"Parts:{serverBatchPartsCountStr}. Rows Count:{serverBatchInfo.RowsCount}. Tables:{serverBatchTablesCountStr}";
-                }
-            }
-
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
-            // Get the batch part index requested
-            var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d =>
-            {
-                var currentSchemaName = d.Tables[0].SchemaName == null ? string.Empty : d.Tables[0].SchemaName;
-                var currentTableName = d.Tables[0].TableName;
-
-                var schemaNamestr = schemaName == null ? string.Empty : schemaName;
-
-                return string.Equals(tableName, currentTableName, sc) && string.Equals(schemaNamestr, currentSchemaName) && d.Index == batchIndexRequested;
-            });
-
-            // if we are not in memory, we set the BI in session, to be able to get it back on next request
-
-            // create the in memory changes set
-            var changesSet = new SyncSet();
-
-            foreach (var table in schema.Tables)
-                DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
-
-            // Backward compatibility for client < v0.8.0
-            var serializerFactory = this.Options.SerializerFactory;
-            if (this.Options.SerializerFactory.Key != SerializersCollection.JsonSerializer.Key && (string.IsNullOrEmpty(serverBatchInfo.SerializerFactoryKey) || serverBatchInfo.SerializerFactoryKey == SerializersCollection.JsonSerializer.Key))
-                serializerFactory = SerializersCollection.JsonSerializer;
-
-            await batchPartInfo.LoadBatchAsync(changesSet, serverBatchInfo.GetDirectoryFullPath(), serializerFactory, this);
-
-            // if client request a conversion on each row, apply the conversion
-            if (this.ClientConverter != null && batchPartInfo.Data.HasRows)
-                BeforeSerializeRows(batchPartInfo.Data, this.ClientConverter);
-
-            changesResponse.Changes = batchPartInfo.Data.GetContainerSet();
-            changesResponse.BatchIndex = batchIndexRequested;
-            changesResponse.BatchCount = serverBatchInfo.BatchPartsInfo.Count;
-            changesResponse.IsLastBatch = batchPartInfo.IsLastBatch;
-            changesResponse.RemoteClientTimestamp = remoteClientTimestamp;
-            changesResponse.ServerStep = batchPartInfo.IsLastBatch ? HttpStep.GetMoreChanges : HttpStep.GetChangesInProgress;
-
-            batchPartInfo.Clear();
-
-            serverBatchInfoStr = "Null";
-            if (serverBatchInfo != null)
-            {
-                var serverBatchPartsCountStr = serverBatchInfo.BatchPartsInfo == null ? "Null" : serverBatchInfo.BatchPartsInfo.Count.ToString();
-                var serverBatchTablesCountStr = serverBatchInfo.SanitizedSchema == null ? "Null" : serverBatchInfo.SanitizedSchema.Tables.Count.ToString();
-                serverBatchInfoStr = $"Parts:{serverBatchPartsCountStr}. Rows Count:{serverBatchInfo.RowsCount}. Tables:{serverBatchTablesCountStr}";
-            }
-            return changesResponse;
-        }
-
-
-        /// <summary>
         /// Before serializing all rows, call the converter for each row
         /// </summary>
-        public void BeforeSerializeRows(SyncSet data, IConverter converter)
+        public void BeforeSerializeRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
         {
-            foreach (var table in data.Tables)
+            if (table.Rows.Count > 0)
             {
-                if (table.Rows.Count > 0)
-                {
-                    foreach (var row in table.Rows)
-                        converter.BeforeSerialize(row);
-
-                }
+                foreach (var row in table.Rows)
+                    converter.BeforeSerialize(row, schemaTable);
             }
         }
 
         /// <summary>
         /// After deserializing all rows, call the converter for each row
         /// </summary>
-        public void AfterDeserializedRows(SyncSet data, IConverter converter)
+        public void AfterDeserializedRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
         {
-            foreach (var table in data.Tables)
+            if (table.Rows.Count > 0)
             {
-                if (table.Rows.Count > 0)
-                {
-                    foreach (var row in table.Rows)
-                        converter.AfterDeserialized(row);
-
-                }
+                foreach (var row in table.Rows)
+                    converter.AfterDeserialized(row, schemaTable);
             }
-
         }
 
 

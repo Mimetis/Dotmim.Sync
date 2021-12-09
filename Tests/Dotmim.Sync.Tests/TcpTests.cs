@@ -1639,6 +1639,7 @@ namespace Dotmim.Sync.Tests
                 }
                 await ctx.SaveChangesAsync();
             }
+            var innerRowsCountBefore = this.GetServerDatabaseRowsCount(this.Server);
 
             // Sync all clients
             // First client  will upload 1000 lines and will download nothing

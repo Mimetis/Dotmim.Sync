@@ -1459,7 +1459,7 @@ namespace Dotmim.Sync.Tests
                         args.HttpContext.Session.Clear();
                         await args.HttpContext.Session.CommitAsync();
                     }
-                    
+
                     if (args.HttpStep == HttpStep.GetMoreChanges)
                         batchIndex++;
                 });
@@ -1808,10 +1808,16 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server
-                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1050);
+                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1100);
                 Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
 
+                // Get count of rows
+                var finalRowsCount = this.GetServerDatabaseRowsCount(this.Server);
+                var clientRowsCount = this.GetServerDatabaseRowsCount(client);
+                Assert.Equal(finalRowsCount, clientRowsCount);
+
                 download += 1000;
+
             }
         }
 

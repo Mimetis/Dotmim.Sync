@@ -117,7 +117,7 @@ namespace Dotmim.Sync
 
                 // Creating the message
                 var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup,
-                                                         this.Options.BatchSize, this.Options.BatchDirectory, this.Options.SerializerFactory);
+                                                         this.Options.BatchSize, this.Options.BatchDirectory, this.Options.LocalSerializer);
 
                 // Locally, if we are new, no need to get changes
                 if (isNew)
@@ -184,7 +184,7 @@ namespace Dotmim.Sync
 
                 // Creating the message
                 // Since it's an estimated count, we don't need to create batches, so we hard code the batchsize to 0
-                var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory, this.Options.SerializerFactory);
+                var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory, this.Options.LocalSerializer);
 
                 DatabaseChangesSelected clientChangesSelected;
                 // Locally, if we are new, no need to get changes
@@ -225,7 +225,7 @@ namespace Dotmim.Sync
             // Create the message containing everything needed to apply changes
             var applyChanges = new MessageApplyChanges(scope.Id, Guid.Empty, isNew, lastSyncTS, schema, this.Setup, policy,
                             this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
-                            serverBatchInfo, this.Options.SerializerFactory);
+                            serverBatchInfo, this.Options.LocalSerializer);
 
             DatabaseChangesApplied clientChangesApplied;
 

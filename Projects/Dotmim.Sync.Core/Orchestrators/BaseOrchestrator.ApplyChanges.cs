@@ -169,7 +169,6 @@ namespace Dotmim.Sync
                 syncRow[columnName] = columnValue;
             }
 
-
             // if syncRow is not a deleted row, we can check for which kind of row it is.
             if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
                 syncRow.RowState = DataRowState.Modified;
@@ -184,7 +183,7 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<bool> InternalApplyConflictDeleteAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            if (row.Table == null)
+            if (row.SchemaTable == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
@@ -213,7 +212,7 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<bool> InternalApplyConflictUpdateAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            if (row.Table == null)
+            if (row.SchemaTable == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
@@ -740,23 +739,20 @@ namespace Dotmim.Sync
 
             TableChangesApplied tableChangesApplied = null;
 
-            // Get all batch part with lines in them for the current table
-            var tableInfo = new BatchPartTableInfo(schemaTable.TableName, schemaTable.SchemaName);
-
-            var bpiTables = message.Changes.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.Tables.Any(t => t.EqualsByName(tableInfo))).OrderBy(t => t.Index);
+            var bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
 
             // Conflicts occured when trying to apply rows
             var conflictRows = new List<SyncRow>();
 
-
             // I've got all files for my table
-            foreach (var batchPartinInfo in bpiTables)
+            foreach (var batchPartInfo in bpiTables)
             {
                 // applied rows for this bpi
 
                 int appliedRowsTmp = 0;
+
                 // Get full path of my batchpartinfo
-                var fullPath = Path.Combine(message.Changes.DirectoryRoot, message.Changes.DirectoryName, batchPartinInfo.FileName);
+                var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
                 // Launch any interceptor if available
                 command.CommandText = cmdText;
@@ -773,11 +769,11 @@ namespace Dotmim.Sync
                 var batchRows = new List<SyncRow>();
                 var rowsFetched = 0;
 
-                foreach (var row in GetSyncRows(fullPath, schemaChangesTable))
+                foreach (var syncRow in message.LocalSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                 {
                     rowsFetched++;
 
-                    if (row.RowState != applyType)
+                    if (syncRow.RowState != applyType)
                         continue;
 
                     if (isBatch)
@@ -785,9 +781,9 @@ namespace Dotmim.Sync
                         // Adding rows to the batch rows
                         if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                         {
-                            batchRows.Add(row);
+                            batchRows.Add(syncRow);
 
-                            if (rowsFetched < batchPartinInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
+                            if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 continue;
                         }
                         var failedPrimaryKeysTable = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName];
@@ -812,7 +808,7 @@ namespace Dotmim.Sync
                     else
                     {
                         // Set the parameters value from row 
-                        syncAdapter.SetColumnParametersValues(command, row);
+                        syncAdapter.SetColumnParametersValues(command, syncRow);
 
                         // Set the special parameters for update
                         syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
@@ -828,7 +824,7 @@ namespace Dotmim.Sync
                         if (rowAppliedCount > 0)
                             appliedRowsTmp++;
                         else
-                            conflictRows.Add(row);
+                            conflictRows.Add(syncRow);
                     }
 
                 }
@@ -1167,50 +1163,6 @@ namespace Dotmim.Sync
                 conflict.AddLocalRow(localConflictRow);
 
             return conflict;
-        }
-
-        private static IEnumerable<SyncRow> GetSyncRows(string file, SyncTable table)
-        {
-            JsonSerializer serializer = new JsonSerializer();
-            using var reader = new JsonTextReader(new StreamReader(file));
-            while (reader.Read())
-            {
-                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "t")
-                {
-                    while (reader.Read() && reader.TokenType != JsonToken.EndArray)
-                    {
-                        if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "n")
-                        {
-                            //Console.WriteLine($"Table Name:{reader.ReadAsString()}");
-                            reader.Read();
-                            //Console.WriteLine($"Schema Name:{reader.ReadAsString()}");
-
-                            while (reader.Read() && reader.TokenType != JsonToken.EndObject)
-                            {
-                                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "r")
-                                {
-                                    // Go to children of the array
-                                    reader.Read();
-                                    // read all array
-                                    while (reader.Read() && reader.TokenType != JsonToken.EndArray)
-                                    {
-                                        if (reader.TokenType == JsonToken.StartArray)
-                                        {
-                                            var array = serializer.Deserialize<object[]>(reader);
-
-                                            var row = table.NewRow();
-                                            row.FromArray(array);
-                                            yield return row;
-                                        }
-                                    }
-                                }
-
-                            }
-                        }
-                    }
-                }
-            }
-
         }
     }
 }

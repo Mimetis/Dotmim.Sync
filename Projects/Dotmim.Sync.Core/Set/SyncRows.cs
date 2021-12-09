@@ -24,26 +24,26 @@ namespace Dotmim.Sync
 
             if (rows != null)
                 foreach (var row in this)
-                    row.Table = table;
+                    row.SchemaTable = table;
         }
 
         /// <summary>
-        /// Add a new buffer row
+        /// Add a new buffer row. Be careful, row should include state in first index
         /// </summary>
-        public void Add(object[] row, DataRowState state = DataRowState.Unchanged)
+        public void Add(object[] row)
         {
-            var schemaRow = new SyncRow(this.Table, row, state);
+            var schemaRow = new SyncRow(this.Table, row);
             rows.Add(schemaRow);
         }
 
         /// <summary>
-        /// Add a rows
+        /// Add a rows. Be careful, row should include state in first index
         /// </summary>
-        public void AddRange(IEnumerable<object[]> rows, DataRowState state = DataRowState.Unchanged)
+        public void AddRange(IEnumerable<object[]> rows)
         {
             foreach (var row in rows)
             {
-                var schemaRow = new SyncRow(this.Table, row, state);
+                var schemaRow = new SyncRow(this.Table, row);
                 this.rows.Add(schemaRow);
             }
         }
@@ -53,7 +53,7 @@ namespace Dotmim.Sync
             foreach (var item in rows)
             {
                 // TryEnsureData(item);
-                item.Table = this.Table;
+                item.SchemaTable = this.Table;
                 this.rows.Add(item);
 
             }
@@ -64,66 +64,10 @@ namespace Dotmim.Sync
         public void Add(SyncRow item)
         {
             // TryEnsureData(item);
-            item.Table = this.Table;
+            item.SchemaTable = this.Table;
             this.rows.Add(item);
         }
-
-
-        /// <summary>
-        /// Import a containerTable
-        /// </summary>
-        /// <param name="containerTable"></param>
-        internal void ImportContainerTable(ContainerTable containerTable, bool checkType)
-        {
-            foreach (var row in containerTable.Rows)
-            {
-                var length = Table.Columns.Count;
-                var itemArray = new object[length];
-
-                if (!checkType)
-                {
-                    Array.Copy(row, 1, itemArray, 0, length);
-                }
-                else
-                {
-                    // Get only writable columns
-                    var columns = Table.GetMutableColumnsWithPrimaryKeys();
-
-                    foreach (var col in columns)
-                    {
-                        var val = row[col.Ordinal + 1];
-                        var colDataType = col.GetDataType();
-
-                        if (val == null)
-                            itemArray[col.Ordinal] = null;
-                        else if (val.GetType() != colDataType)
-                            itemArray[col.Ordinal] = SyncTypeConverter.TryConvertTo(val, col.GetDataType());
-                        else
-                            itemArray[col.Ordinal] = val;
-
-                    }
-                }
-
-                //Array.Copy(row, 1, itemArray, 0, length);
-                var state = (DataRowState)Convert.ToInt32(row[0]);
-
-                var schemaRow = new SyncRow(this.Table, itemArray, state);
-                this.rows.Add(schemaRow);
-            }
-        }
-
-        /// <summary>
-        /// Gets the inner rows for serialization
-        /// </summary>
-        internal IEnumerable<object[]> ExportToContainerTable()
-        {
-            foreach (var row in this.rows)
-                yield return row.ToArray();
-        }
-
-
-        
-
+  
         /// <summary>
         /// Make a filter on primarykeys
         /// </summary>
@@ -131,7 +75,7 @@ namespace Dotmim.Sync
         {
             // Get the primarykeys to get the ordinal
             var primaryKeysColumn = Table.GetPrimaryKeysColumns().ToList();
-            var criteriaKeysColumn = criteria.Table.GetPrimaryKeysColumns().ToList();
+            var criteriaKeysColumn = criteria.SchemaTable.GetPrimaryKeysColumns().ToList();
 
             if (primaryKeysColumn.Count != criteriaKeysColumn.Count)
                 throw new ArgumentOutOfRangeException($"Can't make a query on primary keys since number of primary keys columns in criterias is not matching the number of primary keys columns in this table");
@@ -166,7 +110,7 @@ namespace Dotmim.Sync
         {
             // Get the primarykeys to get the ordinal
             var primaryKeysColumn = schemaTable.GetPrimaryKeysColumns().ToList();
-            var criteriaKeysColumn = criteria.Table.GetPrimaryKeysColumns().ToList();
+            var criteriaKeysColumn = criteria.SchemaTable.GetPrimaryKeysColumns().ToList();
 
             if (primaryKeysColumn.Count != criteriaKeysColumn.Count)
                 throw new ArgumentOutOfRangeException($"Can't make a query on primary keys since number of primary keys columns in criterias is not matching the number of primary keys columns in this table");
@@ -279,7 +223,7 @@ namespace Dotmim.Sync
         public override string ToString() => this.rows.Count.ToString();
         public void Insert(int index, SyncRow item)
         {
-            item.Table = this.Table;
+            item.SchemaTable = this.Table;
             this.rows.Insert(index, item);
         }
         public IEnumerator<SyncRow> GetEnumerator() => rows.GetEnumerator();

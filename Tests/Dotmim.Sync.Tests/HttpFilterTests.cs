@@ -532,16 +532,15 @@ namespace Dotmim.Sync.Tests
 
             // configure server orchestrator
             this.WebServerOrchestrator.Setup = this.FilterSetup;
-            this.WebServerOrchestrator.Options.SerializerFactory = new CustomMessagePackSerializerFactory();
-
-            // add custom serializer
-            options.SerializerFactory = new CustomMessagePackSerializerFactory();
+            this.WebServerOrchestrator.WebServerOptions.SerializerFactory = new CustomMessagePackSerializerFactory();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
                 var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                webClientOrchestrator.SerializerFactory = new CustomMessagePackSerializerFactory();
+
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
@@ -714,7 +713,6 @@ namespace Dotmim.Sync.Tests
             {
                 SnapshotsDirectory = directory,
                 BatchSize = 200,
-                SerializerFactory = new CustomMessagePackSerializerFactory()
             };
 
             // ----------------------------------
@@ -755,13 +753,16 @@ namespace Dotmim.Sync.Tests
             this.WebServerOrchestrator.Setup = this.FilterSetup;
             this.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
             this.WebServerOrchestrator.Options.BatchSize = 200;
-            this.WebServerOrchestrator.Options.SerializerFactory = new CustomMessagePackSerializerFactory();
+            this.WebServerOrchestrator.WebServerOptions.SerializerFactory = new CustomMessagePackSerializerFactory();
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                webClientOrchestrator.SerializerFactory = new CustomMessagePackSerializerFactory();
+
+                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
                 var snapshotApplying = 0;

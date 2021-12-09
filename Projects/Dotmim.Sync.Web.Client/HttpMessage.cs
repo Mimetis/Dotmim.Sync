@@ -91,25 +91,16 @@ namespace Dotmim.Sync.Web.Client
     {
         public HttpMessageGetMoreChangesRequest() { }
 
-        public HttpMessageGetMoreChangesRequest(SyncContext context, string tableName, string schemaName, int batchIndexRequested)
+        public HttpMessageGetMoreChangesRequest(SyncContext context,  int batchIndexRequested)
         {
             this.BatchIndexRequested = batchIndexRequested;
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-            this.TableName = tableName;
-            this.SchemaName = schemaName;
         }
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
         [DataMember(Name = "bireq", IsRequired = true, Order = 2)]
         public int BatchIndexRequested { get; set; }
-
-        [DataMember(Name = "tn", IsRequired = true, Order = 3)]
-        public string TableName { get; set; }
-
-        [DataMember(Name = "sn", IsRequired = true, Order = 4)]
-        public string SchemaName { get; set; }
-
 
     }
 

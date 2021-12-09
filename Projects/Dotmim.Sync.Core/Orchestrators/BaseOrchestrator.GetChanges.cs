@@ -1,15 +1,11 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -58,10 +54,7 @@ namespace Dotmim.Sync
             // batchinfo generate a schema clone with scope columns if needed
             batchInfo = new BatchInfo(message.Schema, message.BatchDirectory);
 
-            if (Directory.Exists(batchInfo.GetDirectoryFullPath()))
-                Directory.Delete(batchInfo.GetDirectoryFullPath(), true);
-
-            Directory.CreateDirectory(batchInfo.GetDirectoryFullPath());
+            batchInfo.CreateDirectory();
 
             var cptSyncTable = 0;
             var currentProgress = context.ProgressPercentage;
@@ -92,25 +85,12 @@ namespace Dotmim.Sync
 
                 if (selectIncrementalChangesCommand == null) continue;
 
-                var tableName = ParserName.Parse(syncTable).Unquoted().Normalized().ToString();
-                var fileName = BatchInfo.GenerateNewFileName2(batchIndex.ToString(), tableName, "json");
-                var fullPath = Path.Combine(batchInfo.GetDirectoryFullPath(), fileName);
-                var sw = new StreamWriter(fullPath);
-                var writer = new JsonTextWriter(sw) { CloseOutput = true };
+                var localSerializer = message.LocalSerializer;
 
-                // Open file
-                writer.WriteStartObject();
-                writer.WritePropertyName("t");
-                writer.WriteStartArray();
-                writer.WriteStartObject();
-                writer.WritePropertyName("n");
-                writer.WriteValue(syncTable.TableName);
-                writer.WritePropertyName("s");
-                writer.WriteValue(syncTable.SchemaName);
-                writer.WritePropertyName("r");
-                writer.WriteStartArray();
-                writer.WriteWhitespace(Environment.NewLine);
+                var schemaChangesTable = DbSyncAdapter.CreateChangesTable(syncTable);
 
+                var (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(syncTable, batchIndex, localSerializer.Extension);
+                
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
@@ -125,35 +105,33 @@ namespace Dotmim.Sync
 
                 if (!args.Cancel && args.Command != null)
                 {
+                    // open the file and write table header
+                    await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable);
+
                     // Get the reader
                     using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
                     while (dataReader.Read())
                     {
                         // Create a row from dataReader
-                        var row = CreateSyncRowFromReader2(dataReader, columnsCount);
+                        var syncRow = CreateSyncRowFromReader2(dataReader, schemaChangesTable);
                         rowsCountInBatch++;
 
                         // Set the correct state to be applied
-                        if ((int)row[0] == (int)DataRowState.Deleted)
+                        if (syncRow.RowState == DataRowState.Deleted)
                             tableChangesSelected.Deletes++;
-                        else if ((int)row[0] == (int)DataRowState.Modified)
+                        else if (syncRow.RowState == DataRowState.Modified)
                             tableChangesSelected.Upserts++;
 
-                        writer.WriteStartArray();
-                        for (var i = 0; i < row.Length; i++)
-                            writer.WriteValue(row[i]);
-                        writer.WriteEndArray();
-                        writer.WriteWhitespace(Environment.NewLine);
-                        writer.Flush();
+                        await localSerializer.WriteRowToFileAsync(syncRow, schemaChangesTable);
 
-                        var currentBatchSize = sw.BaseStream.Position / 1024;
+                        var currentBatchSize = await localSerializer.GetCurrentFileSizeAsync();
 
                         // Next line if we don't reach the batch size yet.
                         if (currentBatchSize <= message.BatchSize)
                             continue;
 
-                        var bpi = new BatchPartInfo { FileName = fileName };
+                        var bpi = new BatchPartInfo { FileName = batchPartFileName };
 
                         // Create the info on the batch part
                         BatchPartTableInfo tableInfo = new BatchPartTableInfo
@@ -170,58 +148,37 @@ namespace Dotmim.Sync
                         batchInfo.RowsCount += rowsCountInBatch;
                         batchInfo.BatchPartsInfo.Add(bpi);
 
-                        writer.WriteEndArray();
-                        writer.WriteEndObject();
-                        writer.WriteEndArray();
-                        writer.WriteEndObject();
-                        writer.Flush();
-                        writer.Close();
+                        // Close file
+                        await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable);
 
                         // increment batch index
                         batchIndex++;
-
-                        fileName = BatchInfo.GenerateNewFileName2(batchIndex.ToString(), tableName, "json");
-                        fullPath = Path.Combine(batchInfo.GetDirectoryFullPath(), fileName);
-
-                        sw = new StreamWriter(fullPath);
-                        writer = new JsonTextWriter(sw) { CloseOutput = true };
+                        // Reinit rowscount in batch
                         rowsCountInBatch = 0;
 
-                        writer.WriteStartObject();
-                        writer.WritePropertyName("t");
-                        writer.WriteStartArray();
-                        writer.WriteStartObject();
-                        writer.WritePropertyName("n");
-                        writer.WriteValue(tableChangesSelected.TableName);
-                        writer.WritePropertyName("s");
-                        writer.WriteValue(tableChangesSelected.SchemaName);
-                        writer.WritePropertyName("r");
-                        writer.WriteStartArray();
-                        writer.WriteWhitespace(Environment.NewLine);
+                        // generate a new path
+                        (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(syncTable, batchIndex, localSerializer.Extension);
 
+                        // open a new file and write table header
+                        await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable);
                     }
 
                     dataReader.Close();
 
                 }
-
-                writer.WriteEndArray();
-                writer.WriteEndObject();
-                writer.WriteEndArray();
-                writer.WriteEndObject();
-                writer.Flush();
-                writer.Close();
+                // Close file
+                await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable);
 
                 // Check if we have ..something.
                 // Delete folder if nothing
                 // Add the BPI to BI if something
-                if (rowsCountInBatch == 0 && File.Exists(fullPath))
+                if (rowsCountInBatch == 0 && File.Exists(batchPartInfoFullPath))
                 {
-                    File.Delete(fullPath);
+                    File.Delete(batchPartInfoFullPath);
                 }
                 else
                 {
-                    var bpi2 = new BatchPartInfo { FileName = fileName };
+                    var bpi2 = new BatchPartInfo { FileName = batchPartFileName };
 
                     // Create the info on the batch part
                     BatchPartTableInfo tableInfo2 = new BatchPartTableInfo
@@ -438,8 +395,6 @@ namespace Dotmim.Sync
             // Set the parameters
             DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
             DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
-            //DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_index", index);
-            //DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_batch_size", batchSize == 0 ? -1 : batchSize); // -1 means all
 
             // Check filters
             SyncFilter tableFilter = null;
@@ -471,10 +426,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new SyncRow from a dataReader.
         /// </summary>
-        internal SyncRow CreateSyncRowFromReader(IDataReader dataReader, SyncTable table)
+        internal SyncRow CreateSyncRowFromReader2(IDataReader dataReader, SyncTable schemaTable)
         {
             // Create a new row, based on table structure
-            var row = table.NewRow();
+
+            var syncRow = new SyncRow(schemaTable);
 
             bool isTombstone = false;
 
@@ -494,46 +450,11 @@ namespace Dotmim.Sync
                 var columnValueObject = dataReader.GetValue(i);
                 var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
 
-                row[i] = columnValue;
+                syncRow[i] = columnValue;
             }
 
-            row.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
-            return row;
-        }
-
-
-        /// <summary>
-        /// Create a new SyncRow from a dataReader.
-        /// </summary>
-        internal object[] CreateSyncRowFromReader2(IDataReader dataReader, int bufferLength)
-        {
-            // Create a new row, based on table structure
-
-            var buffer = new object[bufferLength + 1];
-
-            bool isTombstone = false;
-
-            for (var i = 0; i < dataReader.FieldCount; i++)
-            {
-                var columnName = dataReader.GetName(i);
-
-                // if we have the tombstone value, do not add it to the table
-                if (columnName == "sync_row_is_tombstone")
-                {
-                    isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                    continue;
-                }
-                if (columnName == "sync_update_scope_id")
-                    continue;
-
-                var columnValueObject = dataReader.GetValue(i);
-                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-
-                buffer[i + 1] = columnValue;
-            }
-
-            buffer[0] = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
-            return buffer;
+            syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
+            return syncRow;
         }
 
 

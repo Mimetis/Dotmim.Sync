@@ -82,10 +82,10 @@ namespace Dotmim.Sync
         /// </summary>
         internal void SetColumnParametersValues(DbCommand command, SyncRow row)
         {
-            if (row.Table == null)
+            if (row.SchemaTable == null)
                 throw new ArgumentException("Schema table columns does not correspond to row values");
 
-            var schemaTable = row.Table;
+            var schemaTable = row.SchemaTable;
 
             foreach (DbParameter parameter in command.Parameters)
             {
@@ -187,7 +187,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a change table with scope columns and tombstone column
         /// </summary>
-        public static SyncTable CreateChangesTable(SyncTable syncTable, SyncSet owner)
+        public static SyncTable CreateChangesTable(SyncTable syncTable, SyncSet owner = null)
         {
             if (syncTable.Schema == null)
                 throw new ArgumentException("Schema can't be null when creating a changes table");
@@ -208,6 +208,9 @@ namespace Dotmim.Sync
 
             foreach (var c in orderedNames)
                 changesTable.Columns.Add(c.Clone());
+
+            if (owner == null)
+                owner = new SyncSet();
 
             owner.Tables.Add(changesTable);
 

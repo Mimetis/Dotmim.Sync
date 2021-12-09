@@ -279,7 +279,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 while (dataReader.Read())
                 {
                     //var itemArray = new object[dataReader.FieldCount];
-                    var itemArray = new object[failedRows.Columns.Count];
+                    //var itemArray = new object[failedRows.Columns.Count];
+                    var itemArray = new SyncRow(schemaChangesTable, dataRowState);
                     for (var i = 0; i < dataReader.FieldCount; i++)
                     {
                         var columnValueObject = dataReader.GetValue(i);
@@ -294,7 +295,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     // don't care about row state 
                     // Since it will be requested by next request from GetConflict()
-                    failedRows.Rows.Add(itemArray, dataRowState);
+                    failedRows.Rows.Add(itemArray);
                 }
 
                 dataReader.Close();

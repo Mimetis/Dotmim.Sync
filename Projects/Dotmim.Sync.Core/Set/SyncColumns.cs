@@ -12,13 +12,13 @@ namespace Dotmim.Sync
     [CollectionDataContract(Name = "cols", ItemName = "col"), Serializable]
     public class SyncColumns : ICollection<SyncColumn>, IList<SyncColumn>
     {
+        private Dictionary<string, int> indexes = new();
+
         /// <summary>
         /// Exposing the InnerCollection for serialization purpose
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
         public Collection<SyncColumn> InnerCollection { get; set; } = new Collection<SyncColumn>();
-
-        private Dictionary<string, int> indexes = new();
 
         /// <summary>
         /// Column's schema

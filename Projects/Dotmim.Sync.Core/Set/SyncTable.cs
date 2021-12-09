@@ -176,13 +176,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncRow NewRow(DataRowState state = DataRowState.Unchanged)
         {
-            var row = new SyncRow(this.Columns.Count)
-            {
-                RowState = state,
-                Table = this
-            };
-
-            return row;
+            return new SyncRow(this, state);
         }
 
         public IEnumerable<SyncRelation> GetRelations()

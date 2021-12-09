@@ -15,11 +15,11 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Convert a row before being serialized
         /// </summary>
-        void BeforeSerialize(SyncRow row);
+        void BeforeSerialize(object[] row, SyncTable schemaTable);
 
         /// <summary>
         /// Convert a row afeter being deserialized
         /// </summary>
-        void AfterDeserialized(SyncRow row);
+        void AfterDeserialized(object[] row, SyncTable schemaTable);
     }
 }

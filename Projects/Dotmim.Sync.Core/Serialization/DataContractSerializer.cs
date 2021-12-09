@@ -29,6 +29,10 @@ namespace Dotmim.Sync.Serialization
         {
         }
 
+        public string Extension => "bin";
+
+        public Task CloseFileAsync(string path, SyncTable shemaTable) => throw new NotImplementedException();
+
         public async Task<T> DeserializeAsync(Stream ms)
         {
             using (var ims = new MemoryStream())
@@ -50,7 +54,9 @@ namespace Dotmim.Sync.Serialization
 
         }
 
-     
+        public Task<long> GetCurrentFileSizeAsync() => throw new NotImplementedException();
+        public Task OpenFileAsync(string path, SyncTable shemaTable) => throw new NotImplementedException();
+
         public async Task<byte[]> SerializeAsync(T obj)
         {
             var serializer = new DataContractSerializer(typeof(T));
@@ -63,6 +69,8 @@ namespace Dotmim.Sync.Serialization
 
             return a;
         }
+
+        public Task WriteRowToFileAsync(object[] row, SyncTable shemaTable) => throw new NotImplementedException();
     }
 }
 

@@ -215,7 +215,7 @@ namespace Dotmim.Sync
 
                     // Create message containing everything we need to apply on server side
                     var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Setup, this.Options.ConflictResolutionPolicy,
-                                    this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo, this.Options.SerializerFactory);
+                                    this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo, this.Options.LocalSerializer);
 
                     // Call provider to apply changes
                     (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(ctx, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -251,7 +251,7 @@ namespace Dotmim.Sync
                     // Get if we need to get all rows from the datasource
                     var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
 
-                    var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory, this.Options.SerializerFactory);
+                    var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory, this.Options.LocalSerializer);
 
                     // Call interceptor
                     await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
@@ -327,7 +327,8 @@ namespace Dotmim.Sync
             // Get if we need to get all rows from the datasource
             var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
 
-            var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, serverScope.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory, this.Options.SerializerFactory);
+            var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, 
+                serverScope.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory, this.Options.LocalSerializer);
 
             BatchInfo serverBatchInfo;
             DatabaseChangesSelected serverChangesSelected;
@@ -371,7 +372,8 @@ namespace Dotmim.Sync
             var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
 
             // it's an estimation, so force In Memory (BatchSize == 0)
-            var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, serverScope.Schema, this.Setup, 0, this.Options.BatchDirectory, this.Options.SerializerFactory);
+            var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, serverScope.Schema, 
+                this.Setup, 0, this.Options.BatchDirectory, this.Options.LocalSerializer);
 
             DatabaseChangesSelected serverChangesSelected;
             // When we get the chnages from server, we create the batches if it's requested by the client
