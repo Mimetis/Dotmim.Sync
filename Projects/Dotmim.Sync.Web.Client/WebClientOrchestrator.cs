@@ -363,8 +363,9 @@ namespace Dotmim.Sync.Web.Client
                     var fullPath = Path.Combine(clientBatchInfo.GetDirectoryFullPath(), bpi.FileName);
                     containerSet.Tables.Add(containerTable);
 
+                    var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
                     // read rows from file
-                    foreach (var row in this.Options.LocalSerializer.ReadRowsFromFile(fullPath, schemaTable))
+                    foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
                         containerTable.Rows.Add(row.ToArray());
 
                     // Call the converter if needed

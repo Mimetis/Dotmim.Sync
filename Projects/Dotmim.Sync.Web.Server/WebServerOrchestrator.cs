@@ -586,10 +586,11 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
                 // we have only one table here
+                var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
                 var containerTable = httpMessage.Changes.Tables[0];
                 var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
-                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, this.Options.LocalSerializer.Extension);
+                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, localSerializer.Extension);
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
 
                 // If client has made a conversion on each line, apply the reverse side of it
@@ -597,13 +598,13 @@ namespace Dotmim.Sync.Web.Server
                     AfterDeserializedRows(containerTable, schemaTable, this.ClientConverter);
 
                 // open the file and write table header
-                await this.Options.LocalSerializer.OpenFileAsync(fullPath, schemaTable);
+                await localSerializer.OpenFileAsync(fullPath, schemaTable);
 
                 foreach (var row in containerTable.Rows)
-                    await this.Options.LocalSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable);
+                    await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable);
 
                 // Close file
-                await this.Options.LocalSerializer.CloseFileAsync(fullPath, schemaTable);
+                await localSerializer.CloseFileAsync(fullPath, schemaTable);
 
                 // Create the info on the batch part
                 BatchPartTableInfo tableInfo = new BatchPartTableInfo
@@ -681,7 +682,8 @@ namespace Dotmim.Sync.Web.Server
                     foreach (var part in serverBatchInfo.GetBatchPartsInfo(table))
                     {
                         var paths = serverBatchInfo.GetBatchPartInfoPath(part);
-                        foreach (var syncRow in this.Options.LocalSerializer.ReadRowsFromFile(paths.FullPath, table))
+                        var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+                        foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
                         {
                             containerTable.Rows.Add(syncRow.ToArray());
                         }
@@ -757,7 +759,8 @@ namespace Dotmim.Sync.Web.Server
             containerSet.Tables.Add(containerTable);
 
             // read rows from file
-            foreach (var row in this.Options.LocalSerializer.ReadRowsFromFile(fullPath, schemaTable))
+            var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+            foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
                 containerTable.Rows.Add(row.ToArray());
 
             // if client request a conversion on each row, apply the conversion

@@ -5,6 +5,13 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
+
+    public interface ILocalSerializerFactory
+    {
+        string Key { get; }
+
+        ILocalSerializer GetLocalSerializer();
+    }
     public interface ILocalSerializer
     {
         Task CloseFileAsync(string path, SyncTable shemaTable);

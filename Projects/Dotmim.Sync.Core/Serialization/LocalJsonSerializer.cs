@@ -7,6 +7,12 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
+
+    public class LocalJsonSerializerFactory : ILocalSerializerFactory
+    {
+        public string Key => "json";
+        public ILocalSerializer GetLocalSerializer() => new LocalJsonSerializer();
+    }
     public class LocalJsonSerializer : ILocalSerializer
     {
         private StreamWriter sw;

@@ -85,7 +85,7 @@ namespace Dotmim.Sync
 
                 if (selectIncrementalChangesCommand == null) continue;
 
-                var localSerializer = message.LocalSerializer;
+                var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
 
                 var schemaChangesTable = DbSyncAdapter.CreateChangesTable(syncTable);
 

@@ -85,7 +85,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the local serializer used to buffer rows on disk
         /// </summary>
-        public ILocalSerializer LocalSerializer { get; set; }
+        public ILocalSerializerFactory LocalSerializerFactory { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -101,7 +101,7 @@ namespace Dotmim.Sync
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();
-            this.LocalSerializer = new LocalJsonSerializer();
+            this.LocalSerializerFactory = new LocalJsonSerializerFactory();
         }
 
 

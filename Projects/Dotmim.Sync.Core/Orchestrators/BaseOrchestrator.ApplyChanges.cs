@@ -769,7 +769,8 @@ namespace Dotmim.Sync
                 var batchRows = new List<SyncRow>();
                 var rowsFetched = 0;
 
-                foreach (var syncRow in message.LocalSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
+                foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                 {
                     rowsFetched++;
 

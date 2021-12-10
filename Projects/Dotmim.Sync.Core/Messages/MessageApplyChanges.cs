@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         /// </summary>
         public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges,bool cleanMetadatas, 
-                                    bool cleanFolder, bool snapshotApplied, BatchInfo changes, ILocalSerializer localSerializer)
+                                    bool cleanFolder, bool snapshotApplied, BatchInfo changes, ILocalSerializerFactory localSerializerFactory)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
@@ -30,7 +30,7 @@ namespace Dotmim.Sync
             this.CleanMetadatas = cleanMetadatas;
             this.CleanFolder = cleanFolder;
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
-            this.LocalSerializer = localSerializer;
+            this.LocalSerializerFactory = localSerializerFactory;
             this.SnapshoteApplied = snapshotApplied;
         }
 
@@ -99,7 +99,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the local Serializer used to buffer rows on disk
         /// </summary>
-        public ILocalSerializer LocalSerializer { get; set; }
+        public ILocalSerializerFactory LocalSerializerFactory { get; set; }
 
         /// <summary>
         /// Gets or Sets if we have already applied a snapshot. So far, we don't reset the tables, even if we are in reinit mode.
