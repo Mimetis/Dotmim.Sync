@@ -47,9 +47,7 @@ namespace Dotmim.Sync
             {
                 throw GetSyncError(ex);
             }
-
         }
-
 
         /// <summary>
         /// Get the local configuration, ensures the local scope is created
@@ -84,14 +82,11 @@ namespace Dotmim.Sync
 
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    schema = await InternalProvisionAsync(this.GetContext(), false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    return serverScopeInfo;
+                    await InternalProvisionAsync(this.GetContext(), false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
-
-                // Compare serverscope setup with current
-                if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
+                else if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
                 {
+                    // Compare serverscope setup with current
                     SyncSet schema;
                     // 1) Get Schema from remote provider
                     schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);

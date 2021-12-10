@@ -52,7 +52,6 @@ namespace Dotmim.Sync
                         await InternalDropTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     hasBeenCreated = await InternalCreateTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);

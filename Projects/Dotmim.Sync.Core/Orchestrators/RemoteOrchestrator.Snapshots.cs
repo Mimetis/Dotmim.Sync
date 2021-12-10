@@ -24,71 +24,6 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Create a snapshot, based on the Setup object. 
-        /// </summary>
-        /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
-        /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual async Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null,
-            ILocalSerializer localSerializer = default, DbConnection connection = default, DbTransaction transaction = default,
-            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, connection, transaction, cancellationToken).ConfigureAwait(false);
-                if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
-                    throw new SnapshotMissingMandatariesOptionsException();
-
-                // check parameters
-                // If context has no parameters specified, and user specifies a parameter collection we switch them
-                if ((this.syncContext.Parameters == null || this.syncContext.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
-                    this.syncContext.Parameters = syncParameters;
-
-                // 1) Get Schema from remote provider
-                var schema = await this.InternalGetSchemaAsync(this.syncContext, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // 2) Ensure databases are ready
-                //    Even if we are using only stored procedures, we need tracking tables and triggers
-                //    for tracking the rows inserted / updated after the snapshot
-                var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-                // 3) Provision everything
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-                var exists = await this.InternalExistsScopeInfoTableAsync(this.syncContext, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.syncContext, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.syncContext, DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                schema = await InternalProvisionAsync(this.syncContext, false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // 4) Getting the most accurate timestamp
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(this.syncContext, runner.Connection, runner.Transaction, cancellationToken, progress);
-
-                await this.InterceptAsync(new SnapshotCreatingArgs(this.GetContext(), schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
-
-                await runner.CommitAsync();
-
-                // 5) Create the snapshot with
-                localSerializer = localSerializer == null ? new LocalJsonSerializer() : localSerializer;
-
-                var batchInfo = await this.InternalCreateSnapshotAsync(this.GetContext(), schema, this.Setup, localSerializer, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
-
-                var snapshotCreated = new SnapshotCreatedArgs(this.GetContext(), batchInfo, runner.Connection);
-                await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(this.GetContext(), progress, snapshotCreated);
-
-                return batchInfo;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(ex);
-            }
-
-        }
-
-
-        /// <summary>
         /// Get a snapshot
         /// </summary>
         public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
@@ -190,8 +125,75 @@ namespace Dotmim.Sync
 
 
 
+        /// <summary>
+        /// Create a snapshot, based on the Setup object. 
+        /// </summary>
+        /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
+        /// <returns>Instance containing all information regarding the snapshot</returns>
+        public virtual async Task<BatchInfo> CreateSnapshotAsync(SyncParameters syncParameters = null,
+            ILocalSerializerFactory localSerializerFactory = default, DbConnection connection = default, DbTransaction transaction = default,
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, connection, transaction, cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
+                    throw new SnapshotMissingMandatariesOptionsException();
+
+                // check parameters
+                // If context has no parameters specified, and user specifies a parameter collection we switch them
+                if ((this.syncContext.Parameters == null || this.syncContext.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
+                    this.syncContext.Parameters = syncParameters;
+
+                // 1) Get Schema from remote provider
+                var schema = await this.InternalGetSchemaAsync(this.syncContext, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // 2) Ensure databases are ready
+                //    Even if we are using only stored procedures, we need tracking tables and triggers
+                //    for tracking the rows inserted / updated after the snapshot
+                var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                // 3) Provision everything
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
+                var exists = await this.InternalExistsScopeInfoTableAsync(this.syncContext, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(this.syncContext, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.syncContext, DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(this.syncContext, false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // 4) Getting the most accurate timestamp
+                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(this.syncContext, runner.Connection, runner.Transaction, cancellationToken, progress);
+
+                await this.InterceptAsync(new SnapshotCreatingArgs(this.GetContext(), schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                // 5) Create the snapshot with
+                localSerializerFactory = localSerializerFactory == null ? new LocalJsonSerializerFactory() : localSerializerFactory;
+
+                var batchInfo = await this.InternalCreateSnapshotAsync(this.GetContext(), schema, this.Setup, localSerializerFactory, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+
+                var snapshotCreated = new SnapshotCreatedArgs(this.GetContext(), batchInfo, runner.Connection);
+                await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
+                this.ReportProgress(this.GetContext(), progress, snapshotCreated);
+
+                return batchInfo;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+
+        }
+
+
+ 
+
         internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
-                ILocalSerializer serializer, long remoteClientTimestamp,
+                ILocalSerializerFactory localSerializerFactory, long remoteClientTimestamp,
                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -231,6 +233,8 @@ namespace Dotmim.Sync
 
                 try
                 {
+                    var serializer = localSerializerFactory.GetLocalSerializer();
+
                     //list of batchpart for that synctable
                     var batchPartInfos = new List<BatchPartInfo>();
 

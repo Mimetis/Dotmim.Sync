@@ -392,23 +392,18 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
-            await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
-
             try
             {
-                // get database builder
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
                 var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
-
                 await runner.CommitAsync().ConfigureAwait(false);
-
                 return (this.GetContext(), hello.DatabaseName, hello.Version);
             }
             catch (Exception ex)
             {
                 throw GetSyncError(ex);
             }
-
         }
 
 

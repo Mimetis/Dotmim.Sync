@@ -89,14 +89,7 @@ namespace Dotmim.Sync
                         throw new MissingClientScopeInfoException();
                 }
 
-                if (scopeInfo == null)
-                    return false;
-
-                var r = InternalNeedsToUpgrade(scopeInfo);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return r;
+                return InternalNeedsToUpgrade(scopeInfo);
             }
             catch (Exception ex)
             {

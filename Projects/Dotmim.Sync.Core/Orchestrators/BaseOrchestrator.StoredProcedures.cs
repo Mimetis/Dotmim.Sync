@@ -91,7 +91,6 @@ namespace Dotmim.Sync
                 var r = await InternalCreateStoredProceduresAsync(this.GetContext(), overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
-
                 return r;
             }
             catch (Exception ex)

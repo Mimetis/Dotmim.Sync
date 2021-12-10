@@ -157,17 +157,13 @@ namespace Dotmim.Sync
 
                 // Fake sync table without column definitions. Not needed for making drop call
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
-
-                // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
-
                 var exists = await InternalExistsTrackingTableAsync(this.GetContext(), tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
                     hasBeenDropped = await InternalDropTrackingTableAsync(this.GetContext(), this.Setup, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
-
                 return hasBeenDropped;
             }
             catch (Exception ex)
@@ -223,13 +219,9 @@ namespace Dotmim.Sync
             try
             {
                 await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
-                // Get table builder
                 var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
-
                 await InternalRenameTrackingTableAsync(this.GetContext(), this.Setup, oldTrackingTableName, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
                 await runner.CommitAsync().ConfigureAwait(false);
-
                 return true;
             }
             catch (Exception ex)

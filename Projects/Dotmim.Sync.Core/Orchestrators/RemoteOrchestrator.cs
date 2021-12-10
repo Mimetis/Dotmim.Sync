@@ -183,15 +183,12 @@ namespace Dotmim.Sync
                 // Second one to get changes now that everything is commited
                 await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken).ConfigureAwait(false))
                 {
-                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
-
                     // Maybe here, get the schema from server, issue from client scope name
                     // Maybe then compare the schema version from client scope with schema version issued from server
                     // Maybe if different, raise an error ?
                     // Get scope if exists
 
                     // Getting server scope assumes we have already created the schema on server
-
                     var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                     var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, clientScope.Name, scopeBuilder,
@@ -220,8 +217,6 @@ namespace Dotmim.Sync
                 await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken).ConfigureAwait(false))
                 {
                     ctx.ProgressPercentage = 0.55;
-
-                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
 
                     //Direction set to Download
                     ctx.SyncWay = SyncWay.Download;
@@ -266,7 +261,7 @@ namespace Dotmim.Sync
                     // Commit second transaction for getting changes
                     await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
 
-                    await runner.CommitAsync();
+                    await runner.CommitAsync().ConfigureAwait(false); ;
                 }
                 return (remoteClientTimestamp, serverBatchInfo, this.Options.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
             }
@@ -274,7 +269,6 @@ namespace Dotmim.Sync
             {
                 throw GetSyncError(ex);
             }
-
         }
 
         /// <summary>

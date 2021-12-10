@@ -37,7 +37,7 @@ namespace Dotmim.Sync
                 var localScope = await this.InternalGetScopeAsync<ScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, scopeBuilder,
                     runner.Connection, runner.Transaction, runner.CancellationToken, progress).ConfigureAwait(false);
 
-                await runner.CommitAsync();
+                await runner.CommitAsync().ConfigureAwait(false);
 
                 return localScope;
             }

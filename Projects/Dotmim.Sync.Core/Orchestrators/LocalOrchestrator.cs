@@ -257,7 +257,7 @@ namespace Dotmim.Sync
 
                 await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, scope, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await runner.CommitAsync();
+                await runner.CommitAsync().ConfigureAwait(false);
 
                 return (clientChangesApplied, scope);
             }

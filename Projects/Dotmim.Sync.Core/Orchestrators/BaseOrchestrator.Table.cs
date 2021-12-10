@@ -140,14 +140,9 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // Fake sync table without column definitions. Not need for making a check exists call
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
-
-                // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
-
                 var exists = await InternalExistsTableAsync(this.GetContext(), tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
                 await runner.CommitAsync().ConfigureAwait(false);
-
                 return exists;
             }
             catch (Exception ex)
