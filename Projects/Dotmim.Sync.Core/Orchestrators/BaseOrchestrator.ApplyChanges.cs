@@ -298,14 +298,14 @@ namespace Dotmim.Sync
                     }
 
                     // add rows with resolved conflicts
-                    appliedRowsTmp += conflictsResolvedCount;
+                    appliedRowsTmp += rowsAppliedCount;
                 }
 
                 // Any failure ?
                 var changedFailed = schemaChangesTable.Rows.Count - conflictsResolvedCount - appliedRowsTmp;
 
-                // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch
-                if (appliedRowsTmp > 0)
+                // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
+                if (appliedRowsTmp > 0 || conflictsResolvedCount > 0)
                 {
 
 
