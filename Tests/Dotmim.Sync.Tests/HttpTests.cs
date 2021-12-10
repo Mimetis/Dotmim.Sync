@@ -1651,7 +1651,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(5, policyRetries);
+                Assert.InRange(policyRetries, 5, 7);
                 interrupted.Clear();
             }
 
@@ -1727,7 +1727,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(5, policyRetries);
+                Assert.InRange(policyRetries, 5, 7);
                 interrupted.Clear();
             }
 
