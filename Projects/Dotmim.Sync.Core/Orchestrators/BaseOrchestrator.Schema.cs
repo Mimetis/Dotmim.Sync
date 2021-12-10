@@ -22,12 +22,11 @@ namespace Dotmim.Sync
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
         public virtual async Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.SchemaReading;
             try
             {
-                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken).ConfigureAwait(false);
+
+                var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 return schema;
             }
             catch (Exception ex)
@@ -44,30 +43,35 @@ namespace Dotmim.Sync
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
         public virtual async Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.SchemaReading;
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken).ConfigureAwait(false);
 
-            var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(this.GetContext(), this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            if (schemaTable == null)
-                throw new MissingTableException(table.GetFullName());
+                if (schemaTable == null)
+                    throw new MissingTableException(table.GetFullName());
 
-            // Create a temporary SyncSet for attaching to the schemaTable
-            var schema = new SyncSet();
+                // Create a temporary SyncSet for attaching to the schemaTable
+                var schema = new SyncSet();
 
-            // Add this table to schema
-            schema.Tables.Add(schemaTable);
+                // Add this table to schema
+                schema.Tables.Add(schemaTable);
 
-            schema.EnsureSchema();
+                schema.EnsureSchema();
 
-            // copy filters from setup
-            foreach (var filter in this.Setup.Filters)
-                schema.Filters.Add(filter);
+                // copy filters from setup
+                foreach (var filter in this.Setup.Filters)
+                    schema.Filters.Add(filter);
 
-            await runner.CommitAsync().ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
 
-            return schemaTable;
+                return schemaTable;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
         }
 
         /// <summary>

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -12,7 +13,11 @@ namespace Dotmim.Sync
 
     public static class DbConnectionRunnerExtensions
     {
-        public static async Task<DbConnectionRunner> GetConnectionAsync(this BaseOrchestrator orchestrator, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default)
+        public static async Task<DbConnectionRunner> GetConnectionAsync(this BaseOrchestrator orchestrator,
+                                SyncStage syncStage = SyncStage.None,
+                                DbConnection connection = default,
+                                DbTransaction transaction = default,
+                                CancellationToken cancellationToken = default)
         {
             if (connection == null)
                 connection = orchestrator.Provider.CreateConnection();
@@ -22,6 +27,7 @@ namespace Dotmim.Sync
 
             // Get context or create a new one
             var ctx = orchestrator.GetContext();
+            ctx.SyncStage = syncStage;
 
             // Open connection
             if (!alreadyOpened)
@@ -62,7 +68,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Commit the transaction and call an interceptor
         /// </summary>
-        public async Task CommitAsync(bool autoClose=true)
+        public async Task CommitAsync(bool autoClose = true)
         {
             await this.Orchestrator.InterceptAsync(
                 new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.CancellationToken).ConfigureAwait(false);

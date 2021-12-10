@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Get the default Json serializer
         /// </summary>
-        public static ISerializerFactory JsonSerializer { get; } = new JsonConverterFactory();
+        public static ISerializerFactory JsonSerializerFactory { get; } = new JsonConverterFactory();
 
         /// <summary>
         /// Get the Utf8Json serializer
@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Get the default Json serializer
         /// </summary>
-        public static ISerializerFactory DataContractSerializer { get; } = new ContractSerializerFactory();
+        public static ISerializerFactory DataContractSerializerFactory { get; } = new ContractSerializerFactory();
 
 
         /// <summary>
@@ -34,11 +34,11 @@ namespace Dotmim.Sync.Serialization
         public SerializersCollection()
         {
             // add json serializer, as default
-            this.Add(JsonSerializer);
+            this.Add(JsonSerializerFactory);
             // add utf8json serializer
             //this.Add(Utf8JsonSerializer);
             // add binary serializer;
-            this.Add(DataContractSerializer);
+            this.Add(DataContractSerializerFactory);
         }
 
         public ISerializerFactory this[string key]

@@ -25,15 +25,12 @@ namespace Dotmim.Sync
         /// <param name="overwrite">If true, drop the existing trriger then create again</param>
         public async Task<bool> CreateTriggerAsync(SetupTable table, DbTriggerType triggerType, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
-
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 bool hasBeenCreated = false;
 
-                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
@@ -43,7 +40,7 @@ namespace Dotmim.Sync
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
                 var shouldCreate = !exists || overwrite;
@@ -52,9 +49,9 @@ namespace Dotmim.Sync
                 {
                     // Drop trigger if already exists
                     if (exists && overwrite)
-                        await InternalDropTriggerAsync(ctx, tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalDropTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    hasBeenCreated = await InternalCreateTriggerAsync(ctx, tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasBeenCreated = await InternalCreateTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 }
 
@@ -75,13 +72,10 @@ namespace Dotmim.Sync
         /// <param name="overwrite">If true, drop the existing triggers then create them all, again</param>
         public async Task<bool> CreateTriggersAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
-
             try
             {
-                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
@@ -91,7 +85,7 @@ namespace Dotmim.Sync
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var r = await this.InternalCreateTriggersAsync(ctx, overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var r = await this.InternalCreateTriggersAsync(this.GetContext(), overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -110,19 +104,16 @@ namespace Dotmim.Sync
         /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
         public async Task<bool> ExistTriggerAsync(SetupTable table, DbTriggerType triggerType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.None;
-
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // Fake sync table without column definitions. Not need for making a check exists call
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return exists;
             }
@@ -139,11 +130,9 @@ namespace Dotmim.Sync
         /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
         public async Task<bool> DropTriggerAsync(SetupTable table, DbTriggerType triggerType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Deprovisioning;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 bool hasBeenDropped = false;
 
                 // Fake sync table without column definitions. Not need for making a drop call
@@ -152,10 +141,10 @@ namespace Dotmim.Sync
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var existsAndCanBeDeleted = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var existsAndCanBeDeleted = await InternalExistsTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (existsAndCanBeDeleted)
-                    hasBeenDropped = await InternalDropTriggerAsync(ctx, tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasBeenDropped = await InternalDropTriggerAsync(this.GetContext(), tableBuilder, triggerType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -174,18 +163,16 @@ namespace Dotmim.Sync
         /// <param name="table">A table from your Setup instance, where you want to drop all the triggers</param>
         public async Task<bool> DropTriggersAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Deprovisioning;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // Fake sync table without column definitions. Not need for making a drop call
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var r = await this.InternalDropTriggersAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress);
+                var r = await this.InternalDropTriggersAsync(this.GetContext(), tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

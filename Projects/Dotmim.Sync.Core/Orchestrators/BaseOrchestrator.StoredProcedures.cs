@@ -25,13 +25,11 @@ namespace Dotmim.Sync
         /// <param name="overwrite">If true, drop the existing stored procedure then create again</param>
         public async Task<bool> CreateStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 bool hasBeenCreated = false;
-                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(this.GetContext(), this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (schemaTable == null)
                     throw new MissingTableException(table.GetFullName());
@@ -48,7 +46,7 @@ namespace Dotmim.Sync
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsStoredProcedureAsync(this.GetContext(), tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
                 var shouldCreate = !exists || overwrite;
@@ -57,9 +55,9 @@ namespace Dotmim.Sync
                 {
                     // Drop storedProcedure if already exists
                     if (exists && overwrite)
-                        await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalDropStoredProcedureAsync(this.GetContext(), tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    hasBeenCreated = await InternalCreateStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasBeenCreated = await InternalCreateStoredProcedureAsync(this.GetContext(), tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -79,12 +77,10 @@ namespace Dotmim.Sync
         /// <param name="overwrite">If true, drop the existing Stored Procedures then create them all, again</param>
         public async Task<bool> CreateStoredProceduresAsync(SetupTable table, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
             try
             {
-                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
                 if (schemaTable == null)
@@ -92,7 +88,7 @@ namespace Dotmim.Sync
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
-                var r = await InternalCreateStoredProceduresAsync(ctx, overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var r = await InternalCreateStoredProceduresAsync(this.GetContext(), overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -112,12 +108,9 @@ namespace Dotmim.Sync
         /// <param name="storedProcedureType">StoredProcedure type</param>
         public async Task<bool> ExistStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.None;
-
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
@@ -132,7 +125,7 @@ namespace Dotmim.Sync
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsStoredProcedureAsync(this.GetContext(), tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return exists;
 
@@ -150,11 +143,9 @@ namespace Dotmim.Sync
         /// <param name="storedProcedureType">Stored Procedure type</param>
         public async Task<bool> DropStoredProcedureAsync(SetupTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Deprovisioning;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 bool hasBeenDropped = false;
 
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
@@ -168,10 +159,10 @@ namespace Dotmim.Sync
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
-                var existsAndCanBeDeleted = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var existsAndCanBeDeleted = await InternalExistsStoredProcedureAsync(this.GetContext(), tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (existsAndCanBeDeleted)
-                    hasBeenDropped = await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasBeenDropped = await InternalDropStoredProcedureAsync(this.GetContext(), tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Removing cached commands
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
@@ -193,12 +184,9 @@ namespace Dotmim.Sync
         /// <param name="table">A table from your Setup instance, where you want to drop all the Stored Procedures</param>
         public async Task<bool> DropStoredProceduresAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Deprovisioning;
-
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 var hasDroppedAtLeastOneStoredProcedure = false;
 
                 // using a fake SyncTable based on SetupTable, since we don't need columns
@@ -215,7 +203,7 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
 
                 // check bulk before
-                hasDroppedAtLeastOneStoredProcedure = await InternalDropStoredProceduresAsync(ctx, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                hasDroppedAtLeastOneStoredProcedure = await InternalDropStoredProceduresAsync(this.GetContext(), tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Removing cached commands
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
@@ -336,7 +324,8 @@ namespace Dotmim.Sync
         {
             var hasCreatedAtLeastOneStoredProcedure = false;
 
-            var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderByDescending(sp => (int)sp);
+            // Order Asc is the correct order to Delete
+            var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderBy(sp => (int)sp);
 
             // we need to drop bulk in order to be sure bulk type is delete after all
             if (overwrite)
@@ -351,6 +340,7 @@ namespace Dotmim.Sync
 
             }
 
+            // Order Desc is the correct order to Create
             listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderByDescending(sp => (int)sp);
 
             foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)

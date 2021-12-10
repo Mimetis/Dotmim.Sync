@@ -23,12 +23,10 @@ namespace Dotmim.Sync
         /// </summary>
         public async virtual Task<long> GetLocalTimestampAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.None;
             try
             {
-                return await this.InternalGetLocalTimestampAsync(ctx, runner.Connection, runner.Transaction, cancellationToken, progress);
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
+                return await this.InternalGetLocalTimestampAsync(this.GetContext(), runner.Connection, runner.Transaction, cancellationToken, progress);
             }
             catch (Exception ex)
             {

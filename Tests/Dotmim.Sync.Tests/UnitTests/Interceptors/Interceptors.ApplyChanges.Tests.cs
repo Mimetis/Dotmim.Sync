@@ -95,7 +95,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableChangesBatchApplying(action =>
             {
-                Assert.NotNull(action.Changes);
+                Assert.NotNull(action.BatchPartInfo);
                 Assert.NotNull(action.Command);
                 onBatchApplying++;
             });
@@ -204,7 +204,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             remoteOrchestrator.OnTableChangesBatchApplying(action =>
             {
-                Assert.NotNull(action.Changes);
+                Assert.NotNull(action.BatchPartInfo);
                 Assert.NotNull(action.Command);
                 onApplying++;
             });

@@ -532,7 +532,7 @@ namespace Dotmim.Sync.Tests
 
             // configure server orchestrator
             this.WebServerOrchestrator.Setup = this.FilterSetup;
-            this.WebServerOrchestrator.WebServerOptions.SerializerFactory = new CustomMessagePackSerializerFactory();
+            this.WebServerOrchestrator.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -753,7 +753,7 @@ namespace Dotmim.Sync.Tests
             this.WebServerOrchestrator.Setup = this.FilterSetup;
             this.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
             this.WebServerOrchestrator.Options.BatchSize = 200;
-            this.WebServerOrchestrator.WebServerOptions.SerializerFactory = new CustomMessagePackSerializerFactory();
+            this.WebServerOrchestrator.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)

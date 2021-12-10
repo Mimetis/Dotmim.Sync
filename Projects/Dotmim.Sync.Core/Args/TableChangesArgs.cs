@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Dotmim.Sync.Batch;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -96,12 +97,12 @@ namespace Dotmim.Sync
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; set; }
 
-        public TableChangesBatchApplyingArgs(SyncContext context, SyncTable changes, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
+        public TableChangesBatchApplyingArgs(SyncContext context, BatchPartInfo part, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.State = state;
             this.Command = command;
-            this.Changes = changes;
+            this.BatchPartInfo = part;
         }
 
         /// <summary>
@@ -112,10 +113,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the changes to be applied into the database
         /// </summary>
-        public SyncTable Changes { get; }
+        public BatchPartInfo BatchPartInfo { get; }
 
         public override string Source => Connection.Database;
-        public override string Message => $"Applying [{this.Changes.TableName}] Batch. State:{this.State}.";
+        public override string Message => $"Applying [{this.BatchPartInfo.FileName}] Batch file. State:{this.State}.";
 
         public override int EventId => SyncEventsId.TableChangesApplying.Id;
     }

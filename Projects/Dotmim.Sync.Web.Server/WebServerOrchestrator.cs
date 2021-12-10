@@ -289,11 +289,10 @@ namespace Dotmim.Sync.Web.Server
 
                 var clientBatchSize = serAndsize.s;
 
-                // V0.8 Serializer is now fixed from options
-                // var clientSerializerFactory = this.WebServerOptions.Serializers[serAndsize.f];
-                // return (clientBatchSize, clientSerializerFactory);
+                var clientSerializerFactory = this.WebServerOptions.SerializerFactories.FirstOrDefault(sf => sf.Key == serAndsize.f);
+                if (clientSerializerFactory == null) clientSerializerFactory = SerializersCollection.JsonSerializerFactory;
 
-                return (clientBatchSize, this.WebServerOptions.SerializerFactory);
+                return (clientBatchSize, clientSerializerFactory);
             }
             catch
             {
@@ -598,13 +597,13 @@ namespace Dotmim.Sync.Web.Server
                     AfterDeserializedRows(containerTable, schemaTable, this.ClientConverter);
 
                 // open the file and write table header
-                await localSerializer.OpenFileAsync(fullPath, schemaTable);
+                await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
 
                 foreach (var row in containerTable.Rows)
-                    await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable);
+                    await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
 
                 // Close file
-                await localSerializer.CloseFileAsync(fullPath, schemaTable);
+                await localSerializer.CloseFileAsync(fullPath, schemaTable).ConfigureAwait(false);
 
                 // Create the info on the batch part
                 BatchPartTableInfo tableInfo = new BatchPartTableInfo

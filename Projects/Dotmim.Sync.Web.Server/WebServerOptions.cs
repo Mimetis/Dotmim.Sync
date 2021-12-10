@@ -40,7 +40,7 @@ namespace Dotmim.Sync.Web.Server
         ///// </summary>
         //public TimeSpan ClientCacheSlidingExpiration { get; set; }
 
-        public ISerializerFactory SerializerFactory { get; set; }
+        public Collection<ISerializerFactory> SerializerFactories { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -48,7 +48,10 @@ namespace Dotmim.Sync.Web.Server
         public WebServerOptions() : base()
         {
             this.Converters = new Collection<IConverter>();
-            this.SerializerFactory = SerializersCollection.JsonSerializer;
+            this.SerializerFactories = new Collection<ISerializerFactory>
+            {
+                SerializersCollection.JsonSerializerFactory
+            };
 
             //this.ServerCacheSlidingExpiration = TimeSpan.FromHours(12);
             //this.ClientCacheSlidingExpiration = TimeSpan.FromMinutes(10);

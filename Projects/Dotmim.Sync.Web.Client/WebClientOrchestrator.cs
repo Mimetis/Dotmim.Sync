@@ -112,7 +112,7 @@ namespace Dotmim.Sync.Web.Client
             this.Converter = customConverter;
             this.MaxDownladingDegreeOfParallelism = maxDownladingDegreeOfParallelism <= 0 ? -1 : maxDownladingDegreeOfParallelism;
             this.ServiceUri = serviceUri;
-            this.SerializerFactory = SerializersCollection.JsonSerializer;
+            this.SerializerFactory = SerializersCollection.JsonSerializerFactory;
         }
 
         /// <summary>
@@ -346,7 +346,7 @@ namespace Dotmim.Sync.Web.Client
 
             }
             else
-            {
+            { 
                 int tmpRowsSendedCount = 0;
 
                 // Foreach part, will have to send them to the remote
@@ -467,8 +467,39 @@ namespace Dotmim.Sync.Web.Client
                 this.HttpClient, this.ServiceUri, binaryData3, step3, ctx.SessionId, this.ScopeName,
                 this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
-                // Serialize
-                await SerializeAsync(response, bpi.FileName, serverBatchInfo.GetDirectoryFullPath(), this).ConfigureAwait(false);
+                if (this.SerializerFactory.Key != "json")
+                {
+                    var s = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
+                    using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    var getMoreChanges = await s.DeserializeAsync(responseStream);
+
+                    if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
+                    {
+                        var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+
+                        // Should have only one table
+                        var table = getMoreChanges.Changes.Tables[0];
+                        var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName]);
+
+                        var fullPath = Path.Combine(serverBatchInfo.GetDirectoryFullPath(), bpi.FileName);
+
+                        // open the file and write table header
+                        await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+
+                        foreach (var row in table.Rows)
+                            await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
+
+                        // Close file
+                        await localSerializer.CloseFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+                    }
+
+                }
+                else
+                {
+                    // Serialize
+                    await SerializeAsync(response, bpi.FileName, serverBatchInfo.GetDirectoryFullPath(), this).ConfigureAwait(false);
+
+                }
 
                 // Raise response from server containing a batch changes 
                 var args3 = new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost());

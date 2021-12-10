@@ -31,17 +31,15 @@ namespace Dotmim.Sync
             if (!timeStampStart.HasValue)
                 return null;
 
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.MetadataCleaning;
 
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
                 // No need columns or primary keys to be able to deprovision a table
                 SyncSet schema = new SyncSet(this.Setup);
 
-                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(this.GetContext(), schema, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

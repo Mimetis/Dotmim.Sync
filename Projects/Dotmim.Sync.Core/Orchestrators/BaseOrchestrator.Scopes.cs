@@ -18,16 +18,14 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<bool> CreateScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 bool hasBeenCreated = false;
 
                 // Get table builder
                 var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
-                var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsScopeInfoTableAsync(this.GetContext(), scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
                 var shouldCreate = !exists || overwrite;
@@ -35,9 +33,9 @@ namespace Dotmim.Sync
                 {
                     // Drop trigger if already exists
                     if (exists && overwrite)
-                        await InternalDropScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalDropScopeInfoTableAsync(this.GetContext(), scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    hasBeenCreated = await InternalCreateScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    hasBeenCreated = await InternalCreateScopeInfoTableAsync(this.GetContext(), scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -57,13 +55,11 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task<bool> ExistScopeInfoTableAsync(DbScopeType scopeType, string scopeInfoTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.None;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
                 var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
-                var exists = await InternalExistsScopeInfoTableAsync(ctx, scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await InternalExistsScopeInfoTableAsync(this.GetContext(), scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 await runner.CommitAsync().ConfigureAwait(false);
                 return exists;
             }

@@ -77,7 +77,7 @@ namespace Dotmim.Sync.Web.Client
 
                 string contentType = null;
                 // If Json, specify header
-                if (serializerFactory.Key == SerializersCollection.JsonSerializer.Key)
+                if (serializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key)
                     contentType = "application/json";
 
                 // serialize the serialization format and the batchsize we want.

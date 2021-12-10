@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
             var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
             var serverProvider = new SqlSyncProvider(cs);
-            
+
             var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, serverProvider), true, true);
             await ctx.Database.EnsureCreatedAsync();
 
@@ -112,9 +112,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 Assert.Equal(finalDirectoryFullName, args.BatchInfo.DirectoryRoot);
                 Assert.Equal("ALL", args.BatchInfo.DirectoryName);
-                Assert.Single(args.BatchInfo.BatchPartsInfo);
-                Assert.Equal(16, args.BatchInfo.BatchPartsInfo[0].Tables.Length);
-                Assert.True(args.BatchInfo.BatchPartsInfo[0].IsLastBatch);
+                Assert.NotEmpty(args.BatchInfo.BatchPartsInfo);
+                Assert.Equal(16, args.BatchInfo.BatchPartsInfo.Count);
+                Assert.True(args.BatchInfo.BatchPartsInfo[15].IsLastBatch);
 
                 onSnapshotCreated = true;
             });
@@ -346,7 +346,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
             var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
-            var options = new SyncOptions { SnapshotsDirectory = snapshotDirectory };
+            var options = new SyncOptions();
 
             var setup = new SyncSetup(Tables);
             var provider = new SqlSyncProvider(cs);

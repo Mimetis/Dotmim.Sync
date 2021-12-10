@@ -13,13 +13,21 @@ namespace Dotmim.Sync
     public class SyncColumns : ICollection<SyncColumn>, IList<SyncColumn>
     {
         private Dictionary<string, int> indexes = new();
+        private Collection<SyncColumn> innerCollection = new Collection<SyncColumn>();
 
         /// <summary>
         /// Exposing the InnerCollection for serialization purpose
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<SyncColumn> InnerCollection { get; set; } = new Collection<SyncColumn>();
-
+        public Collection<SyncColumn> InnerCollection
+        {
+            get => innerCollection;
+            set
+            {
+                innerCollection = value;
+                this.AffectOrder();
+            }
+        }
         /// <summary>
         /// Column's schema
         /// </summary>

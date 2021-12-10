@@ -32,11 +32,9 @@ namespace Dotmim.Sync
             ILocalSerializer localSerializer = default, DbConnection connection = default, DbTransaction transaction = default,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.SnapshotCreating;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, connection, transaction, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
                     throw new SnapshotMissingMandatariesOptionsException();
 
@@ -67,9 +65,9 @@ namespace Dotmim.Sync
                 // 4) Getting the most accurate timestamp
                 var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(this.syncContext, runner.Connection, runner.Transaction, cancellationToken, progress);
 
-                await runner.CommitAsync();
-
                 await this.InterceptAsync(new SnapshotCreatingArgs(this.GetContext(), schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
+
+                await runner.CommitAsync();
 
                 // 5) Create the snapshot with
                 localSerializer = localSerializer == null ? new LocalJsonSerializer() : localSerializer;
@@ -97,13 +95,13 @@ namespace Dotmim.Sync
             GetSnapshotAsync(SyncSet schema = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
-            // Get context or create a new one
-            var ctx = this.GetContext();
-            var changesSelected = new DatabaseChangesSelected();
-
-            BatchInfo serverBatchInfo = null;
             try
             {
+                // Get context or create a new one
+                var ctx = this.GetContext();
+                var changesSelected = new DatabaseChangesSelected();
+
+                BatchInfo serverBatchInfo = null;
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
                     return (0, null, changesSelected);
 
@@ -179,16 +177,15 @@ namespace Dotmim.Sync
                         serverBatchInfo.SanitizedSchema = changesSet;
                     }
                 }
+                if (serverBatchInfo == null)
+                    return (0, null, changesSelected);
+
+                return (serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
             }
             catch (Exception ex)
             {
-                RaiseError(ex);
+                throw GetSyncError(ex);
             }
-
-            if (serverBatchInfo == null)
-                return (0, null, changesSelected);
-
-            return (serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
         }
 
 
@@ -234,7 +231,7 @@ namespace Dotmim.Sync
                 var batchIndex = 0;
 
                 // Get Select initialize changes command
-                await using var runner = await this.GetConnectionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, cancellationToken: cancellationToken).ConfigureAwait(false);
                 try
                 {
                     var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, setup, true, runner.Connection, runner.Transaction).ConfigureAwait(false);
@@ -248,7 +245,7 @@ namespace Dotmim.Sync
                     var schemaChangesTable = DbSyncAdapter.CreateChangesTable(table);
 
                     // open the file and write table header
-                    await serializer.OpenFileAsync(fullPath, schemaChangesTable);
+                    await serializer.OpenFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                     // Statistics
                     var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName);
@@ -280,9 +277,9 @@ namespace Dotmim.Sync
                             else
                                 tableChangesSelected.Upserts++;
 
-                            await serializer.WriteRowToFileAsync(syncRow, schemaChangesTable);
+                            await serializer.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
 
-                            var currentBatchSize = await serializer.GetCurrentFileSizeAsync();
+                            var currentBatchSize = await serializer.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
                             // Next line if we don't reach the batch size yet.
                             if (currentBatchSize <= this.Options.BatchSize)
@@ -307,7 +304,7 @@ namespace Dotmim.Sync
                             batchInfo.BatchPartsInfo.Add(bpi);
 
                             // Close file
-                            await serializer.CloseFileAsync(fullPath, schemaChangesTable);
+                            await serializer.CloseFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                             // increment batch index
                             batchIndex++;
@@ -318,7 +315,7 @@ namespace Dotmim.Sync
                             (fullPath, fileName) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, serializer.Extension);
 
                             // open a new file and write table header
-                            await serializer.OpenFileAsync(fullPath, schemaChangesTable);
+                            await serializer.OpenFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                             // Raise progress
                             var tmpTableChangesSelectedArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, runner.Connection, runner.Transaction);
@@ -352,7 +349,7 @@ namespace Dotmim.Sync
                     batchIndex++;
 
                     // Close file
-                    await serializer.CloseFileAsync(fullPath, schemaChangesTable);
+                    await serializer.CloseFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                     // Raise progress
                     var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, runner.Connection, runner.Transaction);

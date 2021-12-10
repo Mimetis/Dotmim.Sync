@@ -24,11 +24,9 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<bool> UpdateUntrackedRowsAsync(SyncSet schema, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.ChangesApplying;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // If schema does not have any table, just return
                 if (schema == null || schema.Tables == null || !schema.HasTables)
                     throw new MissingTablesException();
@@ -37,7 +35,7 @@ namespace Dotmim.Sync
                 foreach (var table in schema.Tables)
                 {
                     var syncAdapter = this.GetSyncAdapter(table, this.Setup);
-                    await this.InternalUpdateUntrackedRowsAsync(ctx, syncAdapter, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    await this.InternalUpdateUntrackedRowsAsync(this.GetContext(), syncAdapter, runner.Connection, runner.Transaction).ConfigureAwait(false);
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);

@@ -40,12 +40,9 @@ namespace Dotmim.Sync
         /// <returns>Full schema with table and columns properties</returns>
         public virtual async Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, ServerScopeInfo serverScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
-
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // Check incompatibility with the flags
                 if (provision.HasFlag(SyncProvision.ClientScope))
                     throw new InvalidProvisionForRemoteOrchestratorException();
@@ -55,13 +52,13 @@ namespace Dotmim.Sync
                 {
                     var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                     if (exists)
-                        serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 var schema = new SyncSet(this.Setup);
-                schema = await InternalProvisionAsync(ctx, overwrite, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                schema = await InternalProvisionAsync(this.GetContext(), overwrite, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
                 return schema;
@@ -91,21 +88,18 @@ namespace Dotmim.Sync
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
         public virtual async Task<bool> DeprovisionAsync(SyncProvision provision, ServerScopeInfo serverScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Deprovisioning;
-
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // Get server scope if not supplied
                 if (serverScopeInfo == null)
                 {
                     var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // Create a temporary SyncSet for attaching to the schemaTable
@@ -121,7 +115,7 @@ namespace Dotmim.Sync
                 foreach (var filter in this.Setup.Filters)
                     tmpSchema.Filters.Add(filter);
 
-                var isDeprovisioned = await InternalDeprovisionAsync(ctx, tmpSchema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var isDeprovisioned = await InternalDeprovisionAsync(this.GetContext(), tmpSchema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

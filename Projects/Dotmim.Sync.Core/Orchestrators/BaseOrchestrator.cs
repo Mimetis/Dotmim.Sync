@@ -234,23 +234,8 @@ namespace Dotmim.Sync
             this.Provider.OnConnectionClosed(connection);
         }
 
-        /// <summary>
-        /// Encapsulates an error in a SyncException, let provider enrich the error if needed, then throw again
-        /// </summary>
+
         [DebuggerStepThrough]
-        internal void RaiseError(Exception exception)
-        {
-            var syncException = new SyncException(exception, this.GetContext().SyncStage);
-
-            // try to let the provider enrich the exception
-            this.Provider.EnsureSyncException(syncException);
-            syncException.Side = this.Side;
-
-            this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
-
-            throw syncException;
-        }
-
         internal SyncException GetSyncError(Exception exception)
         {
             var syncException = new SyncException(exception, this.GetContext().SyncStage);
@@ -407,9 +392,8 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.None;
+            await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
+
             try
             {
                 // get database builder
@@ -418,7 +402,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (ctx, hello.DatabaseName, hello.Version);
+                return (this.GetContext(), hello.DatabaseName, hello.Version);
             }
             catch (Exception ex)
             {
@@ -440,31 +424,28 @@ namespace Dotmim.Sync
 
             T result = default;
 
-            using (var c = this.Provider.CreateConnection())
+            using var c = this.Provider.CreateConnection();
+
+            try
             {
-                try
+                await c.OpenAsync();
+
+                using (var t = c.BeginTransaction(this.Provider.IsolationLevel))
                 {
-                    await c.OpenAsync();
+                    if (actionTask != null)
+                        result = await actionTask(ctx, c, t);
 
-                    using (var t = c.BeginTransaction(this.Provider.IsolationLevel))
-                    {
-                        if (actionTask != null)
-                            result = await actionTask(ctx, c, t);
-
-                        t.Commit();
-                    }
-                    c.Close();
-                    c.Dispose();
-
-                    return result;
+                    t.Commit();
                 }
-                catch (Exception ex)
-                {
-                    RaiseError(ex);
-                }
+                c.Close();
+                c.Dispose();
+
+                return result;
             }
-
-            return default;
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
         }
 
         /// <summary>
@@ -520,15 +501,13 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                RaiseError(ex);
+                throw GetSyncError(ex);
             }
             finally
             {
                 if (!alreadyOpened)
                     await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
             }
-
-            return default;
         }
 
         /// <summary>

@@ -106,7 +106,7 @@ namespace Dotmim.Sync
                 if (!args.Cancel && args.Command != null)
                 {
                     // open the file and write table header
-                    await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable);
+                    await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
 
                     // Get the reader
                     using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
@@ -123,9 +123,9 @@ namespace Dotmim.Sync
                         else if (syncRow.RowState == DataRowState.Modified)
                             tableChangesSelected.Upserts++;
 
-                        await localSerializer.WriteRowToFileAsync(syncRow, schemaChangesTable);
+                        await localSerializer.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
 
-                        var currentBatchSize = await localSerializer.GetCurrentFileSizeAsync();
+                        var currentBatchSize = await localSerializer.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
                         // Next line if we don't reach the batch size yet.
                         if (currentBatchSize <= message.BatchSize)
@@ -149,7 +149,7 @@ namespace Dotmim.Sync
                         batchInfo.BatchPartsInfo.Add(bpi);
 
                         // Close file
-                        await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable);
+                        await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
 
                         // increment batch index
                         batchIndex++;
@@ -160,14 +160,14 @@ namespace Dotmim.Sync
                         (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(syncTable, batchIndex, localSerializer.Extension);
 
                         // open a new file and write table header
-                        await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable);
+                        await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
                     }
 
                     dataReader.Close();
 
                 }
                 // Close file
-                await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable);
+                await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
 
                 // Check if we have ..something.
                 // Delete folder if nothing

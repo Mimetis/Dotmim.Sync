@@ -25,11 +25,9 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<ScopeInfo> UpgradeAsync(ScopeInfo scopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 // get Database builder
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
@@ -40,10 +38,10 @@ namespace Dotmim.Sync
 
                 if (scopeInfo == null || !scopeInfo.Schema.HasTables)
                 {
-                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Client, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (scopeInfo == null)
                         throw new MissingClientScopeInfoException();
@@ -51,13 +49,13 @@ namespace Dotmim.Sync
 
                 var setup = scopeInfo.Setup ?? this.Setup;
                 // Get schema
-                var schema = scopeInfo.Schema ?? await this.InternalGetSchemaAsync(ctx, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schema = scopeInfo.Schema ?? await this.InternalGetSchemaAsync(this.GetContext(), setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // If schema does not have any table, raise an exception
                 if (schema == null || schema.Tables == null || !schema.HasTables)
                     throw new MissingTablesException();
 
-                var r = await this.InternalUpgradeAsync(ctx, schema, setup, scopeInfo, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var r = await this.InternalUpgradeAsync(this.GetContext(), schema, setup, scopeInfo, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -75,20 +73,17 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual async Task<bool> NeedsToUpgradeAsync(ScopeInfo scopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
-            var ctx = this.GetContext();
-            ctx.SyncStage = SyncStage.Provisioning;
-
             try
             {
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
                 var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                 if (scopeInfo == null || !scopeInfo.Schema.HasTables)
                 {
-                    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Client, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (scopeInfo == null)
                         throw new MissingClientScopeInfoException();
