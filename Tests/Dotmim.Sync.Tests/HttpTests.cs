@@ -1707,7 +1707,7 @@ namespace Dotmim.Sync.Tests
 
             });
 
-            SyncOptions options = new SyncOptions { BatchSize = 10 };
+            SyncOptions options = new SyncOptions { BatchSize = 10000 };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
