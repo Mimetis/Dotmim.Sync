@@ -123,120 +123,6 @@ namespace Dotmim.Sync
         }
 
 
-        /// <summary>
-        /// Try to get a source row
-        /// </summary>
-        private async Task<SyncRow> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
-        {
-            // Get the row in the local repository
-            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
-
-            if (command == null) return null;
-
-            // set the primary keys columns as parameters
-            syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
-
-            // Create a select table based on the schema in parameter + scope columns
-            var changesSet = schema.Schema.Clone(false);
-            var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
-
-            using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-
-            if (!dataReader.Read())
-            {
-                dataReader.Close();
-                return null;
-            }
-
-            // Create a new empty row
-            var syncRow = selectTable.NewRow();
-            for (var i = 0; i < dataReader.FieldCount; i++)
-            {
-                var columnName = dataReader.GetName(i);
-
-                // if we have the tombstone value, do not add it to the table
-                if (columnName == "sync_row_is_tombstone")
-                {
-                    var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                    syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
-                    continue;
-                }
-                if (columnName == "sync_update_scope_id")
-                    continue;
-
-                var columnValueObject = dataReader.GetValue(i);
-                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-                syncRow[columnName] = columnValue;
-            }
-
-            // if syncRow is not a deleted row, we can check for which kind of row it is.
-            if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
-                syncRow.RowState = DataRowState.Modified;
-
-            dataReader.Close();
-
-            return syncRow;
-        }
-
-        /// <summary>
-        /// Apply a delete on a row
-        /// </summary>
-        private async Task<bool> InternalApplyConflictDeleteAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
-        {
-            if (row.SchemaTable == null)
-                throw new ArgumentException("Schema table is not present in the row");
-
-            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
-
-            if (command == null) return false;
-
-            // Set the parameters value from row
-            syncAdapter.SetColumnParametersValues(command, row);
-
-            // Set the special parameters for update
-            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
-
-            var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            // Check if we have a return value instead
-            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
-
-            if (syncRowCountParam != null)
-                rowDeletedCount = (int)syncRowCountParam.Value;
-
-            return rowDeletedCount > 0;
-        }
-
-        /// <summary>
-        /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
-        /// </summary>
-        private async Task<bool> InternalApplyConflictUpdateAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
-        {
-            if (row.SchemaTable == null)
-                throw new ArgumentException("Schema table is not present in the row");
-
-            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
-
-            if (command == null) return false;
-
-            // Set the parameters value from row
-            syncAdapter.SetColumnParametersValues(command, row);
-
-            // Set the special parameters for update
-            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
-
-            var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            // Check if we have a return value instead
-            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
-
-            if (syncRowCountParam != null)
-                rowUpdatedCount = (int)syncRowCountParam.Value;
-
-            return rowUpdatedCount > 0;
-        }
-
-
 
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
@@ -412,7 +298,7 @@ namespace Dotmim.Sync
                     }
 
                     // add rows with resolved conflicts
-                    appliedRowsTmp += rowsAppliedCount;
+                    appliedRowsTmp += conflictsResolvedCount;
                 }
 
                 // Any failure ?
@@ -651,6 +537,9 @@ namespace Dotmim.Sync
             ConflictType conflictType = conflictRow.RowState == DataRowState.Deleted ? ConflictType.RemoteIsDeletedLocalExists : ConflictType.RemoteExistsLocalExists;
 
             // if is not empty, get the conflict and intercept
+            // We don't get the conflict on automatic conflict resolution
+            // Since it's an automatic resolution, we don't need to get the local conflict row
+            // So far we get the conflict only if an interceptor exists
             if (!interceptor.IsEmpty)
             {
                 // Get the localRow
@@ -730,5 +619,120 @@ namespace Dotmim.Sync
 
             return conflict;
         }
+
+        /// <summary>
+        /// Try to get a source row
+        /// </summary>
+        private async Task<SyncRow> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
+        {
+            // Get the row in the local repository
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
+
+            if (command == null) return null;
+
+            // set the primary keys columns as parameters
+            syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
+
+            // Create a select table based on the schema in parameter + scope columns
+            var changesSet = schema.Schema.Clone(false);
+            var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
+
+            using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+
+            if (!dataReader.Read())
+            {
+                dataReader.Close();
+                return null;
+            }
+
+            // Create a new empty row
+            var syncRow = selectTable.NewRow();
+            for (var i = 0; i < dataReader.FieldCount; i++)
+            {
+                var columnName = dataReader.GetName(i);
+
+                // if we have the tombstone value, do not add it to the table
+                if (columnName == "sync_row_is_tombstone")
+                {
+                    var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                    syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
+                    continue;
+                }
+                if (columnName == "sync_update_scope_id")
+                    continue;
+
+                var columnValueObject = dataReader.GetValue(i);
+                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                syncRow[columnName] = columnValue;
+            }
+
+            // if syncRow is not a deleted row, we can check for which kind of row it is.
+            if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
+                syncRow.RowState = DataRowState.Modified;
+
+            dataReader.Close();
+
+            return syncRow;
+        }
+
+        /// <summary>
+        /// Apply a delete on a row
+        /// </summary>
+        private async Task<bool> InternalApplyConflictDeleteAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        {
+            if (row.SchemaTable == null)
+                throw new ArgumentException("Schema table is not present in the row");
+
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
+
+            if (command == null) return false;
+
+            // Set the parameters value from row
+            syncAdapter.SetColumnParametersValues(command, row);
+
+            // Set the special parameters for update
+            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
+
+            var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            // Check if we have a return value instead
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+            if (syncRowCountParam != null)
+                rowDeletedCount = (int)syncRowCountParam.Value;
+
+            return rowDeletedCount > 0;
+        }
+
+        /// <summary>
+        /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
+        /// </summary>
+        private async Task<bool> InternalApplyConflictUpdateAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        {
+            if (row.SchemaTable == null)
+                throw new ArgumentException("Schema table is not present in the row");
+
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
+
+            if (command == null) return false;
+
+            // Set the parameters value from row
+            syncAdapter.SetColumnParametersValues(command, row);
+
+            // Set the special parameters for update
+            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
+
+            var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            // Check if we have a return value instead
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+            if (syncRowCountParam != null)
+                rowUpdatedCount = (int)syncRowCountParam.Value;
+
+            return rowUpdatedCount > 0;
+        }
+
+
     }
 }
