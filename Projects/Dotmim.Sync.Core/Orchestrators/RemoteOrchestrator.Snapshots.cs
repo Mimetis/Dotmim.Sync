@@ -228,12 +228,15 @@ namespace Dotmim.Sync
 
             await schemaTables.ForEachAsync(async table =>
             {
-                var batchIndex = 0;
 
-                // Get Select initialize changes command
-                await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, cancellationToken: cancellationToken).ConfigureAwait(false);
                 try
                 {
+                    //list of batchpart for that synctable
+                    var batchPartInfos = new List<BatchPartInfo>();
+
+                    var batchIndex = 0;
+                    // Get Select initialize changes command
+                    await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, cancellationToken: cancellationToken).ConfigureAwait(false);
                     var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, setup, true, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                     if (selectIncrementalChangesCommand == null)
@@ -302,6 +305,7 @@ namespace Dotmim.Sync
                             bpi.Index = batchIndex;
                             batchInfo.RowsCount += rowsCountInBatch;
                             batchInfo.BatchPartsInfo.Add(bpi);
+                            batchPartInfos.Add(bpi);
 
                             // Close file
                             await serializer.CloseFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
@@ -346,13 +350,15 @@ namespace Dotmim.Sync
                     bpi2.Index = batchIndex;
                     batchInfo.RowsCount += rowsCountInBatch;
                     batchInfo.BatchPartsInfo.Add(bpi2);
+                    batchPartInfos.Add(bpi2);
+
                     batchIndex++;
 
                     // Close file
                     await serializer.CloseFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                     // Raise progress
-                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, runner.Connection, runner.Transaction);
+                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchPartInfos, tableChangesSelected, runner.Connection, runner.Transaction);
                     await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
                     changes.TableChangesSelected.Add(tableChangesSelected);
@@ -365,7 +371,7 @@ namespace Dotmim.Sync
                 {
                     throw GetSyncError(ex);
                 }
-            }, 1);
+            });
 
             // Check the last index as the last batch
             batchInfo.EnsureLastBatch();

@@ -15,10 +15,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class TableChangesSelectedArgs : ProgressArgs
     {
-        public TableChangesSelectedArgs(SyncContext context, SyncTable changes, TableChangesSelected changesSelected, DbConnection connection, DbTransaction transaction)
+        public TableChangesSelectedArgs(SyncContext context, List<BatchPartInfo> batchPartInfos, TableChangesSelected changesSelected, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
-            this.Changes = changes;
+            this.BatchPartInfos = batchPartInfos;
             this.TableChangesSelected = changesSelected;
         }
 
@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// Gets the SyncTable instances containing all changes selected.
         /// If you get this instance from a call from GetEstimatedChangesCount, this property is always null
         /// </summary>
-        public SyncTable Changes { get; }
+        public List<BatchPartInfo> BatchPartInfos { get; }
 
         /// <summary>
         /// Gets the incremental summary of changes selected

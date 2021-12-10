@@ -4,6 +4,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.IO;
@@ -64,6 +65,9 @@ namespace Dotmim.Sync
             foreach (var syncTable in schemaTables)
             {
                 var columnsCount = syncTable.GetMutableColumnsWithPrimaryKeys().Count();
+                
+                //list of batchpart for that synctable
+                var batchPartInfos = new List<BatchPartInfo>();
 
                 // tmp count of table for report progress pct
                 cptSyncTable++;
@@ -147,6 +151,7 @@ namespace Dotmim.Sync
                         bpi.Index = batchIndex;
                         batchInfo.RowsCount += rowsCountInBatch;
                         batchInfo.BatchPartsInfo.Add(bpi);
+                        batchPartInfos.Add(bpi);
 
                         // Close file
                         await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
@@ -193,6 +198,7 @@ namespace Dotmim.Sync
                     bpi2.Index = batchIndex;
                     batchInfo.RowsCount += rowsCountInBatch;
                     batchInfo.BatchPartsInfo.Add(bpi2);
+                    batchPartInfos.Add(bpi2);
                     batchIndex++;
 
                 }
@@ -202,7 +208,7 @@ namespace Dotmim.Sync
                     changesSelected.TableChangesSelected.Add(tableChangesSelected);
 
                 // even if no rows raise the interceptor
-                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, connection, transaction);
+                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchPartInfos, tableChangesSelected, connection, transaction);
                 await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
                 context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);

@@ -99,7 +99,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableChangesSelected(action =>
             {
-                Assert.NotNull(action.Changes);
+                Assert.NotNull(action.BatchPartInfos);
                 onSelected++;
             });
 
@@ -203,7 +203,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableChangesSelected(action =>
             {
-                Assert.NotNull(action.Changes);
+                Assert.NotNull(action.BatchPartInfos);
                 onSelected++;
             });
 
@@ -211,7 +211,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var changes = await localOrchestrator.GetChangesAsync();
 
             Assert.Equal(this.Tables.Length, onSelecting);
-            Assert.InRange(onSelected, 50, 60);
+            Assert.Equal(16, onSelected);
             Assert.Equal(1, onDatabaseSelected);
             Assert.Equal(1, onDatabaseSelecting);
 
@@ -287,7 +287,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             remoteOrchestrator.OnTableChangesSelected(action =>
             {
-                Assert.NotNull(action.Changes);
+                Assert.NotNull(action.BatchPartInfos);
                 onSelected++;
             });
             remoteOrchestrator.OnDatabaseChangesSelecting(dcs =>

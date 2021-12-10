@@ -1631,7 +1631,7 @@ namespace Dotmim.Sync.Tests
 
             });
 
-            SyncOptions options = new SyncOptions { BatchSize = 10 };
+            SyncOptions options = new SyncOptions { BatchSize = 10000 };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1654,6 +1654,17 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(5, policyRetries);
                 interrupted.Clear();
             }
+
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                await agent.SynchronizeAsync();
+            }
+
+            var finalRowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            foreach (var client in Clients)
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
 
             this.WebServerOrchestrator.OnHttpGettingRequest(null);
 

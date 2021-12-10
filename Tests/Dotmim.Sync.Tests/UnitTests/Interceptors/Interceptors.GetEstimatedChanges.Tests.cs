@@ -87,7 +87,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableChangesSelected(action =>
             {
-                Assert.Null(action.Changes);
+                Assert.Null(action.BatchPartInfos);
                 onSelected++;
             });
             localOrchestrator.OnDatabaseChangesSelecting(dcs =>
@@ -192,7 +192,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             remoteOrchestrator.OnTableChangesSelected(action =>
             {
-                Assert.Null(action.Changes);
+                Assert.Null(action.BatchPartInfos);
                 onSelected++;
             });
 
