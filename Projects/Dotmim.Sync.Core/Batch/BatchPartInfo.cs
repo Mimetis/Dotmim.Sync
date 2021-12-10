@@ -46,6 +46,19 @@ namespace Dotmim.Sync.Batch
         public BatchPartInfo()
         {
         }
+
+        public override string ToString()
+        {
+            if (this.Tables == null || this.Tables.Length <= 0)
+                return base.ToString();
+
+            var table = this.Tables[0];
+
+            if (!string.IsNullOrEmpty(table.SchemaName))
+                return $"{table.SchemaName}.{table.TableName}";
+            else
+                return table.TableName;
+        }
     }
 
 }

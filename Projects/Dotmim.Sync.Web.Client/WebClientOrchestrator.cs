@@ -613,9 +613,6 @@ namespace Dotmim.Sync.Web.Client
 
             await serverBatchInfo.BatchPartsInfo.ForEachAsync(async bpi =>
             {
-                // Create the message enveloppe
-                Debug.WriteLine($"CLIENT bpi.FileName:{bpi.FileName}. bpi.TableName:{bpi.Tables[0].TableName}  bpi.Index:{bpi.Index}");
-
                 var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, bpi.Index);
                 var serializer3 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
                 var binaryData3 = await serializer3.SerializeAsync(changesToSend3);

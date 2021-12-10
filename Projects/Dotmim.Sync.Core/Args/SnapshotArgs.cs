@@ -85,10 +85,8 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotCreatedArgs : ProgressArgs
     {
-        public SnapshotCreatedArgs(SyncContext context, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
-        {
-            this.BatchInfo = batchInfo;
-        }
+        public SnapshotCreatedArgs(SyncContext context, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction) 
+            => this.BatchInfo = batchInfo;
 
         public override string Source => Connection.Database;
         public override string Message => $"Snapshot Created [{BatchInfo.GetDirectoryFullPath()}].";

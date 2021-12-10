@@ -176,7 +176,7 @@ namespace Dotmim.Sync
 
                 var batchInfo = await this.InternalCreateSnapshotAsync(this.GetContext(), schema, this.Setup, localSerializerFactory, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
 
-                var snapshotCreated = new SnapshotCreatedArgs(this.GetContext(), batchInfo, runner.Connection);
+                var snapshotCreated = new SnapshotCreatedArgs(this.GetContext(), batchInfo);
                 await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
                 this.ReportProgress(this.GetContext(), progress, snapshotCreated);
 
@@ -188,9 +188,6 @@ namespace Dotmim.Sync
             }
 
         }
-
-
- 
 
         internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
                 ILocalSerializerFactory localSerializerFactory, long remoteClientTimestamp,
@@ -225,12 +222,12 @@ namespace Dotmim.Sync
             var changes = new DatabaseChangesSelected();
             var batchInfo = new BatchInfo(schema, rootDirectory, nameDirectory);
 
-            //await schema.Tables.ForEachAsync(async table =>
             var schemaTables = schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+            var lstAllBatchPartInfos = new ConcurrentBag<BatchPartInfo>();
 
             await schemaTables.ForEachAsync(async table =>
             {
-
                 try
                 {
                     var serializer = localSerializerFactory.GetLocalSerializer();
@@ -307,9 +304,12 @@ namespace Dotmim.Sync
                             bpi.RowsCount = rowsCountInBatch;
                             bpi.IsLastBatch = false;
                             bpi.Index = batchIndex;
-                            batchInfo.RowsCount += rowsCountInBatch;
-                            batchInfo.BatchPartsInfo.Add(bpi);
                             batchPartInfos.Add(bpi);
+
+                            // Add to all bpi concurrent bag
+                            lstAllBatchPartInfos.Add(bpi);
+
+                            Debug.WriteLine($"Added BPI for table {tableChangesSelected.TableName}. lstAllBatchPartInfos.Count:{lstAllBatchPartInfos.Count}");
 
                             // Close file
                             await serializer.CloseFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
@@ -352,9 +352,12 @@ namespace Dotmim.Sync
                     bpi2.RowsCount = rowsCountInBatch;
                     bpi2.IsLastBatch = true;
                     bpi2.Index = batchIndex;
-                    batchInfo.RowsCount += rowsCountInBatch;
-                    batchInfo.BatchPartsInfo.Add(bpi2);
                     batchPartInfos.Add(bpi2);
+                    
+                    // Add to all bpi concurrent bag
+                    lstAllBatchPartInfos.Add(bpi2);
+                    
+                    Debug.WriteLine($"Added last BPI for table {tableChangesSelected.TableName}. lstAllBatchPartInfos.Count:{lstAllBatchPartInfos.Count}");
 
                     batchIndex++;
 
@@ -382,33 +385,35 @@ namespace Dotmim.Sync
             batchInfo.Timestamp = remoteClientTimestamp;
 
             // delete all empty batchparts (empty tables)
-            foreach (var bpi in batchInfo.BatchPartsInfo.ToArray())
+            foreach (var bpi in lstAllBatchPartInfos)
             {
                 if (bpi.RowsCount <= 0)
                 {
                     var fullPathToDelete = Path.Combine(directoryFullPath, bpi.FileName);
                     File.Delete(fullPathToDelete);
-                    batchInfo.BatchPartsInfo.Remove(bpi);
                 }
             }
 
             // Generate a good index order to be compliant with previous versions
-            var lstBatchPartInfos = new List<BatchPartInfo>();
+            var tmpLstBatchPartInfos = new List<BatchPartInfo>();
             foreach (var table in schemaTables)
             {
-                foreach (var bpi in batchInfo.BatchPartsInfo.Where(
-                    bpi => bpi.Tables[0].EqualsByName(
-                        new BatchPartTableInfo(table.TableName, table.SchemaName))).OrderBy(bpi => bpi.Index).ToArray())
+                // get all bpi where count > 0 and ordered by index
+                foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount > 0 && bpi.Tables[0].EqualsByName(new BatchPartTableInfo(table.TableName, table.SchemaName))).OrderBy(bpi => bpi.Index).ToArray())
                 {
-                    lstBatchPartInfos.Add(bpi);
+                    batchInfo.BatchPartsInfo.Add(bpi);
+                    batchInfo.RowsCount += bpi.RowsCount;
+
+                    tmpLstBatchPartInfos.Add(bpi);
                 }
             }
+
             var newBatchIndex = 0;
-            foreach (var bpi in lstBatchPartInfos)
+            foreach (var bpi in tmpLstBatchPartInfos)
             {
                 bpi.Index = newBatchIndex;
                 newBatchIndex++;
-                bpi.IsLastBatch = newBatchIndex == lstBatchPartInfos.Count;
+                bpi.IsLastBatch = newBatchIndex == tmpLstBatchPartInfos.Count;
             }
 
             // Serialize on disk.
