@@ -147,7 +147,10 @@ namespace Dotmim.Sync
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 9, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 9 && version.Build == 1)
-                    version = await UpgdrateTo092Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo093Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (version.Minor == 9 && version.Build == 2)
+                    version = await UpgdrateTo093Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
@@ -330,11 +333,11 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo092Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo093Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var newVersion = new Version(0, 9, 2);
+            var newVersion = new Version(0, 9, 3);
             // Sorting tables based on dependencies between them
 
             var schemaTables = schema.Tables
