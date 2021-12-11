@@ -166,6 +166,9 @@ namespace Dotmim.Sync
                 if (version.Minor == 9 && version.Build == 0)
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 9, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                if (version.Minor == 9 && version.Build == 1)
+                    version = await UpgdrateTo092Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
             }
 
             foreach (var serverScopeInfo in serverScopeInfos)
@@ -335,6 +338,28 @@ namespace Dotmim.Sync
         }
 
 
+        private async Task<Version> UpgdrateTo092Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
+               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            var newVersion = new Version(0, 9, 2);
+            // Sorting tables based on dependencies between them
+
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            var message = $"Upgrade to {newVersion}:";
+            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
+            this.ReportProgress(context, progress, args, connection, transaction);
+
+            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+            await this.DeprovisionAsync(provision, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.ProvisionAsync(provision, false, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return newVersion;
+        }
 
         private Task<Version> AutoUpgdrateToNewVersionAsync(SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
