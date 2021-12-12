@@ -451,6 +451,9 @@ namespace Dotmim.Sync.Web.Client
             // function used to download one part
             var dl = new Func<BatchPartInfo, Task>(async (bpi) =>
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
                 var changesToSend3 = new HttpMessageGetMoreChangesRequest(ctx, bpi.Index);
 
                 var serializer3 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();

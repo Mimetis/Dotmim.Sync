@@ -152,12 +152,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             this.WebServerOrchestrator.Provider.SupportsMultipleActiveResultSets = false;
             // create brand new client and setup locks
             agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
-            agent.LocalOrchestrator.OnTableChangesSelecting((e) =>
+            agent.LocalOrchestrator.OnDatabaseChangesSelecting((e) =>
             {
                 ev1.Release();
                 ev2.Wait(cts.Token);
             });
-            agent.LocalOrchestrator.OnTableChangesSelected(e =>
+            agent.LocalOrchestrator.OnDatabaseChangesSelected(e =>
             {
                 ev3.Release();
             });

@@ -1,8 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -304,7 +302,6 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
-                //throw new Exception("That's an error");
                 var columnsCount = syncTable.GetMutableColumnsWithPrimaryKeys().Count();
 
                 //list of batchpart for that synctable
@@ -526,6 +523,9 @@ namespace Dotmim.Sync
 
             await message.Schema.Tables.ForEachAsync(async syncTable =>
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
                 // Only table schema is replicated, no datas are applied
                 if (syncTable.SyncDirection == SyncDirection.None)
                     return;

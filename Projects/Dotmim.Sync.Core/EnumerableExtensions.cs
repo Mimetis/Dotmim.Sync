@@ -123,11 +123,12 @@ namespace Dotmim.Sync
         }
 
 
-        //static async Task<TResult[]> ForeachAsync<T, TResult>(IEnumerable<T> items, Func<T, TResult> body, int maxThreads)
+        //public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, TResult> body, int maxThreads = 4)
         //{
         //    var q = new ConcurrentQueue<T>(items);
         //    var qResults = new ConcurrentQueue<TResult>();
         //    var tasks = new List<Task>();
+
         //    for (int n = 0; n < maxThreads; n++)
         //    {
         //        tasks.Add(Task.Run(() =>
@@ -136,7 +137,9 @@ namespace Dotmim.Sync
         //                qResults.Enqueue(body(item));
         //        }));
         //    }
+
         //    await Task.WhenAll(tasks);
+
         //    return qResults.ToArray();
         //}
 

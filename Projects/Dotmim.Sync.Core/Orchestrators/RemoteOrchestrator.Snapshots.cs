@@ -228,6 +228,8 @@ namespace Dotmim.Sync
 
             await schemaTables.ForEachAsync(async table =>
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
                 try
                 {
                     var serializer = localSerializerFactory.GetLocalSerializer();
