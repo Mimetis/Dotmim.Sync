@@ -219,6 +219,12 @@ namespace Dotmim.Sync
             // now the sync is complete, remember the time
             this.CompleteTime = DateTime.UtcNow;
 
+            // some providers prefer a stamp of 1 instead of 0 as a starting point when there are changes
+            if (isNew && clientTimestamp == 0 && clientChangesApplied.TotalAppliedChanges > 0)
+            {
+                clientTimestamp++;
+            }
+
             // generate the new scope item
             scope.IsNewScope = false;
             scope.LastSync = this.CompleteTime;

@@ -1,17 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
-
-
-
-using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
-using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
@@ -65,15 +54,21 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return Task.FromResult(command);
         }
 
-
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
-
             var command = connection.CreateCommand();
+
+            if (setup.HasTableWithColumns(tableDescription.TableName))
+            {
+                command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);";
+            }
+            else
+            {
+                command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
+            }
+
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = commandText;
 
             return Task.FromResult(command);
         }
