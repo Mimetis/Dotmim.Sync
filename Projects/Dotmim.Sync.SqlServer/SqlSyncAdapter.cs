@@ -86,17 +86,18 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (sqlDbType == SqlDbType.Decimal)
             {
-                if (column.PrecisionSpecified && column.ScaleSpecified)
+                var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
+                if (s > 0)
                 {
-                    var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
-
                 }
-
-                if (column.PrecisionSpecified)
+                else
                 {
-                    var p = this.SqlMetadata.GetPrecision(column);
-                    return new SqlMetaData(column.ColumnName, sqlDbType, p);
+                    if (p == 0)
+                        p = 18;
+                    if (s == 0)
+                        s = 6;
+                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 }
 
             }
@@ -468,6 +469,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                 this.SetUpdateRowParameters(command);
                 return;
             }
+            if (commandType == DbCommandType.SelectChanges || commandType == DbCommandType.SelectChangesWithFilters)
+            {
+                this.SetSelectChangesParameters(command);
+                return;
+            }
+            if (commandType == DbCommandType.SelectInitializedChanges || commandType == DbCommandType.SelectInitializedChangesWithFilters)
+            {
+                this.SetSelectInitializedChangesParameters(command);
+                return;
+            }
 
             // if we don't have stored procedure, return, because we don't want to derive parameters
             if (command.CommandType != CommandType.StoredProcedure)
@@ -535,6 +546,137 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
                     sqlParameter.SourceColumn = colDesc.ColumnName;
+            }
+        }
+
+        private void SetSelectChangesParameters(DbCommand command, SyncFilter filter = null)
+        {
+            var originalProvider = SqlSyncProvider.ProviderType;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            if (filter == null)
+                return;
+
+            var parameters = filter.Parameters;
+
+            if (parameters.Count == 0)
+                return;
+
+            foreach (var param in parameters)
+            {
+                if (param.DbType.HasValue)
+                {
+                    // Get column name and type
+                    var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
+                    var syncColumn = new SyncColumn(columnName)
+                    {
+                        DbType = (int)param.DbType.Value,
+                        MaxLength = param.MaxLength,
+                    };
+                    var sqlDbType = this.SqlMetadata.GetOwnerDbTypeFromDbType(syncColumn);
+
+                    var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    customParameterFilter.Size = param.MaxLength;
+                    customParameterFilter.IsNullable = param.AllowNull;
+                    customParameterFilter.Value = param.DefaultValue;
+
+                    command.Parameters.Add(customParameterFilter);
+                }
+                else
+                {
+                    var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(param.TableName);
+
+                    var columnFilter = tableFilter.Columns[param.Name];
+                    if (columnFilter == null)
+                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
+
+                    // Get column name and type
+                    var columnName = ParserName.Parse(columnFilter).Normalized().Unquoted().ToString();
+
+                    var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
+                        this.SqlMetadata.GetSqlDbType(columnFilter) : this.SqlMetadata.GetOwnerDbTypeFromDbType(columnFilter);
+
+                    // Add it as parameter
+                    var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    sqlParamFilter.Size = columnFilter.MaxLength;
+                    sqlParamFilter.IsNullable = param.AllowNull;
+                    sqlParamFilter.Value = param.DefaultValue;
+                    command.Parameters.Add(sqlParamFilter);
+                }
+            }
+        }
+
+        private void SetSelectInitializedChangesParameters(DbCommand command, SyncFilter filter = null)
+        {
+            var originalProvider = SqlSyncProvider.ProviderType;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            if (filter == null)
+                return;
+
+            var parameters = filter.Parameters;
+
+            if (parameters.Count == 0)
+                return;
+
+            foreach (var param in parameters)
+            {
+                if (param.DbType.HasValue)
+                {
+                    // Get column name and type
+                    var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
+                    var syncColumn = new SyncColumn(columnName)
+                    {
+                        DbType = (int)param.DbType.Value,
+                        MaxLength = param.MaxLength,
+                    };
+                    var sqlDbType = this.SqlMetadata.GetOwnerDbTypeFromDbType(syncColumn);
+
+                    var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    customParameterFilter.Size = param.MaxLength;
+                    customParameterFilter.IsNullable = param.AllowNull;
+                    customParameterFilter.Value = param.DefaultValue;
+
+                    command.Parameters.Add(customParameterFilter);
+                }
+                else
+                {
+                    var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(param.TableName);
+
+                    var columnFilter = tableFilter.Columns[param.Name];
+                    if (columnFilter == null)
+                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
+
+                    // Get column name and type
+                    var columnName = ParserName.Parse(columnFilter).Normalized().Unquoted().ToString();
+
+                    var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
+                        this.SqlMetadata.GetSqlDbType(columnFilter) : this.SqlMetadata.GetOwnerDbTypeFromDbType(columnFilter);
+
+                    // Add it as parameter
+                    var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    sqlParamFilter.Size = columnFilter.MaxLength;
+                    sqlParamFilter.IsNullable = param.AllowNull;
+                    sqlParamFilter.Value = param.DefaultValue;
+                    command.Parameters.Add(sqlParamFilter);
+                }
             }
         }
 

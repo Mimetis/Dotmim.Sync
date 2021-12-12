@@ -189,7 +189,13 @@ namespace Dotmim.Sync.SqlServer.Manager
         }
 
         public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
-            => CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
+        {
+            if (columnDefinition.DbType == (int)DbType.Single && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
+                return (PRECISION_MAX, 8);
+
+            return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
+
+        }
 
         public override byte GetPrecision(SyncColumn columnDefinition)
         {
@@ -256,7 +262,9 @@ namespace Dotmim.Sync.SqlServer.Manager
                 case SqlDbType.Decimal:
                     var (p, s) = this.GetPrecisionAndScale(column);
 
-                    if (p > 0 && s <= 0)
+                    if (column.DbType == (int)DbType.Single && column.Precision == 0 && column.Scale == 0)
+                        argument = $"({PRECISION_MAX}, 8)";
+                    else if (p > 0 && s <= 0)
                         argument = $"({p})";
                     else if (p > 0 && s > 0)
                         argument = $"({p}, {s})";
@@ -316,7 +324,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                 s = SCALE_MAX;
 
             // scale should always be lesser than precision
-            if (s >= p)
+            if (s >= p && p > 1)
                 s = (byte)(p - 1);
 
             return (p, s);

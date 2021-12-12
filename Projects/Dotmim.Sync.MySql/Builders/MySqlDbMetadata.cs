@@ -379,8 +379,8 @@ namespace Dotmim.Sync.MySql.Builders
 
             return mySqlDbType switch
             {
-                MySqlDbType.Decimal or
                 MySqlDbType.Float or
+                MySqlDbType.Decimal or
                 MySqlDbType.Double => string.Format("({0},{1})", precision, scale),
                 MySqlDbType.VarChar or MySqlDbType.Text or MySqlDbType.Enum or MySqlDbType.Set => column.MaxLength > 0 ? $"({column.MaxLength})" : string.Empty,
                 MySqlDbType.Binary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 255)})" : "(255)",

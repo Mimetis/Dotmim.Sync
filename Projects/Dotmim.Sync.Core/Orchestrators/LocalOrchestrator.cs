@@ -115,7 +115,7 @@ namespace Dotmim.Sync
 
                 // Creating the message
                 var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup,
-                                                         this.Options.BatchSize, this.Options.BatchDirectory, this.Options.LocalSerializerFactory);
+                                                         this.Options.BatchSize, this.Options.BatchDirectory, this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
 
                 var ctx = this.GetContext();
                 // Locally, if we are new, no need to get changes
@@ -180,7 +180,7 @@ namespace Dotmim.Sync
 
                 // Creating the message
                 // Since it's an estimated count, we don't need to create batches, so we hard code the batchsize to 0
-                var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory, this.Options.LocalSerializerFactory);
+                var message = new MessageGetChangesBatch(remoteScopeId, localScopeInfo.Id, isNew, lastSyncTS, localScopeInfo.Schema, this.Setup, 0, this.Options.BatchDirectory, this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
 
                 DatabaseChangesSelected clientChangesSelected;
                 // Locally, if we are new, no need to get changes

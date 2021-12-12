@@ -16,7 +16,14 @@ namespace Dotmim.Sync.SqlServer
         public SqlSyncProvider() : base()
         { }
 
-        public SqlSyncProvider(string connectionString) : base() => this.ConnectionString = connectionString;
+        public SqlSyncProvider(string connectionString) : base()
+        {
+            this.ConnectionString = connectionString;
+
+            if (!string.IsNullOrEmpty(this.ConnectionString))
+                this.SupportsMultipleActiveResultSets = new SqlConnectionStringBuilder(this.ConnectionString).MultipleActiveResultSets;
+
+        }
 
         public SqlSyncProvider(SqlConnectionStringBuilder builder) : base()
         {
@@ -24,6 +31,7 @@ namespace Dotmim.Sync.SqlServer
                 throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
             this.ConnectionString = builder.ConnectionString;
+            this.SupportsMultipleActiveResultSets = builder.MultipleActiveResultSets;
         }
 
         public override string GetProviderTypeName() => ProviderType;
