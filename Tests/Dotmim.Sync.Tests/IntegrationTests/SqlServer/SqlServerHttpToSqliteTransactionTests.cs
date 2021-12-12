@@ -143,12 +143,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             Assert.Equal(0, s.TotalChangesUploaded);
             Assert.Equal(0, s.TotalResolvedConflicts);
 
-            var ev0 = new SemaphoreSlim(0, 1);
-            var ev1 = new SemaphoreSlim(0, 1);
-            var ev2 = new SemaphoreSlim(0, 1);
-            var ev3 = new SemaphoreSlim(0, 1);
+            var ev0 = new SemaphoreSlim(10);
+            var ev1 = new SemaphoreSlim(10);
+            var ev2 = new SemaphoreSlim(10);
+            var ev3 = new SemaphoreSlim(10);
             using var cts = new CancellationTokenSource(1000);
 
+            this.WebServerOrchestrator.Provider.SupportsMultipleActiveResultSets = false;
             // create brand new client and setup locks
             agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
             agent.LocalOrchestrator.OnTableChangesSelecting((e) =>
@@ -170,27 +171,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             var t1 = Task.Run(async () =>
             {
-                using (var c = new SqliteConnection(client.Provider.ConnectionString))
-                {
-                    ev0.Release();
-                    await ev1.WaitAsync(cts.Token);
+                using var c = new SqliteConnection(client.Provider.ConnectionString);
+                ev0.Release();
+                await ev1.WaitAsync(cts.Token);
 
-                    // Note: Without a timeout specified in cts, this next operation MUST deadlock
-                    // Otherwise, this means the SqliteSyncProvider uses a deferred transaction (since Microsoft.Data.Sqlite 5.0!)
-                    // see here: https://docs.microsoft.com/en-us/dotnet/standard/data/sqlite/transactions
-                    using (var tx = c.BeginTransaction())
-                    {
-                        var productId = Guid.NewGuid();
-                        InsertProduct(c, "locally added prod", productId, tx);
+                // Note: Without a timeout specified in cts, this next operation MUST deadlock
+                // Otherwise, this means the SqliteSyncProvider uses a deferred transaction (since Microsoft.Data.Sqlite 5.0!)
+                // see here: https://docs.microsoft.com/en-us/dotnet/standard/data/sqlite/transactions
+                using var tx = c.BeginTransaction();
+                
+                var productId = Guid.NewGuid();
+                InsertProduct(c, "locally added prod", productId, tx);
 
-                        var ts = ReadProductTimestamp(c, productId, tx);
+                var ts = ReadProductTimestamp(c, productId, tx);
 
-                        ev2.Release();
-                        await ev3.WaitAsync(cts.Token);
+                ev2.Release();
+                await ev3.WaitAsync(cts.Token);
 
-                        tx.Commit();
-                    }
-                }
+                tx.Commit();
             });
             OperationCanceledException exception = null;
 

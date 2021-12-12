@@ -301,6 +301,8 @@ namespace Dotmim.Sync
 
             await schemaTables.ForEachAsync(async syncTable =>
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
 
                 //throw new Exception("That's an error");
                 var columnsCount = syncTable.GetMutableColumnsWithPrimaryKeys().Count();
@@ -456,7 +458,7 @@ namespace Dotmim.Sync
 
             }, threadNumberLimits);
 
-           
+
             // delete all empty batchparts (empty tables)
             foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount <= 0))
                 File.Delete(Path.Combine(batchInfo.GetDirectoryFullPath(), bpi.FileName));
@@ -511,6 +513,9 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            // Call interceptor
+            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
 
@@ -575,9 +580,18 @@ namespace Dotmim.Sync
 
                 dataReader.Close();
 
+                // Check interceptor
+                var changesArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, connection, transaction);
+                await this.InterceptAsync(changesArgs, cancellationToken).ConfigureAwait(false);
+
                 if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
                     changes.TableChangesSelected.Add(tableChangesSelected);
             }, threadNumberLimits);
+
+            // Raise database changes selected
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, null, changes, connection);
+            this.ReportProgress(context, progress, databaseChangesSelectedArgs);
+            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
 
             return (context, changes);
         }
