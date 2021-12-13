@@ -92,7 +92,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
+                Assert.Equal(ConnectionState.Closed, args.Connection.State);
                 Assert.NotNull(args.Schema);
                 Assert.Equal(snapshotDirectory, args.SnapshotDirectory);
                 Assert.NotEqual(0, args.Timestamp);

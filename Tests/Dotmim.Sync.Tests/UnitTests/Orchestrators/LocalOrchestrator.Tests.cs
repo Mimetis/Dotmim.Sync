@@ -98,7 +98,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 Assert.Equal(SyncStage.EndSession, args.Context.SyncStage);
                 Assert.IsType<SessionEndArgs>(args);
-                Assert.Null(args.Connection);
+                Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
                 onSessionEnd = true;
             });
