@@ -184,10 +184,15 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+            try
+            {
+                HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
-            foreach (var client in Clients)
-                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+                foreach (var client in Clients)
+                    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+
+            }
+            catch (Exception){}
 
             this.stopwatch.Stop();
 

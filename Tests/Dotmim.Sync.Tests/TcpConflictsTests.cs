@@ -146,12 +146,13 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
-
-            foreach (var client in Clients)
+            try
             {
-                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+                HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+                foreach (var client in Clients)
+                    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
             }
+            catch (Exception) { }
 
             this.stopwatch.Stop();
 
@@ -1622,7 +1623,7 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                await Generate_DC_DS_Conflict(client, options); 
+                await Generate_DC_DS_Conflict(client, options);
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
 
@@ -1760,7 +1761,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_NULLS_ServerShouldWins_CozHandler (SyncOptions options)
+        public async Task Conflict_DC_NULLS_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);

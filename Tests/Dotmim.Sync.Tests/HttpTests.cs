@@ -1587,7 +1587,11 @@ namespace Dotmim.Sync.Tests
 
             foreach (var db in createdDatabases)
             {
-                HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+                try
+                {
+                    HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+                }
+                catch (Exception) { }
             }
 
         }
