@@ -91,7 +91,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
+                Assert.Null(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
                 Assert.NotNull(args.Schema);
                 Assert.Equal(snapshotDirectory, args.SnapshotDirectory);
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.IsType<SnapshotCreatedArgs>(args);
                 Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.Null(args.Connection);
+                Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
                 Assert.NotNull(args.BatchInfo);
 
