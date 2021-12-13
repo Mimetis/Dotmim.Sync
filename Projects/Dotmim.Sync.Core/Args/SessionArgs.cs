@@ -18,9 +18,10 @@ namespace Dotmim.Sync
             : base(context, connection)
         {
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Connection Opened.";
+        public override string Message => $"[{Connection.Database}] Connection Opened.";
 
         public override int EventId => SyncEventsId.ConnectionOpen.Id;
     }
@@ -38,9 +39,10 @@ namespace Dotmim.Sync
             this.WaitingTimeSpan = waitingTimeSpan;
         }
 
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Trying to Reconnect";
+        public override string Message => $"[{Connection.Database}] Trying to Reconnect...";
 
         /// <summary>
         /// Gets the handled exception
@@ -68,9 +70,10 @@ namespace Dotmim.Sync
             : base(context, connection)
         {
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Connection Closed.";
+        public override string Message => $"[{Connection.Database}] Connection Closed.";
 
         public override int EventId => SyncEventsId.ConnectionClose.Id;
     }
@@ -86,8 +89,8 @@ namespace Dotmim.Sync
         }
 
         public override string Source => Connection.Database;
-        public override string Message => $"Transaction Opened.";
-
+        public override string Message => $"[{Connection.Database}] Transaction Opened.";
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TransactionOpen.Id;
     }
 
@@ -100,9 +103,9 @@ namespace Dotmim.Sync
             : base(context, connection, transaction)
         {
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Source => Connection.Database;
-        public override string Message => $"Transaction Commit.";
+        public override string Message => $"[{Connection.Database}] Transaction Commited.";
 
         public override int EventId => SyncEventsId.TransactionCommit.Id;
     }
@@ -112,13 +115,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class SessionBeginArgs : ProgressArgs
     {
-        public SessionBeginArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
+        public SessionBeginArgs(SyncContext context, DbConnection connection)
+            : base(context, connection, null)
         {
         }
-
-        public override string Source => Context.SessionId.ToString();
-        public override string Message => $"Session Begins.";
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Connection.Database}] Session Begins. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
 
         public override int EventId => SyncEventsId.SessionBegin.Id;
     }
@@ -128,13 +131,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class SessionEndArgs : ProgressArgs
     {
-        public SessionEndArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
+        public SessionEndArgs(SyncContext context, DbConnection connection)
+            : base(context, connection, null)
         {
         }
-
-        public override string Source => Context.SessionId.ToString();
-        public override string Message => $"Session Ended.";
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Connection.Database}] Session Ends. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
         public override int EventId => SyncEventsId.SessionEnd.Id;
     }
 
@@ -183,7 +186,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncConflict Conflict { get; }
 
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         /// <summary>
         /// Gets or Sets the scope id who will be marked as winner
         /// </summary>
@@ -204,7 +207,6 @@ namespace Dotmim.Sync
         }
         public override string Source => Connection.Database;
         public override string Message => $"Conflict {this.Conflict.Type}.";
-
         public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
 
     }

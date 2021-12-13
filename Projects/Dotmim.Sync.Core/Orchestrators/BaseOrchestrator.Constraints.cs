@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Args;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
@@ -21,7 +22,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
@@ -43,7 +44,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
@@ -65,7 +66,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
@@ -88,6 +89,8 @@ namespace Dotmim.Sync
 
             if (command == null) return;
 
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
@@ -99,6 +102,7 @@ namespace Dotmim.Sync
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.EnableConstraints, connection, transaction).ConfigureAwait(false);
 
             if (command == null) return;
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
@@ -112,6 +116,7 @@ namespace Dotmim.Sync
 
             if (command != null)
             {
+                await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
                 var rowCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 return rowCount > 0;
             }

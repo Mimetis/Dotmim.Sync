@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Args;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
@@ -27,7 +28,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 bool hasBeenCreated = false;
                 var (schemaTable, _) = await this.InternalGetTableSchemaAsync(this.GetContext(), this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -79,7 +80,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 var schemaTable = schema.Tables[table.TableName, table.SchemaName];
 
@@ -109,7 +110,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
 
@@ -144,7 +145,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 bool hasBeenDropped = false;
 
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
@@ -185,7 +186,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var hasDroppedAtLeastOneStoredProcedure = false;
 
                 // using a fake SyncTable based on SetupTable, since we don't need columns
@@ -238,13 +239,15 @@ namespace Dotmim.Sync
                 return false;
 
             var action = new StoredProcedureCreatingArgs(ctx, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction);
-            await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
                 return false;
 
+            await this.InterceptAsync(new DbCommandArgs(ctx, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            await this.InterceptAsync(new StoredProcedureCreatedArgs(ctx, tableBuilder.TableDescription, storedProcedureType, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new StoredProcedureCreatedArgs(ctx, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             return true;
         }
@@ -261,15 +264,16 @@ namespace Dotmim.Sync
             if (command == null)
                 return false;
 
-            var action = new StoredProcedureDroppingArgs(ctx, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction);
-            await this.InterceptAsync(action, cancellationToken).ConfigureAwait(false);
+            var action = await this.InterceptAsync(new StoredProcedureDroppingArgs(ctx, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
                 return false;
 
-            await action.Command.ExecuteNonQueryAsync();
+            await this.InterceptAsync(new DbCommandArgs(ctx, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.InterceptAsync(new StoredProcedureDroppedArgs(ctx, tableBuilder.TableDescription, storedProcedureType, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            await this.InterceptAsync(new StoredProcedureDroppedArgs(ctx, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             return true;
         }
@@ -284,6 +288,8 @@ namespace Dotmim.Sync
             var existsCommand = await tableBuilder.GetExistsStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction).ConfigureAwait(false);
             if (existsCommand == null)
                 return false;
+
+            await this.InterceptAsync(new DbCommandArgs(ctx, existsCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;

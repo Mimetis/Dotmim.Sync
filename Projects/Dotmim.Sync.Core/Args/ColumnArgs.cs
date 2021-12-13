@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,8 @@ namespace Dotmim.Sync
         public string ColumnName { get; }
         public SyncTable Table { get; }
         public ParserName TableName { get; }
+
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         public ColumnCreatedArgs(SyncContext context, string columnName, SyncTable table, ParserName tableName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
@@ -36,6 +39,7 @@ namespace Dotmim.Sync
         public SyncTable Table { get; }
         public ParserName TableName { get; }
 
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public ColumnCreatingArgs(SyncContext context, string columnName, SyncTable table, ParserName tableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
@@ -63,6 +67,7 @@ namespace Dotmim.Sync
             this.ColumnName = columnName;
             this.Table = table;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         public override string Source => Connection.Database;
         public override string Message => $"[{ColumnName}] Dropped.";
@@ -85,6 +90,7 @@ namespace Dotmim.Sync
             this.ColumnName = columnName;
             this.Table = table;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         public override string Source => Connection.Database;
         public override string Message => $"[{ColumnName}] Dropping.";
@@ -99,8 +105,6 @@ namespace Dotmim.Sync
     /// </summary>
     public static partial class InterceptorsExtensions
     {
-
-
         /// <summary>
         /// Intercept the provider when a column is creating
         /// </summary>

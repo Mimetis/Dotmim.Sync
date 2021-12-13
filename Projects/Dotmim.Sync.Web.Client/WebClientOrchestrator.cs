@@ -177,9 +177,7 @@ namespace Dotmim.Sync.Web.Client
             var binaryData = await serializer.SerializeAsync(httpMessage);
 
             // Raise progress for sending request and waiting server response
-            var sendingRequestArgs = new HttpGettingScopeRequestArgs(ctx, this.GetServiceHost());
-            await this.InterceptAsync(sendingRequestArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, sendingRequestArgs);
+            await this.InterceptAsync(new HttpGettingScopeRequestArgs(ctx, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var response = await this.httpRequestHandler.ProcessRequestAsync
@@ -207,8 +205,7 @@ namespace Dotmim.Sync.Web.Client
             this.SetContext(ensureScopesResponse.SyncContext);
 
             // Report Progress
-            var args = new HttpGettingScopeResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.SyncContext, this.GetServiceHost());
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new HttpGettingScopeResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
 
             // Return scopes and new shema
@@ -235,9 +232,7 @@ namespace Dotmim.Sync.Web.Client
             var binaryData = await serializer.SerializeAsync(httpMessage);
 
             // Raise progress for sending request and waiting server response
-            var sendingRequestArgs = new HttpGettingSchemaRequestArgs(ctx, this.GetServiceHost());
-            await this.InterceptAsync(sendingRequestArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, sendingRequestArgs);
+            await this.InterceptAsync(new HttpGettingSchemaRequestArgs(ctx, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             // No batch size submitted here, because the schema will be generated in memory and send back to the user.
             var response = await this.httpRequestHandler.ProcessRequestAsync
@@ -268,8 +263,7 @@ namespace Dotmim.Sync.Web.Client
             this.SetContext(ensureScopesResponse.SyncContext);
 
             // Report progress
-            var args = new HttpGettingSchemaResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.Schema, ensureScopesResponse.SyncContext, this.GetServiceHost());
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new HttpGettingSchemaResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.Schema, ensureScopesResponse.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             // Return scopes and new shema
             return ensureScopesResponse.ServerScopeInfo;
@@ -332,9 +326,7 @@ namespace Dotmim.Sync.Web.Client
 
                 ctx.ProgressPercentage += 0.125;
 
-                var args2 = new HttpSendingClientChangesRequestArgs(changesToSend, inMemoryRowsCount, inMemoryRowsCount, this.GetServiceHost());
-                await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args2);
+                await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, inMemoryRowsCount, inMemoryRowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 // serialize message
                 var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
@@ -346,7 +338,7 @@ namespace Dotmim.Sync.Web.Client
 
             }
             else
-            { 
+            {
                 int tmpRowsSendedCount = 0;
 
                 // Foreach part, will have to send them to the remote
@@ -384,9 +376,7 @@ namespace Dotmim.Sync.Web.Client
                     tmpRowsSendedCount += containerTable.Rows.Count;
 
                     ctx.ProgressPercentage = initialPctProgress1 + ((changesToSend.BatchIndex + 1) * 0.2d / changesToSend.BatchCount);
-                    var args2 = new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientBatchInfo.RowsCount, this.GetServiceHost());
-                    await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
-                    this.ReportProgress(ctx, progress, args2);
+                    await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                     // serialize message
                     var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
@@ -444,9 +434,7 @@ namespace Dotmim.Sync.Web.Client
                 Directory.CreateDirectory(serverBatchInfo.GetDirectoryFullPath());
 
             // If we have a snapshot we are raising the batches downloading process that will occurs
-            var args1 = new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost());
-            await this.InterceptAsync(args1, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args1);
+            await this.InterceptAsync(new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             // function used to download one part
             var dl = new Func<BatchPartInfo, Task>(async (bpi) =>
@@ -460,8 +448,7 @@ namespace Dotmim.Sync.Web.Client
                 var binaryData3 = await serializer3.SerializeAsync(changesToSend3).ConfigureAwait(false);
                 var step3 = HttpStep.GetMoreChanges;
 
-                var args2 = new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 // Raise get changes request
                 ctx.ProgressPercentage = initialPctProgress + ((bpi.Index + 1) * 0.2d / serverBatchInfo.BatchPartsInfo.Count);
@@ -504,9 +491,7 @@ namespace Dotmim.Sync.Web.Client
                 }
 
                 // Raise response from server containing a batch changes 
-                var args3 = new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args3, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args3);
+                await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
             });
 
             // Parrallel download of all bpis (which will launch the delete directory on the server side)
@@ -533,9 +518,7 @@ namespace Dotmim.Sync.Web.Client
             // Reaffect context
             this.SetContext(summaryResponseContent.SyncContext);
 
-            var args4 = new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost());
-            await this.InterceptAsync(args4, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args4);
+            await this.InterceptAsync(new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             return (summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ConflictResolutionPolicy,
                     summaryResponseContent.ClientChangesApplied, summaryResponseContent.ServerChangesSelected);
@@ -610,9 +593,7 @@ namespace Dotmim.Sync.Web.Client
                 return (0, null, new DatabaseChangesSelected());
 
             // If we have a snapshot we are raising the batches downloading process that will occurs
-            var args1 = new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost());
-            await this.InterceptAsync(args1, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args1);
+            await this.InterceptAsync(new HttpBatchesDownloadingArgs(syncContext, this.StartTime.Value, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             await serverBatchInfo.BatchPartsInfo.ForEachAsync(async bpi =>
             {
@@ -621,8 +602,7 @@ namespace Dotmim.Sync.Web.Client
                 var binaryData3 = await serializer3.SerializeAsync(changesToSend3);
                 var step3 = HttpStep.GetMoreChanges;
 
-                var args2 = new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 var response = await this.httpRequestHandler.ProcessRequestAsync(
                   this.HttpClient, this.ServiceUri, binaryData3, step3, ctx.SessionId, this.ScopeName,
@@ -663,19 +643,14 @@ namespace Dotmim.Sync.Web.Client
 
 
                 // Raise response from server containing a batch changes 
-                var args3 = new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args3, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args3);
-
+                await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
             });
 
             // Reaffect context
             this.SetContext(summaryResponseContent.SyncContext);
 
-            var args4 = new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost());
-            await this.InterceptAsync(args4, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args4);
-
+            await this.InterceptAsync(new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+            
             return (summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected);
         }
 
@@ -734,9 +709,7 @@ namespace Dotmim.Sync.Web.Client
 
             ctx.ProgressPercentage += 0.125;
 
-            var args2 = new HttpSendingClientChangesRequestArgs(changesToSend, 0, 0, this.GetServiceHost());
-            await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args2);
+            await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, 0, 0, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             // serialize message
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
@@ -809,8 +782,7 @@ namespace Dotmim.Sync.Web.Client
                 var binaryData3 = await serializer3.SerializeAsync(changesToSend3).ConfigureAwait(false);
                 var step3 = HttpStep.GetMoreChanges;
 
-                var args2 = new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 // Raise get changes request
                 ctx.ProgressPercentage = initialPctProgress + ((bpi.Index + 1) * 0.2d / serverBatchInfo.BatchPartsInfo.Count);
@@ -823,9 +795,7 @@ namespace Dotmim.Sync.Web.Client
                 await SerializeAsync(response, bpi.FileName, serverBatchInfo.GetDirectoryFullPath(), this).ConfigureAwait(false);
 
                 // Raise response from server containing a batch changes 
-                var args3 = new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost());
-                await this.InterceptAsync(args3, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(ctx, progress, args3);
+                await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
             });
 
             // Parrallel download of all bpis except the last one (which will launch the delete directory on the server side)
@@ -884,10 +854,8 @@ namespace Dotmim.Sync.Web.Client
             var binaryData = await serializer.SerializeAsync(changesToSend);
 
             // Raise progress for sending request and waiting server response
-            var requestArgs = new HttpGettingServerChangesRequestArgs(0, 0, ctx, this.GetServiceHost());
-            await this.InterceptAsync(requestArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, requestArgs);
-
+            await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(0, 0, ctx, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+            
             // response
             var response = await this.httpRequestHandler.ProcessRequestAsync
                     (this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetEstimatedChangesCount, ctx.SessionId, clientScope.Name,
@@ -962,9 +930,7 @@ namespace Dotmim.Sync.Web.Client
             {
                 SyncContext syncContext = this.GetContext();
                 IProgress<ProgressArgs> progressArgs = arg as IProgress<ProgressArgs>;
-                var args = new HttpSyncPolicyArgs(syncContext, 10, cpt, ts);
-                await this.InterceptAsync(args, default).ConfigureAwait(false);
-                this.ReportProgress(syncContext, progressArgs, args, null, null);
+                await this.InterceptAsync(new HttpSyncPolicyArgs(syncContext, 10, cpt, ts), default).ConfigureAwait(false);
             });
 
 

@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
@@ -19,6 +20,7 @@ namespace Dotmim.Sync
             this.Host = host;
         }
 
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => this.Host;
         public override int EventId => HttpClientSyncEventsId.HttpGettingSchemaRequest.Id;
         public override string Message => $"Downloading Batches. Scope Name:{this.Context.ScopeName}. Batches Count:{this.ServerBatchInfo.BatchPartsInfo?.Count ?? 1}. Rows Count:{this.ServerBatchInfo.RowsCount}";
@@ -36,6 +38,7 @@ namespace Dotmim.Sync
             this.CompleteTime = completeTime;
             this.Host = host;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         public override string Source => this.Host;
         public override int EventId => HttpClientSyncEventsId.HttpGettingSchemaResponse.Id;
         public override string Message

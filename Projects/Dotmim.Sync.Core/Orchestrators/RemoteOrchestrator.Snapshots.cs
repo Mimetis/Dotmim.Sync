@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Args;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
@@ -136,7 +137,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
                     throw new SnapshotMissingMandatariesOptionsException();
 
@@ -167,7 +168,6 @@ namespace Dotmim.Sync
                 // 4) Getting the most accurate timestamp
                 var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(this.syncContext, runner.Connection, runner.Transaction, cancellationToken, progress);
 
-                await this.InterceptAsync(new SnapshotCreatingArgs(this.GetContext(), schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -175,10 +175,6 @@ namespace Dotmim.Sync
                 localSerializerFactory = localSerializerFactory == null ? new LocalJsonSerializerFactory() : localSerializerFactory;
 
                 var batchInfo = await this.InternalCreateSnapshotAsync(this.GetContext(), schema, this.Setup, localSerializerFactory, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
-
-                var snapshotCreated = new SnapshotCreatedArgs(this.GetContext(), batchInfo);
-                await this.InterceptAsync(snapshotCreated, cancellationToken).ConfigureAwait(false);
-                this.ReportProgress(this.GetContext(), progress, snapshotCreated);
 
                 return batchInfo;
             }
@@ -194,8 +190,10 @@ namespace Dotmim.Sync
                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
-            // Call interceptor
-            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, null, null, null), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SnapshotCreatingArgs(this.GetContext(), schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, this.Provider.CreateConnection(), null), progress, cancellationToken).ConfigureAwait(false);
+
+            //// Call interceptor
+            //await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, null, null, null), progress, cancellationToken).ConfigureAwait(false);
 
             // create local directory
             if (!Directory.Exists(this.Options.SnapshotsDirectory))
@@ -239,7 +237,7 @@ namespace Dotmim.Sync
 
                     var batchIndex = 0;
                     // Get Select initialize changes command
-                    await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, null, null, cancellationToken, progress).ConfigureAwait(false);
                     var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, table, setup, true, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                     if (selectIncrementalChangesCommand == null)
@@ -263,11 +261,12 @@ namespace Dotmim.Sync
                     this.SetSelectChangesCommonParameters(context, table, null, true, null, selectIncrementalChangesCommand);
 
                     // launch interceptor if any
-                    var args = new TableChangesSelectingArgs(context, table, selectIncrementalChangesCommand, runner.Connection, runner.Transaction);
-                    await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                    var args = await this.InterceptAsync(new TableChangesSelectingArgs(context, table, selectIncrementalChangesCommand, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     if (!args.Cancel && args.Command != null)
                     {
+                        await this.InterceptAsync(new DbCommandArgs(context, args.Command, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+
                         // Get the reader
                         using var dataReader = await selectIncrementalChangesCommand.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -328,12 +327,7 @@ namespace Dotmim.Sync
                             await serializer.OpenFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                             // Raise progress
-                            var tmpTableChangesSelectedArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, runner.Connection, runner.Transaction);
-                            await this.InterceptAsync(tmpTableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-
-                            // only raise report progress if we have something
-                            if (tmpTableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
-                                this.ReportProgress(context, progress, tmpTableChangesSelectedArgs);
+                            await this.InterceptAsync(new TableChangesSelectedArgs(context, null, tableChangesSelected, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                         }
 
@@ -355,10 +349,10 @@ namespace Dotmim.Sync
                     bpi2.IsLastBatch = true;
                     bpi2.Index = batchIndex;
                     batchPartInfos.Add(bpi2);
-                    
+
                     // Add to all bpi concurrent bag
                     lstAllBatchPartInfos.Add(bpi2);
-                    
+
                     Debug.WriteLine($"Added last BPI for table {tableChangesSelected.TableName}. lstAllBatchPartInfos.Count:{lstAllBatchPartInfos.Count}");
 
                     batchIndex++;
@@ -367,14 +361,10 @@ namespace Dotmim.Sync
                     await serializer.CloseFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                     // Raise progress
-                    var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchPartInfos, tableChangesSelected, runner.Connection, runner.Transaction);
-                    await this.InterceptAsync(tableChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+                    var tableChangesSelectedArgs = await this.InterceptAsync(new TableChangesSelectedArgs(context, batchPartInfos, tableChangesSelected, runner.Connection, runner.Transaction),progress, cancellationToken).ConfigureAwait(false);
 
                     changes.TableChangesSelected.Add(tableChangesSelected);
 
-                    // only raise report progress if we have something
-                    if (tableChangesSelectedArgs.TableChangesSelected.TotalChanges > 0)
-                        this.ReportProgress(context, progress, tableChangesSelectedArgs);
                 }
                 catch (Exception ex)
                 {
@@ -430,14 +420,10 @@ namespace Dotmim.Sync
             }
 
             // Raise database changes selected
-            if (changes.TotalChangesSelected > 0 || changes.TotalChangesSelectedDeletes > 0 || changes.TotalChangesSelectedUpdates > 0)
-            {
-                // Raise database changes selected
-                var c = this.Provider.CreateConnection();
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, remoteClientTimestamp, batchInfo, changes, c);
-                this.ReportProgress(context, progress, databaseChangesSelectedArgs);
-                await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-            }
+            //await this.InterceptAsync(new DatabaseChangesSelectedArgs(context, remoteClientTimestamp, batchInfo, changes), progress, cancellationToken).ConfigureAwait(false);
+
+            await this.InterceptAsync(new SnapshotCreatedArgs(this.GetContext(), batchInfo, this.Provider.CreateConnection(), null), progress, cancellationToken).ConfigureAwait(false);
+
             return batchInfo;
         }
     }

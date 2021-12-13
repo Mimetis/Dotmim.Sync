@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Args;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
@@ -33,7 +34,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
                 // No need columns or primary keys to be able to deprovision a table
                 SyncSet schema = new SyncSet(this.Setup);
@@ -53,7 +54,7 @@ namespace Dotmim.Sync
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            await this.InterceptAsync(new MetadataCleaningArgs(context, this.Setup, timestampLimit, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new MetadataCleaningArgs(context, this.Setup, timestampLimit, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
@@ -69,6 +70,8 @@ namespace Dotmim.Sync
 
                     // Set the special parameters for delete metadata
                     DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+
+                    await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -93,7 +96,7 @@ namespace Dotmim.Sync
                 }
             }
 
-            await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection), progress, cancellationToken).ConfigureAwait(false);
             return databaseMetadatasCleaned;
         }
 
@@ -113,6 +116,8 @@ namespace Dotmim.Sync
 
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
+
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
             var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 

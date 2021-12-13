@@ -40,11 +40,10 @@ namespace Dotmim.Sync
 
             ctx.SyncStage = SyncStage.BeginSession;
 
-            // Progress & interceptor
-            var sessionArgs = new SessionBeginArgs(ctx, null, null);
-            await this.InterceptAsync(sessionArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, sessionArgs);
+            var connection = this.Provider.CreateConnection();
 
+            // Progress & interceptor
+            await this.InterceptAsync(new SessionBeginArgs(ctx, connection), progress, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -59,11 +58,10 @@ namespace Dotmim.Sync
             var ctx = this.GetContext();
 
             ctx.SyncStage = SyncStage.EndSession;
+            var connection = this.Provider.CreateConnection();
 
             // Progress & interceptor
-            var sessionArgs = new SessionEndArgs(ctx, null, null);
-            await this.InterceptAsync(sessionArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, sessionArgs);
+            await this.InterceptAsync(new SessionEndArgs(ctx, connection), progress, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -76,7 +74,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Output
                 long clientTimestamp = 0L;
                 BatchInfo clientBatchInfo = null;
@@ -145,7 +143,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Get local scope, if not provided 
                 if (localScopeInfo == null)
                 {
@@ -226,7 +224,7 @@ namespace Dotmim.Sync
                 DatabaseChangesApplied clientChangesApplied;
 
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var ctx = this.GetContext();
                 ctx.SyncWay = SyncWay.Download;
 
@@ -283,7 +281,7 @@ namespace Dotmim.Sync
             var ctx = this.GetContext();
 
             ctx.SyncStage = SyncStage.SnapshotApplying;
-            await this.InterceptAsync(new SnapshotApplyingArgs(ctx), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SnapshotApplyingArgs(ctx), progress, cancellationToken).ConfigureAwait(false);
 
             if (clientScopeInfo.Schema == null)
                 throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
@@ -292,8 +290,7 @@ namespace Dotmim.Sync
             var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, clientScopeInfo.Schema, serverBatchInfo,
                     clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, databaseChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var snapshotAppliedArgs = new SnapshotAppliedArgs(ctx, changesApplied);
-            await this.InterceptAsync(snapshotAppliedArgs, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SnapshotAppliedArgs(ctx, changesApplied), progress, cancellationToken).ConfigureAwait(false);
 
             // re-apply scope is new flag
             // to be sure we are calling the Initialize method, even for the delta
@@ -329,7 +326,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Migrating, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // If schema does not have any table, just return
                 if (newSchema == null || newSchema.Tables == null || !newSchema.HasTables)
                     throw new MissingTablesException();

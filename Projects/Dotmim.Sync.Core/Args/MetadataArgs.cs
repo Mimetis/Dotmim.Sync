@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -21,6 +22,7 @@ namespace Dotmim.Sync
         }
         public override string Source => Connection.Database;
         public override string Message => $"Cleaning Metadatas.";
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public override int EventId => SyncEventsId.MetadataCleaning.Id;
     }
@@ -37,6 +39,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the rows count cleaned for all tables, during a DeleteMetadatasAsync call
         /// </summary>
         public DatabaseMetadatasCleaned DatabaseMetadatasCleaned { get; set; }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
         public override string Message => $"Tables Cleaned:{DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{DatabaseMetadatasCleaned.RowsCleanedCount}.";

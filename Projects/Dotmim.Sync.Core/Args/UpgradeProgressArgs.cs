@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
@@ -19,6 +20,7 @@ namespace Dotmim.Sync
             this.message= message;
             this.Version = version;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
         public override string Message => this.message;

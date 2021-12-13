@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Dotmim.Sync.Enumerations;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -22,6 +23,7 @@ namespace Dotmim.Sync
         }
 
         public override string Source => Connection.Database;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <summary>
         /// Gets message about migration
@@ -58,6 +60,7 @@ namespace Dotmim.Sync
             this.Setup = setup;
             this.Migration = migration;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
         /// <summary>

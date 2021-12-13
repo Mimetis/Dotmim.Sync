@@ -88,6 +88,12 @@ namespace Dotmim.Sync
         public ILocalSerializerFactory LocalSerializerFactory { get; set; }
 
         /// <summary>
+        /// Gets the Progress Level
+        /// </summary>
+        public SyncProgressLevel ProgressLevel { get; set; }
+
+
+        /// <summary>
         /// Create a new instance of options with default values
         /// </summary>
         public SyncOptions()
@@ -101,6 +107,7 @@ namespace Dotmim.Sync
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();
+            this.ProgressLevel = SyncProgressLevel.Information;
             this.LocalSerializerFactory = new LocalJsonSerializerFactory();
         }
 

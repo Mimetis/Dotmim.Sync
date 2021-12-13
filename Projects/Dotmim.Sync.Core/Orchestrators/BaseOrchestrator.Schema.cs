@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 return schema;
@@ -45,7 +45,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var (schemaTable, _) = await this.InternalGetTableSchemaAsync(this.GetContext(), this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -83,7 +83,7 @@ namespace Dotmim.Sync
             if (setup == null || setup.Tables.Count <= 0)
                 throw new MissingTablesException();
 
-            await this.InterceptAsync(new SchemaLoadingArgs(context, setup, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SchemaLoadingArgs(context, setup, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Create the schema
             var schema = new SyncSet();
@@ -114,8 +114,7 @@ namespace Dotmim.Sync
             schema.EnsureSchema();
 
             var schemaArgs = new SchemaLoadedArgs(context, schema, connection);
-            await this.InterceptAsync(schemaArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(context, progress, schemaArgs);
+            await this.InterceptAsync(schemaArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return schema;
         }

@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Args;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,8 @@ namespace Dotmim.Sync
         {
 
             // call interceptor
-            await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+            var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, message, connection, transaction);
+            await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             var changesApplied = new DatabaseChangesApplied();
 
@@ -115,8 +117,7 @@ namespace Dotmim.Sync
             message.Changes.Clear(cleanFolder);
 
             var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
-            await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(context, progress, databaseChangesAppliedArgs);
+            await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, changesApplied);
 
@@ -171,7 +172,7 @@ namespace Dotmim.Sync
 
             // launch interceptor if any
             var args = new TableChangesApplyingArgs(context, schemaTable, applyType, connection, transaction);
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             if (args.Cancel)
                 return;
@@ -199,6 +200,7 @@ namespace Dotmim.Sync
                 var batchRows = new List<SyncRow>();
 
                 var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
+                var firstRowRead = true;
                 foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                 {
                     rowsFetched++;
@@ -207,19 +209,19 @@ namespace Dotmim.Sync
                         continue;
 
                     // Launch interceptor if we have at least one row of the good rowstate, to apply
-                    if (appliedRowsTmp == 0)
+                    if (firstRowRead)
                     {
                         // Launch any interceptor if available
                         command.CommandText = cmdText;
                         var batchArgs = new TableChangesBatchApplyingArgs(context, batchPartInfo, applyType, command, connection, transaction);
-                        await this.InterceptAsync(batchArgs, cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
 
                         if (batchArgs.Cancel || batchArgs.Command == null)
                             continue;
 
                         // get the correct pointer to the command from the interceptor in case user change the whole instance
                         command = batchArgs.Command;
-
+                        firstRowRead = false;
                     }
 
                     if (isBatch)
@@ -259,6 +261,8 @@ namespace Dotmim.Sync
                         // Set the special parameters for update
                         syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
 
+                        await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
                         var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                         // Check if we have a return value instead
@@ -290,7 +294,7 @@ namespace Dotmim.Sync
 
                         var (conflictResolvedCount, resolvedRow, rowAppliedCount) =
                             await this.HandleConflictAsync(message.LocalScopeId, message.SenderScopeId, syncAdapter, context, conflictRow, schemaChangesTable,
-                                                           message.Policy, fromScopeLocalTimeStamp, connection, transaction).ConfigureAwait(false);
+                                                           message.Policy, fromScopeLocalTimeStamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         conflictsResolvedCount += conflictResolvedCount;
                         rowsAppliedCount += rowAppliedCount;
@@ -351,15 +355,9 @@ namespace Dotmim.Sync
                     var progresspct = appliedRowsTmp * 0.25d / tableChangesApplied.TotalRowsCount;
                     context.ProgressPercentage += progresspct;
 
-                    var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
-
                     // Report the batch changes applied
-                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                    if (tableChangesBatchAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
-                    {
-                        await this.InterceptAsync(tableChangesBatchAppliedArgs, cancellationToken).ConfigureAwait(false);
-                        this.ReportProgress(context, progress, tableChangesBatchAppliedArgs, connection, transaction);
-                    }
+                    var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
+                    await this.InterceptAsync(tableChangesBatchAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
                 }
 
             }
@@ -373,18 +371,11 @@ namespace Dotmim.Sync
             if (tableChangesApplied != null)
             {
                 var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
-
                 // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                if (tableChangesAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
-                    await this.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
             }
 
-
         }
-
-
-
-
 
         /// <summary>
         /// Handle a conflict
@@ -392,7 +383,8 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<(int conflictResolvedCount, SyncRow resolvedRow, int rowAppliedCount)> HandleConflictAsync(
                                 Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, SyncContext context, SyncRow conflictRow, SyncTable schemaChangesTable,
-                                ConflictResolutionPolicy policy, long? lastTimestamp, DbConnection connection, DbTransaction transaction)
+                                ConflictResolutionPolicy policy, long? lastTimestamp, DbConnection connection, DbTransaction transaction,
+                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             SyncRow finalRow;
@@ -402,8 +394,9 @@ namespace Dotmim.Sync
             int rowAppliedCount = 0;
             Guid? nullableSenderScopeId;
 
-            (conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) = await this.GetConflictActionAsync(context, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
-                policy, senderScopeId, connection, transaction).ConfigureAwait(false);
+            (conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) =
+                await this.GetConflictActionAsync(context, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
+                policy, senderScopeId, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Conflict rollbacked by user
             if (conflictApplyAction == ApplyAction.Rollback)
@@ -517,7 +510,8 @@ namespace Dotmim.Sync
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
         private async Task<(ApplyAction, ConflictType, SyncRow, SyncRow, Guid?)> GetConflictActionAsync(SyncContext context, Guid localScopeId, DbSyncAdapter syncAdapter, SyncRow conflictRow,
-            SyncTable schemaChangesTable, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction = null, CancellationToken cancellationToken = default)
+            SyncTable schemaChangesTable, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction,
+            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             // default action
@@ -549,7 +543,7 @@ namespace Dotmim.Sync
 
                 // Interceptor
                 var arg = new ApplyChangesFailedArgs(context, conflict, resolution, senderScopeId, connection, transaction);
-                await this.InterceptAsync(arg, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
                 resolution = arg.Resolution;
                 finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
@@ -637,6 +631,8 @@ namespace Dotmim.Sync
             var changesSet = schema.Schema.Clone(false);
             var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
 
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             if (!dataReader.Read())
@@ -693,6 +689,8 @@ namespace Dotmim.Sync
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
 
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
@@ -721,6 +719,8 @@ namespace Dotmim.Sync
 
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
+
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
             var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 

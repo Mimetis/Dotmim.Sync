@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Serialization;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -21,6 +22,7 @@ namespace Dotmim.Sync
             this.FileName = fileName;
             this.DirectoryPath = directoryPath;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <summary>
         /// Gets or Sets byte array representing the Set to serialize to the disk. If the Result property is Null, Dotmim.Sync will serialized the container set using the serializer factory configured in the SyncOptions instance
@@ -65,6 +67,7 @@ namespace Dotmim.Sync
             this.FileName = fileName;
             this.DirectoryPath = directoryPath;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <summary>
         /// Gets the Filestream to deserialize

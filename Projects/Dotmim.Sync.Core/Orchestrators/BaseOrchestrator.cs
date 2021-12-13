@@ -115,10 +115,10 @@ namespace Dotmim.Sync
         /// Returns the Task associated with given type of BaseArgs 
         /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
         /// </summary>
-        internal async Task InterceptAsync<T>(T args, CancellationToken cancellationToken) where T : ProgressArgs
+        internal async Task<T> InterceptAsync<T>(T args, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default) where T : ProgressArgs
         {
             if (this.interceptors == null)
-                return;
+                return args;
 
             var interceptor = this.interceptors.GetInterceptor<T>();
 
@@ -133,6 +133,10 @@ namespace Dotmim.Sync
 
             await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
 
+            if (progress != default)
+                this.ReportProgress(args.Context, progress, args, args.Connection, args.Transaction);
+
+            return args;
         }
 
         /// <summary>
@@ -183,18 +187,19 @@ namespace Dotmim.Sync
             if (args.Transaction == null || args.Transaction != transaction)
                 args.Transaction = transaction;
 
-            progress.Report(args);
+            if (this.Options.ProgressLevel <= args.ProgressLevel)
+                progress.Report(args);
         }
 
         /// <summary>
         /// Open a connection
         /// </summary>
         //[DebuggerStepThrough]
-        internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
+        internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), cancellationToken));
+                this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), progress, cancellationToken));
 
             // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
@@ -209,29 +214,33 @@ namespace Dotmim.Sync
             // Let provider knows a connection is opened
             this.Provider.OnConnectionOpened(connection);
 
-            await this.InterceptAsync(new ConnectionOpenedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ConnectionOpenedArgs(this.GetContext(), connection), progress, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Close a connection
         /// </summary>
-        [DebuggerStepThrough]
-        internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken)
+        internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
 
+            bool isClosedHere = false;
+
             if (connection != null && connection.State == ConnectionState.Open)
             {
                 connection.Close();
-                connection.Dispose();
+                isClosedHere = true;
             }
 
             if (!cancellationToken.IsCancellationRequested)
-                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), progress, cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
             this.Provider.OnConnectionClosed(connection);
+
+            if (isClosedHere && connection != null)
+                connection.Dispose();
         }
 
 
@@ -375,7 +384,7 @@ namespace Dotmim.Sync
                 var outdatedArgs = new OutdatedArgs(ctx, clientScopeInfo, serverScopeInfo);
 
                 // Interceptor
-                await this.InterceptAsync(outdatedArgs, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(outdatedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (outdatedArgs.Action != OutdatedAction.Rollback)
                     ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
@@ -394,7 +403,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
                 var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -447,7 +456,7 @@ namespace Dotmim.Sync
         /// Run an actin inside a connection / transaction
         /// </summary>
         public async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-              DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
+              DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -470,13 +479,13 @@ namespace Dotmim.Sync
 
                 // Open connection
                 if (!alreadyOpened)
-                    await this.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                    await this.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
 
                 // Create a transaction
                 if (!alreadyInTransaction)
                 {
                     transaction = connection.BeginTransaction(this.Provider.IsolationLevel);
-                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (actionTask != null)
@@ -484,13 +493,13 @@ namespace Dotmim.Sync
 
                 if (!alreadyInTransaction)
                 {
-                    await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                     transaction.Commit();
                     transaction.Dispose();
                 }
 
                 if (!alreadyOpened)
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                    await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
 
                 return result;
             }
@@ -501,7 +510,7 @@ namespace Dotmim.Sync
             finally
             {
                 if (!alreadyOpened)
-                    await this.CloseConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                    await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
             }
         }
 

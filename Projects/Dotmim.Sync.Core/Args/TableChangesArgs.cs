@@ -1,9 +1,11 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -33,6 +35,8 @@ namespace Dotmim.Sync
         /// </summary>
         public TableChangesSelected TableChangesSelected { get; }
 
+        public override SyncProgressLevel ProgressLevel => this.TableChangesSelected.TotalChanges > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
+
         public override string Source => Connection.Database;
         public override string Message => $"[{this.TableChangesSelected.TableName}] [Total] Upserts:{this.TableChangesSelected.Upserts}. Deletes:{this.TableChangesSelected.Deletes}. Total:{this.TableChangesSelected.TotalChanges}.";
         public override int EventId => SyncEventsId.TableChangesSelected.Id;
@@ -46,7 +50,6 @@ namespace Dotmim.Sync
 
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; set; }
-
         public TableChangesSelectingArgs(SyncContext context, SyncTable schemaTable, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
@@ -58,10 +61,9 @@ namespace Dotmim.Sync
         /// Gets the table from where the changes are going to be selected.
         /// </summary>
         public SyncTable Table { get; }
-
         public override string Source => Connection.Database;
-        public override string Message => $"Getting Changes [{this.Table.GetFullName()}].";
-
+        public override string Message => $"[{this.Table.GetFullName()}] Getting Changes.";
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => SyncEventsId.TableChangesSelecting.Id;
     }
 
@@ -76,7 +78,7 @@ namespace Dotmim.Sync
             this.TableChangesApplied = tableChangesApplied;
         }
 
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         /// <summary>
         /// Table changes applied
         /// </summary>
@@ -114,7 +116,7 @@ namespace Dotmim.Sync
         /// Gets the changes to be applied into the database
         /// </summary>
         public BatchPartInfo BatchPartInfo { get; }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
         public override string Message => $"Applying [{this.BatchPartInfo.FileName}] Batch file. State:{this.State}.";
 
@@ -133,7 +135,7 @@ namespace Dotmim.Sync
         }
 
         public TableChangesApplied TableChangesApplied { get; set; }
-
+        public override SyncProgressLevel ProgressLevel => this.TableChangesApplied.Applied > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
         public override string Message => $"[{this.TableChangesApplied.TableName}] Changes {this.TableChangesApplied.State} Applied:{this.TableChangesApplied.Applied}. Resolved Conflicts:{this.TableChangesApplied.ResolvedConflicts}.";
         public override int EventId => SyncEventsId.TableChangesApplied.Id;
@@ -153,7 +155,7 @@ namespace Dotmim.Sync
             this.Table = schemaTable;
             this.State = state;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         /// <summary>
         /// Gets the RowState of the applied rows
         /// </summary>

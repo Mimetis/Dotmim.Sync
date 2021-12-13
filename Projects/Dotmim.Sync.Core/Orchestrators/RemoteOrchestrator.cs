@@ -45,7 +45,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ScopeLoading, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -121,7 +121,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Migrating, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 SyncSet schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -181,7 +181,7 @@ namespace Dotmim.Sync
                 // Create two transactions
                 // First one to commit changes
                 // Second one to get changes now that everything is commited
-                await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken).ConfigureAwait(false))
+                await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
                     // Maybe here, get the schema from server, issue from client scope name
                     // Maybe then compare the schema version from client scope with schema version issued from server
@@ -208,13 +208,13 @@ namespace Dotmim.Sync
                     // Call provider to apply changes
                     (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(ctx, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     // commit first transaction
                     await runner.CommitAsync().ConfigureAwait(false);
                 }
 
-                await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken).ConfigureAwait(false))
+                await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
                     ctx.ProgressPercentage = 0.55;
 
@@ -229,9 +229,6 @@ namespace Dotmim.Sync
                     var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
 
                     var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory, this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
-
-                    // Call interceptor
-                    await this.InterceptAsync(new DatabaseChangesSelectingArgs(ctx, message, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
 
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
@@ -259,7 +256,7 @@ namespace Dotmim.Sync
                     await this.InternalSaveScopeAsync(ctx, DbScopeType.ServerHistory, scopeHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Commit second transaction for getting changes
-                    await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false); ;
                 }
@@ -292,7 +289,7 @@ namespace Dotmim.Sync
                 if (serverScope.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 //Direction set to Download
                 ctx.SyncWay = SyncWay.Download;
@@ -344,7 +341,7 @@ namespace Dotmim.Sync
                 if (serverScope.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var ctx = this.GetContext();
                 ctx.SyncStage = SyncStage.ChangesSelecting;
                 //Direction set to Download
@@ -406,10 +403,10 @@ namespace Dotmim.Sync
                 if (!timeStampStart.HasValue)
                     return null;
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var ctx = this.GetContext();
 
-                await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction), cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
                 // No need columns or primary keys to be able to deprovision a table
@@ -431,7 +428,7 @@ namespace Dotmim.Sync
 
                 await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await this.InterceptAsync(new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, runner.Connection), cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, runner.Connection), progress, cancellationToken).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

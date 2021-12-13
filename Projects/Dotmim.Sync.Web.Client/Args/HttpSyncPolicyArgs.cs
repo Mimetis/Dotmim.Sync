@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Client;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ namespace Dotmim.Sync
         }
 
         public override string Message => $"Retry Sending Http Request ({RetryNumber}/{RetryCount}. Waiting {Delay.TotalMilliseconds}ms... )";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => HttpClientSyncEventsId.HttpSyncPolicy.Id;
 
         /// <summary>

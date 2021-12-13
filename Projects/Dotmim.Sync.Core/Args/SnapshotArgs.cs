@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace Dotmim.Sync
         public SnapshotApplyingArgs(SyncContext context) : base(context, null, null)
         {
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
         public override string Message => $"Applying Snapshot.";
         public override int EventId => SyncEventsId.SnapshotApplying.Id;
@@ -34,7 +35,7 @@ namespace Dotmim.Sync
         {
             this.ChangesApplied = changesApplied;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         public override string Source => "Snapshot";
         public override string Message => $"[Total] Applied:{ChangesApplied.TotalAppliedChanges}. Resolved Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
         public override int EventId => SyncEventsId.SnapshotApplied.Id;
@@ -53,7 +54,7 @@ namespace Dotmim.Sync
             this.BatchSize = batchSize;
             this.Timestamp = timestamp;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         /// <summary>
         /// Gets the schema used to create the snapshot
         /// </summary>
@@ -90,7 +91,7 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"Snapshot Created [{BatchInfo.GetDirectoryFullPath()}].";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         /// <summary>
         /// Gets the batch info summarizing the snapshot created
         /// </summary>

@@ -34,7 +34,7 @@ namespace Dotmim.Sync
             var migrationResults = migration.Compare();
 
             // Launch InterceptAsync on Migrating
-            await this.InterceptAsync(new MigratingArgs(context, schema, oldSetup, newSetup, migrationResults, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new MigratingArgs(context, schema, oldSetup, newSetup, migrationResults, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Deprovision triggers stored procedures and tracking table if required
             foreach (var migrationTable in migrationResults.Tables)
@@ -159,8 +159,7 @@ namespace Dotmim.Sync
 
             // InterceptAsync Migrated
             var args = new MigratedArgs(context, schema, newSetup, migrationResults, connection, transaction);
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(context, progress, args);
+            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             return context;
         }

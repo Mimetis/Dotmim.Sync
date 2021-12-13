@@ -30,7 +30,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // Initialize database if needed
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // get Database builder
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
@@ -199,21 +199,17 @@ namespace Dotmim.Sync
                     .Select(r => r.GetParentTable()));
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
 
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
                 await InternalCreateStoredProceduresAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                args = new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
             message = "Upgrade to 0.6.1 done.";
-            args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
 
             return newVersion;
         }
@@ -224,9 +220,7 @@ namespace Dotmim.Sync
             var newVersion = new Version(0, 6, 2);
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
-            // Update the "Update trigger" for all tables
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
 
 
             // Sorting tables based on dependencies between them
@@ -244,16 +238,11 @@ namespace Dotmim.Sync
                     await InternalDropTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                args = new UpgradeProgressArgs(context, $"Update Trigger for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
-
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Update Trigger for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
             message = $"Upgrade to {newVersion} done.";
-            args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
-
-
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
 
             return newVersion;
         }
@@ -270,8 +259,7 @@ namespace Dotmim.Sync
                     .Select(r => r.GetParentTable()));
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
 
             foreach (var schemaTable in schemaTables)
             {
@@ -284,8 +272,7 @@ namespace Dotmim.Sync
                     await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                args = new UpgradeProgressArgs(context, $"Reset stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Reset stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 // Upgrade Update stored procedure
                 var existsUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
@@ -294,8 +281,7 @@ namespace Dotmim.Sync
                     await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                args = new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
                     DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -304,9 +290,7 @@ namespace Dotmim.Sync
                 {
                     await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    args = new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                    this.ReportProgress(context, progress, args, connection, transaction);
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 }
             }
             return newVersion;
@@ -325,16 +309,13 @@ namespace Dotmim.Sync
                     .Select(r => r.GetParentTable()));
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
 
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, this.Setup);
                 await InternalCreateStoredProceduresAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                args = new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
             return newVersion;
@@ -352,9 +333,7 @@ namespace Dotmim.Sync
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
 
-            var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
@@ -364,13 +343,11 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private Task<Version> AutoUpgdrateToNewVersionAsync(SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task<Version> AutoUpgdrateToNewVersionAsync(SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return Task.FromResult(newVersion);
+            return newVersion;
         }
     }
 }

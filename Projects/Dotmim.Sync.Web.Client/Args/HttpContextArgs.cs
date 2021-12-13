@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Client;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System;
@@ -21,6 +22,7 @@ namespace Dotmim.Sync
             this.Response = response;
         }
         public override int EventId => HttpClientSyncEventsId.HttpGettingResponseMessage.Id;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public HttpResponseMessage Response { get; }
     }
@@ -36,6 +38,7 @@ namespace Dotmim.Sync
             this.Request = request;
         }
         public override int EventId => HttpClientSyncEventsId.HttpSendingRequestMessage.Id;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public HttpRequestMessage Request { get; }
     }

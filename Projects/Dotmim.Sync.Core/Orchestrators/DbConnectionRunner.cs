@@ -17,7 +17,8 @@ namespace Dotmim.Sync
                                 SyncStage syncStage = SyncStage.None,
                                 DbConnection connection = default,
                                 DbTransaction transaction = default,
-                                CancellationToken cancellationToken = default)
+                                CancellationToken cancellationToken = default, 
+                                IProgress<ProgressArgs> progress = default)
         {
             if (connection == null)
                 connection = orchestrator.Provider.CreateConnection();
@@ -31,16 +32,16 @@ namespace Dotmim.Sync
 
             // Open connection
             if (!alreadyOpened)
-                await orchestrator.OpenConnectionAsync(connection, cancellationToken).ConfigureAwait(false);
+                await orchestrator.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
 
             // Create a transaction
             if (!alreadyInTransaction)
             {
                 transaction = connection.BeginTransaction(orchestrator.Provider.IsolationLevel);
-                await orchestrator.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), cancellationToken).ConfigureAwait(false);
+                await orchestrator.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
-            return new DbConnectionRunner(orchestrator, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken); ;
+            return new DbConnectionRunner(orchestrator, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken, progress);
         }
     }
 
@@ -48,7 +49,7 @@ namespace Dotmim.Sync
     {
         public DbConnectionRunner(BaseOrchestrator orchestrator, DbConnection connection, DbTransaction transaction,
             bool alreadyOpened, bool alreadyInTransaction,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             this.Orchestrator = orchestrator;
             this.Connection = connection;
@@ -56,6 +57,7 @@ namespace Dotmim.Sync
             this.AlreadyOpened = alreadyOpened;
             this.AlreadyInTransaction = alreadyInTransaction;
             this.CancellationToken = cancellationToken;
+            this.Progress = progress;
         }
 
         public BaseOrchestrator Orchestrator { get; set; }
@@ -64,6 +66,7 @@ namespace Dotmim.Sync
         public bool AlreadyOpened { get; }
         public bool AlreadyInTransaction { get; }
         public CancellationToken CancellationToken { get; }
+        public IProgress<ProgressArgs> Progress { get; }
 
         /// <summary>
         /// Commit the transaction and call an interceptor
@@ -71,7 +74,7 @@ namespace Dotmim.Sync
         public async Task CommitAsync(bool autoClose = true)
         {
             await this.Orchestrator.InterceptAsync(
-                new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.CancellationToken).ConfigureAwait(false);
+                new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
 
             if (!this.AlreadyInTransaction && this.Transaction != null)
                 this.Transaction.Commit();
@@ -86,7 +89,7 @@ namespace Dotmim.Sync
         public async Task CloseAsync()
         {
             if (!this.AlreadyOpened && this.Connection != null)
-                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken).ConfigureAwait(false);
+                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
         }
 
         public Task RollbackAsync() => Task.Run(() => this.Transaction.Rollback());
@@ -137,7 +140,7 @@ namespace Dotmim.Sync
 
             if (!this.AlreadyOpened && this.Connection != null)
             {
-                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken).ConfigureAwait(false);
+                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
                 this.Connection.Dispose();
                 this.Connection = null;
             }

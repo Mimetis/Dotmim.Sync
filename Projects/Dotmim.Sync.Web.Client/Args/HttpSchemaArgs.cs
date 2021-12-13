@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Client;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ namespace Dotmim.Sync
         {
             this.Host = host;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => this.Host;
         public override int EventId => HttpClientSyncEventsId.HttpGettingSchemaRequest.Id;
         public override string Message => $"Getting Server Schema. Scope Name:{this.Context.ScopeName}.";
@@ -35,7 +36,7 @@ namespace Dotmim.Sync
         public override string Message => $"Received Schema From Server. Tables Count:{this.Schema.Tables.Count}.";
 
         public SyncSet Schema { get; set; }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public ServerScopeInfo ServerScopeInfo { get; set; }
 
         public string Host { get; }

@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -19,7 +20,7 @@ namespace Dotmim.Sync
         {
             this.Table = table;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Source => Connection.Database;
         public override string Message => $"[{this.Table.SchemaName}] Schema Created.";
 
@@ -38,6 +39,7 @@ namespace Dotmim.Sync
             this.Table = table;
             this.Command = command;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Source => Connection.Database;
         public override string Message => $"[{this.Table.SchemaName}] Schema Creating.";
         public override int EventId => SyncEventsId.SchemaNameCreating.Id;
@@ -57,7 +59,7 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"[{this.Table.GetFullName()}] Table Created.";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TableCreated.Id;
     }
 
@@ -75,7 +77,7 @@ namespace Dotmim.Sync
             this.TableName = tableName;
             this.Command = command;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Table Creating.";
         public override int EventId => SyncEventsId.TableCreating.Id;
@@ -96,7 +98,7 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Table Dropped.";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TableDropped.Id;
     }
 
@@ -114,10 +116,9 @@ namespace Dotmim.Sync
             this.TableName = tableName;
             this.Table = table;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Table Dropping.";
-
         public override int EventId => SyncEventsId.TableDropping.Id;
 
     }
