@@ -235,13 +235,12 @@ namespace Dotmim.Sync
                 }
             }
 
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changesSelected, connection);
+            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
             // Raise database changes selected
             if (changesSelected.TotalChangesSelected > 0 || changesSelected.TotalChangesSelectedDeletes > 0 || changesSelected.TotalChangesSelectedUpdates > 0)
-            {
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changesSelected, connection);
                 this.ReportProgress(context, progress, databaseChangesSelectedArgs);
-                await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-            }
 
             return (context, batchInfo, changesSelected);
 
@@ -489,13 +488,12 @@ namespace Dotmim.Sync
             if (batchInfo.RowsCount <= 0)
                 batchInfo.Clear(true);
 
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changesSelected, connection);
+            await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
+
             // Raise database changes selected
             if (changesSelected.TotalChangesSelected > 0 || changesSelected.TotalChangesSelectedDeletes > 0 || changesSelected.TotalChangesSelectedUpdates > 0)
-            {
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changesSelected, connection);
                 this.ReportProgress(context, progress, databaseChangesSelectedArgs);
-                await this.InterceptAsync(databaseChangesSelectedArgs, cancellationToken).ConfigureAwait(false);
-            }
 
             return (context, batchInfo, changesSelected);
 
