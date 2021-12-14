@@ -24,6 +24,7 @@ namespace Dotmim.Sync
         /// Default scope name if not specified
         /// </summary>
         public const string DefaultScopeName = "DefaultScope";
+        private int batchSize;
 
         /// <summary>
         /// Gets or Sets the directory used for batch mode.
@@ -37,11 +38,16 @@ namespace Dotmim.Sync
         /// </summary>
         public string SnapshotsDirectory { get; set; }
 
-         /// <summary>
+        /// <summary>
         /// Gets or Sets the size used (approximatively in kb, depending on the serializer) for each batch file, in batch mode. 
-        /// Default is 1000 
+        /// Default is 5000 
+        /// Min value is 1000
         /// </summary>
-        public int BatchSize { get; set; }
+        public int BatchSize
+        {
+            get => batchSize;
+            set => batchSize = Math.Max(value, 1000);
+        }
 
         /// <summary>
         /// Gets or Sets the log level for sync operations. Default value is false.
@@ -62,9 +68,9 @@ namespace Dotmim.Sync
         /// Gets or Sets if we should disable constraints before making apply changes 
         /// Default value is false
         /// </summary>
-        
+
         // trying false by default : https://github.com/Mimetis/Dotmim.Sync/discussions/453#discussioncomment-380530
-        public bool DisableConstraintsOnApplyChanges { get; set; } 
+        public bool DisableConstraintsOnApplyChanges { get; set; }
 
         /// <summary>
         /// Gets or Sets the scope_info table name. Default is scope_info
