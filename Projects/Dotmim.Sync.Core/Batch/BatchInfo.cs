@@ -98,11 +98,8 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public void CreateDirectory()
         {
-            if (Directory.Exists(this.GetDirectoryFullPath()))
-                Directory.Delete(this.GetDirectoryFullPath(), true);
-
-            Directory.CreateDirectory(this.GetDirectoryFullPath());
-
+            if (!Directory.Exists(this.GetDirectoryFullPath()))
+                Directory.CreateDirectory(this.GetDirectoryFullPath());
         }
 
         /// <summary>

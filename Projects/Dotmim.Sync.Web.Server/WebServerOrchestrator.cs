@@ -579,8 +579,13 @@ namespace Dotmim.Sync.Web.Server
             if (sessionCache.ClientBatchInfo == null)
             {
                 sessionCache.ClientBatchInfo = new BatchInfo(schema, this.Options.BatchDirectory);
-                sessionCache.ClientBatchInfo.CreateDirectory();
+                sessionCache.ClientBatchInfo.TryRemoveDirectory();
             }
+
+            // we may have an error on first instance.
+            // so far we have a clientbatch in session, but the directory does not exists
+            // then we are checking the directory creation everytime
+            sessionCache.ClientBatchInfo.CreateDirectory();
 
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
@@ -653,7 +658,10 @@ namespace Dotmim.Sync.Web.Server
                 cleanFolder = await this.InternalCanCleanFolderAsync(ctx, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
 
             if (cleanFolder)
-                sessionCache.ClientBatchInfo.TryRemoveDirectory();
+                sessionCache.ClientBatchInfo.Clear(true);
+
+            // we do not need client batch info now
+            sessionCache.ClientBatchInfo = null;
 
             // Retro compatiblité to version < 0.9.3
             if (serverBatchInfo.BatchPartsInfo == null)

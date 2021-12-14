@@ -1759,7 +1759,7 @@ namespace Dotmim.Sync.Tests
             // configure server orchestrator
             this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
 
-            SyncOptions options = new SyncOptions { BatchSize = 10 };
+            SyncOptions options = new SyncOptions { BatchSize = 1000 };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1823,7 +1823,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server
-                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1100);
+                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1000, 1100);
                 Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
 
                 // Get count of rows
