@@ -46,7 +46,7 @@ namespace Dotmim.Sync
         public int BatchSize
         {
             get => batchSize;
-            set => batchSize = Math.Max(value, 1000);
+            set => batchSize = Math.Max(value, 100);
         }
 
         /// <summary>
