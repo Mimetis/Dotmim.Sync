@@ -175,8 +175,10 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
-
-            stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
+            if (setupHasTableWithColumns)
+            {
+                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
+            }
             stringBuilder.AppendLine("DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(";WITH ");
@@ -486,8 +488,10 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
-
-            stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
+            if (setupHasTableWithColumns)
+            {
+                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
+            }
             stringBuilder.AppendLine("DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
             stringBuilder.AppendLine();
 
@@ -731,10 +735,12 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("");
-            stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
-            stringBuilder.AppendLine("DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WITH ");
+            if (setupHasTableWithColumns)
+            {
+                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
+                stringBuilder.AppendLine();
+            }
+            stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
