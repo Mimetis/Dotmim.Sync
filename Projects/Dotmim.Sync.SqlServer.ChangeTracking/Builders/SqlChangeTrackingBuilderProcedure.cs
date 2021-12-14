@@ -175,10 +175,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
-            if (setupHasTableWithColumns)
-            {
-                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
-            }
             stringBuilder.AppendLine("DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(";WITH ");
@@ -196,7 +192,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
+                stringBuilder.Append(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
             }
 
             stringBuilder.AppendLine("\n\tFROM @changeTable AS [p]");
@@ -474,10 +470,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
-            if (setupHasTableWithColumns)
-            {
-                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
-            }
             stringBuilder.AppendLine("DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
             stringBuilder.AppendLine();
 
@@ -499,7 +491,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
+                stringBuilder.Append(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
             }
 
             stringBuilder.AppendLine("\n\tFROM (SELECT ");
@@ -708,11 +700,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("");
-            if (setupHasTableWithColumns)
-            {
-                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
-                stringBuilder.AppendLine();
-            }
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
             stringBuilder.Append("\tSELECT ");
@@ -727,7 +714,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
+                stringBuilder.Append(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
             }
 
             stringBuilder.AppendLine($"\n\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
