@@ -193,10 +193,11 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("\tCAST([CT].[SYS_CHANGE_CONTEXT] AS uniqueidentifier) AS [sync_update_scope_id],");
             stringBuilder.AppendLine("\t[CT].[SYS_CHANGE_VERSION] AS [sync_timestamp],");
-            stringBuilder.Append("\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation]");
+            stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t-- select the next changed columns when the change operation was an insert");
+                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation],");
+                stringBuilder.AppendLine("\t-- select the next changed columns when the change operation was an insert");
                 stringBuilder.AppendLine("\t(CASE WHEN [SYS_CHANGE_OPERATION] = 'I' THEN (");
                 stringBuilder.AppendLine("\t\tSELECT [N].[SYS_CHANGE_COLUMNS]");
                 stringBuilder.AppendLine($"\t\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @next_sync_min_timestamp) AS [N]");
@@ -510,10 +511,11 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id],");
             stringBuilder.AppendLine("\t[CT].[SYS_CHANGE_VERSION] AS [sync_timestamp],");
-            stringBuilder.Append("\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation]");
+            stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t-- select the next changed columns when the change operation was an insert");
+                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation],");
+                stringBuilder.AppendLine("\t-- select the next changed columns when the change operation was an insert");
                 stringBuilder.AppendLine("\t(CASE WHEN [SYS_CHANGE_OPERATION] = 'I' THEN (");
                 stringBuilder.AppendLine("\t\tSELECT [N].[SYS_CHANGE_COLUMNS]");
                 stringBuilder.AppendLine($"\t\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @next_sync_min_timestamp) AS [N]");
@@ -751,10 +753,11 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("\tCAST([CT].[SYS_CHANGE_CONTEXT] AS uniqueidentifier) AS [sync_update_scope_id],");
             stringBuilder.AppendLine("\t[CT].[SYS_CHANGE_VERSION] AS [sync_timestamp],");
-            stringBuilder.Append("\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation]");
+            stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t-- select the next changed columns when the change operation was an insert");
+                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation],");
+                stringBuilder.AppendLine("\t-- select the next changed columns when the change operation was an insert");
                 stringBuilder.AppendLine("\t(CASE WHEN [SYS_CHANGE_OPERATION] = 'I' THEN (");
                 stringBuilder.AppendLine("\t\tSELECT [N].[SYS_CHANGE_COLUMNS]");
                 stringBuilder.AppendLine($"\t\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @next_sync_min_timestamp) AS [N]");
@@ -783,7 +786,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t[base].{columnName},");
             }
-            stringBuilder.AppendLine("\tCASE WHEN [side].[sync_change_operation] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone],");
+            stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
             stringBuilder.AppendLine("\t[side].[sync_update_scope_id]");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
             stringBuilder.Append($"RIGHT JOIN {trackingName.Quoted().ToString()} [side]");
