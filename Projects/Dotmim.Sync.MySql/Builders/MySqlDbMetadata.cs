@@ -48,7 +48,7 @@ namespace Dotmim.Sync.MySql.Builders
                 "blob" or "longblob" or "tinyblob" or "mediumblob" or "binary" or "varbinary" => DbType.Binary,
                 "year" => DbType.Int32,
                 "time" => DbType.Time,
-                "timestamp" => DbType.UInt64,
+                "timestamp" => DbType.DateTime,
                 "text" or "set" or "enum" or "nchar" or "nvarchar" or "varchar" => stringDbType,
                 "char" => columnDefinition.MaxLength == 36 ? DbType.Guid : stringDbType,
 
@@ -148,10 +148,10 @@ namespace Dotmim.Sync.MySql.Builders
             MySqlDbType.Float => typeof(float),
             MySqlDbType.Double => typeof(double),
             MySqlDbType.Time => typeof(TimeSpan),
-            MySqlDbType.Date or MySqlDbType.DateTime or MySqlDbType.Newdate => typeof(DateTime),
+            MySqlDbType.Date or MySqlDbType.DateTime or MySqlDbType.Newdate or MySqlDbType.Timestamp => typeof(DateTime),
             MySqlDbType.Enum or MySqlDbType.VarString or MySqlDbType.JSON or MySqlDbType.VarChar or MySqlDbType.String or MySqlDbType.TinyText or MySqlDbType.MediumText or MySqlDbType.LongText or MySqlDbType.Text or MySqlDbType.Set => typeof(string),
             MySqlDbType.Guid => typeof(Guid),
-            MySqlDbType.Timestamp or MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
+            MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
             _ => throw new Exception($"In Column {column.ColumnName}, the type {GetMySqlDbType(column)} is not supported"),
         };
 
@@ -212,9 +212,7 @@ namespace Dotmim.Sync.MySql.Builders
             "year" or "time" or "timestamp" => true,
             _ => false,
         };
-        public override bool IsReadonly(SyncColumn columnDefinition)
-            => columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp";
-
+        public override bool IsReadonly(SyncColumn columnDefinition) => false;
 
         // ----------------------------------------------------------------------------------
 
@@ -276,7 +274,8 @@ namespace Dotmim.Sync.MySql.Builders
         public string GetStringFromOwnerDbType(MySqlDbType ownerType) => ownerType switch
         {
             MySqlDbType.Decimal or MySqlDbType.NewDecimal => "decimal",
-            MySqlDbType.Byte or MySqlDbType.Bool or MySqlDbType.UByte => "tinyint",
+            MySqlDbType.Bool => "bit",
+            MySqlDbType.Byte or MySqlDbType.UByte => "tinyint",
             MySqlDbType.Int16 or MySqlDbType.Year or MySqlDbType.UInt16 => "smallint",
             MySqlDbType.Int24 or MySqlDbType.UInt24 => "mediumint",
             MySqlDbType.Int32 or MySqlDbType.UInt32 => "int",
@@ -380,15 +379,15 @@ namespace Dotmim.Sync.MySql.Builders
 
             return mySqlDbType switch
             {
-                MySqlDbType.Decimal or
                 MySqlDbType.Float or
+                MySqlDbType.Decimal or
                 MySqlDbType.Double => string.Format("({0},{1})", precision, scale),
                 MySqlDbType.VarChar or MySqlDbType.Text or MySqlDbType.Enum or MySqlDbType.Set => column.MaxLength > 0 ? $"({column.MaxLength})" : string.Empty,
                 MySqlDbType.Binary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 255)})" : "(255)",
                 MySqlDbType.VarBinary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 8000)})" : "(8000)",
                 _ => string.Empty
             };
-        
+
         }
     }
 }

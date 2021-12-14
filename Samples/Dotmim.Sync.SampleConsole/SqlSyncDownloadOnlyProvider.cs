@@ -259,8 +259,9 @@ namespace Dotmim.Sync.SampleConsole
         /// <summary>
         /// Returning null for all non used commands (from case default)
         /// </summary>
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
+            var isBatch = false;
             var command = new SqlCommand();
             switch (nameType)
             {
@@ -276,24 +277,26 @@ namespace Dotmim.Sync.SampleConsole
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
                     break;
-                case DbCommandType.BulkUpdateRows:
-                case DbCommandType.BulkInitializeRows:
+                case DbCommandType.UpdateRow:
+                case DbCommandType.InsertRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                    isBatch = true;
                     break;
-                case DbCommandType.BulkDeleteRows:
+                case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    isBatch = true;
                     break;
                 case DbCommandType.Reset:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     break;
                 default:
-                    return null;
+                    return (null, false);
             }
 
-            return command;
+            return (command, isBatch);
         }
 
     }

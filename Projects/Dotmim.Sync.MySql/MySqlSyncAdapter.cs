@@ -39,10 +39,10 @@ namespace Dotmim.Sync.MySql
         public override bool IsPrimaryKeyViolation(Exception Error) => false;
         public override bool IsUniqueKeyViolation(Exception exception) => false;
 
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter = null)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null)
         {
             var command = new MySqlCommand();
-
+            var isBatch = false;
             switch (nameType)
             {
                 case DbCommandType.SelectChanges:
@@ -66,11 +66,14 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
                     break;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
                     break;
                 case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
                     break;
@@ -102,19 +105,6 @@ namespace Dotmim.Sync.MySql
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete, filter);
                     break;
-                case DbCommandType.BulkTableType:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
-                    break;
-                case DbCommandType.BulkUpdateRows:
-                case DbCommandType.BulkInitializeRows:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
-                    break;
-                case DbCommandType.BulkDeleteRows:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
-                    break;
                 case DbCommandType.UpdateUntrackedRows:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
@@ -127,7 +117,7 @@ namespace Dotmim.Sync.MySql
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
             }
 
-            return command;
+            return (command, isBatch);
         }
 
 
@@ -155,10 +145,13 @@ namespace Dotmim.Sync.MySql
                     this.SetDeleteMetadataParameters(command);
                     break;
                 case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
                     this.SetDeleteRowParameters(command);
                     break;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
                     this.SetUpdateRowParameters(command);
                     break;
                 case DbCommandType.UpdateMetadata:

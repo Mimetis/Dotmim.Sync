@@ -35,11 +35,6 @@ namespace Dotmim.Sync.MySql
         }
 
         /// <summary>
-        /// MySql does not support Bulk operations
-        /// </summary>
-        public override bool SupportBulkOperations => false;
-
-        /// <summary>
         /// MySql can be a server side provider
         /// </summary>
         public override bool CanBeServerProvider => true;

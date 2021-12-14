@@ -145,10 +145,14 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+            try
+            {
+                HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
-            foreach (var client in Clients)
-                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+                foreach (var client in Clients)
+                    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+            }
+            catch (Exception) { }
 
             this.stopwatch.Stop();
 
@@ -1393,11 +1397,12 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
+                var schema = await agent.LocalOrchestrator.GetSchemaAsync();
+
                 using var connection = client.Provider.CreateConnection();
                 await connection.OpenAsync();
                 using var transaction = connection.BeginTransaction();
 
-                var schema = await agent.LocalOrchestrator.GetSchemaAsync(connection, transaction);
 
                 var tablePricesListCategory = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["PricesListCategory"], agent.Setup);
                 Assert.NotNull(tablePricesListCategory);
@@ -1638,6 +1643,7 @@ namespace Dotmim.Sync.Tests
                 }
                 await ctx.SaveChangesAsync();
             }
+            var innerRowsCountBefore = this.GetServerDatabaseRowsCount(this.Server);
 
             // Sync all clients
             // First client  will upload 1000 lines and will download nothing
@@ -3436,7 +3442,11 @@ namespace Dotmim.Sync.Tests
 
             foreach (var db in createdDatabases)
             {
-                HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+                try
+                {
+                    HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+                }
+                catch (Exception) { }
             }
         }
 
@@ -3820,7 +3830,7 @@ namespace Dotmim.Sync.Tests
                 }
 
             }
-            
+
             foreach (var client in Clients)
             {
                 using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);

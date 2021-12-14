@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Client;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.Extensions.Logging;
 using System;
@@ -32,7 +33,7 @@ namespace Dotmim.Sync
         public HttpMessageSendChangesRequest Request { get; }
         public string Host { get; }
         public SessionCache SessionCache { get; }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => HttpServerSyncEventsId.HttpGettingChanges.Id;
     }
 
@@ -51,7 +52,7 @@ namespace Dotmim.Sync
         public string Host { get; }
         public SessionCache SessionCache { get; }
         public bool IsSnapshot { get; }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => this.Host;
         public override string Message
         {

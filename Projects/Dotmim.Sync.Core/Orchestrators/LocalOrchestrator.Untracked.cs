@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Args;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
@@ -22,44 +23,48 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual Task<bool> UpdateUntrackedRowsAsync(SyncSet schema, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.ChangesApplying, async (ctx, connection, transaction) =>
+        public virtual async Task<bool> UpdateUntrackedRowsAsync(SyncSet schema, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // If schema does not have any table, just return
-            if (schema == null || schema.Tables == null || !schema.HasTables)
-                throw new MissingTablesException();
-
-            // Update untracked rows
-            foreach (var table in schema.Tables)
+            try
             {
-                var syncAdapter = this.GetSyncAdapter(table, this.Setup);
-                await this.InternalUpdateUntrackedRowsAsync(ctx, syncAdapter, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // If schema does not have any table, just return
+                if (schema == null || schema.Tables == null || !schema.HasTables)
+                    throw new MissingTablesException();
+
+                // Update untracked rows
+                foreach (var table in schema.Tables)
+                {
+                    var syncAdapter = this.GetSyncAdapter(table, this.Setup);
+                    await this.InternalUpdateUntrackedRowsAsync(this.GetContext(), syncAdapter, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return true;
             }
-
-            return true;
-
-        }, connection, transaction, cancellationToken);
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual Task<bool> UpdateUntrackedRowsAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(SyncStage.ChangesApplying, async (ctx, connection, transaction) =>
-            {
-
-                var schema = await this.GetSchemaAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                return await this.UpdateUntrackedRowsAsync(schema, connection, transaction, cancellationToken).ConfigureAwait(false); 
-
-            }, connection, transaction, cancellationToken);
+        public virtual async Task<bool> UpdateUntrackedRowsAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var schema = await this.GetSchemaAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            return await this.UpdateUntrackedRowsAsync(schema, connection, transaction, cancellationToken).ConfigureAwait(false);
+        }
 
 
 
         /// <summary>
         /// Internal update untracked rows routine
         /// </summary>
-        internal async Task<int> InternalUpdateUntrackedRowsAsync(SyncContext ctx, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction)
+        internal async Task<int> InternalUpdateUntrackedRowsAsync(SyncContext ctx, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             // Get table builder
             var tableBuilder = this.GetTableBuilder(syncAdapter.TableDescription, syncAdapter.Setup);
 
@@ -70,9 +75,11 @@ namespace Dotmim.Sync
                 throw new MissingTrackingTableException(tableBuilder.TableDescription.GetFullName());
 
             // Get correct Select incremental changes command 
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
-            
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
+
             if (command == null) return 0;
+
+            await this.InterceptAsync(new DbCommandArgs(ctx, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);

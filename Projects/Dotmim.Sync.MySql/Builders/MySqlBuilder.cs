@@ -22,7 +22,6 @@ namespace Dotmim.Sync.MySql.Builders
         public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {
             return Task.CompletedTask;
-
             //using var dbCommand = connection.CreateCommand();
             //dbCommand.CommandText = $"set global innodb_stats_on_metadata=0;";
 

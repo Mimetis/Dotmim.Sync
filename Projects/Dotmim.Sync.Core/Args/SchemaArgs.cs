@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -23,7 +24,7 @@ namespace Dotmim.Sync
         public SyncSetup Setup { get; }
         public override string Source => Connection.Database;
         public override string Message => $"Loading Schema For {this.Setup.Tables.Count} Tables.";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => SyncEventsId.SchemaLoading.Id;
     }
 
@@ -34,13 +35,14 @@ namespace Dotmim.Sync
         {
             this.Schema = schema;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         /// <summary>
         /// Gets the schema loaded.
         /// </summary>
         public SyncSet Schema { get; }
         public override string Source => Connection.Database;
-        public override string Message => $"Schema Loaded For {this.Schema.Tables.Count} Tables.";
+        public override string Message => $"[{Connection.Database}] Schema Loaded For {this.Schema.Tables.Count} Tables.";
 
         public override int EventId => SyncEventsId.SchemaLoaded.Id;
     }

@@ -203,7 +203,7 @@ namespace Dotmim.Sync.MySql.Builders
                 DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
                 DbStoredProcedureType.DeleteMetadata => this.CreateDeleteMetadataCommand(connection, transaction),
                 DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
-                _ => throw new NotImplementedException($"this DbStoredProcedureType {storedProcedureType} has no command to create.")
+                _ => null,
             };
 
             return Task.FromResult(command);
@@ -214,7 +214,14 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+                storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
+                return Task.FromResult<DbCommand>(null);
+
             var quotedProcedureName = this.objectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+
+            if (string.IsNullOrEmpty(quotedProcedureName))
+                return Task.FromResult<DbCommand>(null);
 
             var procedureName = ParserName.Parse(quotedProcedureName, "`").ToString();
 
@@ -241,7 +248,15 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+                storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
+                return Task.FromResult<DbCommand>(null);
+
             var quotedProcedureName = this.objectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+
+            if (string.IsNullOrEmpty(quotedProcedureName))
+                return Task.FromResult<DbCommand>(null);
+
             var commandText = $"drop procedure {quotedProcedureName}";
 
             var command = connection.CreateCommand();
@@ -591,7 +606,7 @@ namespace Dotmim.Sync.MySql.Builders
                 {
                     // Get column name and type
                     var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
-                    var sqlDbType = this.dbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType, MaxLength= param.MaxLength });
+                    var sqlDbType = this.dbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType, MaxLength = param.MaxLength });
 
                     var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;
@@ -893,9 +908,131 @@ namespace Dotmim.Sync.MySql.Builders
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
+
+        //private MySqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter)
+        //{
+        //    var sqlCommand = new MySqlCommand();
+
+        //    var syncMinParameter = new MySqlParameter
+        //    {
+        //        ParameterName = "sync_min_timestamp",
+        //        MySqlDbType = MySqlDbType.Int64,
+        //        Value = 0
+        //    };
+        //    sqlCommand.Parameters.Add(syncMinParameter);
+        //    var syncIndex = new MySqlParameter
+        //    {
+        //        ParameterName = "sync_index",
+        //        MySqlDbType = MySqlDbType.Int64,
+        //        Value = 0
+        //    };
+        //    sqlCommand.Parameters.Add(syncIndex);
+        //    var syncBatchSize = new MySqlParameter
+        //    {
+        //        ParameterName = "sync_batch_size",
+        //        MySqlDbType = MySqlDbType.Int64,
+        //        Value = -1
+        //    };
+        //    sqlCommand.Parameters.Add(syncBatchSize);
+
+
+        //    // Add filter parameters
+        //    if (filter != null)
+        //        CreateFilterParameters(sqlCommand, filter);
+
+        //    var stringBuilder = new StringBuilder("SELECT ");
+        //    var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
+
+        //    for (var i = 0; i < columns.Count; i++)
+        //    {
+        //        var mutableColumn = columns[i];
+        //        var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+        //        stringBuilder.AppendLine($"\t`base`.{columnName}");
+
+        //        if (i < columns.Count - 1)
+        //            stringBuilder.Append(", ");
+        //    }
+        //    stringBuilder.AppendLine($"FROM");
+        //    stringBuilder.Append($"\t( SELECT ");
+
+        //    string empty = "";
+        //    foreach (var pkColumn in this.tableDescription.PrimaryKeys)
+        //    {
+        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+        //        stringBuilder.Append($"{empty}{pkColumnName}");
+        //        empty = ", ";
+        //    }
+        //    stringBuilder.Append($"\tFROM {tableName.Quoted().ToString()} ");
+
+        //    // ----------------------------------
+        //    // Custom Joins
+        //    // ----------------------------------
+        //    if (filter != null)
+        //        stringBuilder.Append($"\t{CreateFilterCustomJoins(filter)}");
+
+        //    // ----------------------------------
+        //    // Where filters and Custom Where string
+        //    // ----------------------------------
+        //    if (filter != null)
+        //    {
+        //        stringBuilder.AppendLine();
+        //        stringBuilder.AppendLine("\tWHERE ");
+
+        //        var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+        //        stringBuilder.Append(createFilterWhereSide);
+
+        //        if (!string.IsNullOrEmpty(createFilterWhereSide))
+        //            stringBuilder.AppendLine($"\tAND ");
+
+        //        var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+        //        stringBuilder.Append(createFilterCustomWheres);
+
+        //        if (!string.IsNullOrEmpty(createFilterCustomWheres))
+        //            stringBuilder.AppendLine($"\tAND ");
+        //    }
+        //    // ----------------------------------
+
+        //    stringBuilder.Append(" ORDER BY ");
+        //    empty = "";
+        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+        //        stringBuilder.Append($"{empty}{pkColumnName}");
+        //        empty = ", ";
+        //    }
+
+        //    stringBuilder.AppendLine(" LIMIT `sync_index`, `sync_batch_size`) `side`");
+        //    stringBuilder.Append($"JOIN {tableName.Quoted().ToString()} `base` ON ");
+
+        //    empty = "";
+        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+        //        stringBuilder.Append($"{empty}`base`.{pkColumnName}=`side`.{pkColumnName}");
+        //        empty = " AND ";
+        //    }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.Append("ORDER BY ");
+        //    empty = "";
+        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+        //        stringBuilder.Append($"{empty}{pkColumnName}");
+        //        empty = ", ";
+        //    }
+        //    stringBuilder.AppendLine(";");
+
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+
+        //    return sqlCommand;
+        //}
+
         private MySqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter)
         {
-            var sqlCommand = new MySqlCommand();
+            var sqlCommand = new MySqlCommand()
+            {
+                CommandTimeout = 2147483
+            };
 
             var syncMinParameter = new MySqlParameter
             {
@@ -903,14 +1040,20 @@ namespace Dotmim.Sync.MySql.Builders
                 MySqlDbType = MySqlDbType.Int64,
                 Value = 0
             };
-
             sqlCommand.Parameters.Add(syncMinParameter);
 
             // Add filter parameters
             if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
 
-            var stringBuilder = new StringBuilder("SELECT DISTINCT");
+            var stringBuilder = new StringBuilder();
+            // if we have a filter we may have joins that will duplicate lines
+            if (filter != null)
+                stringBuilder.AppendLine("SELECT DISTINCT");
+            else
+                stringBuilder.AppendLine("SELECT");
+
+
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
 
             for (var i = 0; i < columns.Count; i++)
@@ -943,7 +1086,6 @@ namespace Dotmim.Sync.MySql.Builders
             // ----------------------------------
             if (filter != null)
                 stringBuilder.Append(CreateFilterCustomJoins(filter));
-
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");

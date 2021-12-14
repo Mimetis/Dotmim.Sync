@@ -20,14 +20,10 @@ namespace Dotmim.Sync
     public class DatabaseChangesSelectingArgs : ProgressArgs
     {
         public DatabaseChangesSelectingArgs(SyncContext context, MessageGetChangesBatch changesRequest, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.ChangesRequest = changesRequest;
-        }
-
+            : base(context, connection, transaction) => this.ChangesRequest = changesRequest;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
-        public override string Message => $"Getting Changes.";
-
+        public override string Message => $"[{Connection.Database}] Getting Changes. [{ChangesRequest.BatchDirectory}]. Batch size:{ChangesRequest.BatchSize}. IsNew:{ChangesRequest.IsNew}. LastTimestamp:{ChangesRequest.LastTimestamp}. ";
         public MessageGetChangesBatch ChangesRequest { get; }
         public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
     }
@@ -45,9 +41,9 @@ namespace Dotmim.Sync
             this.ChangesSelected = changesSelected;
         }
 
-        public override string Source => Connection.Database;
-        public override string Message => $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}";
-
+        public override string Source => Connection?.Database;
+        public override string Message => $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}. [{this.BatchInfo.GetDirectoryFullPath()}]";
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         public long? Timestamp { get; }
 
         /// <summary>
@@ -76,8 +72,7 @@ namespace Dotmim.Sync
         /// All parameters that will be used to apply changes
         /// </summary>
         public MessageApplyChanges ApplyChanges { get; }
-
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => SyncEventsId.DatabaseChangesApplying.Id;
     }
 
@@ -93,7 +88,7 @@ namespace Dotmim.Sync
         }
 
         public DatabaseChangesApplied ChangesApplied { get; set; }
-
+        public override SyncProgressLevel ProgressLevel => ChangesApplied.TotalAppliedChanges > 0 ? SyncProgressLevel.Information: SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
         public override string Message => $"[Total] Applied:{ChangesApplied.TotalAppliedChanges}. Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
 

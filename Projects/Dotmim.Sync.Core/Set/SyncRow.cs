@@ -9,66 +9,64 @@ namespace Dotmim.Sync
 {
     public class SyncRow
     {
-
         // all the values for this line
         private object[] buffer;
 
         /// <summary>
         /// Gets or Sets the row's table
         /// </summary>
-        public SyncTable Table { get; set; }
-
-        /// <summary>
-        /// Creates an instance, in which data can be written to,
-        /// with the default initial capacity.
-        /// </summary>
-        public SyncRow(int bufferSize) 
-        {
-            this.buffer = new object[bufferSize];
-            this.Length = bufferSize;
-        }
+        public SyncTable SchemaTable { get; set; }
 
         /// <summary>
         /// Add a new buffer row
         /// </summary>
-        public SyncRow(SyncTable table, DataRowState state = DataRowState.Unchanged)
+        public SyncRow(SyncTable schemaTable, DataRowState state = DataRowState.Unchanged)
         {
-            this.buffer = new object[table.Columns.Count];
+            // Buffer is +1 to store state
+            this.buffer = new object[schemaTable.Columns.Count + 1];
 
             // set correct length
-            this.Length = table.Columns.Count;
+            this.Length = schemaTable.Columns.Count;
 
             // Get a ref
-            this.Table = table;
+            this.SchemaTable = schemaTable;
 
             // Affect new state
-            this.RowState = state;
+            this.buffer[0] = (int)state;
+
         }
 
 
         /// <summary>
         /// Add a new buffer row. This ctor does not make a copy
         /// </summary>
-        public SyncRow(SyncTable table, object[] row, DataRowState state = DataRowState.Unchanged) 
+        public SyncRow(SyncTable schemaTable, object[] row)
         {
+            if (row.Length <= schemaTable.Columns.Count)
+                throw new ArgumentException("row array must have one more item to store state");
+
+            if (row.Length > schemaTable.Columns.Count + 1)
+                throw new ArgumentException("row array has too many items");
+
             // Direct set of the buffer
             this.buffer = row;
 
-            // set correct length
-            this.Length = row.Length;
+            // set columns count as length
+            this.Length = schemaTable.Columns.Count;
 
             // Get a ref
-            this.Table = table;
-
-            // Affect new state
-            this.RowState = state;
+            this.SchemaTable = schemaTable;
 
         }
 
         /// <summary>
-        /// Gets or Sets the state of the row
+        /// Gets the state of the row
         /// </summary>
-        public DataRowState RowState { get; set; }
+        public DataRowState RowState
+        {
+            get => (DataRowState)Convert.ToInt32(this.buffer[0]);
+            set => this.buffer[0] = (int)value;
+        }
 
         /// <summary>
         /// Gets the row Length
@@ -80,8 +78,8 @@ namespace Dotmim.Sync
         /// </summary>
         public object this[int index]
         {
-            get => buffer[index];
-            set => this.buffer[index] = value;
+            get => buffer[index + 1];
+            set => this.buffer[index + 1] = value;
         }
 
         /// <summary>
@@ -96,65 +94,39 @@ namespace Dotmim.Sync
         {
             get
             {
-                var column = this.Table.Columns[columnName];
+                var column = this.SchemaTable.Columns[columnName];
 
                 if (column == null)
                     throw new ArgumentException("Column is null");
 
-                var index = this.Table.Columns.IndexOf(column);
+                var index = this.SchemaTable.Columns.IndexOf(column);
 
                 return this[index];
             }
             set
             {
-                var column = this.Table.Columns[columnName];
+                var column = this.SchemaTable.Columns[columnName];
 
                 if (column == null)
                     throw new ArgumentException("Column is null");
 
-                var index = this.Table.Columns.IndexOf(column);
+                var index = this.SchemaTable.Columns.IndexOf(column);
 
                 this[index] = value;
             }
         }
 
         /// <summary>
-        /// Get the inner array with state on Index 0. Need to replace with ReadOnlySpan<object> !!!!
+        /// Get the inner copy array
         /// </summary>
         /// <returns></returns>
-        public object[] ToArray()
-        {
-            var array = new object[this.Length + 1];
-            Array.Copy(this.buffer, 0, array, 1, this.Length);
-            
-            // set row state on index 0 of my buffer
-            array[0] = (int)this.RowState;
+        public object[] ToArray() => this.buffer;
 
-            return array;
-        }
-
-        /// <summary>
-        /// Import a raw array, containing state on Index 0
-        /// </summary>
-        public void FromArray(object[] row)
-        {
-            var length = Table.Columns.Count;
-
-            if (row.Length != length + 1)
-                throw new Exception("row must contains State on position 0 and UpdateScopeId on position 1");
-
-            Array.Copy(row, 1, this.buffer, 0, length);
-            this.RowState = (DataRowState)Convert.ToInt32(row[0]);
-        }
 
         /// <summary>
         /// Clear the data in the buffer
         /// </summary>
-        public void Clear()
-        {
-            Array.Clear(this.buffer, 0, this.buffer.Length);
-            this.Table = null;
-        }
+        public void Clear() => Array.Clear(this.buffer, 0, this.buffer.Length);
 
 
         /// <summary>
@@ -165,16 +137,16 @@ namespace Dotmim.Sync
             if (this.buffer == null || this.buffer.Length == 0)
                 return "empty row";
 
-            if (this.Table == null)
+            if (this.SchemaTable == null)
                 return this.buffer.ToString();
 
             var sb = new StringBuilder();
 
             sb.Append($"[Sync state]:{this.RowState}");
 
-            var columns = this.RowState == DataRowState.Deleted ? this.Table.GetPrimaryKeysColumns() : this.Table.Columns;
+            var columns = this.RowState == DataRowState.Deleted ? this.SchemaTable.GetPrimaryKeysColumns() : this.SchemaTable.Columns;
 
-            foreach(var c in columns)
+            foreach (var c in columns)
             {
                 var o = this[c.ColumnName];
                 var os = o == null ? "<NULL />" : o.ToString();

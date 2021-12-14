@@ -1,6 +1,8 @@
 ﻿
 
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Serialization;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,37 +31,16 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(bool isInMemory, SyncSet inSchema, string rootDirectory = null, string directoryName = null)
+        public BatchInfo(SyncSet inSchema, string rootDirectory = null, string directoryName = null)
         {
-            this.InMemory = isInMemory;
-
             // We need to create a change table set, containing table with columns not readonly
             foreach (var table in inSchema.Tables)
                 DbSyncAdapter.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
 
-            // If not in memory, generate a directory name and initialize batch parts list
-            if (!this.InMemory)
-            {
-                this.DirectoryRoot = rootDirectory;
-                this.BatchPartsInfo = new List<BatchPartInfo>();
-                this.DirectoryName = string.IsNullOrEmpty(directoryName) ? string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", "")) : directoryName;
-            }
+            this.DirectoryRoot = rootDirectory;
+            this.BatchPartsInfo = new List<BatchPartInfo>();
+            this.DirectoryName = string.IsNullOrEmpty(directoryName) ? string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", "")) : directoryName;
         }
-
-
-        /// <summary>
-        /// Is the batch parts are in memory
-        /// If true, only one BPI
-        /// If false, several serialized BPI
-        /// </summary>
-        [IgnoreDataMember]
-        public bool InMemory { get; set; }
-
-        /// <summary>
-        /// If in memory, return the in memory Dm
-        /// </summary>
-        [IgnoreDataMember]
-        public SyncSet InMemoryData { get; set; }
 
         /// <summary>
         /// Gets or Sets directory name
@@ -80,7 +61,7 @@ namespace Dotmim.Sync.Batch
         public long Timestamp { get; set; }
 
         /// <summary>
-        /// List of batch parts if not in memory
+        /// List of batch parts
         /// </summary>
         [DataMember(Name = "parts", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public List<BatchPartInfo> BatchPartsInfo { get; set; }
@@ -92,7 +73,7 @@ namespace Dotmim.Sync.Batch
         public int RowsCount { get; set; }
 
         /// <summary>
-        /// Gets or Sets the Serialization Factory Key used to serialize this batch info (if not in memory)
+        /// Gets or Sets the Serialization Factory Key used to serialize this batch info
         /// </summary>
         [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public string SerializerFactoryKey { get; set; }
@@ -109,27 +90,30 @@ namespace Dotmim.Sync.Batch
         /// Get the full path of the Batch directory
         /// </summary>
         /// <returns></returns>
-        public string GetDirectoryFullPath()
-        {
-            if (this.InMemory)
-                return null;
-
-            return Path.Combine(this.DirectoryRoot, this.DirectoryName);
-        }
+        public string GetDirectoryFullPath() => Path.Combine(this.DirectoryRoot, this.DirectoryName);
 
 
         /// <summary>
-        /// Check if this batchinfo has some data (in memory or not)
+        /// Create batch info directory
+        /// </summary>
+        public void CreateDirectory()
+        {
+            if (Directory.Exists(this.GetDirectoryFullPath()))
+                Directory.Delete(this.GetDirectoryFullPath(), true);
+
+            Directory.CreateDirectory(this.GetDirectoryFullPath());
+
+        }
+
+        /// <summary>
+        /// Check if this batchinfo has some data
         /// </summary>
         public bool HasData()
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
 
-            if (InMemory && InMemoryData != null && InMemoryData.HasTables && InMemoryData.HasRows)
-                return true;
-
-            if (!InMemory && BatchPartsInfo != null && BatchPartsInfo.Count > 0)
+            if (BatchPartsInfo != null && BatchPartsInfo.Count > 0)
             {
                 var rowsCount = BatchPartsInfo.Sum(bpi => bpi.RowsCount);
 
@@ -139,26 +123,37 @@ namespace Dotmim.Sync.Batch
             return false;
         }
 
+        /// <summary>
+        /// Generate a new full path to store a new batch part info file
+        /// </summary>
+        public (string FullPath, string FileName) GetNewBatchPartInfoPath(SyncTable syncTable, int batchIndex, string extension)
+        {
+            var tableName = ParserName.Parse(syncTable).Unquoted().Schema().Normalized().ToString();
+            var fileName = GenerateNewFileName(batchIndex.ToString(), tableName, extension);
+            var fullPath = Path.Combine(this.GetDirectoryFullPath(), fileName);
+            return (fullPath, fileName);
+        }
 
+        public (string FullPath, string FileName) GetBatchPartInfoPath(BatchPartInfo batchPartInfo)
+        {
+            if (BatchPartsInfo == null)
+                return (default, default);
+
+            var fullPath = Path.Combine(this.GetDirectoryFullPath(), batchPartInfo.FileName);
+
+            return (fullPath, batchPartInfo.FileName);
+
+        }
 
         /// <summary>
-        /// Check if this batchinfo has some data (in memory or not)
+        /// Check if this batchinfo has some data
         /// </summary>
         public bool HasData(string tableName, string schemaName)
         {
             if (this.SanitizedSchema == null)
                 throw new NullReferenceException("Batch info schema should not be null");
 
-            if (InMemory && InMemoryData != null && InMemoryData.HasTables)
-            {
-                var table = InMemoryData.Tables[tableName, schemaName];
-                if (table == null)
-                    return false;
-
-                return table.HasRows;
-            }
-
-            if (!InMemory && BatchPartsInfo != null && BatchPartsInfo.Count > 0)
+            if (BatchPartsInfo != null && BatchPartsInfo.Count > 0)
             {
                 var tableInfo = new BatchPartTableInfo(tableName, schemaName);
 
@@ -174,61 +169,35 @@ namespace Dotmim.Sync.Batch
             return false;
         }
 
-        public async IAsyncEnumerable<(SyncTable SyncTable, BatchPartInfo BatchPartInfo)> GetTableAsync(string tableName, string schemaName, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
+        /// <summary>
+        /// Get all batch part for 1 particular table
+        /// </summary>
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(SyncTable syncTable)
         {
-            if (this.SanitizedSchema == null)
-                throw new NullReferenceException("Batch info schema should not be null");
+            if (syncTable == null) return Enumerable.Empty<BatchPartInfo>();
 
-            var tableInfo = new BatchPartTableInfo(tableName, schemaName);
+            if (BatchPartsInfo == null) return Enumerable.Empty<BatchPartInfo>();
 
-            if (InMemory)
-            {
-                this.SerializerFactoryKey = null;
+            // Get all batch part
+            var bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0
+                                            && bpi.Tables.Any(t => t.EqualsByName(new BatchPartTableInfo(syncTable.TableName, syncTable.SchemaName)))).OrderBy(t => t.Index);
 
-                if (this.InMemoryData != null && this.InMemoryData.HasTables)
-                    yield return (this.InMemoryData.Tables[tableName, schemaName], null);
-            }
-            else
-            {
-                this.SerializerFactoryKey = serializerFactory.Key;
+            if (bpiTables == null) return Enumerable.Empty<BatchPartInfo>();
 
-                var bpiTables = BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.Tables.Any(t => t.EqualsByName(tableInfo))).OrderBy(t => t.Index);
-
-                if (bpiTables != null)
-                {
-                    foreach (var batchPartinInfo in bpiTables)
-                    {
-                        // load only if not already loaded in memory
-                        if (batchPartinInfo.Data == null)
-                            await batchPartinInfo.LoadBatchAsync(this.SanitizedSchema, GetDirectoryFullPath(), serializerFactory, orchestrator).ConfigureAwait(false);
-
-                        // Get the table from the batchPartInfo
-                        // generate a tmp SyncTable for 
-                        var batchTable = batchPartinInfo.Data.Tables.FirstOrDefault(bt => bt.EqualsByName(new SyncTable(tableName, schemaName)));
-
-                        if (batchTable != null)
-                        {
-                            yield return (batchTable, batchPartinInfo);
-
-                            // We may need this same BatchPartInfo for another table, 
-                            // but we dispose it anyway, because memory can be quickly a bottleneck
-                            // if batchpartinfos are resident in memory
-                            //batchPartinInfo.Data.Dispose();
-                            //batchPartinInfo.Data = null;
-                        }
-                    }
-                }
-            }
+            return bpiTables;
         }
 
         /// <summary>
-        /// Ensure the last batch part (if not in memory) has the correct IsLastBatch flag
+        /// Get all batch part for 1 particular table
+        /// </summary>
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default) => 
+            GetBatchPartsInfo(new SyncTable(tableName, schemaName));
+
+        /// <summary>
+        /// Ensure the last batch part has the correct IsLastBatch flag
         /// </summary>
         public void EnsureLastBatch()
         {
-            if (this.InMemory)
-                return;
-
             if (this.BatchPartsInfo.Count == 0)
                 return;
 
@@ -241,30 +210,9 @@ namespace Dotmim.Sync.Batch
         }
 
         /// <summary>
-        /// Add changes to batch info.
-        /// </summary>
-        public async Task AddChangesAsync(SyncSet changes, int batchIndex = 0, bool isLastBatch = true, ISerializerFactory serializerFactory = default, BaseOrchestrator orchestrator = null)
-        {
-            if (this.InMemory)
-            {
-                this.SerializerFactoryKey = null;
-                this.InMemoryData = changes;
-            }
-            else
-            {
-                this.SerializerFactoryKey = serializerFactory.Key;
-                var bpId = GenerateNewFileName(batchIndex.ToString());
-                var bpi = await BatchPartInfo.CreateBatchPartInfoAsync(batchIndex, changes, bpId, GetDirectoryFullPath(), isLastBatch, serializerFactory, orchestrator).ConfigureAwait(false);
-
-                // add the batchpartinfo tp the current batchinfo
-                this.BatchPartsInfo.Add(bpi);
-            }
-        }
-
-        /// <summary>
         /// generate a batch file name
         /// </summary>
-        public static string GenerateNewFileName(string batchIndex)
+        public static string GenerateNewFileName(string batchIndex, string tableName, string extension)
         {
             if (batchIndex.Length == 1)
                 batchIndex = $"000{batchIndex}";
@@ -277,9 +225,8 @@ namespace Dotmim.Sync.Batch
             else
                 throw new OverflowException("too much batches !!!");
 
-            return $"{batchIndex}_{Path.GetRandomFileName().Replace(".", "_")}.batch";
+            return $"{tableName}_{batchIndex}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
         }
-
 
         /// <summary>
         /// try to delete the Batch tmp directory and all the files stored in it
@@ -287,7 +234,7 @@ namespace Dotmim.Sync.Batch
         public void TryRemoveDirectory()
         {
             // Once we have applied all the batch, we can safely remove the temp dir and all it's files
-            if (!this.InMemory && !string.IsNullOrEmpty(this.DirectoryRoot) && !string.IsNullOrEmpty(this.DirectoryName))
+            if (!string.IsNullOrEmpty(this.DirectoryRoot) && !string.IsNullOrEmpty(this.DirectoryName))
             {
                 var tmpDirectory = new DirectoryInfo(this.GetDirectoryFullPath());
 
@@ -309,24 +256,9 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public void Clear(bool deleteFolder)
         {
-            if (this.InMemory && this.InMemoryData != null)
-            {
-                this.InMemoryData.Dispose();
-                return;
-            }
-
             // Delete folders before deleting batch parts
             if (deleteFolder)
                 this.TryRemoveDirectory();
-
-            if (this.BatchPartsInfo != null)
-            {
-                foreach (var bpi in this.BatchPartsInfo)
-                    bpi.Clear();
-
-                this.BatchPartsInfo.Clear();
-            }
-
         }
 
     }

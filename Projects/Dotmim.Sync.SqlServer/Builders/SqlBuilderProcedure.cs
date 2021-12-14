@@ -35,6 +35,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
+            if (storedProcedureType == DbStoredProcedureType.BulkInitRows)
+                return Task.FromResult<DbCommand>(null);
+
             var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
 
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
@@ -64,8 +67,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
-
         {
+            if (storedProcedureType == DbStoredProcedureType.BulkInitRows)
+                return Task.FromResult<DbCommand>(null);
+
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
             var text = $"DROP PROCEDURE {commandName};";
 
@@ -97,7 +102,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 DbStoredProcedureType.BulkUpdateRows => this.CreateBulkUpdateCommand(connection, transaction),
                 DbStoredProcedureType.BulkDeleteRows => this.CreateBulkDeleteCommand(connection, transaction),
                 DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
-                _ => throw new NotImplementedException($"this DbStoredProcedureType {storedProcedureType} has no command to create.")
+                _ => null,
             };
 
             return Task.FromResult(command);
@@ -1286,20 +1291,123 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Select initialized changes command
         //------------------------------------------------------------------
+
+        //protected virtual SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        //{
+
+        //    var sqlCommand = new SqlCommand();
+
+        //    var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
+        //    sqlCommand.Parameters.Add(pTimestamp);
+
+        //    var pIndex = new SqlParameter("@sync_index", SqlDbType.BigInt) { Value = 0, IsNullable = false };
+        //    sqlCommand.Parameters.Add(pIndex);
+
+        //    var pBatch = new SqlParameter("@sync_batch_size", SqlDbType.BigInt) { Value = 1, IsNullable = false };
+        //    sqlCommand.Parameters.Add(pBatch);
+
+
+        //    // Add filter parameters
+        //    if (filter != null)
+        //        this.CreateFilterParameters(sqlCommand, filter);
+
+        //    var stringBuilder = new StringBuilder("SELECT DISTINCT");
+        //    var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
+        //    for (var i = 0; i < columns.Count; i++)
+        //    {
+        //        var mutableColumn = columns[i];
+        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //        stringBuilder.Append($"\t[base].{columnName}");
+
+        //        if (i < columns.Count - 1)
+        //            stringBuilder.AppendLine(", ");
+        //    }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+
+        //    // ----------------------------------
+        //    // Make Left Join
+        //    // ----------------------------------
+        //    stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+
+        //    string empty = "";
+        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+        //        stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+        //        empty = " AND ";
+        //    }
+
+        //    // ----------------------------------
+        //    // Custom Joins
+        //    // ----------------------------------
+        //    if (filter != null)
+        //        stringBuilder.Append(CreateFilterCustomJoins(filter));
+
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine("WHERE (");
+
+        //    // ----------------------------------
+        //    // Where filters and Custom Where string
+        //    // ----------------------------------
+        //    if (filter != null)
+        //    {
+        //        var createFilterWhereSide = CreateFilterWhereSide(filter);
+        //        stringBuilder.Append(createFilterWhereSide);
+
+        //        if (!string.IsNullOrEmpty(createFilterWhereSide))
+        //            stringBuilder.AppendLine($"AND ");
+
+        //        var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+        //        stringBuilder.Append(createFilterCustomWheres);
+
+        //        if (!string.IsNullOrEmpty(createFilterCustomWheres))
+        //            stringBuilder.AppendLine($"AND ");
+        //    }
+        //    // ----------------------------------
+
+
+        //    stringBuilder.AppendLine("\t([side].[timestamp] > @sync_min_timestamp OR  @sync_min_timestamp IS NULL)");
+        //    stringBuilder.AppendLine(")");
+
+        //    stringBuilder.Append("ORDER BY ");
+        //    empty = "";
+        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+        //        stringBuilder.Append($"{empty}[base].{columnName}");
+        //        empty = ", ";
+        //    }
+        //    stringBuilder.AppendLine("");
+        //    stringBuilder.AppendLine("OFFSET @sync_index ROWS FETCH NEXT @sync_batch_size ROWS ONLY");
+
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+
+        //    return sqlCommand;
+        //}
+
         protected virtual SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-
-            var sqlCommand = new SqlCommand();
+            var sqlCommand = new SqlCommand
+            {
+                CommandTimeout = 0
+            };
 
             var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
             sqlCommand.Parameters.Add(pTimestamp);
-
 
             // Add filter parameters
             if (filter != null)
                 this.CreateFilterParameters(sqlCommand, filter);
 
-            var stringBuilder = new StringBuilder("SELECT DISTINCT");
+            var stringBuilder = new StringBuilder();
+
+            // if we have a filter we may have joins that will duplicate lines
+            if (filter != null)
+                stringBuilder.AppendLine("SELECT DISTINCT");
+            else
+                stringBuilder.AppendLine("SELECT");
+
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
             for (var i = 0; i < columns.Count; i++)
             {

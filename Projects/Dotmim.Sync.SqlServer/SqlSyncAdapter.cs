@@ -26,6 +26,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<SqlParameter>>();
 
+        public static DateTime SqlDateMin = new DateTime(1753, 1, 1);
+
         public SqlObjectNames SqlObjectNames { get; set; }
         public SqlDbMetadata SqlMetadata { get; set; }
 
@@ -84,17 +86,18 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (sqlDbType == SqlDbType.Decimal)
             {
-                if (column.PrecisionSpecified && column.ScaleSpecified)
+                var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
+                if (s > 0)
                 {
-                    var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
-
                 }
-
-                if (column.PrecisionSpecified)
+                else
                 {
-                    var p = this.SqlMetadata.GetPrecision(column);
-                    return new SqlMetaData(column.ColumnName, sqlDbType, p);
+                    if (p == 0)
+                        p = 18;
+                    if (s == 0)
+                        s = 6;
+                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 }
 
             }
@@ -166,10 +169,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.SmallDateTime:
                                     if (columnType != typeof(DateTime))
                                         rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
+                                    if (rowValue < SqlDateMin)
+                                        rowValue = SqlDateMin;
                                     break;
                                 case SqlDbType.DateTimeOffset:
                                     if (columnType != typeof(DateTimeOffset))
                                         rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
+                                    if (rowValue < SqlDateMin)
+                                        rowValue = SqlDateMin;
                                     break;
                                 case SqlDbType.Decimal:
                                     if (columnType != typeof(decimal))
@@ -273,7 +280,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 while (dataReader.Read())
                 {
                     //var itemArray = new object[dataReader.FieldCount];
-                    var itemArray = new object[failedRows.Columns.Count];
+                    //var itemArray = new object[failedRows.Columns.Count];
+                    var itemArray = new SyncRow(schemaChangesTable, dataRowState);
                     for (var i = 0; i < dataReader.FieldCount; i++)
                     {
                         var columnValueObject = dataReader.GetValue(i);
@@ -288,7 +296,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                     // don't care about row state 
                     // Since it will be requested by next request from GetConflict()
-                    failedRows.Rows.Add(itemArray, dataRowState);
+                    failedRows.Rows.Add(itemArray);
                 }
 
                 dataReader.Close();
@@ -329,94 +337,114 @@ namespace Dotmim.Sync.SqlServer.Builders
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqlCommand();
+            bool isBatch = false;
             switch (nameType)
             {
                 case DbCommandType.SelectChanges:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectInitializedChanges:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectInitializedChangesWithFilters:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectChangesWithFilters:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.SelectRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                    isBatch = false;
+                    break;
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                    isBatch = true;
                     break;
                 case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                    isBatch = false;
+                    break;
+                case DbCommandType.DeleteRows:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    isBatch = true;
                     break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.EnableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.DeleteMetadata:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateMetadata:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Update, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.DeleteTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.BulkTableType:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType, filter);
-                    break;
-                case DbCommandType.BulkUpdateRows:
-                case DbCommandType.BulkInitializeRows:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
-                    break;
-                case DbCommandType.BulkDeleteRows:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.UpdateUntrackedRows:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
+                    isBatch = false;
                     break;
                 case DbCommandType.Reset:
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    isBatch = false;
                     break;
                 default:
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
             }
 
-            return command;
+            return (command, isBatch);
         }
 
         /// <summary>
@@ -439,6 +467,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (commandType == DbCommandType.UpdateMetadata)
             {
                 this.SetUpdateRowParameters(command);
+                return;
+            }
+            if (commandType == DbCommandType.SelectChanges || commandType == DbCommandType.SelectChangesWithFilters ||
+                commandType == DbCommandType.SelectInitializedChanges || commandType == DbCommandType.SelectInitializedChangesWithFilters)
+            {
+                this.SetSelectChangesParameters(command, commandType, filter);
                 return;
             }
 
@@ -508,6 +542,77 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
                     sqlParameter.SourceColumn = colDesc.ColumnName;
+            }
+        }
+
+        private void SetSelectChangesParameters(DbCommand command, DbCommandType commandType, SyncFilter filter = null)
+        {
+            var originalProvider = SqlSyncProvider.ProviderType;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            if (commandType == DbCommandType.SelectChanges || commandType == DbCommandType.SelectChangesWithFilters)
+            {
+                p = command.CreateParameter();
+                p.ParameterName = "sync_scope_id";
+                p.DbType = DbType.Guid;
+                command.Parameters.Add(p);
+            }
+
+            if (filter == null)
+                return;
+
+            var parameters = filter.Parameters;
+
+            if (parameters.Count == 0)
+                return;
+
+            foreach (var param in parameters)
+            {
+                if (param.DbType.HasValue)
+                {
+                    // Get column name and type
+                    var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
+                    var syncColumn = new SyncColumn(columnName)
+                    {
+                        DbType = (int)param.DbType.Value,
+                        MaxLength = param.MaxLength,
+                    };
+                    var sqlDbType = this.SqlMetadata.GetOwnerDbTypeFromDbType(syncColumn);
+
+                    var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    customParameterFilter.Size = param.MaxLength;
+                    customParameterFilter.IsNullable = param.AllowNull;
+                    customParameterFilter.Value = param.DefaultValue;
+
+                    command.Parameters.Add(customParameterFilter);
+                }
+                else
+                {
+                    var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(param.TableName);
+
+                    var columnFilter = tableFilter.Columns[param.Name];
+                    if (columnFilter == null)
+                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
+
+                    // Get column name and type
+                    var columnName = ParserName.Parse(columnFilter).Normalized().Unquoted().ToString();
+
+                    var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
+                        this.SqlMetadata.GetSqlDbType(columnFilter) : this.SqlMetadata.GetOwnerDbTypeFromDbType(columnFilter);
+
+                    // Add it as parameter
+                    var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
+                    sqlParamFilter.Size = columnFilter.MaxLength;
+                    sqlParamFilter.IsNullable = param.AllowNull;
+                    sqlParamFilter.Value = param.DefaultValue;
+                    command.Parameters.Add(sqlParamFilter);
+                }
             }
         }
 

@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
@@ -19,6 +20,7 @@ namespace Dotmim.Sync
             this.Host = host;
         }
         public override string Source => this.Host;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public override string Message
         {
@@ -57,6 +59,7 @@ namespace Dotmim.Sync
             this.BatchRowsCount = batchRowsCount;
             this.Host = host;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public override string Source => this.Host;
         public override string Message
@@ -86,6 +89,7 @@ namespace Dotmim.Sync
             this.TotalRowsCount = totalRowsCount;
             this.Host = host;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public HttpMessageSendChangesRequest Request { get; }
         public string Host { get; }

@@ -21,6 +21,7 @@ namespace Dotmim.Sync
         /// Gets or sets an action enumeration value for the action to handle the outdated peer.
         /// </summary>
         public OutdatedAction Action { get; set; } = OutdatedAction.Rollback;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
         public override string Message => $"Database Out Dated. Last Client Sync Endpoint {ClientScopeInfo.LastServerSyncTimestamp} < Last Server Cleanup Metadatas {ServerScopeInfo.LastCleanupTimestamp}.";

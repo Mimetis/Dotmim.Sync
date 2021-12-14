@@ -91,17 +91,17 @@ namespace Dotmim.Sync.Web.Client
     {
         public HttpMessageGetMoreChangesRequest() { }
 
-        public HttpMessageGetMoreChangesRequest(SyncContext context, int batchIndexRequested)
+        public HttpMessageGetMoreChangesRequest(SyncContext context,  int batchIndexRequested)
         {
             this.BatchIndexRequested = batchIndexRequested;
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-
         }
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
         [DataMember(Name = "bireq", IsRequired = true, Order = 2)]
         public int BatchIndexRequested { get; set; }
+
     }
 
     [DataContract(Name = "changesreq"), Serializable]
@@ -128,13 +128,13 @@ namespace Dotmim.Sync.Web.Client
         public ScopeInfo Scope { get; set; }
 
         /// <summary>
-        /// Get the current batch index (if InMemory == false)
+        /// Get the current batch index 
         /// </summary>
         [DataMember(Name = "bi", IsRequired = true, Order = 3)]
         public int BatchIndex { get; set; }
 
         /// <summary>
-        /// Get the current batch count (if InMemory == false)
+        /// Get the current batch count
         /// </summary>
         [DataMember(Name = "bc", IsRequired = false, Order = 4)]
         public int BatchCount { get; set; }

@@ -77,7 +77,7 @@ namespace Dotmim.Sync.Web.Client
 
                 string contentType = null;
                 // If Json, specify header
-                if (serializerFactory.Key == SerializersCollection.JsonSerializer.Key)
+                if (serializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key)
                     contentType = "application/json";
 
                 // serialize the serialization format and the batchsize we want.
@@ -98,8 +98,7 @@ namespace Dotmim.Sync.Web.Client
                 if (response.Content == null)
                     throw new HttpEmptyResponseContentException();
 
-                var args2 = new HttpGettingResponseMessageArgs(response, this.orchestrator.GetContext());
-                await this.orchestrator.InterceptAsync(args2, cancellationToken).ConfigureAwait(false);
+                await this.orchestrator.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.orchestrator.GetContext()), progress, cancellationToken).ConfigureAwait(false);
 
                 return response;
             }
@@ -178,8 +177,7 @@ namespace Dotmim.Sync.Web.Client
             if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
                 requestMessage.Content.Headers.Add("content-type", contentType);
 
-            var args = new HttpSendingRequestMessageArgs(requestMessage, this.orchestrator.GetContext());
-            await this.orchestrator.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, this.orchestrator.GetContext()), progress:default, cancellationToken).ConfigureAwait(false);
 
             // Eventually, send the request
             var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);

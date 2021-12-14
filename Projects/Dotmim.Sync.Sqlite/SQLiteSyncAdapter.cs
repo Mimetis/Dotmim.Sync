@@ -27,7 +27,7 @@ namespace Dotmim.Sync.Sqlite
             return false;
         }
 
-        public override DbCommand GetCommand(DbCommandType commandType, SyncFilter filter = null)
+        public override (DbCommand, bool) GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
             var command = new SqliteCommand();
             string text;
@@ -37,7 +37,7 @@ namespace Dotmim.Sync.Sqlite
             command.CommandType = CommandType.Text;
             command.CommandText = text;
 
-            return command;
+            return (command, false);
         }
 
         public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
@@ -62,12 +62,15 @@ namespace Dotmim.Sync.Sqlite
                     this.SetDeleteMetadataParameters(command);
                     break;
                 case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
                     this.SetDeleteRowParameters(command);
                     break;
                 case DbCommandType.UpdateRow:
+                case DbCommandType.UpdateRows:
                     this.SetUpdateRowParameters(command);
                     break;
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.InsertRows:
                     this.SetInitializeRowParameters(command);
                     break;
                 case DbCommandType.Reset:

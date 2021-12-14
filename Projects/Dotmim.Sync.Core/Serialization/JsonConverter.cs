@@ -14,8 +14,6 @@ namespace Dotmim.Sync.Serialization
     public class JsonConverterFactory : ISerializerFactory
     {
         public string Key => "json";
-        private static JsonConverterFactory instance = null;
-        public static JsonConverterFactory Current => instance ?? new JsonConverterFactory();
 
         public ISerializer<T> GetSerializer<T>() => new JsonConverter<T>();
 
@@ -52,5 +50,6 @@ namespace Dotmim.Sync.Serialization
 
             return ms.ToArray();
         }
+
     }
 }

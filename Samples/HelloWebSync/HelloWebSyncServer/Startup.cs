@@ -37,14 +37,18 @@ namespace HelloWebSyncServer
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
             // var connectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
-            var options = new SyncOptions { };
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = "C:\\Tmp\\Snapshots",
+                BatchSize = 2000,
+            };
 
             // [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, tables, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

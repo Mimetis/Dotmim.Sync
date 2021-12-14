@@ -154,10 +154,14 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+            try
+            {
+                HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
-            foreach (var client in Clients)
-                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+                foreach (var client in Clients)
+                    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+            }
+            catch (Exception) { }
 
             this.stopwatch.Stop();
 
@@ -1235,7 +1239,7 @@ namespace Dotmim.Sync.Tests
                         if (addProp == "Reinitialize")
                         {
                             var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
-                            var command = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.Table.GetFilter());
+                            var (command, isBatch) = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.Table.GetFilter());
                             tcs.Command = command;
                         }
                     }

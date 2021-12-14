@@ -1459,7 +1459,7 @@ namespace Dotmim.Sync.Tests
                         args.HttpContext.Session.Clear();
                         await args.HttpContext.Session.CommitAsync();
                     }
-                    
+
                     if (args.HttpStep == HttpStep.GetMoreChanges)
                         batchIndex++;
                 });
@@ -1587,7 +1587,11 @@ namespace Dotmim.Sync.Tests
 
             foreach (var db in createdDatabases)
             {
-                HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+                try
+                {
+                    HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+                }
+                catch (Exception) { }
             }
 
         }
@@ -1631,7 +1635,7 @@ namespace Dotmim.Sync.Tests
 
             });
 
-            SyncOptions options = new SyncOptions { BatchSize = 10 };
+            SyncOptions options = new SyncOptions { BatchSize = 10000 };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1651,9 +1655,20 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(5, policyRetries);
+                Assert.InRange(policyRetries, 5, 7);
                 interrupted.Clear();
             }
+
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                await agent.SynchronizeAsync();
+            }
+
+            var finalRowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            foreach (var client in Clients)
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
 
             this.WebServerOrchestrator.OnHttpGettingRequest(null);
 
@@ -1696,7 +1711,7 @@ namespace Dotmim.Sync.Tests
 
             });
 
-            SyncOptions options = new SyncOptions { BatchSize = 10 };
+            SyncOptions options = new SyncOptions { BatchSize = 10000 };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1716,7 +1731,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-                Assert.Equal(5, policyRetries);
+                Assert.InRange(policyRetries, 5, 7);
                 interrupted.Clear();
             }
 
@@ -1808,10 +1823,16 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server
-                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1050);
+                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1001, 1100);
                 Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
 
+                // Get count of rows
+                var finalRowsCount = this.GetServerDatabaseRowsCount(this.Server);
+                var clientRowsCount = this.GetServerDatabaseRowsCount(client);
+                Assert.Equal(finalRowsCount, clientRowsCount);
+
                 download += 1000;
+
             }
         }
 

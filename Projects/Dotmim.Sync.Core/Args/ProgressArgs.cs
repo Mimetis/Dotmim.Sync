@@ -24,9 +24,14 @@ namespace Dotmim.Sync
         public SyncContext Context { get; }
 
         /// <summary>
+        /// Gets the Progress Level
+        /// </summary>
+        public virtual SyncProgressLevel ProgressLevel { get; }
+
+        /// <summary>
         /// Gets or Sets an arbitrary args you can use for you own purpose
         /// </summary>
-        public string Hint { get; set; }
+        public virtual string Hint { get; set; }
 
         /// <summary>
         /// Constructor
@@ -37,6 +42,7 @@ namespace Dotmim.Sync
             this.Connection = connection;
             this.Transaction = transaction;
             this.Message = this.GetType().Name;
+            this.ProgressLevel = SyncProgressLevel.Information;
         }
 
         public ProgressArgs(SyncContext context, DbConnection connection)
@@ -44,9 +50,10 @@ namespace Dotmim.Sync
             this.Context = context;
             this.Connection = connection;
             this.Message = this.GetType().Name;
+            this.ProgressLevel = SyncProgressLevel.Information;
         }
 
- 
+
         /// <summary>
         /// Gets the args type
         /// </summary>

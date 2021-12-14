@@ -1,11 +1,14 @@
-﻿using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Args;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -26,7 +29,8 @@ namespace Dotmim.Sync
         {
 
             // call interceptor
-            await this.InterceptAsync(new DatabaseChangesApplyingArgs(context, message, connection, transaction), cancellationToken).ConfigureAwait(false);
+            var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, message, connection, transaction);
+            await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             var changesApplied = new DatabaseChangesApplied();
 
@@ -36,7 +40,6 @@ namespace Dotmim.Sync
             // if we have changes or if we are in re init mode
             if (hasChanges || context.SyncType != SyncType.Normal)
             {
-
                 var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
 
                 // contains list of table that have been done
@@ -46,15 +49,23 @@ namespace Dotmim.Sync
                 // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
                 // Report this disabling constraints brefore opening a transaction
                 if (message.DisableConstraintsOnApplyChanges)
+                {
                     foreach (var table in schemaTables)
+                    {
                         await this.InternalDisableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
+                    }
+                }
 
                 // -----------------------------------------------------
                 // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server, then check if we don't have already applied a snapshot)
                 // -----------------------------------------------------
                 if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
+                {
                     foreach (var table in schemaTables.Reverse())
+                    {
                         await this.InternalResetTableAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
+                    }
+                }
 
                 // Trying to change order (from deletes-upserts to upserts-deletes)
                 // see https://github.com/Mimetis/Dotmim.Sync/discussions/453#discussioncomment-380530
@@ -64,11 +75,10 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 if (hasChanges)
                 {
-                    doneTables.Clear();
                     foreach (var table in schemaTables)
                     {
-                        await this.InternalApplyTableChangesAsync(context, table, message, doneTables, connection,
-                            transaction, DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                            DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
 
@@ -77,23 +87,25 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 if (!message.IsNew && hasChanges)
                 {
-                    doneTables.Clear();
                     foreach (var table in schemaTables.Reverse())
                     {
-                        await this.InternalApplyTableChangesAsync(context, table, message, doneTables, connection,
-                            transaction, DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                            DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
 
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
+                {
                     foreach (var table in schemaTables)
+                    {
                         await this.InternalEnableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
+                    }
+                }
 
                 // Dispose data
                 message.Changes.Clear(false);
             }
-
 
             // Before cleaning, check if we are not applying changes from a snapshotdirectory
             var cleanFolder = message.CleanFolder;
@@ -105,132 +117,18 @@ namespace Dotmim.Sync
             message.Changes.Clear(cleanFolder);
 
             var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
-            await this.InterceptAsync(databaseChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(context, progress, databaseChangesAppliedArgs);
+            await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, changesApplied);
 
         }
 
 
-        /// <summary>
-        /// Try to get a source row
-        /// </summary>
-        private async Task<SyncRow> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
-        {
-            // Get the row in the local repository
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
-
-            if (command == null) return null;
-
-            // set the primary keys columns as parameters
-            syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
-
-            // Create a select table based on the schema in parameter + scope columns
-            var changesSet = schema.Schema.Clone(false);
-            var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
-
-            using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-
-            if (!dataReader.Read())
-            {
-                dataReader.Close();
-                return null;
-            }
-
-            // Create a new empty row
-            var syncRow = selectTable.NewRow();
-            for (var i = 0; i < dataReader.FieldCount; i++)
-            {
-                var columnName = dataReader.GetName(i);
-
-                // if we have the tombstone value, do not add it to the table
-                if (columnName == "sync_row_is_tombstone")
-                {
-                    var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                    syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
-                    continue;
-                }
-                if (columnName == "sync_update_scope_id")
-                    continue;
-
-                var columnValueObject = dataReader.GetValue(i);
-                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-                syncRow[columnName] = columnValue;
-            }
-
-
-            // if syncRow is not a deleted row, we can check for which kind of row it is.
-            if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
-                syncRow.RowState = DataRowState.Modified;
-
-            dataReader.Close();
-
-            return syncRow;
-        }
-
-        /// <summary>
-        /// Apply a delete on a row
-        /// </summary>
-        private async Task<bool> InternalApplyConflictDeleteAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
-        {
-            if (row.Table == null)
-                throw new ArgumentException("Schema table is not present in the row");
-
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
-
-            if (command == null) return false;
-
-            // Set the parameters value from row
-            syncAdapter.SetColumnParametersValues(command, row);
-
-            // Set the special parameters for update
-            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
-
-            var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            // Check if we have a return value instead
-            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
-
-            if (syncRowCountParam != null)
-                rowDeletedCount = (int)syncRowCountParam.Value;
-
-            return rowDeletedCount > 0;
-        }
-
-        /// <summary>
-        /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
-        /// </summary>
-        private async Task<bool> InternalApplyConflictUpdateAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
-        {
-            if (row.Table == null)
-                throw new ArgumentException("Schema table is not present in the row");
-
-            var command = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
-
-            if (command == null) return false;
-
-            // Set the parameters value from row
-            syncAdapter.SetColumnParametersValues(command, row);
-
-            // Set the special parameters for update
-            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
-
-            var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            // Check if we have a return value instead
-            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
-
-            if (syncRowCountParam != null)
-                rowUpdatedCount = (int)syncRowCountParam.Value;
-
-            return rowUpdatedCount > 0;
-        }
 
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
         /// </summary>
-        private async Task InternalApplyTableChangesAsync(SyncContext context, SyncTable schemaTable, MessageApplyChanges message, List<SyncTable> doneTables,
+        private async Task InternalApplyTableChangesAsync(SyncContext context, SyncTable schemaTable, MessageApplyChanges message,
             DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -250,59 +148,170 @@ namespace Dotmim.Sync
             var hasChanges = message.Changes.HasData(schemaTable.TableName, schemaTable.SchemaName);
 
             // Each table in the messages contains scope columns. Don't forget it
-            if (hasChanges)
+            if (!hasChanges)
+                return;
+
+            // what kind of command to execute
+            var init = message.IsNew || context.SyncType != SyncType.Normal;
+            DbCommandType dbCommandType = applyType == DataRowState.Deleted ? DbCommandType.DeleteRows : (init ? DbCommandType.InsertRows : DbCommandType.UpdateRows);
+
+            // tmp sync table with only writable columns
+            var changesSet = schemaTable.Schema.Clone(false);
+            var schemaChangesTable = DbSyncAdapter.CreateChangesTable(schemaTable, changesSet);
+
+            // get executioning adapter
+            var syncAdapter = this.GetSyncAdapter(schemaChangesTable, message.Setup);
+            syncAdapter.ApplyType = applyType;
+
+            // Get command
+            var (command, isBatch) = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
+
+            if (command == null) return;
+
+            var cmdText = command.CommandText;
+
+            // launch interceptor if any
+            var args = new TableChangesApplyingArgs(context, schemaTable, applyType, connection, transaction);
+            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+
+            if (args.Cancel)
+                return;
+
+            TableChangesApplied tableChangesApplied = null;
+
+            var bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
+
+            // Conflicts occured when trying to apply rows
+            var conflictRows = new List<SyncRow>();
+
+            // I've got all files for my table
+            // applied rows for this bpi
+            foreach (var batchPartInfo in bpiTables)
             {
-                // launch interceptor if any
-                var args = new TableChangesApplyingArgs(context, schemaTable, applyType, connection, transaction);
-                await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
+                // Applied row for this particular BPI
+                var appliedRowsTmp = 0;
+                // Rows fetch (either of the good state or not) from the BPI
+                var rowsFetched = 0;
 
-                if (args.Cancel)
-                    return;
+                // Get full path of my batchpartinfo
+                var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
-                TableChangesApplied tableChangesApplied = null;
+                // accumulating rows
+                var batchRows = new List<SyncRow>();
 
-                var enumerableOfTables = message.Changes.GetTableAsync(schemaTable.TableName, schemaTable.SchemaName, message.SerializerFactory, this);
-                var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
-
-                // List of batchpartinfos during the iteration
-                var batchPartinfos = new List<BatchPartInfo>();
-
-                // getting the table to be applied
-                // we may have multiple batch files, so we can have multipe sync tables with the same name
-                // We can say that dmTable may be contained in several files
-                while (await enumeratorOfTable.MoveNextAsync())
+                var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
+                var firstRowRead = true;
+                foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                 {
-                    var syncTable = enumeratorOfTable.Current.SyncTable;
+                    rowsFetched++;
 
-                    // add curent batch part info 
-                    if (enumeratorOfTable.Current.BatchPartInfo != null)
-                        batchPartinfos.Add(enumeratorOfTable.Current.BatchPartInfo);
-
-                    if (syncTable == null || syncTable.Rows == null || syncTable.Rows.Count == 0)
+                    if (syncRow.RowState != applyType)
                         continue;
 
-                    // Creating a filtered view of my rows with the correct applyType
-                    var filteredRows = syncTable.Rows.Where(r => r.RowState == applyType);
+                    // Launch interceptor if we have at least one row of the good rowstate, to apply
+                    if (firstRowRead)
+                    {
+                        // Launch any interceptor if available
+                        command.CommandText = cmdText;
+                        var batchArgs = new TableChangesBatchApplyingArgs(context, batchPartInfo, applyType, command, connection, transaction);
+                        await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                    // no filtered rows, go next container table
-                    if (filteredRows.Count() == 0)
-                        continue;
+                        if (batchArgs.Cancel || batchArgs.Command == null)
+                            continue;
 
-                    // Create an empty Set that wil contains filtered rows to apply
-                    // Need Schema for culture & case sensitive properties
-                    var changesSet = syncTable.Schema.Clone(false);
-                    var schemaChangesTable = syncTable.Clone();
-                    changesSet.Tables.Add(schemaChangesTable);
-                    schemaChangesTable.Rows.AddRange(filteredRows.ToList());
+                        // get the correct pointer to the command from the interceptor in case user change the whole instance
+                        command = batchArgs.Command;
+                        firstRowRead = false;
+                    }
 
-                    // Should we use bulk operations ?                    
-                    var usBulk = message.UseBulkOperations && this.Provider.SupportBulkOperations;
+                    if (isBatch)
+                    {
+                        // Adding rows to the batch rows
+                        if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
+                        {
+                            batchRows.Add(syncRow);
 
-                    // Apply the changes batch
-                    var (rowsApplied, conflictsResolvedCount) = await this.InternalApplyChangesBatchAsync(context, usBulk, schemaChangesTable, message, applyType, connection, transaction, cancellationToken).ConfigureAwait(false);
+                            if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
+                                continue;
+                        }
+                        var failedPrimaryKeysTable = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName];
 
-                    // Any failure ?
-                    var changedFailed = filteredRows.Count() - conflictsResolvedCount - rowsApplied;
+                        command.CommandText = cmdText;
+
+                        // execute the batch, through the provider
+                        await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchRows, schemaChangesTable, failedPrimaryKeysTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
+
+                        // Get local and remote row and create the conflict object
+                        foreach (var failedRow in failedPrimaryKeysTable.Rows)
+                        {
+                            // Get the row that caused the problem, from the opposite side (usually client)
+                            var remoteConflictRow = SyncRows.GetRowByPrimaryKeys(failedRow, batchRows, schemaChangesTable);
+                            conflictRows.Add(remoteConflictRow);
+                        }
+
+                        //rows minus failed rows
+                        appliedRowsTmp += batchRows.Count - failedPrimaryKeysTable.Rows.Count;
+                        batchRows.Clear();
+                    }
+                    else
+                    {
+                        // Set the parameters value from row 
+                        syncAdapter.SetColumnParametersValues(command, syncRow);
+
+                        // Set the special parameters for update
+                        syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
+
+                        await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                        var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                        // Check if we have a return value instead
+                        var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+                        if (syncRowCountParam != null)
+                            rowAppliedCount = (int)syncRowCountParam.Value;
+
+                        if (rowAppliedCount > 0)
+                            appliedRowsTmp++;
+                        else
+                            conflictRows.Add(syncRow);
+                    }
+
+                }
+
+                // conflict rows applied
+                int rowsAppliedCount = 0;
+                // conflict resolved count
+                int conflictsResolvedCount = 0;
+
+                // If conflicts occured
+                if (conflictRows.Count > 0)
+                {
+
+                    foreach (var conflictRow in conflictRows)
+                    {
+                        var fromScopeLocalTimeStamp = message.LastTimestamp;
+
+                        var (conflictResolvedCount, resolvedRow, rowAppliedCount) =
+                            await this.HandleConflictAsync(message.LocalScopeId, message.SenderScopeId, syncAdapter, context, conflictRow, schemaChangesTable,
+                                                           message.Policy, fromScopeLocalTimeStamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        conflictsResolvedCount += conflictResolvedCount;
+                        rowsAppliedCount += rowAppliedCount;
+
+                    }
+
+                    // add rows with resolved conflicts
+                    appliedRowsTmp += rowsAppliedCount;
+                }
+
+                // Any failure ?
+                var changedFailed = schemaChangesTable.Rows.Count - conflictsResolvedCount - appliedRowsTmp;
+
+                // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
+                if (appliedRowsTmp > 0 || conflictsResolvedCount > 0)
+                {
+
 
                     // We may have multiple batch files, so we can have multipe sync tables with the same name
                     // We can say that a syncTable may be contained in several files
@@ -325,226 +334,47 @@ namespace Dotmim.Sync
                         {
                             TableName = schemaTable.TableName,
                             SchemaName = schemaTable.SchemaName,
-                            Applied = rowsApplied,
+                            Applied = appliedRowsTmp,
                             ResolvedConflicts = conflictsResolvedCount,
                             Failed = changedFailed,
                             State = applyType,
                             TotalRowsCount = message.Changes.RowsCount,
-                            TotalAppliedCount = changesApplied.TotalAppliedChanges + rowsApplied
+                            TotalAppliedCount = changesApplied.TotalAppliedChanges + appliedRowsTmp
                         };
                         changesApplied.TableChangesApplied.Add(tableChangesApplied);
                     }
                     else
                     {
-                        tableChangesApplied.Applied += rowsApplied;
+                        tableChangesApplied.Applied += appliedRowsTmp;
                         tableChangesApplied.TotalAppliedCount = changesApplied.TotalAppliedChanges;
                         tableChangesApplied.ResolvedConflicts += conflictsResolvedCount;
                         tableChangesApplied.Failed += changedFailed;
                     }
 
                     // we've got 0.25% to fill here 
-                    var progresspct = rowsApplied * 0.25d / tableChangesApplied.TotalRowsCount;
+                    var progresspct = appliedRowsTmp * 0.25d / tableChangesApplied.TotalRowsCount;
                     context.ProgressPercentage += progresspct;
 
-                    var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
-
                     // Report the batch changes applied
-                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                    if (tableChangesBatchAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesBatchAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
-                    {
-                        await this.InterceptAsync(tableChangesBatchAppliedArgs, cancellationToken).ConfigureAwait(false);
-                        this.ReportProgress(context, progress, tableChangesBatchAppliedArgs, connection, transaction);
-                    }
-
-                }
-
-                // table processeed
-                // we can add it to the list of done tables
-                doneTables.Add(schemaTable);
-
-                // Let's see if we can close the batchpartinfo
-                // we can close it if all the tables contains in the bpiTables are already processed
-                foreach (var batchPartinInfo in batchPartinfos)
-                {
-                    var isDoneTable = false;
-                    // for each table in the current file
-                    foreach (var batchPartTableInfo in batchPartinInfo.Tables)
-                    {
-                        // check if all tables in batch part info are done
-                        isDoneTable = doneTables.Any(doneTable =>
-                        {
-                            var sc = SyncGlobalization.DataSourceStringComparison;
-                            var innerTableSchemaName = string.IsNullOrEmpty(doneTable.SchemaName) ? string.Empty : doneTable.SchemaName;
-                            var batchPartTableSchemaName = string.IsNullOrEmpty(batchPartTableInfo.SchemaName) ? string.Empty : batchPartTableInfo.SchemaName;
-                            return string.Equals(doneTable.TableName, batchPartTableInfo.TableName, sc) && string.Equals(innerTableSchemaName, batchPartTableSchemaName);
-                        });
-
-                        // the current table is not done yet, don't need to continue to iterate
-                        // over the other tables information
-                        if (!isDoneTable)
-                            break;
-
-                    }
-
-                    if (isDoneTable)
-                    {
-                        batchPartinInfo.Data.Dispose();
-                        batchPartinInfo.Data = null;
-                    }
-                }
-
-
-
-                // Report the overall changes applied for the current table
-                if (tableChangesApplied != null)
-                {
-                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
-
-                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                    if (tableChangesAppliedArgs.TableChangesApplied.Applied > 0 || tableChangesAppliedArgs.TableChangesApplied.Failed > 0 || tableChangesAppliedArgs.TableChangesApplied.ResolvedConflicts > 0)
-                        await this.InterceptAsync(tableChangesAppliedArgs, cancellationToken).ConfigureAwait(false);
+                    var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
+                    await this.InterceptAsync(tableChangesBatchAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
                 }
 
             }
-        }
 
-        /// <summary>
-        /// Internally apply a batch changes from a table
-        /// </summary>
-        private async Task<(int AppliedRowsCount, int ConflictsResolvedCount)> InternalApplyChangesBatchAsync(SyncContext context, bool useBulkOperation,
-                                          SyncTable changesTable, MessageApplyChanges message, DataRowState applyType,
-                                          DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken)
-        {
+            schemaChangesTable.Dispose();
+            schemaChangesTable = null;
+            changesSet.Dispose();
+            changesSet = null;
 
-            // Conflicts occured when trying to apply rows
-            var conflictRows = new List<SyncRow>();
-
-            // get executioning adapter
-            var syncAdapter = this.GetSyncAdapter(changesTable, message.Setup);
-            syncAdapter.ApplyType = applyType;
-
-            DbCommandType dbCommandType;
-
-            if (applyType == DataRowState.Deleted)
+            // Report the overall changes applied for the current table
+            if (tableChangesApplied != null)
             {
-                dbCommandType = useBulkOperation ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow;
-            }
-            else
-            {
-                var init = message.IsNew || context.SyncType != SyncType.Normal;
-                dbCommandType = useBulkOperation ? (init ? DbCommandType.BulkInitializeRows : DbCommandType.BulkUpdateRows) : (init ? DbCommandType.InitializeRow : DbCommandType.UpdateRow);
+                var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
+                // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
             }
 
-            //// Get correct command type
-            //var dbCommandType = applyType switch
-            //{
-            //    DataRowState.Deleted => useBulkOperation ? DbCommandType.BulkDeleteRows : DbCommandType.DeleteRow,
-            //    DataRowState.Modified => useBulkOperation ? (message.IsNew ? DbCommandType.BulkInitializeRows : DbCommandType.BulkUpdateRows) : (message.IsNew ? DbCommandType.InitializeRow : DbCommandType.UpdateRow),
-            //    _ => throw new UnknownException("RowState not valid during ApplyBulkChanges operation"),
-            //};
-
-            // Get command
-            var command = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
-
-            if (command == null) return (0, 0);
-
-            // Launch any interceptor if available
-            var args = new TableChangesBatchApplyingArgs(context, changesTable, applyType, command, connection, transaction);
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-
-            if (args.Cancel || args.Command == null)
-                return (0, 0);
-
-            // get the correct pointer to the command from the interceptor in case user change the whole instance
-            command = args.Command;
-
-            // get the items count
-            var itemsArrayCount = changesTable.Rows.Count;
-
-            // Make some parts of BATCH_SIZE
-
-            int appliedRowsTmp = 0;
-
-            for (int step = 0; step < itemsArrayCount; step += DbSyncAdapter.BATCH_SIZE)
-            {
-                // get upper bound max value
-                var taken = step + DbSyncAdapter.BATCH_SIZE >= itemsArrayCount ? itemsArrayCount - step : DbSyncAdapter.BATCH_SIZE;
-
-                var arrayStepChanges = changesTable.Rows.Skip(step).Take(taken);
-
-                if (useBulkOperation)
-                {
-                    var failedPrimaryKeysTable = changesTable.Schema.Clone().Tables[changesTable.TableName, changesTable.SchemaName];
-
-                    // execute the batch, through the provider
-                    await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, arrayStepChanges, changesTable, failedPrimaryKeysTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
-
-                    // Get local and remote row and create the conflict object
-                    foreach (var failedRow in failedPrimaryKeysTable.Rows)
-                    {
-                        // Get the row that caused the problem, from the opposite side (usually client)
-                        var remoteConflictRow = changesTable.Rows.GetRowByPrimaryKeys(failedRow);
-                        conflictRows.Add(remoteConflictRow);
-                    }
-
-                    //rows minus failed rows
-                    appliedRowsTmp += taken - failedPrimaryKeysTable.Rows.Count;
-
-                }
-                else
-                {
-                    foreach (var row in arrayStepChanges)
-                    {
-                        // Set the parameters value from row 
-                        syncAdapter.SetColumnParametersValues(command, row);
-
-                        // Set the special parameters for update
-                        syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
-
-                        var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                        // Check if we have a return value instead
-                        var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
-
-                        if (syncRowCountParam != null)
-                            rowAppliedCount = (int)syncRowCountParam.Value;
-
-                        if (rowAppliedCount > 0)
-                            appliedRowsTmp++;
-                        else
-                            conflictRows.Add(row);
-                    }
-                }
-
-            }
-
-            var appliedRows = appliedRowsTmp;
-
-            // If conflicts occured
-            if (conflictRows.Count <= 0)
-                return (appliedRows, 0);
-
-            // conflict rows applied
-            int rowsAppliedCount = 0;
-            // conflict resolved count
-            int conflictsResolvedCount = 0;
-
-            foreach (var conflictRow in conflictRows)
-            {
-                var fromScopeLocalTimeStamp = message.LastTimestamp;
-
-                var (conflictResolvedCount, resolvedRow, rowAppliedCount) =
-                    await this.HandleConflictAsync(message.LocalScopeId, message.SenderScopeId, syncAdapter, context, conflictRow, changesTable,
-                                                   message.Policy, fromScopeLocalTimeStamp, connection, transaction).ConfigureAwait(false);
-
-                conflictsResolvedCount += conflictResolvedCount;
-                rowsAppliedCount += rowAppliedCount;
-
-            }
-
-            appliedRows += rowsAppliedCount;
-
-            return (appliedRows, conflictsResolvedCount);
         }
 
         /// <summary>
@@ -553,7 +383,8 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<(int conflictResolvedCount, SyncRow resolvedRow, int rowAppliedCount)> HandleConflictAsync(
                                 Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, SyncContext context, SyncRow conflictRow, SyncTable schemaChangesTable,
-                                ConflictResolutionPolicy policy, long? lastTimestamp, DbConnection connection, DbTransaction transaction)
+                                ConflictResolutionPolicy policy, long? lastTimestamp, DbConnection connection, DbTransaction transaction,
+                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             SyncRow finalRow;
@@ -563,8 +394,9 @@ namespace Dotmim.Sync
             int rowAppliedCount = 0;
             Guid? nullableSenderScopeId;
 
-            (conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) = await this.GetConflictActionAsync(context, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
-                policy, senderScopeId, connection, transaction).ConfigureAwait(false);
+            (conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) =
+                await this.GetConflictActionAsync(context, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
+                policy, senderScopeId, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Conflict rollbacked by user
             if (conflictApplyAction == ApplyAction.Rollback)
@@ -678,7 +510,8 @@ namespace Dotmim.Sync
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
         private async Task<(ApplyAction, ConflictType, SyncRow, SyncRow, Guid?)> GetConflictActionAsync(SyncContext context, Guid localScopeId, DbSyncAdapter syncAdapter, SyncRow conflictRow,
-            SyncTable schemaChangesTable, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction = null, CancellationToken cancellationToken = default)
+            SyncTable schemaChangesTable, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction,
+            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             // default action
@@ -698,6 +531,9 @@ namespace Dotmim.Sync
             ConflictType conflictType = conflictRow.RowState == DataRowState.Deleted ? ConflictType.RemoteIsDeletedLocalExists : ConflictType.RemoteExistsLocalExists;
 
             // if is not empty, get the conflict and intercept
+            // We don't get the conflict on automatic conflict resolution
+            // Since it's an automatic resolution, we don't need to get the local conflict row
+            // So far we get the conflict only if an interceptor exists
             if (!interceptor.IsEmpty)
             {
                 // Get the localRow
@@ -707,7 +543,7 @@ namespace Dotmim.Sync
 
                 // Interceptor
                 var arg = new ApplyChangesFailedArgs(context, conflict, resolution, senderScopeId, connection, transaction);
-                await this.InterceptAsync(arg, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
                 resolution = arg.Resolution;
                 finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
@@ -777,6 +613,126 @@ namespace Dotmim.Sync
 
             return conflict;
         }
+
+        /// <summary>
+        /// Try to get a source row
+        /// </summary>
+        private async Task<SyncRow> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
+        {
+            // Get the row in the local repository
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
+
+            if (command == null) return null;
+
+            // set the primary keys columns as parameters
+            syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
+
+            // Create a select table based on the schema in parameter + scope columns
+            var changesSet = schema.Schema.Clone(false);
+            var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
+
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
+            using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+
+            if (!dataReader.Read())
+            {
+                dataReader.Close();
+                return null;
+            }
+
+            // Create a new empty row
+            var syncRow = selectTable.NewRow();
+            for (var i = 0; i < dataReader.FieldCount; i++)
+            {
+                var columnName = dataReader.GetName(i);
+
+                // if we have the tombstone value, do not add it to the table
+                if (columnName == "sync_row_is_tombstone")
+                {
+                    var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                    syncRow.RowState = isTombstone ? DataRowState.Deleted : DataRowState.Modified;
+                    continue;
+                }
+                if (columnName == "sync_update_scope_id")
+                    continue;
+
+                var columnValueObject = dataReader.GetValue(i);
+                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                syncRow[columnName] = columnValue;
+            }
+
+            // if syncRow is not a deleted row, we can check for which kind of row it is.
+            if (syncRow != null && syncRow.RowState == DataRowState.Unchanged)
+                syncRow.RowState = DataRowState.Modified;
+
+            dataReader.Close();
+
+            return syncRow;
+        }
+
+        /// <summary>
+        /// Apply a delete on a row
+        /// </summary>
+        private async Task<bool> InternalApplyConflictDeleteAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        {
+            if (row.SchemaTable == null)
+                throw new ArgumentException("Schema table is not present in the row");
+
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
+
+            if (command == null) return false;
+
+            // Set the parameters value from row
+            syncAdapter.SetColumnParametersValues(command, row);
+
+            // Set the special parameters for update
+            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
+
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
+            var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            // Check if we have a return value instead
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+            if (syncRowCountParam != null)
+                rowDeletedCount = (int)syncRowCountParam.Value;
+
+            return rowDeletedCount > 0;
+        }
+
+        /// <summary>
+        /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
+        /// </summary>
+        private async Task<bool> InternalApplyConflictUpdateAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        {
+            if (row.SchemaTable == null)
+                throw new ArgumentException("Schema table is not present in the row");
+
+            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
+
+            if (command == null) return false;
+
+            // Set the parameters value from row
+            syncAdapter.SetColumnParametersValues(command, row);
+
+            // Set the special parameters for update
+            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
+
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
+            var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            // Check if we have a return value instead
+            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+            if (syncRowCountParam != null)
+                rowUpdatedCount = (int)syncRowCountParam.Value;
+
+            return rowUpdatedCount > 0;
+        }
+
 
     }
 }

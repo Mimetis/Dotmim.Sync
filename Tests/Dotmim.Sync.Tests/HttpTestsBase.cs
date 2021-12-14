@@ -156,12 +156,13 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public void Dispose()
         {
-            HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
-
-            foreach (var client in Clients)
+            try
             {
-                HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
+                HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
+                foreach (var client in Clients)
+                    HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
             }
+            catch (Exception) { }
 
             this.kestrell.Dispose();
 

@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
             var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
             var serverProvider = new SqlSyncProvider(cs);
-            
+
             var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, serverProvider), true, true);
             await ctx.Database.EnsureCreatedAsync();
 
@@ -91,8 +91,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
+                Assert.Null(args.Transaction);
+                Assert.Equal(ConnectionState.Closed, args.Connection.State);
                 Assert.NotNull(args.Schema);
                 Assert.Equal(snapshotDirectory, args.SnapshotDirectory);
                 Assert.NotEqual(0, args.Timestamp);
@@ -112,9 +112,12 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 Assert.Equal(finalDirectoryFullName, args.BatchInfo.DirectoryRoot);
                 Assert.Equal("ALL", args.BatchInfo.DirectoryName);
-                Assert.Single(args.BatchInfo.BatchPartsInfo);
-                Assert.Equal(16, args.BatchInfo.BatchPartsInfo[0].Tables.Length);
-                Assert.True(args.BatchInfo.BatchPartsInfo[0].IsLastBatch);
+                Assert.NotEmpty(args.BatchInfo.BatchPartsInfo);
+                Assert.Equal(16, args.BatchInfo.BatchPartsInfo.Count);
+                // Get last batch 
+                var lastBatch = args.BatchInfo.BatchPartsInfo.First(bi => bi.Index == 15);
+
+                Assert.True(lastBatch.IsLastBatch);
 
                 onSnapshotCreated = true;
             });
@@ -201,9 +204,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(bi);
             Assert.Equal(finalDirectoryFullName, bi.DirectoryRoot);
             Assert.Equal("ALL", bi.DirectoryName);
-            Assert.Single(bi.BatchPartsInfo);
-            Assert.Equal(16, bi.BatchPartsInfo[0].Tables.Length);
-            Assert.True(bi.BatchPartsInfo[0].IsLastBatch);
+            Assert.NotEmpty(bi.BatchPartsInfo);
+            Assert.Equal(16, bi.BatchPartsInfo.Count);
+
+            // Get last batch 
+            var lastBatch = bi.BatchPartsInfo.First(bi => bi.Index == 15);
+                
+            Assert.True(lastBatch.IsLastBatch);
             Assert.Equal(rowsCount, bi.RowsCount);
 
             // Check summary.json exists.
@@ -220,13 +227,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(summaryDir);
             Assert.Equal(finalDirectoryFullName, summaryDir);
 
-            Assert.Single(summaryObject["parts"]);
+            Assert.NotEmpty(summaryObject["parts"]);
+            Assert.Equal(16, summaryObject["parts"].Count());
+
             Assert.NotNull(summaryObject["parts"][0]["file"]);
             Assert.NotNull(summaryObject["parts"][0]["index"]);
-            Assert.Equal(0, (int)summaryObject["parts"][0]["index"]);
             Assert.NotNull(summaryObject["parts"][0]["last"]);
-            Assert.True((bool)summaryObject["parts"][0]["last"]);
-            Assert.Equal(16, summaryObject["parts"][0]["tables"].Count());
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -299,9 +305,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(bi);
             Assert.Equal(finalDirectoryFullName, bi.DirectoryRoot);
             Assert.Equal("CompanyName_ABikeStore", bi.DirectoryName);
-            Assert.Single(bi.BatchPartsInfo);
-            Assert.Equal(16, bi.BatchPartsInfo[0].Tables.Length);
-            Assert.True(bi.BatchPartsInfo[0].IsLastBatch);
+            Assert.NotEmpty(bi.BatchPartsInfo);
+            Assert.Equal(16, bi.BatchPartsInfo.Count);
+
+            // Get last batch 
+            var lastBatch = bi.BatchPartsInfo.First(bi => bi.Index == 15);
+
+            Assert.True(lastBatch.IsLastBatch);
 
             // Check summary.json exists.
             var summaryFile = Path.Combine(bi.GetDirectoryFullPath(), "summary.json");
@@ -317,13 +327,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(summaryDir);
             Assert.Equal(finalDirectoryFullName, summaryDir);
 
-            Assert.Single(summaryObject["parts"]);
+            Assert.NotEmpty(summaryObject["parts"]);
+            Assert.Equal(16, summaryObject["parts"].Count());
+
             Assert.NotNull(summaryObject["parts"][0]["file"]);
             Assert.NotNull(summaryObject["parts"][0]["index"]);
-            Assert.Equal(0, (int)summaryObject["parts"][0]["index"]);
             Assert.NotNull(summaryObject["parts"][0]["last"]);
-            Assert.True((bool)summaryObject["parts"][0]["last"]);
-            Assert.Equal(16, summaryObject["parts"][0]["tables"].Count());
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -346,7 +355,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
             var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
-            var options = new SyncOptions { SnapshotsDirectory = snapshotDirectory };
+            var options = new SyncOptions();
 
             var setup = new SyncSetup(Tables);
             var provider = new SqlSyncProvider(cs);

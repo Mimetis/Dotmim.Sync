@@ -7,10 +7,13 @@ using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.Data.SqlClient;
 using MySqlConnector;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,16 +27,18 @@ namespace Dotmim.Sync.SampleConsole
         public MariaDBSyncProvider2(string connectionString) : base(connectionString) { }
         public MariaDBSyncProvider2(MySqlConnectionStringBuilder builder) : base(builder) { }
 
+
         public override DbBuilder GetDatabaseBuilder() => new MariaDBDownloadOnlyBuilder();
     }
 
     public class MariaDBDownloadOnlyBuilder : MySqlBuilder
     {
-        public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
-        {
-            return Task.CompletedTask;
-        }
+        //public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
+        //{
+        //    return Task.CompletedTask;
+        //}
     }
+
     /// <summary>
     /// Use this provider if your client database does not need to upload any data to the server.
     /// This provider does not create any triggers / tracking tables and only 3 stored proc / tables
@@ -46,10 +51,13 @@ namespace Dotmim.Sync.SampleConsole
         public MariaDBSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
+            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, this.BulkBatchMaxLinesCount);
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
             => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+
+        // Max number of lines in batch bulk init operation
+        public override int BulkBatchMaxLinesCount => 100;
     }
 
     /// <summary>
@@ -84,26 +92,35 @@ namespace Dotmim.Sync.SampleConsole
     public class MariaDBDownloadOnlySyncAdapter : MySqlSyncAdapter
     {
         private ParserName tableName;
+        private readonly int bulkBatchMaxLinesCount;
 
-        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, int bulkBatchMaxLinesCount)
             : base(tableDescription, tableName, trackingName, setup)
         {
             this.tableName = tableName;
+            this.bulkBatchMaxLinesCount = bulkBatchMaxLinesCount;
         }
 
         /// <summary>
         /// Returning null for all non used commands (from case default)
         /// </summary>
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new MySqlCommand();
+            var isBatch = false;
             switch (nameType)
             {
+                case DbCommandType.UpdateRows:
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
-                    return CreateUpdateCommand();
+                    command = CreateUpdateCommand();
+                    break;
+                case DbCommandType.InsertRows:
+                    command = CreateBulkInitializeCommand(this.bulkBatchMaxLinesCount);
+                    isBatch = true;
+                    break;
                 case DbCommandType.DeleteRow:
-                    return CreateDeleteCommand();
+                    command = CreateDeleteCommand();
+                    break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
@@ -112,15 +129,74 @@ namespace Dotmim.Sync.SampleConsole
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
-                //case DbCommandType.Reset:
-                //    command.CommandType = CommandType.StoredProcedure;
-                //    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
-                //    break;
                 default:
-                    return null;
+                    return (null, false);
+            }
+            return (command, isBatch);
+        }
+
+        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
+        {
+            using var ms = new MemoryStream();
+            using var sw = new StreamWriter(ms);
+            var shouldDispose = false;
+            MySqlCommand batchCommand;
+
+            var lstItems = arrayItems.ToList();
+
+            if (lstItems.Count == bulkBatchMaxLinesCount)
+            {
+                batchCommand = cmd as MySqlCommand;
+                batchCommand.Parameters.Clear();
+            }
+            else
+            {
+                batchCommand = CreateBulkInitializeCommand(lstItems.Count);
+                batchCommand.Connection = connection as MySqlConnection;
+                batchCommand.Transaction = transaction as MySqlTransaction;
+                shouldDispose = true;
             }
 
-            return command;
+            for (int i = 0; i < lstItems.Count; i++)
+            {
+                var row = lstItems[i];
+
+                int columnIndex = 0;
+                foreach (var column in schemaChangesTable.Columns)
+                {
+                    var parameterColumnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+                    var parameterName = $"@p{i}_{parameterColumnName}";
+                    batchCommand.Parameters.AddWithValue(parameterName, row[columnIndex]);
+                    columnIndex++;
+                }
+            }
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            try
+            {
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                using var dataReader = await batchCommand.ExecuteReaderAsync().ConfigureAwait(false);
+
+                dataReader.Close();
+
+                if (shouldDispose)
+                    batchCommand.Dispose();
+
+            }
+            catch (DbException ex)
+            {
+                Debug.WriteLine(ex.Message);
+                throw;
+            }
+            finally
+            {
+
+                if (!alreadyOpened && connection.State != ConnectionState.Closed)
+                    connection.Close();
+            }
         }
 
         public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
@@ -138,7 +214,7 @@ namespace Dotmim.Sync.SampleConsole
                     this.SetDeleteRowParameters(command);
                     return Task.CompletedTask; ;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     this.SetUpdateRowParameters(command);
                     return Task.CompletedTask; ;
                 default:
@@ -191,6 +267,43 @@ namespace Dotmim.Sync.SampleConsole
             return mySqlCommand;
         }
 
+        private MySqlCommand CreateBulkInitializeCommand(int nbLines = 1)
+        {
+            var mySqlCommand = new MySqlCommand();
+            var stringBuilder = new StringBuilder();
+
+            var allColumnsString = new StringBuilder();
+
+            string empty = string.Empty;
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            {
+                var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                allColumnsString.Append($"{empty}{mutableColumnName}");
+                empty = ", ";
+            }
+
+            stringBuilder.AppendLine($"INSERT IGNORE INTO {tableName.Quoted()} ");
+            stringBuilder.AppendLine($"({allColumnsString})");
+            stringBuilder.AppendLine("VALUES ");
+
+            string commaValues = " ";
+            for (int i = 0; i < nbLines; i++)
+            {
+                stringBuilder.Append($"{commaValues}(");
+                empty = "";
+                foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+                {
+                    var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
+                    stringBuilder.Append($"{empty}@p{i}_{parameterColumnName}");
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine(")");
+                commaValues = ",";
+            }
+
+            mySqlCommand.CommandText = stringBuilder.ToString();
+            return mySqlCommand;
+        }
 
         private MySqlCommand CreateDeleteCommand()
         {
@@ -242,7 +355,5 @@ namespace Dotmim.Sync.SampleConsole
             }
 
         }
-
-
     }
 }

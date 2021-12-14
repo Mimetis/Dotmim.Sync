@@ -191,17 +191,17 @@ namespace HelloSync
             // enumerate changes retrieved
             foreach (var tableChanges in changes.ClientChangesSelected.TableChangesSelected)
             {
-                var enumerableOfTables = changes.ClientBatchInfo.GetTableAsync(tableChanges.TableName, tableChanges.SchemaName);
-                var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
-
-                while (await enumeratorOfTable.MoveNextAsync())
+                foreach(var bpi in changes.ClientBatchInfo.BatchPartsInfo)
                 {
-                    var table = enumeratorOfTable.Current;
+                    // only one table in each bpi
+                    var table = bpi.Tables[0];
+                    var path = changes.ClientBatchInfo.GetBatchPartInfoPath(bpi).FullPath;
+                    var schemaTable = changes.ClientBatchInfo.SanitizedSchema.Tables[table.TableName, table.SchemaName];
 
                     Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"Changes for table {table.GetFullName()}");
+                    Console.WriteLine($"Changes for table {table.TableName}. Rows:{table.RowsCount}");
                     Console.ResetColor();
-                    foreach (var row in table.Rows)
+                    foreach (var row in agent.Options.LocalSerializer.ReadRowsFromFile(path, schemaTable))
                     {
                         Console.WriteLine(row);
                     }
@@ -245,24 +245,23 @@ namespace HelloSync
             // enumerate changes retrieved
             foreach (var tableChanges in changes.ServerChangesSelected.TableChangesSelected)
             {
-                var enumerableOfTables = changes.ServerBatchInfo.GetTableAsync(tableChanges.TableName, tableChanges.SchemaName);
-                var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
 
-                while (await enumeratorOfTable.MoveNextAsync())
+                foreach (var bpi in changes.ServerBatchInfo.BatchPartsInfo)
                 {
-                    var table = enumeratorOfTable.Current;
+                    // only one table in each bpi
+                    var table = bpi.Tables[0];
+                    var path = changes.ServerBatchInfo.GetBatchPartInfoPath(bpi).FullPath;
+                    var schemaTable = changes.ServerBatchInfo.SanitizedSchema.Tables[table.TableName, table.SchemaName];
+
                     Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"Changes for table {table.GetFullName()}");
+                    Console.WriteLine($"Changes for table {table.TableName}. Rows:{table.RowsCount}");
                     Console.ResetColor();
-                    foreach (var row in table.Rows)
+                    foreach (var row in agent.Options.LocalSerializer.ReadRowsFromFile(path, schemaTable))
                     {
                         Console.WriteLine(row);
                     }
                 }
             }
-
         }
-
-
     }
 }

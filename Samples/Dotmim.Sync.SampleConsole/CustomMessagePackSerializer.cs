@@ -24,6 +24,10 @@ namespace Dotmim.Sync.SampleConsole
 
         public CustomMessagePackSerializer() => this.options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
 
+        public string Extension => throw new NotImplementedException();
+
+        public Task CloseFileAsync(string path, SyncTable shemaTable) => throw new NotImplementedException();
+
         public async Task<T> DeserializeAsync(Stream ms)
         {
             var t = await MessagePackSerializer.DeserializeAsync<T>(ms, options);
@@ -31,12 +35,18 @@ namespace Dotmim.Sync.SampleConsole
             return t;
 
         }
+
+        public Task<long> GetCurrentFileSizeAsync() => throw new NotImplementedException();
+        public Task OpenFileAsync(string path, SyncTable shemaTable) => throw new NotImplementedException();
+
         public async Task<byte[]> SerializeAsync(T obj)
         {
             using var ms = new MemoryStream();
             await MessagePackSerializer.SerializeAsync(ms, obj, options);
             return ms.ToArray();
         }
+
+        public Task WriteRowToFileAsync(object[] row, SyncTable shemaTable) => throw new NotImplementedException();
     }
 }
 

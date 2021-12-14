@@ -104,7 +104,6 @@ namespace Dotmim.Sync
 
         }
 
-
         public static Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int maxDegreeOfParallelism = DataflowBlockOptions.Unbounded, TaskScheduler scheduler = null)
         {
             var options = new ExecutionDataflowBlockOptions
@@ -122,6 +121,65 @@ namespace Dotmim.Sync
             block.Complete();
             return block.Completion;
         }
+
+
+        //public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, TResult> body, int maxThreads = 4)
+        //{
+        //    var q = new ConcurrentQueue<T>(items);
+        //    var qResults = new ConcurrentQueue<TResult>();
+        //    var tasks = new List<Task>();
+
+        //    for (int n = 0; n < maxThreads; n++)
+        //    {
+        //        tasks.Add(Task.Run(() =>
+        //        {
+        //            while (q.TryDequeue(out T item))
+        //                qResults.Enqueue(body(item));
+        //        }));
+        //    }
+
+        //    await Task.WhenAll(tasks);
+
+        //    return qResults.ToArray();
+        //}
+
+
+        //public static async Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int maxDegreeOfParallelism = 10)
+        //{
+        //    using var semaphore = new SemaphoreSlim(initialCount: maxDegreeOfParallelism, maxCount: maxDegreeOfParallelism);
+        //    var tasks = source.Select(async item =>
+        //   {
+        //       await semaphore.WaitAsync();
+        //       try
+        //       {
+        //           return Task.Run(() => body(item));
+        //       }
+        //       finally
+        //       {
+        //           semaphore.Release();
+        //       }
+        //   });
+        //    await Task.WhenAll(tasks);
+        //}
+
+        //public static async Task<IEnumerable<U>> ForEachAsync<T, U>(this IEnumerable<T> source, Func<T, Task<U>> body, int maxDegreeOfParallelism = 10)
+        //{
+        //    using var semaphore = new SemaphoreSlim(initialCount: maxDegreeOfParallelism, maxCount: maxDegreeOfParallelism);
+
+        //    var tasks = source.Select(async item =>
+        //    {
+        //        await semaphore.WaitAsync();
+        //        try
+        //        {
+        //            return await Task.Run(() => body(item));
+        //        }
+        //        finally
+        //        {
+        //            semaphore.Release();
+        //        }
+        //    });
+        //    return await Task.WhenAll(tasks);
+        //}
 
         //public static Task ForEachAsync<T>(this IEnumerable<T> source, int dop, Func<T, Task> body)
         //{

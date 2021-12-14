@@ -79,16 +79,18 @@ namespace CustomProvider
         /// <summary>
         /// Returning null for all non used commands (from case default)
         /// </summary>
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new MySqlCommand();
             switch (nameType)
             {
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
-                    return CreateUpdateCommand();
+                case DbCommandType.InsertRow:
+                    command = CreateUpdateCommand();
+                    break;
                 case DbCommandType.DeleteRow:
-                    return CreateDeleteCommand();
+                    command = CreateDeleteCommand();
+                    break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
@@ -102,10 +104,10 @@ namespace CustomProvider
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     break;
                 default:
-                    return null;
+                    return (null, false);
             }
 
-            return command;
+            return (command, false);
         }
 
         public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
@@ -123,7 +125,7 @@ namespace CustomProvider
                     this.SetDeleteRowParameters(command);
                     return Task.CompletedTask; ;
                 case DbCommandType.UpdateRow:
-                case DbCommandType.InitializeRow:
+                case DbCommandType.InsertRow:
                     this.SetUpdateRowParameters(command);
                     return Task.CompletedTask; ;
                 default:

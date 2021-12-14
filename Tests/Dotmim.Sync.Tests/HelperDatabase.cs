@@ -190,21 +190,25 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static void DropDatabase(ProviderType providerType, string dbName)
         {
-            switch (providerType)
+            try
             {
-                case ProviderType.Sql:
-                    DropSqlDatabase(dbName);
-                    break;
-                case ProviderType.MySql:
-                    DropMySqlDatabase(dbName);
-                    break;
-                case ProviderType.MariaDB:
-                    DropMariaDBDatabase(dbName);
-                    break;
-                case ProviderType.Sqlite:
-                    DropSqliteDatabase(dbName);
-                    break;
+                switch (providerType)
+                {
+                    case ProviderType.Sql:
+                        DropSqlDatabase(dbName);
+                        break;
+                    case ProviderType.MySql:
+                        DropMySqlDatabase(dbName);
+                        break;
+                    case ProviderType.MariaDB:
+                        DropMariaDBDatabase(dbName);
+                        break;
+                    case ProviderType.Sqlite:
+                        DropSqliteDatabase(dbName);
+                        break;
+                }
             }
+            catch (Exception) { }
         }
 
         /// <summary>

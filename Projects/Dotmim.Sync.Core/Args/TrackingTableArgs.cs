@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"[{this.TrackingTableName}] tracking table created.";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TrackingTableCreated.Id;
     }
 
@@ -40,6 +41,7 @@ namespace Dotmim.Sync
             this.TrackingTableName = trackingTableName;
             this.Command = command;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Source => Connection.Database;
         public override string Message => $"[{this.TrackingTableName}] tracking table creating.";
         public override int EventId => SyncEventsId.TrackingTableCreating.Id;
@@ -60,7 +62,7 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"[{this.TrackingTableName}] Tracking Table Dropped.";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TrackingTableDropped.Id;
     }
 
@@ -78,6 +80,7 @@ namespace Dotmim.Sync
             this.TrackingTableName = trackingTableName;
             this.Command = command;
         }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Source => Connection.Database;
         public override string Message => $"[{this.TrackingTableName}] Tracking Table Dropping.";
         public override int EventId => SyncEventsId.TrackingTableDropping.Id;
@@ -98,7 +101,7 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"[{this.TrackingTableName}] Tracking Table Renamed.";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TrackingTableRenamed.Id;
     }
 
@@ -120,6 +123,7 @@ namespace Dotmim.Sync
 
         }
         public override string Source => Connection.Database;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override string Message => $"[{this.TrackingTableName}] Tracking Table Renaming.";
         public override int EventId => SyncEventsId.TrackingTableRenaming.Id;
 

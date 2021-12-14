@@ -1,6 +1,8 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.SqlServer;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Spy
@@ -61,18 +63,26 @@ namespace Spy
 
                 foreach (var table in args.ApplyChanges.Setup.Tables)
                 {
-                    var enumerableOfTables = args.ApplyChanges.Changes.GetTableAsync(table.TableName, table.SchemaName);
-                    var enumeratorOfTable = enumerableOfTables.GetAsyncEnumerator();
+                    // Get all batch part
+                    var bpiTables = args.ApplyChanges.Changes.GetBatchPartsInfo(table.TableName, table.SchemaName);
 
-                    while (await enumeratorOfTable.MoveNextAsync())
-                   {
-                        var tablePart = enumeratorOfTable.Current;
-                        if (tablePart == null || !tablePart.HasRows)
-                            continue;
+                    foreach(var bpiTable in bpiTables)
+                    {
+                        // Get path to the bpiTable
+                        var path = args.ApplyChanges.Changes.GetBatchPartInfoPath(bpiTable).FullPath;
+                        // Get the schema table
+                        var schemaTable = args.ApplyChanges.Changes.SanitizedSchema.Tables[table.TableName, table.SchemaName];
 
-                        foreach (var row in tablePart.Rows)
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine($"Changes for table {table.TableName}. Rows:{bpiTable.RowsCount}");
+                        Console.ResetColor();
+                        foreach (var row in agent.Options.LocalSerializer.ReadRowsFromFile(path, schemaTable))
+                        {
                             Console.WriteLine(row);
+                        }
+
                     }
+
                 }
             });
 

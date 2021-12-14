@@ -20,23 +20,34 @@ namespace Dotmim.Sync
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
+        public virtual async Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            try
             {
-                var schema = await this.InternalGetSchemaAsync(ctx, this.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                return schema;
+                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            }, connection, transaction, cancellationToken);
+                var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                return schema;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+
+        }
 
 
         /// <summary>
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => RunInTransactionAsync(SyncStage.SchemaReading, async (ctx, connection, transaction) =>
+        public virtual async Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            try
             {
-                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(ctx, this.Setup, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(this.GetContext(), this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (schemaTable == null)
                     throw new MissingTableException(table.GetFullName());
@@ -53,8 +64,15 @@ namespace Dotmim.Sync
                 foreach (var filter in this.Setup.Filters)
                     schema.Filters.Add(filter);
 
+                await runner.CommitAsync().ConfigureAwait(false);
+
                 return schemaTable;
-            }, connection, transaction, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         /// <summary>
         /// update configuration object with tables desc from server database
@@ -65,7 +83,7 @@ namespace Dotmim.Sync
             if (setup == null || setup.Tables.Count <= 0)
                 throw new MissingTablesException();
 
-            await this.InterceptAsync(new SchemaLoadingArgs(context, setup, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SchemaLoadingArgs(context, setup, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Create the schema
             var schema = new SyncSet();
@@ -96,8 +114,7 @@ namespace Dotmim.Sync
             schema.EnsureSchema();
 
             var schemaArgs = new SchemaLoadedArgs(context, schema, connection);
-            await this.InterceptAsync(schemaArgs, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(context, progress, schemaArgs);
+            await this.InterceptAsync(schemaArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return schema;
         }

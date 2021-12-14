@@ -26,9 +26,9 @@ namespace HelloWebSyncClient
             // Create a web proxy Orchesrtrator with a custom serializer
             var serverProxyOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync")
             {
-                Converter = new CustomConverter()
+                Converter = new CustomConverter(),
+                SerializerFactory = new CustomMessagePackSerializerFactory()
             };
-
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqlSyncProvider(clientConnectionString);
@@ -37,7 +37,8 @@ namespace HelloWebSyncClient
 
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProxyOrchestrator, new SyncOptions { SerializerFactory = new CustomMessagePackSerializerFactory() });
+            var agent = new SyncAgent(clientProvider, serverProxyOrchestrator);
+
 
             do
             {

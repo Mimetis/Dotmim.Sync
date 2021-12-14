@@ -79,17 +79,17 @@ namespace CustomProvider
         /// <summary>
         /// return null for all no used commands
         /// </summary>
-        public override DbCommand GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqliteCommand();
             switch (nameType)
             {
                 case DbCommandType.UpdateRow:
-                    return CreateUpdateCommand();
-                case DbCommandType.InitializeRow:
-                    return CreateInitiliazeRowCommand();
+                    return (CreateUpdateCommand(), false);
+                case DbCommandType.InsertRows:
+                    return (CreateInitiliazeRowCommand(), false);
                 case DbCommandType.DeleteRow:
-                    return CreateDeleteCommand();
+                    return (CreateDeleteCommand(), false);
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.sqliteObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
@@ -99,12 +99,12 @@ namespace CustomProvider
                     command.CommandText = this.sqliteObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
                 case DbCommandType.Reset:
-                    return CreateResetCommand();
+                    return (CreateResetCommand(), false);
                 default:
-                    return null;
+                    return (default, default);
             }
 
-            return command;
+            return (command, false);
         }
 
         /// <summary>

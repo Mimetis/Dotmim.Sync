@@ -24,4 +24,6 @@ namespace Dotmim.Sync.Serialization
         Task<T> DeserializeAsync(Stream ms);
         Task<byte[]> SerializeAsync(T obj);
     }
+
+
 }

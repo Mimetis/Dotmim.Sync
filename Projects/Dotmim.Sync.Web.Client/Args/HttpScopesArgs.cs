@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Client;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ namespace Dotmim.Sync
             this.ServerScopeInfo = scopeInfo;
             this.Host = host;
         }
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => HttpClientSyncEventsId.HttpGettingScopeResponse.Id;
         public override string Source => this.Host;
         public override string Message => $"Received Scope. Scope Name:{this.ServerScopeInfo.Name}.";
@@ -40,7 +41,7 @@ namespace Dotmim.Sync
         public override int EventId => HttpClientSyncEventsId.HttpGettingScopeRequest.Id;
         public override string Source => this.Host;
         public override string Message => $"Getting Server Scope. Scope Name:{this.Context.ScopeName}.";
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public string Host { get; }
     }
 

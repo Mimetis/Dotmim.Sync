@@ -1,4 +1,5 @@
-﻿using Dotmim.Sync.Web.Client;
+﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -24,6 +25,7 @@ namespace Dotmim.Sync
             this.HttpStep = httpStep;
         }
         public override int EventId => HttpServerSyncEventsId.HttpGettingRequest.Id;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public HttpContext HttpContext { get; }
         public SessionCache SessionCache { get; }
@@ -45,7 +47,7 @@ namespace Dotmim.Sync
             this.HttpStep = httpStep;
         }
         public override int EventId => HttpServerSyncEventsId.HttpSendingResponse.Id;
-
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public HttpContext HttpContext { get; }
         public SessionCache SessionCache { get; }
         public byte[] Data { get; }

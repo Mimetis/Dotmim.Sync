@@ -24,7 +24,7 @@ namespace Dotmim.Sync
             if (schema == null || schema.Tables == null || !schema.HasTables)
                 throw new MissingTablesException();
 
-            await this.InterceptAsync(new ProvisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ProvisioningArgs(ctx, provision, schema, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
@@ -132,15 +132,14 @@ namespace Dotmim.Sync
             }
 
             var args = new ProvisionedArgs(ctx, provision, schema, connection);
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args);
+            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             return schema;
         }
 
         internal async Task<bool> InternalDeprovisionAsync(SyncContext ctx, SyncSet schema, SyncSetup setup, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            await this.InterceptAsync(new DeprovisioningArgs(ctx, provision, schema, connection, transaction), cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DeprovisioningArgs(ctx, provision, schema, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
@@ -169,26 +168,7 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
-                    var allStoredProcedures = new List<DbStoredProcedureType>();
-
-                    foreach (var spt in Enum.GetValues(typeof(DbStoredProcedureType)))
-                        allStoredProcedures.Add((DbStoredProcedureType)spt);
-
-                    allStoredProcedures.Reverse();
-
-                    foreach (DbStoredProcedureType storedProcedureType in allStoredProcedures)
-                    {
-                        // if we are iterating on bulk, but provider do not support it, just loop through and continue
-                        if ((storedProcedureType is DbStoredProcedureType.BulkTableType || storedProcedureType is DbStoredProcedureType.BulkUpdateRows || storedProcedureType is DbStoredProcedureType.BulkDeleteRows)
-                            && !this.Provider.SupportBulkOperations)
-                            continue;
-
-                        var exists = await InternalExistsStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Drop storedProcedure if already exists
-                        if (exists)
-                            await InternalDropStoredProcedureAsync(ctx, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
+                    await InternalDropStoredProceduresAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Removing cached commands
                     var syncAdapter = this.GetSyncAdapter(schemaTable, setup);
@@ -197,14 +177,7 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.Triggers))
                 {
-                    foreach (DbTriggerType triggerType in Enum.GetValues(typeof(DbTriggerType)))
-                    {
-                        var exists = await InternalExistsTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Drop trigger if already exists
-                        if (exists)
-                            await InternalDropTriggerAsync(ctx, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
+                    await InternalDropTriggersAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.TrackingTable))
@@ -290,8 +263,7 @@ namespace Dotmim.Sync
             }
 
             var args = new DeprovisionedArgs(ctx, provision, schema, connection);
-            await this.InterceptAsync(args, cancellationToken).ConfigureAwait(false);
-            this.ReportProgress(ctx, progress, args);
+            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             return true;
         }

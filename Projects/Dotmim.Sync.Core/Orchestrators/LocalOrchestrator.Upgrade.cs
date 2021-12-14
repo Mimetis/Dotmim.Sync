@@ -20,79 +20,87 @@ namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator
     {
-
         /// <summary>
         /// Upgrade the database structure to reach the last DMS version
         /// </summary>
-        public virtual Task<ScopeInfo> UpgradeAsync(ScopeInfo scopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        public virtual async Task<ScopeInfo> UpgradeAsync(ScopeInfo scopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // get Database builder
-            var dbBuilder = this.Provider.GetDatabaseBuilder();
-
-            // Initialize database if needed
-            await dbBuilder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
-
-            var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-            if (scopeInfo == null || !scopeInfo.Schema.HasTables)
+            try
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // get Database builder
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
 
-                if (exists)
-                    scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // Initialize database if needed
+                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                if (scopeInfo == null)
-                    throw new MissingClientScopeInfoException();
+                var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
+                if (scopeInfo == null || !scopeInfo.Schema.HasTables)
+                {
+                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Client, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (exists)
+                        scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (scopeInfo == null)
+                        throw new MissingClientScopeInfoException();
+                }
+
+                var setup = scopeInfo.Setup ?? this.Setup;
+                // Get schema
+                var schema = scopeInfo.Schema ?? await this.InternalGetSchemaAsync(this.GetContext(), setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // If schema does not have any table, raise an exception
+                if (schema == null || schema.Tables == null || !schema.HasTables)
+                    throw new MissingTablesException();
+
+                var r = await this.InternalUpgradeAsync(this.GetContext(), schema, setup, scopeInfo, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return r;
             }
-
-            var setup = scopeInfo.Setup ?? this.Setup;
-            // Get schema
-            var schema = scopeInfo.Schema ?? await this.InternalGetSchemaAsync(ctx, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // If schema does not have any table, raise an exception
-            if (schema == null || schema.Tables == null || !schema.HasTables)
-                throw new MissingTablesException();
-
-
-            return await this.InternalUpgradeAsync(ctx, schema, setup, scopeInfo, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-        }, connection, transaction, cancellationToken);
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
 
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
-        public virtual Task<bool> NeedsToUpgradeAsync(ScopeInfo scopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => RunInTransactionAsync(SyncStage.Provisioning, async (ctx, connection, transaction) =>
+        public virtual async Task<bool> NeedsToUpgradeAsync(ScopeInfo scopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-            if (scopeInfo == null || !scopeInfo.Schema.HasTables)
+            try
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var builder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-                if (exists)
-                    scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, builder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (scopeInfo == null || !scopeInfo.Schema.HasTables)
+                {
+                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Client, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (scopeInfo == null)
-                    throw new MissingClientScopeInfoException();
+                    if (exists)
+                        scopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, builder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (scopeInfo == null)
+                        throw new MissingClientScopeInfoException();
+                }
+
+                return InternalNeedsToUpgrade(scopeInfo);
             }
-
-            if (scopeInfo == null)
-                return false;
-
-            return InternalNeedsToUpgrade(scopeInfo);
-
-        }, connection, transaction, cancellationToken);
+            catch (Exception ex)
+            {
+                throw GetSyncError(ex);
+            }
+        }
 
         internal virtual bool InternalNeedsToUpgrade(ScopeInfo scopeInfo)
         {
-
             var version = SyncVersion.EnsureVersion(scopeInfo.Version);
-
             return version < SyncVersion.Current;
-
         }
 
         internal virtual async Task<ScopeInfo> InternalUpgradeAsync(SyncContext context, SyncSet schema, SyncSetup setup, ScopeInfo scopeInfo, DbScopeBuilder builder, DbConnection connection, DbTransaction transaction,
@@ -119,7 +127,7 @@ namespace Dotmim.Sync
 
                 if (version.Minor == 7 && version.Build == 0)
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 7, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                
+
                 if (version.Minor == 7 && version.Build == 1)
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 7, 2), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -137,6 +145,12 @@ namespace Dotmim.Sync
 
                 if (version.Minor == 9 && version.Build == 0)
                     version = await AutoUpgdrateToNewVersionAsync(context, new Version(0, 9, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (version.Minor == 9 && version.Build == 1)
+                    version = await UpgdrateTo093Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (version.Minor == 9 && version.Build == 2)
+                    version = await UpgdrateTo093Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
@@ -159,9 +173,8 @@ namespace Dotmim.Sync
                     .Select(r => r.GetParentTable()));
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
-
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, setup);
@@ -173,8 +186,7 @@ namespace Dotmim.Sync
                     await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                args = new UpgradeProgressArgs(context, $"SelectInitializedChanges stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"SelectInitializedChanges stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 // Upgrade Select Initial Changes With Filter
                 if (tableBuilder.TableDescription.GetFilter() != null)
@@ -184,10 +196,7 @@ namespace Dotmim.Sync
                         await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChangesWithFilters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.SelectInitializedChangesWithFilters, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    args = new UpgradeProgressArgs(context, $"SelectInitializedChangesWithFilters stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                    this.ReportProgress(context, progress, args, connection, transaction);
-
-
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, $"SelectInitializedChangesWithFilters stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 }
 
             }
@@ -201,8 +210,7 @@ namespace Dotmim.Sync
             var newVersion = new Version(0, 6, 2);
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Update the "Update trigger" for all tables
 
@@ -220,16 +228,12 @@ namespace Dotmim.Sync
                 if (exists)
                     await InternalDropTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateTriggerAsync(context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                args = new UpgradeProgressArgs(context, $"Update Trigger for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
 
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Update Trigger for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
             message = $"Upgrade to {newVersion} done.";
-            args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
-
-
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             return newVersion;
         }
@@ -246,8 +250,7 @@ namespace Dotmim.Sync
                     .Select(r => r.GetParentTable()));
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             foreach (var schemaTable in schemaTables)
             {
@@ -260,8 +263,7 @@ namespace Dotmim.Sync
                     await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                args = new UpgradeProgressArgs(context, $"Reset stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Reset stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 // Upgrade Update stored procedure
                 var existsUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
@@ -270,24 +272,20 @@ namespace Dotmim.Sync
                     await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                args = new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 // Upgrade Bulk Update stored procedure
-                if (this.Provider.SupportBulkOperations)
+                var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
+                    DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (existsBulkUpdateSP)
                 {
-                    var existsBulkUpdateSP = await InternalExistsStoredProcedureAsync(context, tableBuilder,
-                        DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    if (existsBulkUpdateSP)
-                        await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalDropStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     await InternalCreateStoredProcedureAsync(context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    args = new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                    this.ReportProgress(context, progress, args, connection, transaction);
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 }
-
             }
-
             return newVersion;
         }
 
@@ -304,28 +302,44 @@ namespace Dotmim.Sync
                     .Select(r => r.GetParentTable()));
 
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             foreach (var schemaTable in schemaTables)
             {
                 var tableBuilder = this.GetTableBuilder(schemaTable, setup);
                 await InternalCreateStoredProceduresAsync(context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                args = new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction);
-                this.ReportProgress(context, progress, args, connection, transaction);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
             return newVersion;
         }
 
-        private Task<Version> AutoUpgdrateToNewVersionAsync(SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task<Version> UpgdrateTo093Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
+                        CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            var newVersion = new Version(0, 9, 3);
+            // Sorting tables based on dependencies between them
+
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            var message = $"Upgrade to {newVersion}:";
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+            await this.DeprovisionAsync(provision, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.ProvisionAsync(schema, provision, false, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return newVersion;
+        }
+        private async Task<Version> AutoUpgdrateToNewVersionAsync(SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var message = $"Upgrade to {newVersion}:";
-            var args = new UpgradeProgressArgs(context, message, newVersion, connection, transaction);
-            this.ReportProgress(context, progress, args, connection, transaction);
-
-            return Task.FromResult(newVersion);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            return newVersion;
         }
     }
 }
