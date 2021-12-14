@@ -89,6 +89,10 @@ namespace Dotmim.Sync
         /// </summary>
         public bool HasColumns => this.Tables?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
+        /// <summary>
+        /// Check if Setup has a table that has columns
+        /// </summary>
+        public bool HasTableWithColumns(string tableName) => this.Tables[tableName]?.Columns?.Count > 0;
 
         /// <summary>
         /// Check if two setups have the same local options
