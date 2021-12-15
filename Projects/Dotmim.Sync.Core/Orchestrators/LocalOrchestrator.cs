@@ -281,7 +281,7 @@ namespace Dotmim.Sync
             var ctx = this.GetContext();
 
             ctx.SyncStage = SyncStage.SnapshotApplying;
-            await this.InterceptAsync(new SnapshotApplyingArgs(ctx), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SnapshotApplyingArgs(ctx, this.Provider.CreateConnection()), progress, cancellationToken).ConfigureAwait(false);
 
             if (clientScopeInfo.Schema == null)
                 throw new ArgumentNullException(nameof(clientScopeInfo.Schema));

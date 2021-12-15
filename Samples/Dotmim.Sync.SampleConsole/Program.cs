@@ -94,26 +94,29 @@ internal class Program
         //var snapshotDirectory = Path.Combine("C:\\Tmp\\Snapshots");
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
 
-        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(allTables);
-        var options = new SyncOptions() { BatchSize = 2000, ProgressLevel = SyncProgressLevel.Sql };
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var setup = new SyncSetup(new string[] { "ProductCategory", "ProductDescription", "ProductModel" });
+        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Sql };
+        setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
+        setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
+        setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("RegiePro"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client"));
         //var setup = new SyncSetup(regipro_tables);
         //var options = new SyncOptions() { BatchSize = 10000, ProgressLevel = SyncProgressLevel.Information };
 
-        options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
+        //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
         //await ProvisionAsync(serverProvider, setup, options);
         //await CreateSnapshotAsync(serverProvider, setup, options);
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
 

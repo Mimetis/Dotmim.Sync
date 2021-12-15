@@ -14,7 +14,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotApplyingArgs : ProgressArgs
     {
-        public SnapshotApplyingArgs(SyncContext context) : base(context, null, null)
+        public SnapshotApplyingArgs(SyncContext context, DbConnection connection) : base(context, connection, null)
         {
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;

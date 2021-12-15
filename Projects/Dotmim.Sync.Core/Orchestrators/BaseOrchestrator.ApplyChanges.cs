@@ -238,6 +238,8 @@ namespace Dotmim.Sync
 
                         command.CommandText = cmdText;
 
+                        await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
                         // execute the batch, through the provider
                         await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchRows, schemaChangesTable, failedPrimaryKeysTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
 
