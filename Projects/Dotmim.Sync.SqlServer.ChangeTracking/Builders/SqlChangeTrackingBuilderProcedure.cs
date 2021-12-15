@@ -175,10 +175,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
-            if (setupHasTableWithColumns)
-            {
-                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
-            }
             stringBuilder.AppendLine("DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(";WITH ");
@@ -196,20 +192,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation],");
-                stringBuilder.AppendLine("\t-- select the next changed columns when the change operation was an insert");
-                stringBuilder.AppendLine("\t(CASE WHEN [SYS_CHANGE_OPERATION] = 'I' THEN (");
-                stringBuilder.AppendLine("\t\tSELECT [N].[SYS_CHANGE_COLUMNS]");
-                stringBuilder.AppendLine($"\t\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @next_sync_min_timestamp) AS [N]");
-                stringBuilder.Append("\t\tWHERE ");
-                string and = string.Empty;
-                foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-                {
-                    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                    stringBuilder.AppendLine($"{and}[N].{columnName} = [CT].{columnName}");
-                    and = "\t\t\tAND ";
-                }
-                stringBuilder.Append("\t) ELSE [SYS_CHANGE_COLUMNS] END) AS [sync_change_columns]");
+                stringBuilder.Append(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
             }
 
             stringBuilder.AppendLine("\n\tFROM @changeTable AS [p]");
@@ -226,20 +209,18 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine("\tOR [changes].[sync_update_scope_id] = @sync_scope_id");
                 if (setupHasTableWithColumns)
                 {
-                    stringBuilder.AppendLine("\tOR (([changes].[sync_change_operation] = 'I' AND [changes].[sync_change_columns] IS NULL)");
-                    stringBuilder.AppendLine("\t\tOR (");
+                    stringBuilder.AppendLine("\tOR (");
                     string and = string.Empty;
                     foreach (var column in this.tableDescription.GetMutableColumns())
                     {
                         var unquotedColumnName = ParserName.Parse(column).Unquoted().ToString();
-                        stringBuilder.Append("\t\t\t");
+                        stringBuilder.Append("\t\t");
                         stringBuilder.Append(and);
                         stringBuilder.Append("CHANGE_TRACKING_IS_COLUMN_IN_MASK(");
                         stringBuilder.Append($"COLUMNPROPERTY(OBJECT_ID('{tableName.Schema().Quoted().ToString()}'), '{unquotedColumnName}', 'ColumnId')");
                         stringBuilder.AppendLine(", [changes].[sync_change_columns]) = 0");
                         and = " AND ";
                     }
-                    stringBuilder.AppendLine("\t\t)");
                     stringBuilder.AppendLine("\t)");
                 }
 
@@ -489,10 +470,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
                 stringBuilder.AppendLine();
             }
-            if (setupHasTableWithColumns)
-            {
-                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
-            }
             stringBuilder.AppendLine("DECLARE @var_sync_scope_id varbinary(128) = cast(@sync_scope_id as varbinary(128));");
             stringBuilder.AppendLine();
 
@@ -514,21 +491,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation],");
-                stringBuilder.AppendLine("\t-- select the next changed columns when the change operation was an insert");
-                stringBuilder.AppendLine("\t(CASE WHEN [SYS_CHANGE_OPERATION] = 'I' THEN (");
-                stringBuilder.AppendLine("\t\tSELECT [N].[SYS_CHANGE_COLUMNS]");
-                stringBuilder.AppendLine($"\t\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @next_sync_min_timestamp) AS [N]");
-                stringBuilder.Append("\t\tWHERE ");
-                string and = string.Empty;
-                foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-                {
-                    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                    stringBuilder.AppendLine($"{and}[N].{columnName} = [CT].{columnName}");
-                    and = "\t\t\tAND ";
-                }
-                stringBuilder.Append("\t) ELSE [SYS_CHANGE_COLUMNS] END) AS [sync_change_columns]");
+                stringBuilder.Append(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
             }
+
             stringBuilder.AppendLine("\n\tFROM (SELECT ");
             stringBuilder.Append("\t\t ");
             string comma = string.Empty;
@@ -556,20 +521,18 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine("\tOR @sync_force_write = 1");
                 if (setupHasTableWithColumns)
                 {
-                    stringBuilder.AppendLine("\tOR (([changes].[sync_change_operation] = 'I' AND [changes].[sync_change_columns] IS NULL)");
-                    stringBuilder.AppendLine("\t\tOR (");
+                    stringBuilder.AppendLine("\tOR (");
                     string and = string.Empty;
                     foreach (var column in this.tableDescription.GetMutableColumns())
                     {
                         var unquotedColumnName = ParserName.Parse(column).Unquoted().ToString();
-                        stringBuilder.Append("\t\t\t");
+                        stringBuilder.Append("\t\t");
                         stringBuilder.Append(and);
                         stringBuilder.Append("CHANGE_TRACKING_IS_COLUMN_IN_MASK(");
                         stringBuilder.Append($"COLUMNPROPERTY(OBJECT_ID('{tableName.Schema().Quoted().ToString()}'), '{unquotedColumnName}', 'ColumnId')");
                         stringBuilder.AppendLine(", [changes].[sync_change_columns]) = 0");
                         and = " AND ";
                     }
-                    stringBuilder.AppendLine("\t\t)");
                     stringBuilder.AppendLine("\t)");
                 }
 
@@ -737,11 +700,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("");
-            if (setupHasTableWithColumns)
-            {
-                stringBuilder.AppendLine("DECLARE @next_sync_min_timestamp bigint = @sync_min_timestamp + 1;");
-                stringBuilder.AppendLine();
-            }
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
             stringBuilder.Append("\tSELECT ");
@@ -756,20 +714,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.Append("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine(",\n\t[CT].[SYS_CHANGE_OPERATION] AS [sync_change_operation],");
-                stringBuilder.AppendLine("\t-- select the next changed columns when the change operation was an insert");
-                stringBuilder.AppendLine("\t(CASE WHEN [SYS_CHANGE_OPERATION] = 'I' THEN (");
-                stringBuilder.AppendLine("\t\tSELECT [N].[SYS_CHANGE_COLUMNS]");
-                stringBuilder.AppendLine($"\t\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @next_sync_min_timestamp) AS [N]");
-                stringBuilder.Append("\t\tWHERE ");
-                string and = string.Empty;
-                foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-                {
-                    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                    stringBuilder.AppendLine($"{and}[N].{columnName} = [CT].{columnName}");
-                    and = "\t\t\tAND ";
-                }
-                stringBuilder.Append("\t) ELSE [SYS_CHANGE_COLUMNS] END) AS [sync_change_columns]");
+                stringBuilder.Append(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
             }
 
             stringBuilder.AppendLine($"\n\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
@@ -840,20 +785,18 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             if (setupHasTableWithColumns)
             {
-                stringBuilder.AppendLine("\tAND (([side].[sync_change_operation] = 'I' AND [side].[sync_change_columns] IS NULL)");
-                stringBuilder.AppendLine("\t\tOR (");
+                stringBuilder.AppendLine("\tAND (");
                 string or = string.Empty;
                 foreach (var column in this.tableDescription.GetMutableColumns())
                 {
                     var unquotedColumn = ParserName.Parse(column).Unquoted().ToString();
-                    stringBuilder.Append("\t\t\t");
+                    stringBuilder.Append("\t\t");
                     stringBuilder.Append(or);
                     stringBuilder.Append("CHANGE_TRACKING_IS_COLUMN_IN_MASK(");
                     stringBuilder.Append($"COLUMNPROPERTY(OBJECT_ID('{tableName.Schema().Quoted().ToString()}'), '{unquotedColumn}', 'ColumnId')");
                     stringBuilder.AppendLine(", [side].[sync_change_columns]) = 1");
                     or = " OR ";
                 }
-                stringBuilder.AppendLine("\t\t)");
                 stringBuilder.AppendLine("\t)");
             }
 
