@@ -191,7 +191,7 @@ namespace HelloSync
             // enumerate changes retrieved
             foreach (var tableChanges in changes.ClientChangesSelected.TableChangesSelected)
             {
-                foreach(var bpi in changes.ClientBatchInfo.BatchPartsInfo)
+                foreach (var bpi in changes.ClientBatchInfo.BatchPartsInfo)
                 {
                     // only one table in each bpi
                     var table = bpi.Tables[0];
@@ -201,7 +201,7 @@ namespace HelloSync
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine($"Changes for table {table.TableName}. Rows:{table.RowsCount}");
                     Console.ResetColor();
-                    foreach (var row in agent.Options.LocalSerializer.ReadRowsFromFile(path, schemaTable))
+                    foreach (var row in agent.Options.LocalSerializerFactory.GetLocalSerializer().ReadRowsFromFile(path, schemaTable))
                     {
                         Console.WriteLine(row);
                     }
@@ -256,7 +256,7 @@ namespace HelloSync
                     Console.ForegroundColor = ConsoleColor.White;
                     Console.WriteLine($"Changes for table {table.TableName}. Rows:{table.RowsCount}");
                     Console.ResetColor();
-                    foreach (var row in agent.Options.LocalSerializer.ReadRowsFromFile(path, schemaTable))
+                    foreach (var row in agent.Options.LocalSerializerFactory.GetLocalSerializer().ReadRowsFromFile(path, schemaTable))
                     {
                         Console.WriteLine(row);
                     }

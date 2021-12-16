@@ -3,6 +3,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.Data;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,11 +40,11 @@ namespace Interceptors
 
            
             // do not delete product row. it's your choice !
-            agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
+            agent.LocalOrchestrator.OnTableChangesApplying(args =>
             {
-                if (args.State == DataRowState.Deleted && args.Changes.TableName == "Product")
+                if (args.State == DataRowState.Deleted && args.SchemaTable.TableName == "Product")
                 {
-                    Console.WriteLine($"Preventing deletion on {args.Changes.Rows.Count} rows.");
+                    Console.WriteLine($"Preventing deletion on {args.BatchPartInfos.Sum(bpi => bpi.RowsCount)} rows.");
                     args.Cancel = true;
                 }
             });

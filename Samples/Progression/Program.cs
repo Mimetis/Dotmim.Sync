@@ -2,6 +2,8 @@
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using System;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,75 +51,50 @@ namespace Progression
             // CancellationTokenSource is used to cancel a sync process in the next example
             var cts = new CancellationTokenSource();
 
+
             // Intercept a table changes selecting
             // Because the changes are not yet selected, we can easily interrupt the process with the cancellation token
             agent.LocalOrchestrator.OnTableChangesSelecting(args =>
             {
-                Console.WriteLine($"-------- Getting changes from table {args.Table.GetFullName()} ...");
+                Console.WriteLine($"-------- Getting changes from table {args.SchemaTable.GetFullName()} ...");
 
-                if (args.Table.TableName == "Table_That_Should_Not_Be_Sync")
+                if (args.SchemaTable.TableName == "Table_That_Should_Not_Be_Sync")
                     cts.Cancel();
             });
 
-            // Intercept a table changes applying with a particular state [Upsert] or [Deleted]
-            // The rows included in the args.Changes table will be applied right after.
-            agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
+            // Row has been selected from datasource.
+            // You can change the synrow before the row is serialized on the disk.
+            agent.LocalOrchestrator.OnTableChangesSelectedSyncRow(args =>
             {
-                Console.WriteLine($"-------- Applying changes {args.State} to table {args.Changes.GetFullName()} ...");
-
-                if (args.Changes == null || args.Changes.Rows.Count == 0)
-                    return;
-
-                foreach (var row in args.Changes.Rows)
-                    Console.WriteLine(row);
+                Console.Write(".");
             });
 
-            // Intercept a table changes selected.
-            // The rows included in the args.Changes have been selected from the datasource and will be sent to the server
-            agent.LocalOrchestrator.OnTableChangesSelected(args =>
+            // Tables changes have been selected
+            // we can have all the batch part infos generated
+            agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
             {
-                if (args.Changes == null || args.Changes.Rows.Count == 0)
-                    return;
-
-                foreach (var row in args.Changes.Rows)
-                    Console.WriteLine(row);
+                Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: Files generated count:{tcsa.BatchPartInfos.Count()}. Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
             });
 
-            // ------------------------
-            // Because we are in a TCP mode, we can hook the server side events
-            // In an HTTP mode, the code below won't work
-            // ------------------------
 
-            agent.RemoteOrchestrator.OnTableChangesSelecting(args =>
+            agent.LocalOrchestrator.OnTableChangesApplying(args =>
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"-------- Getting changes from table {args.Table.GetFullName()} ...");
-                Console.ResetColor();
+                Console.WriteLine($"Table {args.SchemaTable.GetFullName()}: Applying changes from {args.BatchPartInfos.Count()} files. {args.BatchPartInfos.Sum(bpi => bpi.RowsCount)} rows.");
             });
 
-            agent.RemoteOrchestrator.OnTableChangesSelected(args =>
+            // You can change something to the rows before they are applied
+            agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
             {
-                if (args.Changes == null || args.Changes.Rows.Count == 0)
-                    return;
-
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                foreach (var row in args.Changes.Rows)
-                    Console.WriteLine(row);
-                Console.ResetColor();
+                foreach (var syncRow in args.SyncRows)
+                    Console.Write(".");
             });
 
-            agent.RemoteOrchestrator.OnTableChangesBatchApplying(args =>
+            agent.LocalOrchestrator.OnTableChangesApplied(args =>
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"-------- Applying changes {args.State} to table {args.Changes.GetFullName()} ...");
-
-                if (args.Changes == null || args.Changes.Rows.Count == 0)
-                    return;
-
-                foreach (var row in args.Changes.Rows)
-                    Console.WriteLine(row);
-                Console.ResetColor();
+                Console.WriteLine();
+                Console.WriteLine($"Table applied: ");
             });
+
             do
             {
                 // Launch the sync process

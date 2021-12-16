@@ -47,7 +47,7 @@ namespace ConverterWebSyncServer
             // To add a converter, create an instance and add it to the special WebServerOptions
             var webServerOptions = new WebServerOptions();
             webServerOptions.Converters.Add(new CustomConverter());
-            webServerOptions.SerializerFactory = new CustomMessagePackSerializerFactory();
+            webServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
 
             var options = new SyncOptions { };
 

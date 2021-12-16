@@ -64,19 +64,19 @@ namespace Spy
                 foreach (var table in args.ApplyChanges.Setup.Tables)
                 {
                     // Get all batch part
-                    var bpiTables = args.ApplyChanges.Changes.GetBatchPartsInfo(table.TableName, table.SchemaName);
+                    var bpiTables = args.ApplyChanges.BatchInfo.GetBatchPartsInfo(table.TableName, table.SchemaName);
 
                     foreach(var bpiTable in bpiTables)
                     {
                         // Get path to the bpiTable
-                        var path = args.ApplyChanges.Changes.GetBatchPartInfoPath(bpiTable).FullPath;
+                        var path = args.ApplyChanges.BatchInfo.GetBatchPartInfoPath(bpiTable).FullPath;
                         // Get the schema table
-                        var schemaTable = args.ApplyChanges.Changes.SanitizedSchema.Tables[table.TableName, table.SchemaName];
+                        var schemaTable = args.ApplyChanges.BatchInfo.SanitizedSchema.Tables[table.TableName, table.SchemaName];
 
                         Console.ForegroundColor = ConsoleColor.White;
                         Console.WriteLine($"Changes for table {table.TableName}. Rows:{bpiTable.RowsCount}");
                         Console.ResetColor();
-                        foreach (var row in agent.Options.LocalSerializer.ReadRowsFromFile(path, schemaTable))
+                        foreach (var row in agent.Options.LocalSerializerFactory.GetLocalSerializer().ReadRowsFromFile(path, schemaTable))
                         {
                             Console.WriteLine(row);
                         }
@@ -87,15 +87,12 @@ namespace Spy
             });
 
             // Just before applying changes locally, at the table level
-            localOrchestrator.OnTableChangesBatchApplying(args =>
+            localOrchestrator.OnTableChangesApplying(args =>
             {
-                if (args.Changes != null && args.Changes.HasRows)
+                if (args.BatchPartInfos != null)
                 {
                     Console.WriteLine($"- --------------------------------------------");
-                    Console.WriteLine($"- Applying [{args.State}] changes to Table {args.Changes.GetFullName()}");
-
-                    foreach (var row in args.Changes.Rows)
-                        Console.WriteLine($"- {row}");
+                    Console.WriteLine($"- Applying [{args.State}] changes to Table {args.SchemaTable.GetFullName()}");
 
                 }
             });
