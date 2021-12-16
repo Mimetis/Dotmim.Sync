@@ -12,60 +12,6 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync
 {
 
-    /// <summary>
-    /// Contains statistics about selected changes from local provider
-    /// </summary>
-    public class TableChangesSelectedArgs : ProgressArgs
-    {
-        public TableChangesSelectedArgs(SyncContext context, List<BatchPartInfo> batchPartInfos, TableChangesSelected changesSelected, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.BatchPartInfos = batchPartInfos;
-            this.TableChangesSelected = changesSelected;
-        }
-
-        /// <summary>
-        /// Gets the SyncTable instances containing all changes selected.
-        /// If you get this instance from a call from GetEstimatedChangesCount, this property is always null
-        /// </summary>
-        public List<BatchPartInfo> BatchPartInfos { get; }
-
-        /// <summary>
-        /// Gets the incremental summary of changes selected
-        /// </summary>
-        public TableChangesSelected TableChangesSelected { get; }
-
-        public override SyncProgressLevel ProgressLevel => this.TableChangesSelected.TotalChanges > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
-
-        public override string Source => Connection.Database;
-        public override string Message => $"[{this.TableChangesSelected.TableName}] [Total] Upserts:{this.TableChangesSelected.Upserts}. Deletes:{this.TableChangesSelected.Deletes}. Total:{this.TableChangesSelected.TotalChanges}.";
-        public override int EventId => SyncEventsId.TableChangesSelected.Id;
-    }
-
-    /// <summary>
-    /// Raise before selecting changes will occur
-    /// </summary>
-    public class TableChangesSelectingArgs : ProgressArgs
-    {
-
-        public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; set; }
-        public TableChangesSelectingArgs(SyncContext context, SyncTable schemaTable, DbCommand command, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.Table = schemaTable;
-            this.Command = command;
-        }
-
-        /// <summary>
-        /// Gets the table from where the changes are going to be selected.
-        /// </summary>
-        public SyncTable Table { get; }
-        public override string Source => Connection.Database;
-        public override string Message => $"[{this.Table.GetFullName()}] Getting Changes.";
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override int EventId => SyncEventsId.TableChangesSelecting.Id;
-    }
 
     /// <summary>
     /// Event args raised when a batch changes is applied on a datasource
@@ -94,31 +40,33 @@ namespace Dotmim.Sync
     /// <summary>
     /// Event args before a batch changes is going to be applied on a datasource
     /// </summary>
-    public class TableChangesBatchApplyingArgs : ProgressArgs
+    public class TableChangesApplyingSyncRowsArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; set; }
 
-        public TableChangesBatchApplyingArgs(SyncContext context, BatchPartInfo part, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
+        public TableChangesApplyingSyncRowsArgs(SyncContext context, BatchInfo batchInfo, IEnumerable<SyncRow> syncRows, SyncTable schemaTable, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.State = state;
             this.Command = command;
-            this.BatchPartInfo = part;
+            this.BatchInfo = batchInfo;
+            this.SyncRows = syncRows;
+            this.SchemaTable = schemaTable;
         }
 
         /// <summary>
         /// Gets the RowState of the applied rows
         /// </summary>
         public DataRowState State { get; }
+        public BatchInfo BatchInfo { get; }
+        public IEnumerable<SyncRow> SyncRows { get; }
 
-        /// <summary>
-        /// Gets the changes to be applied into the database
-        /// </summary>
-        public BatchPartInfo BatchPartInfo { get; }
+        public SyncTable SchemaTable { get; }
+
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
-        public override string Message => $"Applying [{this.BatchPartInfo.FileName}] Batch file. State:{this.State}.";
+        public override string Message => $"Applying [{this.SchemaTable.GetFullName()}] batch rows. State:{this.State}. Count:{this.SyncRows.Count()}";
 
         public override int EventId => SyncEventsId.TableChangesApplying.Id;
     }
@@ -149,25 +97,31 @@ namespace Dotmim.Sync
     {
         public bool Cancel { get; set; } = false;
 
-        public TableChangesApplyingArgs(SyncContext context, SyncTable schemaTable, DataRowState state, DbConnection connection, DbTransaction transaction)
+        public TableChangesApplyingArgs(SyncContext context, BatchInfo batchInfo, IEnumerable<BatchPartInfo> batchPartInfos, SyncTable schemaTable, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
-            this.Table = schemaTable;
+            this.BatchInfo = batchInfo;
+            this.BatchPartInfos = batchPartInfos;
+            this.SchemaTable = schemaTable;
             this.State = state;
+            this.Command = command;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         /// <summary>
         /// Gets the RowState of the applied rows
         /// </summary>
         public DataRowState State { get; }
+        public DbCommand Command { get; }
+        public BatchInfo BatchInfo { get; }
+        public IEnumerable<BatchPartInfo> BatchPartInfos { get; }
 
         /// <summary>
-        /// Gets the changes to be applied into the database
+        /// Gets the table schema
         /// </summary>
-        public SyncTable Table { get; }
+        public SyncTable SchemaTable { get; }
 
         public override string Source => Connection.Database;
-        public override string Message => $"Applying Changes To {this.Table.GetFullName()}.";
+        public override string Message => $"Applying Changes To {this.SchemaTable.GetFullName()}.";
 
         public override int EventId => SyncEventsId.TableChangesApplying.Id;
     }
@@ -175,27 +129,6 @@ namespace Dotmim.Sync
 
     public static partial class InterceptorsExtensions
     {
-        /// <summary>
-        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
-        /// </summary>
-        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
-            => orchestrator.SetInterceptor(action);
-        /// <summary>
-        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
-        /// </summary>
-        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
-        /// </summary>
-        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
-            => orchestrator.SetInterceptor(action);
-        /// <summary>
-        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
-        /// </summary>
-        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a table starts to apply changes
@@ -211,12 +144,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a batch changes is going to be applied on a table
         /// </summary>
-        public static void OnTableChangesBatchApplying(this BaseOrchestrator orchestrator, Action<TableChangesBatchApplyingArgs> action)
+        public static void OnTableChangesApplyingSyncRows(this BaseOrchestrator orchestrator, Action<TableChangesApplyingSyncRowsArgs> action)
             => orchestrator.SetInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a batch changes is going to be applied on a table
         /// </summary>
-        public static void OnTableChangesBatchApplying(this BaseOrchestrator orchestrator, Func<TableChangesBatchApplyingArgs, Task> action)
+        public static void OnTableChangesApplyingSyncRows(this BaseOrchestrator orchestrator, Func<TableChangesApplyingSyncRowsArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>

@@ -132,6 +132,9 @@ namespace Dotmim.Sync
                         var syncRow = CreateSyncRowFromReader2(dataReader, schemaChangesTable);
                         rowsCountInBatch++;
 
+                        var tableChangesSelectedSyncRowArgs = await this.InterceptAsync(new TableChangesSelectedSyncRowArgs(context, syncRow, schemaChangesTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        syncRow = tableChangesSelectedSyncRowArgs.SyncRow;
+
                         // Set the correct state to be applied
                         if (syncRow.RowState == DataRowState.Deleted)
                             tableChangesSelected.Deletes++;
@@ -179,10 +182,10 @@ namespace Dotmim.Sync
                     }
 
                     dataReader.Close();
-
+            
+                    // Close file
+                    await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
                 }
-                // Close file
-                await localSerializer.CloseFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
 
                 // Check if we have ..something.
                 // Delete folder if nothing
@@ -217,7 +220,7 @@ namespace Dotmim.Sync
                     changesSelected.TableChangesSelected.Add(tableChangesSelected);
 
                 // even if no rows raise the interceptor
-                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchPartInfos, tableChangesSelected, connection, transaction);
+                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, batchPartInfos, schemaChangesTable, tableChangesSelected, connection, transaction);
                 await this.InterceptAsync(tableChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);
@@ -345,7 +348,7 @@ namespace Dotmim.Sync
                 dataReader.Close();
 
                 // Check interceptor
-                var changesArgs = new TableChangesSelectedArgs(context, null, tableChangesSelected, connection, transaction);
+                var changesArgs = new TableChangesSelectedArgs(context, null, null, syncTable, tableChangesSelected, connection, transaction);
                 await this.InterceptAsync(changesArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)

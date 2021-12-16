@@ -29,7 +29,7 @@ namespace Dotmim.Sync
             this.DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges;
             this.CleanMetadatas = cleanMetadatas;
             this.CleanFolder = cleanFolder;
-            this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
+            this.BatchInfo = changes ?? throw new ArgumentNullException(nameof(changes));
             this.LocalSerializerFactory = localSerializerFactory;
             this.SnapshoteApplied = snapshotApplied;
         }
@@ -92,9 +92,9 @@ namespace Dotmim.Sync
         public bool CleanFolder { get; set; }
 
         /// <summary>
-        /// Gets or Sets the changes to apply
+        /// Gets or Sets the batch info containing the changes to apply
         /// </summary>
-        public BatchInfo Changes { get; set; }
+        public BatchInfo BatchInfo { get; set; }
 
         /// <summary>
         /// Gets or Sets the local Serializer used to buffer rows on disk

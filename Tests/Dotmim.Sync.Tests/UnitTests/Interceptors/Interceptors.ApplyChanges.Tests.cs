@@ -93,10 +93,9 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDatabaseApplied++;
             });
 
-            localOrchestrator.OnTableChangesBatchApplying(action =>
+            localOrchestrator.OnTableChangesApplying(action =>
             {
-                Assert.NotNull(action.BatchPartInfo);
-                Assert.NotNull(action.Command);
+                Assert.NotNull(action.BatchPartInfos);
                 onBatchApplying++;
             });
 
@@ -108,7 +107,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableChangesApplying(action =>
             {
-                Assert.NotNull(action.Table);
+                Assert.NotNull(action.SchemaTable);
                 onApplying++;
             });
 
@@ -202,10 +201,9 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDatabaseApplied++;
             });
 
-            remoteOrchestrator.OnTableChangesBatchApplying(action =>
+            remoteOrchestrator.OnTableChangesApplying(action =>
             {
-                Assert.NotNull(action.BatchPartInfo);
-                Assert.NotNull(action.Command);
+                Assert.NotNull(action.BatchPartInfos);
                 onApplying++;
             });
 
@@ -218,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Making a first sync, will initialize everything we need
             var s2 = await agent.SynchronizeAsync();
 
-            Assert.Equal(2, onApplying);
+            Assert.Equal(4, onApplying);
             Assert.Equal(2, onApplied);
             Assert.Equal(1, onDatabaseApplying);
             Assert.Equal(1, onDatabaseApplied);

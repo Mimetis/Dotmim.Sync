@@ -276,6 +276,9 @@ namespace Dotmim.Sync
                             var syncRow = this.CreateSyncRowFromReader2(dataReader, schemaChangesTable);
                             rowsCountInBatch++;
 
+                            var tableChangesSelectedSyncRowArgs = await this.InterceptAsync(new TableChangesSelectedSyncRowArgs(context, syncRow, schemaChangesTable, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                            syncRow = tableChangesSelectedSyncRowArgs.SyncRow;
+
                             // Set the correct state to be applied
                             if (syncRow.RowState == DataRowState.Deleted)
                                 tableChangesSelected.Deletes++;
@@ -325,10 +328,6 @@ namespace Dotmim.Sync
 
                             // open a new file and write table header
                             await serializer.OpenFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
-
-                            // Raise progress
-                            await this.InterceptAsync(new TableChangesSelectedArgs(context, null, tableChangesSelected, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
-
                         }
 
                         dataReader.Close();
@@ -361,7 +360,7 @@ namespace Dotmim.Sync
                     await serializer.CloseFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
 
                     // Raise progress
-                    var tableChangesSelectedArgs = await this.InterceptAsync(new TableChangesSelectedArgs(context, batchPartInfos, tableChangesSelected, runner.Connection, runner.Transaction),progress, cancellationToken).ConfigureAwait(false);
+                    var tableChangesSelectedArgs = await this.InterceptAsync(new TableChangesSelectedArgs(context, batchInfo, batchPartInfos, schemaChangesTable, tableChangesSelected, runner.Connection, runner.Transaction),progress, cancellationToken).ConfigureAwait(false);
 
                     changes.TableChangesSelected.Add(tableChangesSelected);
 

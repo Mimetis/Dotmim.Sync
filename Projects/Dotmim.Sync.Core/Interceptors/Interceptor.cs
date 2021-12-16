@@ -11,10 +11,7 @@ namespace Dotmim.Sync
     public class Interceptors
     {
         // Internal table builder cache
-        private readonly ConcurrentDictionary<Type, Lazy<ISyncInterceptor>> dictionary
-            = new ConcurrentDictionary<Type, Lazy<ISyncInterceptor>>();
-
-        //private readonly Dictionary<Type, ISyncInterceptor> dictionary = new Dictionary<Type, ISyncInterceptor>();
+        private readonly ConcurrentDictionary<Type, Lazy<ISyncInterceptor>> dictionary = new();
 
         [DebuggerStepThrough]
         public InterceptorWrapper<T> GetInterceptor<T>() where T : ProgressArgs

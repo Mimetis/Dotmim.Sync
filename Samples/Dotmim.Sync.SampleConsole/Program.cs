@@ -95,16 +95,16 @@ internal class Program
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
         var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(new string[] { "ProductCategory", "ProductDescription", "ProductModel" });
-        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Sql };
-        setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
-        setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
-        setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
+        //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
+        //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
+        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("RegiePro"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client"));
@@ -184,6 +184,28 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
+        agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
+        {
+            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: Files generated count:{tcsa.BatchPartInfos.Count()}. Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
+        });
+
+        agent.RemoteOrchestrator.OnTableChangesSelecting(tcsa =>
+        {
+            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: Selecting rows from datasource {tcsa.Source}");
+        });
+
+        agent.RemoteOrchestrator.OnTableChangesSelectedSyncRow(args =>
+        {
+            args.SyncRow["Name"] = $"D{args.SyncRow["Name"]}";
+            Console.WriteLine(args.SyncRow);
+
+        });
+
+        agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
+        {
+            foreach (var syncRow in args.SyncRows)
+                Console.WriteLine(syncRow);
+        });
         do
         {
             Console.Clear();
@@ -742,7 +764,7 @@ internal class Program
                 //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
                 var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
-                agent.LocalOrchestrator.OnTableChangesBatchApplying(args => Console.WriteLine(args.Command.CommandText));
+                agent.LocalOrchestrator.OnTableChangesApplying(args => Console.WriteLine(args.Command.CommandText));
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
                 Console.WriteLine(s);

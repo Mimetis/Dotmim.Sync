@@ -187,7 +187,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Get all batch part for 1 particular table
         /// </summary>
-        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default) => 
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default) =>
             GetBatchPartsInfo(new SyncTable(tableName, schemaName));
 
         /// <summary>
@@ -223,6 +223,62 @@ namespace Dotmim.Sync.Batch
                 throw new OverflowException("too much batches !!!");
 
             return $"{tableName}_{batchIndex}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
+        }
+
+
+        /// <summary>
+        /// Load the Batch part info in memory, in a SyncTable
+        /// </summary>
+        public Task<SyncTable> LoadBatchPartInfoAsync(BatchPartInfo batchPartInfo, ILocalSerializerFactory localSerializerFactory = null)
+        {
+            if (localSerializerFactory == null)
+                localSerializerFactory = new LocalJsonSerializerFactory();
+
+            // Get full path of my batchpartinfo
+            var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
+
+            if (!File.Exists(fullPath))
+                return Task.FromResult<SyncTable>(null);
+
+            if (this.SanitizedSchema == null || batchPartInfo.Tables == null || batchPartInfo.Tables.Count() < 1)
+                return Task.FromResult<SyncTable>(null);
+
+            var schemaTable = this.SanitizedSchema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName];
+
+            var localSerializer = localSerializerFactory.GetLocalSerializer();
+
+            var table = schemaTable.Clone();
+
+            foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
+                table.Rows.Add(syncRow);
+
+            return Task.FromResult(table);
+        }
+
+        public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable, ILocalSerializerFactory localSerializerFactory = null)
+        {
+            if (localSerializerFactory == null)
+                localSerializerFactory = new LocalJsonSerializerFactory();
+
+            // Get full path of my batchpartinfo
+            var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
+
+            if (!File.Exists(fullPath))
+                return;
+
+            File.Delete(fullPath);
+
+            var localSerializer = localSerializerFactory.GetLocalSerializer();
+
+            // open the file and write table header
+            await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
+
+            foreach (var row in syncTable.Rows)
+                await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
+
+            // Close file
+            await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
+
         }
 
         /// <summary>

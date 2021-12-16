@@ -1233,13 +1233,13 @@ namespace Dotmim.Sync.Tests
                     if (tcs.Context.AdditionalProperties == null || tcs.Context.AdditionalProperties.Count <= 0)
                         return;
 
-                    if (tcs.Context.AdditionalProperties.ContainsKey(tcs.Table.GetFullName()))
+                    if (tcs.Context.AdditionalProperties.ContainsKey(tcs.SchemaTable.GetFullName()))
                     {
-                        var addProp = tcs.Context.AdditionalProperties[tcs.Table.GetFullName()];
+                        var addProp = tcs.Context.AdditionalProperties[tcs.SchemaTable.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.Table, setup);
-                            var (command, isBatch) = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.Table.GetFilter());
+                            var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.SchemaTable, setup);
+                            var (command, isBatch) = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.SchemaTable.GetFilter());
                             tcs.Command = command;
                         }
                     }
@@ -1275,12 +1275,12 @@ namespace Dotmim.Sync.Tests
                     if (tca.State != DataRowState.Modified)
                         return;
 
-                    if (tca.Context.AdditionalProperties.ContainsKey(tca.Table.GetFullName()))
+                    if (tca.Context.AdditionalProperties.ContainsKey(tca.SchemaTable.GetFullName()))
                     {
-                        var addProp = tca.Context.AdditionalProperties[tca.Table.GetFullName()];
+                        var addProp = tca.Context.AdditionalProperties[tca.SchemaTable.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            await agent.LocalOrchestrator.ResetTableAsync(setup.Tables[tca.Table.TableName, tca.Table.SchemaName], tca.Connection, tca.Transaction);
+                            await agent.LocalOrchestrator.ResetTableAsync(setup.Tables[tca.SchemaTable.TableName, tca.SchemaTable.SchemaName], tca.Connection, tca.Transaction);
                         }
                     }
                 });
