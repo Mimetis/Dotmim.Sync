@@ -11,11 +11,12 @@ namespace Dotmim.Sync
     public class MessageGetChangesBatch
     {
         public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
-                                      int batchSize, string batchDirectory, bool supportsMultiActiveResultSets, ILocalSerializerFactory localSerializerFactory)
+                                      int batchSize, string batchDirectory, string batchDirectoryName, bool supportsMultiActiveResultSets, ILocalSerializerFactory localSerializerFactory)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
+            this.BatchDirectoryName = batchDirectoryName;
             this.SupportsMultiActiveResultSets = supportsMultiActiveResultSets;
             //this.SerializerFactory = serializerFactory;
             this.LocalSerializerFactory = localSerializerFactory;
@@ -68,6 +69,12 @@ namespace Dotmim.Sync
         /// Gets or Sets the batch directory used to serialize the datas
         /// </summary>
         public string BatchDirectory { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the batch directory name to concat (optional)
+        /// </summary>
+        public string BatchDirectoryName { get; set; }
+
         public bool SupportsMultiActiveResultSets { get; }
 
         ///// <summary>

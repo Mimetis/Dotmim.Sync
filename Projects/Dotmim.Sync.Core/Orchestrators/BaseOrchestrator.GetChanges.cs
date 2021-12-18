@@ -51,10 +51,9 @@ namespace Dotmim.Sync
 
             changesSelected = new DatabaseChangesSelected();
 
-
             // Create a batch 
             // batchinfo generate a schema clone with scope columns if needed
-            batchInfo = new BatchInfo(message.Schema, message.BatchDirectory);
+            batchInfo = new BatchInfo(message.Schema, message.BatchDirectory, message.BatchDirectoryName);
             batchInfo.TryRemoveDirectory();
             batchInfo.CreateDirectory();
 
@@ -65,53 +64,55 @@ namespace Dotmim.Sync
 
             var lstAllBatchPartInfos = new ConcurrentBag<BatchPartInfo>();
 
-            var threadNumberLimits = message.SupportsMultiActiveResultSets ? 8 : 1;
+            var threadNumberLimits = message.SupportsMultiActiveResultSets ? 16 : 1;
 
-            foreach (var syncTable in schemaTables)
-            //await schemaTables.ForEachAsync(async syncTable =>
+            if (message.SupportsMultiActiveResultSets)
             {
-                // tmp count of table for report progress pct
-                cptSyncTable++;
+                await schemaTables.ForEachAsync(async syncTable =>
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
 
-                // Only table schema is replicated, no datas are applied
-                if (syncTable.SyncDirection == SyncDirection.None)
-                    continue;
+                    // tmp count of table for report progress pct
+                    cptSyncTable++;
 
-                // if we are in upload stage, so check if table is not download only
-                if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
-                    continue;
+                    var (tableChangesSelected, syncTableBatchPartInfos) =
+                        await ReadSyncTableChangesAsync(context, syncTable, batchInfo, message, changesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // if we are in download stage, so check if table is not download only
-                if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
-                    continue;
+                    if (syncTableBatchPartInfos == null)
+                        return;
 
-                // Get Command
-                var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
+                    // Add sync table bpi to all bpi
+                    syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
 
-                if (selectIncrementalChangesCommand == null) 
-                    continue;
+                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);
 
-                // Set parameters
-                this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
-
-                var schemaChangesTable = DbSyncAdapter.CreateChangesTable(syncTable);
-
-                var (tableChangesSelected, syncTableBatchPartInfos) = await ReadSyncTableChangesAsync(context, batchInfo, schemaChangesTable, message.LocalSerializerFactory, message.BatchSize, selectIncrementalChangesCommand, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
-
-                // We don't report progress if no table changes is empty, to limit verbosity
-                if (tableChangesSelected != null && (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0))
-                    changesSelected.TableChangesSelected.Add(tableChangesSelected);
-
-                // even if no rows raise the interceptor
-                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, syncTableBatchPartInfos, schemaChangesTable, tableChangesSelected, connection, transaction);
-                await this.InterceptAsync(tableChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);
-
+                }, threadNumberLimits);
             }
-            //}, threadNumberLimits);
+            else
+            {
+                foreach (var syncTable in schemaTables)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        continue;
+
+                    // tmp count of table for report progress pct
+                    cptSyncTable++;
+
+                    var (tableChangesSelected, syncTableBatchPartInfos) =
+                        await ReadSyncTableChangesAsync(context, syncTable, batchInfo, message, changesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (syncTableBatchPartInfos == null)
+                        continue;
+
+                    // Add sync table bpi to all bpi
+                    syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
+
+                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);
+
+                }
+            }
+
 
             // delete all empty batchparts (empty tables)
             foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount <= 0))
@@ -154,18 +155,41 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(TableChangesSelected TableChangesSelected, List<BatchPartInfo> BatchPartInfos)> ReadSyncTableChangesAsync(SyncContext context,
-            BatchInfo batchInfo, SyncTable schemaChangesTable, ILocalSerializerFactory localSerializerFactory,
-            long batchSize, DbCommand dbCommand, DbConnection connection, DbTransaction transaction,
+        internal virtual async Task<(TableChangesSelected TableChangesSelected, List<BatchPartInfo> BatchPartInfos)> ReadSyncTableChangesAsync(
+            SyncContext context, SyncTable syncTable,
+            BatchInfo batchInfo, MessageGetChangesBatch message, DatabaseChangesSelected changesSelected, DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (cancellationToken.IsCancellationRequested)
                 return (null, null);
 
+            // Only table schema is replicated, no datas are applied
+            if (syncTable.SyncDirection == SyncDirection.None)
+                return (null, null);
+
+            // if we are in upload stage, so check if table is not download only
+            if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
+                return (null, null);
+
+            // if we are in download stage, so check if table is not download only
+            if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
+                return (null, null);
+
+            // Get Command
+            var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
+
+            if (selectIncrementalChangesCommand == null)
+                return (null, null);
+
+            // Set parameters
+            this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
+
+            var schemaChangesTable = DbSyncAdapter.CreateChangesTable(syncTable);
+
             // numbers of batch files generated
             var batchIndex = 0;
 
-            var localSerializer = localSerializerFactory.GetLocalSerializer();
+            var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
 
             var (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializer.Extension);
 
@@ -176,7 +200,7 @@ namespace Dotmim.Sync
             var syncTableBatchPartInfos = new List<BatchPartInfo>();
 
             // launch interceptor if any
-            var args = await this.InterceptAsync(new TableChangesSelectingArgs(context, schemaChangesTable, dbCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            var args = await this.InterceptAsync(new TableChangesSelectingArgs(context, schemaChangesTable, selectIncrementalChangesCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             if (!args.Cancel && args.Command != null)
             {
@@ -211,7 +235,7 @@ namespace Dotmim.Sync
                     var currentBatchSize = await localSerializer.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
                     // Next line if we don't reach the batch size yet.
-                    if (currentBatchSize <= batchSize)
+                    if (currentBatchSize <= message.BatchSize)
                         continue;
 
                     var bpi = GetNewBatchPartInfo(batchPartFileName, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatch, batchIndex);
@@ -253,26 +277,17 @@ namespace Dotmim.Sync
                 syncTableBatchPartInfos.Add(bpi2);
             }
 
+            // We don't report progress if no table changes is empty, to limit verbosity
+            if (tableChangesSelected != null && (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0))
+                changesSelected.TableChangesSelected.Add(tableChangesSelected);
+
+            // even if no rows raise the interceptor
+            var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, syncTableBatchPartInfos, syncTable, tableChangesSelected, connection, transaction);
+            await this.InterceptAsync(tableChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+
+
             return (tableChangesSelected, syncTableBatchPartInfos);
-        }
-
-        private static BatchPartInfo GetNewBatchPartInfo(string batchPartFileName, string tableName, string schemaName, int rowsCount, int batchIndex)
-        {
-            var bpi = new BatchPartInfo { FileName = batchPartFileName };
-
-            // Create the info on the batch part
-            BatchPartTableInfo tableInfo = new BatchPartTableInfo
-            {
-                TableName = tableName,
-                SchemaName = schemaName,
-                RowsCount = rowsCount
-
-            };
-            bpi.Tables = new BatchPartTableInfo[] { tableInfo };
-            bpi.RowsCount = rowsCount;
-            bpi.IsLastBatch = false;
-            bpi.Index = batchIndex;
-            return bpi;
         }
 
         /// <summary>
@@ -368,6 +383,27 @@ namespace Dotmim.Sync
             await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, changes);
+        }
+
+
+
+        private static BatchPartInfo GetNewBatchPartInfo(string batchPartFileName, string tableName, string schemaName, int rowsCount, int batchIndex)
+        {
+            var bpi = new BatchPartInfo { FileName = batchPartFileName };
+
+            // Create the info on the batch part
+            BatchPartTableInfo tableInfo = new BatchPartTableInfo
+            {
+                TableName = tableName,
+                SchemaName = schemaName,
+                RowsCount = rowsCount
+
+            };
+            bpi.Tables = new BatchPartTableInfo[] { tableInfo };
+            bpi.RowsCount = rowsCount;
+            bpi.IsLastBatch = false;
+            bpi.Index = batchIndex;
+            return bpi;
         }
 
         /// <summary>

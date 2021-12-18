@@ -2704,10 +2704,11 @@ namespace Dotmim.Sync.Tests
             var options = new SyncOptions
             {
                 SnapshotsDirectory = directory,
-                BatchSize = 3000
+                BatchSize = 3000,
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
+            Server.Provider.SupportsMultipleActiveResultSets = false;
 
             // ----------------------------------
             // Create a snapshot

@@ -84,7 +84,7 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetConnectionString("RegieProStaging"));
+        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
         //var clientProvider = new MariaDBSyncDownloadOnlyProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
         //var setup = new SyncSetup(regipro_tables)
         //{
@@ -94,28 +94,28 @@ internal class Program
         //var snapshotDirectory = Path.Combine("C:\\Tmp\\Snapshots");
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
-        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
+        //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var setup = new SyncSetup(new string[] { "ProductCategory" });
+        //var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
         //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("RegiePro"));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client"));
-        //var setup = new SyncSetup(regipro_tables);
-        //var options = new SyncOptions() { BatchSize = 10000, ProgressLevel = SyncProgressLevel.Information };
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("RegiePro"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client"));
+        var setup = new SyncSetup(regipro_tables);
+        var options = new SyncOptions() { BatchSize = 10000, ProgressLevel = SyncProgressLevel.Debug};
 
-        options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
+        //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
         //await ProvisionAsync(serverProvider, setup, options);
-        await CreateSnapshotAsync(serverProvider, setup, options);
+        //await CreateSnapshotAsync(serverProvider, setup, options);
         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
@@ -185,61 +185,60 @@ internal class Program
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
 
-        // This event is raised before selecting the changes for a particular table
-        // you still can change the DbCommand generated, if you need to
-        agent.RemoteOrchestrator.OnTableChangesSelecting(tcsa =>
-        {
-            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
-                $"Selecting rows from datasource {tcsa.Source}");
-        });
+        //// This event is raised before selecting the changes for a particular table
+        //// you still can change the DbCommand generated, if you need to
+        //agent.RemoteOrchestrator.OnTableChangesSelecting(tcsa =>
+        //{
+        //    Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
+        //        $"Selecting rows from datasource {tcsa.Source}");
+        //});
 
-        // This event is raised for each row read from the datasource.
-        // You can change the values of args.SyncRow if you need to.
-        // this row will be later serialized on disk
-        agent.RemoteOrchestrator.OnTableChangesSelectedSyncRow(args =>
-        {
-            args.SyncRow["Name"] = $"D{args.SyncRow["Name"]}";
-            Console.WriteLine(args.SyncRow);
+        //// This event is raised for each row read from the datasource.
+        //// You can change the values of args.SyncRow if you need to.
+        //// this row will be later serialized on disk
+        //agent.RemoteOrchestrator.OnTableChangesSelectedSyncRow(args =>
+        //{
+        //    Console.Write(".");
+        //});
 
-        });
+        //// The table is read. The batch parts infos are generated and already available on disk
+        //agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
+        //{
+        //    Console.WriteLine();
+        //    Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
+        //        $"Files generated count:{tcsa.BatchPartInfos.Count()}. " +
+        //        $"Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
+        //});
 
-        // The table is read. The batch parts infos are generated and already available on disk
-        agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
-        {
-            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
-                $"Files generated count:{tcsa.BatchPartInfos.Count()}. " +
-                $"Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
-        });
 
+        //// The table is read. The batch parts infos are generated and already available on disk
+        //agent.LocalOrchestrator.OnTableChangesSelected(async tcsa =>
+        //{
+        //    foreach (var bpi in tcsa.BatchPartInfos)
+        //    {
+        //        var table = await tcsa.BatchInfo.LoadBatchPartInfoAsync(bpi);
 
-        // The table is read. The batch parts infos are generated and already available on disk
-        agent.LocalOrchestrator.OnTableChangesSelected(async tcsa =>
-        {
-            foreach (var bpi in tcsa.BatchPartInfos)
-            {
-                var table = await tcsa.BatchInfo.LoadBatchPartInfoAsync(bpi);
+        //        foreach (var row in table.Rows.ToArray())
+        //        {
 
-                foreach (var row in table.Rows.ToArray())
-                {
-                   
-                }
+        //        }
 
-                await tcsa.BatchInfo.SaveBatchPartInfoAsync(bpi, table);
-            }
-        });
+        //        await tcsa.BatchInfo.SaveBatchPartInfoAsync(bpi, table);
+        //    }
+        //});
 
-        agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
-        {
-            foreach (var syncRow in args.SyncRows)
-                Console.WriteLine(syncRow);
-        });
+        //agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
+        //{
+        //    foreach (var syncRow in args.SyncRows)
+        //        Console.Write(".");
+        //});
         do
         {
             Console.Clear();
             Console.WriteLine("Sync start");
             try
             {
-                var s = await agent.SynchronizeAsync(SyncType.Normal, progress);
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
                 Console.WriteLine(s);
             }
             catch (SyncException e)

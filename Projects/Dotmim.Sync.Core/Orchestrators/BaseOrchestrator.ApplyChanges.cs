@@ -37,6 +37,8 @@ namespace Dotmim.Sync
             // Check if we have some data available
             var hasChanges = message.BatchInfo.HasData();
 
+            var threadNumberLimits = this.Provider.SupportsMultipleActiveResultSets ? 16 : 1;
+
             // if we have changes or if we are in re init mode
             if (hasChanges || context.SyncType != SyncType.Normal)
             {
@@ -75,11 +77,22 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 if (hasChanges)
                 {
-                    foreach (var table in schemaTables)
-                    {
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
-                            DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                    }
+                    //if (this.Provider.SupportsMultipleActiveResultSets && message.DisableConstraintsOnApplyChanges)
+                    //{
+                    //    await schemaTables.ForEachAsync(async table =>
+                    //        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                    //            DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false)
+                    //    , threadNumberLimits);
+                    //}
+                    //else
+                    //{
+                        foreach (var table in schemaTables)
+                        {
+                            await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                                DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                        }
+                    //}
+
                 }
 
                 // -----------------------------------------------------
@@ -87,21 +100,27 @@ namespace Dotmim.Sync
                 // -----------------------------------------------------
                 if (!message.IsNew && hasChanges)
                 {
-                    foreach (var table in schemaTables.Reverse())
-                    {
-                        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
-                            DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                    }
+                    //if (this.Provider.SupportsMultipleActiveResultSets && message.DisableConstraintsOnApplyChanges)
+                    //{
+                    //    await schemaTables.ForEachAsync(async table =>
+                    //        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                    //            DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false)
+                    //    , threadNumberLimits);
+                    //}
+                    //else
+                    //{
+                        foreach (var table in schemaTables.Reverse())
+                        {
+                            await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                                DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                        }
+                    //}
                 }
 
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
-                {
                     foreach (var table in schemaTables)
-                    {
                         await this.InternalEnableConstraintsAsync(context, this.GetSyncAdapter(table, message.Setup), connection, transaction).ConfigureAwait(false);
-                    }
-                }
 
                 // Dispose data
                 message.BatchInfo.Clear(false);

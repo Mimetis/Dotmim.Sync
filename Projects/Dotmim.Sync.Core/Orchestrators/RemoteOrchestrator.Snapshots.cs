@@ -166,15 +166,15 @@ namespace Dotmim.Sync
                 schema = await InternalProvisionAsync(this.syncContext, false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // 4) Getting the most accurate timestamp
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(this.syncContext, runner.Connection, runner.Transaction, cancellationToken, progress);
-
-
-                await runner.CommitAsync().ConfigureAwait(false);
+                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(this.syncContext, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // 5) Create the snapshot with
                 localSerializerFactory = localSerializerFactory == null ? new LocalJsonSerializerFactory() : localSerializerFactory;
 
-                var batchInfo = await this.InternalCreateSnapshotAsync(this.GetContext(), schema, this.Setup, localSerializerFactory, remoteClientTimestamp, cancellationToken, progress).ConfigureAwait(false);
+                var batchInfo = await this.InternalCreateSnapshotAsync(this.GetContext(), schema, this.Setup, localSerializerFactory, remoteClientTimestamp,
+                    runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
 
                 return batchInfo;
             }
@@ -186,7 +186,7 @@ namespace Dotmim.Sync
         }
 
         internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(SyncContext context, SyncSet schema, SyncSetup setup,
-              ILocalSerializerFactory localSerializerFactory, long remoteClientTimestamp,
+              ILocalSerializerFactory localSerializerFactory, long remoteClientTimestamp, DbConnection connection, DbTransaction transaction,
               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             await this.InterceptAsync(new SnapshotCreatingArgs(this.GetContext(), schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, this.Provider.CreateConnection(), null), progress, cancellationToken).ConfigureAwait(false);
@@ -207,20 +207,16 @@ namespace Dotmim.Sync
                 Directory.Delete(directoryFullPath, true);
 
             var message = new MessageGetChangesBatch(Guid.Empty, Guid.Empty, true, null, schema, this.Setup, this.Options.BatchSize,
-                directoryFullPath, this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
+                rootDirectory, nameDirectory, this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
 
             BatchInfo serverBatchInfo;
             DatabaseChangesSelected serverChangesSelected;
 
-            await using var runner = await this.GetConnectionAsync(SyncStage.SnapshotCreating, null, null, cancellationToken, progress).ConfigureAwait(false);
-
             (context, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(context, message, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalGetChangesAsync(context, message, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // since we explicitely defined remote client timestamp to null, to get all rows, just reaffect here
             serverBatchInfo.Timestamp = remoteClientTimestamp;
-
-            await runner.CommitAsync().ConfigureAwait(false);
 
             // Serialize on disk.
             var jsonConverter = new Serialization.JsonConverter<BatchInfo>();
