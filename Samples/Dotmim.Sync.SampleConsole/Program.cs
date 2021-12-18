@@ -95,10 +95,10 @@ internal class Program
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
         var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         var setup = new SyncSetup(new string[] { "ProductCategory" });
         var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
@@ -111,11 +111,11 @@ internal class Program
         //var setup = new SyncSetup(regipro_tables);
         //var options = new SyncOptions() { BatchSize = 10000, ProgressLevel = SyncProgressLevel.Information };
 
-        //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
+        options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
         //await ProvisionAsync(serverProvider, setup, options);
-        //await CreateSnapshotAsync(serverProvider, setup, options);
+        await CreateSnapshotAsync(serverProvider, setup, options);
         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
@@ -184,21 +184,48 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
 
-        agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
-        {
-            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: Files generated count:{tcsa.BatchPartInfos.Count()}. Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
-        });
 
+        // This event is raised before selecting the changes for a particular table
+        // you still can change the DbCommand generated, if you need to
         agent.RemoteOrchestrator.OnTableChangesSelecting(tcsa =>
         {
-            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: Selecting rows from datasource {tcsa.Source}");
+            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
+                $"Selecting rows from datasource {tcsa.Source}");
         });
 
+        // This event is raised for each row read from the datasource.
+        // You can change the values of args.SyncRow if you need to.
+        // this row will be later serialized on disk
         agent.RemoteOrchestrator.OnTableChangesSelectedSyncRow(args =>
         {
             args.SyncRow["Name"] = $"D{args.SyncRow["Name"]}";
             Console.WriteLine(args.SyncRow);
 
+        });
+
+        // The table is read. The batch parts infos are generated and already available on disk
+        agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
+        {
+            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
+                $"Files generated count:{tcsa.BatchPartInfos.Count()}. " +
+                $"Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
+        });
+
+
+        // The table is read. The batch parts infos are generated and already available on disk
+        agent.LocalOrchestrator.OnTableChangesSelected(async tcsa =>
+        {
+            foreach (var bpi in tcsa.BatchPartInfos)
+            {
+                var table = await tcsa.BatchInfo.LoadBatchPartInfoAsync(bpi);
+
+                foreach (var row in table.Rows.ToArray())
+                {
+                   
+                }
+
+                await tcsa.BatchInfo.SaveBatchPartInfoAsync(bpi, table);
+            }
         });
 
         agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>

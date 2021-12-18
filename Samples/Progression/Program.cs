@@ -73,22 +73,30 @@ namespace Progression
             // we can have all the batch part infos generated
             agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
             {
-                Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: Files generated count:{tcsa.BatchPartInfos.Count()}. Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
+                Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
+                    $"Files generated count:{tcsa.BatchPartInfos.Count()}. " +
+                    $"Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
             });
 
 
+            // This event is raised when a table is applying some rows, available on the disk
             agent.LocalOrchestrator.OnTableChangesApplying(args =>
             {
-                Console.WriteLine($"Table {args.SchemaTable.GetFullName()}: Applying changes from {args.BatchPartInfos.Count()} files. {args.BatchPartInfos.Sum(bpi => bpi.RowsCount)} rows.");
+                Console.WriteLine($"Table {args.SchemaTable.GetFullName()}: " +
+                    $"Applying changes from {args.BatchPartInfos.Count()} files. " +
+                    $"{args.BatchPartInfos.Sum(bpi => bpi.RowsCount)} rows.");
             });
 
-            // You can change something to the rows before they are applied
+            // This event is raised for each batch rows (maybe 1 or more in each batch)
+            // that will be applied on the datasource
+            // You can change something to the rows before they are applied here
             agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
             {
                 foreach (var syncRow in args.SyncRows)
                     Console.Write(".");
             });
 
+            // This event is raised once all rows for a table have been applied
             agent.LocalOrchestrator.OnTableChangesApplied(args =>
             {
                 Console.WriteLine();
