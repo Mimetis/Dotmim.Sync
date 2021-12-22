@@ -65,7 +65,7 @@ namespace Dotmim.Sync
             this.SyncRow = syncRow;
             this.SchemaTable = schemaTable;
         }
-        public SyncRow SyncRow { get; }
+        public SyncRow SyncRow { get; set; }
 
         /// <summary>
         /// Gets the table schema

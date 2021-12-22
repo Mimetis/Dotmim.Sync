@@ -99,18 +99,21 @@ internal class Program
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
         //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
         //var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
         //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("RegiePro"));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client"));
-        var setup = new SyncSetup(regipro_tables);
-        var options = new SyncOptions() { BatchSize = 10000, ProgressLevel = SyncProgressLevel.Debug};
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var setup = new SyncSetup(regipro_tables);
+        var options = new SyncOptions();
 
+        var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
+        var logger = loggerFactory.CreateLogger("Dotmim.Sync");
+        options.Logger = logger;
         //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
@@ -211,6 +214,42 @@ internal class Program
         //});
 
 
+        agent.LocalOrchestrator.OnTableChangesSelectedSyncRow(args =>
+        {
+            if (args.SyncRow.RowState == DataRowState.Deleted)
+                args.SyncRow = null;
+        });
+
+        agent.RemoteOrchestrator.OnTableChangesApplyingSyncRows(async args =>
+        {
+            if (args.SchemaTable.TableName == "ProductCategory")
+            {
+                var cmd = args.Connection.CreateCommand();
+                cmd.CommandText = "Select count(*) from ProductCategory_tracking where ProductCategoryID = @ProductCategoryID";
+                cmd.Connection = args.Connection;
+                cmd.Transaction = args.Transaction;
+                var p = cmd.CreateParameter();
+                p.DbType = DbType.Guid;
+                p.ParameterName = "@ProductCategoryID";
+                cmd.Parameters.Add(p);
+
+                foreach (var row in args.SyncRows.ToArray())
+                {
+                    if (row.RowState == DataRowState.Modified)
+                    {
+                        cmd.Parameters[0].Value = new Guid(row["ProductCategoryID"].ToString());
+                        var alreadyExists = await cmd.ExecuteScalarAsync();
+
+                        if ((int)alreadyExists == 1)
+                        {
+                            args.SyncRows.Remove(row);
+                        }
+                    }
+                }
+
+            }
+        });
+
         //// The table is read. The batch parts infos are generated and already available on disk
         //agent.LocalOrchestrator.OnTableChangesSelected(async tcsa =>
         //{
@@ -238,7 +277,7 @@ internal class Program
             Console.WriteLine("Sync start");
             try
             {
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, progress);
+                var s = await agent.SynchronizeAsync(SyncType.Normal, progress);
                 Console.WriteLine(s);
             }
             catch (SyncException e)
@@ -1353,11 +1392,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress = new SynchronousProgress<ProgressArgs>(s =>
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
-                    Console.ResetColor();
-                });
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
+                Console.ResetColor();
+            });
 
                     var s = await agent.SynchronizeAsync(progress);
                     Console.WriteLine(s);
@@ -1367,11 +1406,11 @@ internal class Program
 
                     // Using the Progress pattern to handle progession during the synchronization
                     var progress2 = new SynchronousProgress<ProgressArgs>(s =>
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkGreen;
-                    Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
-                    Console.ResetColor();
-                });
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Source}:\t{s.Message}");
+                Console.ResetColor();
+            });
                     s = await agent2.SynchronizeAsync(progress2);
                     Console.WriteLine(s);
                 }
