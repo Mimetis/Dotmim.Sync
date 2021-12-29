@@ -42,22 +42,23 @@ namespace Dotmim.Sync
         {
             try
             {
+
                 await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Check incompatibility with the flags
                 if (provision.HasFlag(SyncProvision.ClientScope))
                     throw new InvalidProvisionForRemoteOrchestratorException();
 
-                // Get server scope if not supplied
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
                 if (serverScopeInfo == null)
                 {
-                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
                     var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                     if (exists)
                         serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                var schema = new SyncSet(this.Setup);
+
+                var schema = serverScopeInfo?.Schema != null ? serverScopeInfo?.Schema : new SyncSet(this.Setup);
                 schema = await InternalProvisionAsync(this.GetContext(), overwrite, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);

@@ -99,7 +99,7 @@ internal class Program
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
         //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var setup = new SyncSetup(new string[] { "Product" });
         //var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
@@ -183,9 +183,53 @@ internal class Program
             Console.ResetColor();
         });
 
+        setup = new SyncSetup(new string[] { "Product" });
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // get scope based on the setup 
+        // getting the scope will provision the database
+        // so we will need to deprovision - provision again
+        var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+
+        // Optional Create table on client if not exists
+
+        await agent.LocalOrchestrator.ProvisionAsync(serverScope.Schema, SyncProvision.Table);
+
+        var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+
+        // Deprovision the scope because we want to replace it after
+        await agent.RemoteOrchestrator.DeprovisionAsync(
+            SyncProvision.StoredProcedures | 
+            SyncProvision.TrackingTable | 
+            SyncProvision.Triggers);
+
+        var schema = serverScope.Schema;
+
+
+        // Removing the primary key that is a auto inc column
+        schema.Tables[0].PrimaryKeys.Clear();
+        
+        // Removing the primary key as a column as well
+        schema.Tables[0].Columns.Remove(
+            serverScope.Schema.Tables[0].Columns.First(c => c.ColumnName == "ProductID"));
+
+        // Add the unique identifier as primary key
+        schema.Tables[0].PrimaryKeys.Add("rowguid");
+
+        // affect temporary schema for provisioning
+        serverScope.Schema = schema;
+        clientScope.Schema = schema;
+
+        // Provision
+        await agent.RemoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures |
+            SyncProvision.TrackingTable |
+            SyncProvision.Triggers, true, serverScope);
+
+        await agent.LocalOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures |
+            SyncProvision.TrackingTable |
+            SyncProvision.Triggers, true, clientScope);
 
 
         //// This event is raised before selecting the changes for a particular table
@@ -214,41 +258,7 @@ internal class Program
         //});
 
 
-        agent.LocalOrchestrator.OnTableChangesSelectedSyncRow(args =>
-        {
-            if (args.SyncRow.RowState == DataRowState.Deleted)
-                args.SyncRow = null;
-        });
 
-        agent.RemoteOrchestrator.OnTableChangesApplyingSyncRows(async args =>
-        {
-            if (args.SchemaTable.TableName == "ProductCategory")
-            {
-                var cmd = args.Connection.CreateCommand();
-                cmd.CommandText = "Select count(*) from ProductCategory_tracking where ProductCategoryID = @ProductCategoryID";
-                cmd.Connection = args.Connection;
-                cmd.Transaction = args.Transaction;
-                var p = cmd.CreateParameter();
-                p.DbType = DbType.Guid;
-                p.ParameterName = "@ProductCategoryID";
-                cmd.Parameters.Add(p);
-
-                foreach (var row in args.SyncRows.ToArray())
-                {
-                    if (row.RowState == DataRowState.Modified)
-                    {
-                        cmd.Parameters[0].Value = new Guid(row["ProductCategoryID"].ToString());
-                        var alreadyExists = await cmd.ExecuteScalarAsync();
-
-                        if ((int)alreadyExists == 1)
-                        {
-                            args.SyncRows.Remove(row);
-                        }
-                    }
-                }
-
-            }
-        });
 
         //// The table is read. The batch parts infos are generated and already available on disk
         //agent.LocalOrchestrator.OnTableChangesSelected(async tcsa =>

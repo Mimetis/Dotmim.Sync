@@ -38,8 +38,12 @@ namespace Dotmim.Sync
         /// Provision the local database based on the orchestrator setup, and the provision enumeration
         /// </summary>
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        public virtual Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => this.ProvisionAsync(new SyncSet(this.Setup), provision, overwrite, clientScopeInfo, connection, transaction, cancellationToken, progress);
+        public virtual async Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var schema = clientScopeInfo?.Schema != null ? clientScopeInfo.Schema : new SyncSet(this.Setup);
+
+            return await this.ProvisionAsync(schema, provision, overwrite, clientScopeInfo, connection, transaction, cancellationToken, progress);
+        }
 
 
         /// <summary>
@@ -69,6 +73,9 @@ namespace Dotmim.Sync
                     if (exists)
                         clientScopeInfo = await this.InternalGetScopeAsync<ScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
+
+                if (clientScopeInfo?.Schema != null && schema == null)
+                    schema = clientScopeInfo.Schema;
 
                 schema = await InternalProvisionAsync(this.GetContext(), overwrite, schema, this.Setup, provision, clientScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 

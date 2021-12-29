@@ -204,7 +204,7 @@ namespace Dotmim.Sync
                 changesTable.PrimaryKeys.Add(pkey);
 
             // get ordered columns that are mutables and pkeys
-            var orderedNames = syncTable.GetMutableColumnsWithPrimaryKeys();
+            var orderedNames = syncTable.GetMutableColumns(false, true);
 
             foreach (var c in orderedNames)
                 changesTable.Columns.Add(c.Clone());

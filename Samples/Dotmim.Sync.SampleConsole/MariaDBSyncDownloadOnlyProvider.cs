@@ -235,7 +235,7 @@ namespace Dotmim.Sync.SampleConsole
             var allColumnsValuesString = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
             {
                 var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
@@ -275,7 +275,7 @@ namespace Dotmim.Sync.SampleConsole
             var allColumnsString = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
             {
                 var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 allColumnsString.Append($"{empty}{mutableColumnName}");
@@ -291,7 +291,7 @@ namespace Dotmim.Sync.SampleConsole
             {
                 stringBuilder.Append($"{commaValues}(");
                 empty = "";
-                foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+                foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
                 {
                     var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
                     stringBuilder.Append($"{empty}@p{i}_{parameterColumnName}");

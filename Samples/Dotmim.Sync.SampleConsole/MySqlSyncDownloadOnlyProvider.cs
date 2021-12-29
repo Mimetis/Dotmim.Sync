@@ -144,7 +144,7 @@ namespace Dotmim.Sync.SampleConsole
             var setUpdateAllColumnsString = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
             {
                 var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();

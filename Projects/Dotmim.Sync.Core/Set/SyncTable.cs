@@ -218,14 +218,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get all columns that can be queried
         /// </summary>
-        public IEnumerable<SyncColumn> GetMutableColumnsWithPrimaryKeys()
-        {
-            foreach (var column in this.Columns.OrderBy(c => c.Ordinal))
-            {
-                if (!column.IsCompute && !column.IsReadOnly)
-                    yield return column;
-            }
-        }
+        //public IEnumerable<SyncColumn> GetMutableColumnsWithPrimaryKeys()
+        //{
+        //    foreach (var column in this.Columns.OrderBy(c => c.Ordinal))
+        //    {
+        //        if (!column.IsCompute && !column.IsReadOnly)
+        //            yield return column;
+        //    }
+        //}
 
         /// <summary>
         /// Get all columns that are Primary keys, based on the names we have in PrimariKeys property
