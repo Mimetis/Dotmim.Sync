@@ -28,6 +28,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public static DateTime SqlDateMin = new DateTime(1753, 1, 1);
 
+        public static DateTime SqlSmallDateMin = new DateTime(1900, 1, 1);
         public SqlObjectNames SqlObjectNames { get; set; }
         public SqlDbMetadata SqlMetadata { get; set; }
 
@@ -169,14 +170,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.SmallDateTime:
                                     if (columnType != typeof(DateTime))
                                         rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
-                                    if (rowValue < SqlDateMin)
+                                    if (sqlMetadataType == SqlDbType.DateTime && rowValue < SqlDateMin)
                                         rowValue = SqlDateMin;
+                                    if (sqlMetadataType == SqlDbType.SmallDateTime && rowValue < SqlSmallDateMin)
+                                        rowValue = SqlSmallDateMin;
                                     break;
                                 case SqlDbType.DateTimeOffset:
                                     if (columnType != typeof(DateTimeOffset))
                                         rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
-                                    if (rowValue < SqlDateMin)
-                                        rowValue = SqlDateMin;
                                     break;
                                 case SqlDbType.Decimal:
                                     if (columnType != typeof(decimal))
