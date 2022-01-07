@@ -84,8 +84,8 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
-        //var clientProvider = new MariaDBSyncDownloadOnlyProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
+        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Server"));
+        //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
         //var setup = new SyncSetup(regipro_tables)
         //{
         //    TrackingTablesPrefix = "_sync_",
@@ -94,26 +94,27 @@ internal class Program
         //var snapshotDirectory = Path.Combine("C:\\Tmp\\Snapshots");
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
-        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(new string[] { "Product" });
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup(new string[] { "ProductCategory" });
         //var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
         //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var setup = new SyncSetup(regipro_tables);
         var options = new SyncOptions();
 
-        var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
-        var logger = loggerFactory.CreateLogger("Dotmim.Sync");
-        options.Logger = logger;
+        //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
+        //var logger = loggerFactory.CreateLogger("Dotmim.Sync");
+        //options.Logger = logger;
         //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
@@ -121,11 +122,8 @@ internal class Program
         //await CreateSnapshotAsync(serverProvider, setup, options);
         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
-
-
-
+        
     }
-
     private static async Task GetChangesAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
         //var options = new SyncOptions();
@@ -183,6 +181,46 @@ internal class Program
             Console.ResetColor();
         });
 
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        do
+        {
+            Console.Clear();
+            Console.WriteLine("Sync start");
+            try
+            {
+                var s = await agent.SynchronizeAsync(SyncType.Normal, progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+    }
+
+
+
+    private static async Task SynchronizeAsyncAndChangeTrackingKey(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
+    {
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
         setup = new SyncSetup(new string[] { "Product" });
 
         // Creating an agent that will handle all the process
@@ -193,29 +231,31 @@ internal class Program
         // so we will need to deprovision - provision again
         var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
 
-        // Optional Create table on client if not exists
-
+        // [Optional] Create table on client if not exists
         await agent.LocalOrchestrator.ProvisionAsync(serverScope.Schema, SyncProvision.Table);
 
+        // Get client scope
         var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
 
-        // Deprovision the scope because we want to replace it after
+        // Deprovision the server scope because it has been created
+        // And we want to replace all the metadatas where PK are used
         await agent.RemoteOrchestrator.DeprovisionAsync(
-            SyncProvision.StoredProcedures | 
-            SyncProvision.TrackingTable | 
+            SyncProvision.StoredProcedures |
+            SyncProvision.TrackingTable |
             SyncProvision.Triggers);
 
+        // get the schema and create a tmp Fake schema with another primary key
         var schema = serverScope.Schema;
-
 
         // Removing the primary key that is a auto inc column
         schema.Tables[0].PrimaryKeys.Clear();
-        
+
         // Removing the primary key as a column as well
+        // This column will never be synced anymore
         schema.Tables[0].Columns.Remove(
             serverScope.Schema.Tables[0].Columns.First(c => c.ColumnName == "ProductID"));
 
-        // Add the unique identifier as primary key
+        // Add the NEW unique identifier as fake primary key
         schema.Tables[0].PrimaryKeys.Add("rowguid");
 
         // affect temporary schema for provisioning
@@ -232,21 +272,21 @@ internal class Program
             SyncProvision.Triggers, true, clientScope);
 
 
-        //// This event is raised before selecting the changes for a particular table
-        //// you still can change the DbCommand generated, if you need to
-        //agent.RemoteOrchestrator.OnTableChangesSelecting(tcsa =>
-        //{
-        //    Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
-        //        $"Selecting rows from datasource {tcsa.Source}");
-        //});
+        // This event is raised before selecting the changes for a particular table
+        // you still can change the DbCommand generated, if you need to
+        agent.RemoteOrchestrator.OnTableChangesSelecting(tcsa =>
+        {
+            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
+                $"Selecting rows from datasource {tcsa.Source}");
+        });
 
-        //// This event is raised for each row read from the datasource.
-        //// You can change the values of args.SyncRow if you need to.
-        //// this row will be later serialized on disk
-        //agent.RemoteOrchestrator.OnTableChangesSelectedSyncRow(args =>
-        //{
-        //    Console.Write(".");
-        //});
+        // This event is raised for each row read from the datasource.
+        // You can change the values of args.SyncRow if you need to.
+        // this row will be later serialized on disk
+        agent.RemoteOrchestrator.OnTableChangesSelected(args =>
+        {
+            Console.Write(".");
+        });
 
         //// The table is read. The batch parts infos are generated and already available on disk
         //agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>

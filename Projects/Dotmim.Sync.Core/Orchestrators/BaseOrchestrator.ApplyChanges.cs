@@ -235,7 +235,7 @@ namespace Dotmim.Sync
                             if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 continue;
                         }
-                        var failedPrimaryKeysTable = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName];
+                        var failedRows = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName];
 
                         command.CommandText = cmdText;
                         var batchArgs = new TableChangesApplyingSyncRowsArgs(context, message.BatchInfo, batchRows, schemaChangesTable, applyType, command, connection, transaction);
@@ -250,18 +250,21 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                         // execute the batch, through the provider
-                        await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, failedPrimaryKeysTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
+                        await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, failedRows, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
 
-                        // Get local and remote row and create the conflict object
-                        foreach (var failedRow in failedPrimaryKeysTable.Rows)
-                        {
-                            // Get the row that caused the problem, from the opposite side (usually client)
-                            var remoteConflictRow = SyncRows.GetRowByPrimaryKeys(failedRow, batchRows, schemaChangesTable);
-                            conflictRows.Add(remoteConflictRow);
-                        }
+                        //// Get local and remote row and create the conflict object
+                        //foreach (var failedRow in failedRows.Rows)
+                        //{
+                        //    // Get the row that caused the conflict
+                        //    var remoteConflictRow = SyncRows.GetRowByPrimaryKeys(failedRow, batchRows, schemaChangesTable);
+                        //    conflictRows.Add(remoteConflictRow);
+                        //}
+
+                        foreach(var failedRow in failedRows.Rows)
+                            conflictRows.Add(failedRow);
 
                         //rows minus failed rows
-                        appliedRowsTmp += batchRows.Count - failedPrimaryKeysTable.Rows.Count;
+                        appliedRowsTmp += batchRows.Count - failedRows.Rows.Count;
                         batchRows.Clear();
                     }
                     else

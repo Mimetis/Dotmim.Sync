@@ -243,10 +243,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("--Select all ids not inserted / deleted / updated as conflict");
             stringBuilder.Append("SELECT ");
             var pkeyComma = " ";
-            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+            
+            foreach (var column in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}{cc}");
+                var cc = ParserName.Parse(column).Quoted().ToString();
+                stringBuilder.Append($"{pkeyComma}[t].{cc}");
                 pkeyComma = " ,";
             }
 
