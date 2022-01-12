@@ -21,37 +21,33 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
-        /// <param name="provider"></param>
         public WebServerOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
-            : base(provider, options, setup, scopeName)
-        {
-            this.WebServerOptions = webServerOptions ?? new WebServerOptions();
-        }
+            : base(provider, options, setup, scopeName) => this.WebServerOptions = webServerOptions ?? new WebServerOptions();
+
         public WebServerOrchestrator(CoreProvider provider, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
             : this(provider, new SyncOptions(), new SyncSetup(tables), new WebServerOptions(), scopeName)
         {
         }
+
+        /// Client Converter
+        private IConverter clientConverter;
 
         /// <summary>
         /// Gets or Sets Web server options parameters
         /// </summary>
         public WebServerOptions WebServerOptions { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the Client Converter
-        /// </summary>
-        public IConverter ClientConverter { get; private set; }
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public Task HandleRequestAsync(HttpContext context, CancellationToken token = default, IProgress<ProgressArgs> progress = null) =>
+        public virtual Task HandleRequestAsync(HttpContext context, CancellationToken token = default, IProgress<ProgressArgs> progress = null) =>
             HandleRequestAsync(context, null, token, progress);
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public async Task HandleRequestAsync(HttpContext httpContext, Action<RemoteOrchestrator> action, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        public virtual async Task HandleRequestAsync(HttpContext httpContext, Action<RemoteOrchestrator> action, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var httpRequest = httpContext.Request;
             var httpResponse = httpContext.Response;
@@ -134,7 +130,7 @@ namespace Dotmim.Sync.Web.Server
                 // Get converter used by client
                 // Can be null
                 var clientConverter = this.GetClientConverter(cliConverterKey);
-                this.ClientConverter = clientConverter;
+                this.clientConverter = clientConverter;
 
                 byte[] binaryData = null;
                 switch (step)
@@ -252,7 +248,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Ensure we have a Compression setting or not
         /// </summary>
-        private byte[] EnsureCompression(HttpRequest httpRequest, HttpResponse httpResponse, byte[] binaryData)
+        public virtual byte[] EnsureCompression(HttpRequest httpRequest, HttpResponse httpResponse, byte[] binaryData)
         {
             string encoding = httpRequest.Headers["Accept-Encoding"];
 
@@ -278,7 +274,10 @@ namespace Dotmim.Sync.Web.Server
             return binaryData;
         }
 
-        private (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString)
+        /// <summary>
+        /// Returns the serializer used by the client, that should be used on the server
+        /// </summary>
+        public virtual (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString)
         {
             try
             {
@@ -301,7 +300,10 @@ namespace Dotmim.Sync.Web.Server
             }
         }
 
-        private IConverter GetClientConverter(string cliConverterKey)
+        /// <summary>
+        /// Returns the converter used by the client, that should be used on the server
+        /// </summary>
+        public virtual IConverter GetClientConverter(string cliConverterKey)
         {
             try
             {
@@ -318,7 +320,6 @@ namespace Dotmim.Sync.Web.Server
             }
         }
 
-
         /// <summary>
         /// Get Scope Name sent by the client
         /// </summary>
@@ -334,6 +335,9 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public static HttpStep GetCurrentStep(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out var val) ? (HttpStep)Convert.ToInt32(val) : HttpStep.None;
 
+        /// <summary>
+        /// Get an header value
+        /// </summary>
         public static bool TryGetHeaderValue(IHeaderDictionary n, string key, out string header)
         {
             if (n.TryGetValue(key, out var vs))
@@ -346,7 +350,7 @@ namespace Dotmim.Sync.Web.Server
             return false;
         }
 
-        internal async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
+        internal protected virtual async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
                                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             if (httpMessage == null)
@@ -370,8 +374,7 @@ namespace Dotmim.Sync.Web.Server
             return httpResponse;
         }
 
-
-        internal async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
+        internal protected virtual async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
 
@@ -401,7 +404,7 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-        internal async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -431,7 +434,7 @@ namespace Dotmim.Sync.Web.Server
             return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
         }
 
-        internal async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
+        internal protected virtual async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get context from request message
@@ -455,7 +458,7 @@ namespace Dotmim.Sync.Web.Server
             return changesResponse;
         }
 
-        internal async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal protected virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Check schema.
@@ -489,7 +492,7 @@ namespace Dotmim.Sync.Web.Server
             return summaryResponse;
         }
 
-        private async Task<SyncSet> EnsureSchemaFromSessionAsync(HttpContext httpContext, string scopeName, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        internal protected virtual async Task<SyncSet> EnsureSchemaFromSessionAsync(HttpContext httpContext, string scopeName, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             var schema = httpContext.Session.Get<SyncSet>(scopeName);
 
@@ -505,7 +508,7 @@ namespace Dotmim.Sync.Web.Server
             return schema;
         }
 
-        internal async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal protected virtual async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Check schema.
@@ -548,10 +551,7 @@ namespace Dotmim.Sync.Web.Server
             return await GetChangesResponseAsync(httpContext, ctx, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
         }
 
-        /// <summary>
-        /// Get changes from 
-        /// </summary>
-        internal async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        internal protected virtual async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Overriding batch size options value, coming from client
@@ -598,8 +598,8 @@ namespace Dotmim.Sync.Web.Server
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
 
                 // If client has made a conversion on each line, apply the reverse side of it
-                if (this.ClientConverter != null)
-                    AfterDeserializedRows(containerTable, schemaTable, this.ClientConverter);
+                if (this.clientConverter != null)
+                    AfterDeserializedRows(containerTable, schemaTable, this.clientConverter);
 
                 // open the file and write table header
                 await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
@@ -711,10 +711,7 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-        /// <summary>
-        /// This method is only used when batch mode is enabled on server and we need to send back mor BatchPartInfo 
-        /// </summary>
-        internal Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
+        internal protected virtual Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             return GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
@@ -722,10 +719,7 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
         }
 
-        /// <summary>
-        /// Create a response message content based on a requested index in a server batch info
-        /// </summary>
-        private async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
+        internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext syncContext, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
             var schema = await EnsureSchemaFromSessionAsync(httpContext, syncContext.ScopeName, default, default).ConfigureAwait(false);
@@ -771,8 +765,8 @@ namespace Dotmim.Sync.Web.Server
                 containerTable.Rows.Add(row.ToArray());
 
             // if client request a conversion on each row, apply the conversion
-            if (this.ClientConverter != null && containerTable.HasRows)
-                BeforeSerializeRows(containerTable, schemaTable, this.ClientConverter);
+            if (this.clientConverter != null && containerTable.HasRows)
+                BeforeSerializeRows(containerTable, schemaTable, this.clientConverter);
 
             // generate the response
             changesResponse.Changes = containerSet;
@@ -785,11 +779,7 @@ namespace Dotmim.Sync.Web.Server
             return changesResponse;
         }
 
-
-        /// <summary>
-        /// This method is only used when batch mode is enabled on server and we need send to the server the order to delete tmp folder 
-        /// </summary>
-        internal async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
+        internal protected virtual async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessage.BatchIndexRequested);
@@ -813,7 +803,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Before serializing all rows, call the converter for each row
         /// </summary>
-        public void BeforeSerializeRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
+        public virtual void BeforeSerializeRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
         {
             if (table.Rows.Count > 0)
             {
@@ -825,7 +815,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// After deserializing all rows, call the converter for each row
         /// </summary>
-        public void AfterDeserializedRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
+        public virtual void AfterDeserializedRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
         {
             if (table.Rows.Count > 0)
             {
@@ -838,7 +828,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Write exception to output message
         /// </summary>
-        public async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception ex, string additionalInfo = null)
+        public virtual async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception ex, string additionalInfo = null)
         {
             // Check if it's an unknown error, not managed (yet)
             if (!(ex is SyncException syncException))
@@ -1034,7 +1024,6 @@ namespace Dotmim.Sync.Web.Server
 
 
         }
-
 
     }
 }
