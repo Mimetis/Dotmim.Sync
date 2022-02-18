@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 return await this.InternalGetLocalTimestampAsync(this.GetContext(), runner.Connection, runner.Transaction, cancellationToken, progress);
             }
             catch (Exception ex)

@@ -74,7 +74,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Output
                 long clientTimestamp = 0L;
                 BatchInfo clientBatchInfo = null;
@@ -143,7 +143,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Get local scope, if not provided 
                 if (localScopeInfo == null)
                 {
@@ -224,7 +224,7 @@ namespace Dotmim.Sync
                 DatabaseChangesApplied clientChangesApplied;
 
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var ctx = this.GetContext();
                 ctx.SyncWay = SyncWay.Download;
 
@@ -326,7 +326,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // If schema does not have any table, just return
                 if (newSchema == null || newSchema.Tables == null || !newSchema.HasTables)
                     throw new MissingTablesException();

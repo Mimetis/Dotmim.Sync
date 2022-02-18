@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 List<ServerHistoryScopeInfo> serverHistoryScopes = null;
 
                 // Get Scope Builder
@@ -57,7 +57,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 ServerScopeInfo serverScopeInfo = null;
 
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -121,7 +121,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -148,7 +148,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);

@@ -14,10 +14,11 @@ namespace Dotmim.Sync
     public static class DbConnectionRunnerExtensions
     {
         public static async Task<DbConnectionRunner> GetConnectionAsync(this BaseOrchestrator orchestrator,
+                                SyncMode syncMode = SyncMode.Writing,
                                 SyncStage syncStage = SyncStage.None,
                                 DbConnection connection = default,
                                 DbTransaction transaction = default,
-                                CancellationToken cancellationToken = default, 
+                                CancellationToken cancellationToken = default,
                                 IProgress<ProgressArgs> progress = default)
         {
             if (connection == null)
@@ -35,7 +36,7 @@ namespace Dotmim.Sync
                 await orchestrator.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
 
             // Create a transaction
-            if (!alreadyInTransaction)
+            if (!alreadyInTransaction && syncMode == SyncMode.Writing)
             {
                 transaction = connection.BeginTransaction(orchestrator.Provider.IsolationLevel);
                 await orchestrator.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -73,11 +74,13 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task CommitAsync(bool autoClose = true)
         {
-            await this.Orchestrator.InterceptAsync(
-                new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
-
             if (!this.AlreadyInTransaction && this.Transaction != null)
+            {
+                await this.Orchestrator.InterceptAsync(
+                    new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
+
                 this.Transaction.Commit();
+            }
 
             if (autoClose)
                 await CloseAsync();

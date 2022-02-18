@@ -43,7 +43,7 @@ namespace Dotmim.Sync
             try
             {
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Check incompatibility with the flags
                 if (provision.HasFlag(SyncProvision.ClientScope))
                     throw new InvalidProvisionForRemoteOrchestratorException();
@@ -91,7 +91,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Get server scope if not supplied
                 if (serverScopeInfo == null)
                 {

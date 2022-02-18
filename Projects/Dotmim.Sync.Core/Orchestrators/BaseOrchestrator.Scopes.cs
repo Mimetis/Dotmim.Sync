@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 bool hasBeenCreated = false;
 
                 // Get table builder
@@ -58,7 +58,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var scopeBuilder = this.GetScopeBuilder(scopeInfoTableName);
                 var exists = await InternalExistsScopeInfoTableAsync(this.GetContext(), scopeType, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 await runner.CommitAsync().ConfigureAwait(false);

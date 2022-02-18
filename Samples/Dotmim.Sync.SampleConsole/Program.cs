@@ -94,12 +94,12 @@ internal class Program
         //var snapshotDirectory = Path.Combine("C:\\Tmp\\Snapshots");
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(allTables);
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var setup = new SyncSetup(allTables);
         //var setup = new SyncSetup(new string[] { "ProductCategory" });
         //var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
@@ -110,7 +110,7 @@ internal class Program
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var setup = new SyncSetup(regipro_tables);
-        var options = new SyncOptions();
+        //var options = new SyncOptions();
 
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
         //var logger = loggerFactory.CreateLogger("Dotmim.Sync");
@@ -120,10 +120,12 @@ internal class Program
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
         //await ProvisionAsync(serverProvider, setup, options);
         //await CreateSnapshotAsync(serverProvider, setup, options);
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
-        
+
+        await SynchronizeHeavyTableAsync();
     }
+
     private static async Task GetChangesAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
         //var options = new SyncOptions();
@@ -860,7 +862,7 @@ internal class Program
         var tables = new string[] { "Customer" };
         var setup = new SyncSetup(tables);
 
-        var options = new SyncOptions { BatchSize = 3000 };
+        var options = new SyncOptions { BatchSize = 10240 };
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>

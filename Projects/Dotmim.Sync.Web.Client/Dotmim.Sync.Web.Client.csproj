@@ -17,7 +17,7 @@
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
-		<Version>0.9.3</Version>
+		<Version>0.9.4</Version>
 		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
@@ -35,20 +35,20 @@
 	</PropertyGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">
-		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.14" />
 	</ItemGroup>
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)' ">
-		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="6.0.0-preview.4.21253.5" />
 	</ItemGroup>
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
-		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="3.1.22" />
 	</ItemGroup>
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-		<PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.8" />
 		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.2.0" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.8" />
 		<ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
 	</ItemGroup>

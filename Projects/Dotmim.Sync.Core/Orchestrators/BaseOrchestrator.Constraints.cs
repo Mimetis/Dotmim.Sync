@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
@@ -44,7 +44,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);
@@ -66,7 +66,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var schemaTable = new SyncTable(table.TableName, table.SchemaName);
                 var syncAdapter = this.GetSyncAdapter(schemaTable, this.Setup);

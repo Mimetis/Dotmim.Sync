@@ -145,7 +145,7 @@ namespace CustomProvider
             var setUpdateAllColumnsString = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(true, true))
             {
                 var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();

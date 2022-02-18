@@ -45,7 +45,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
                 var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -121,7 +121,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 SyncSet schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -181,7 +181,7 @@ namespace Dotmim.Sync
                 // Create two transactions
                 // First one to commit changes
                 // Second one to get changes now that everything is commited
-                await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                await using (var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
                     // Maybe here, get the schema from server, issue from client scope name
                     // Maybe then compare the schema version from client scope with schema version issued from server
@@ -214,7 +214,7 @@ namespace Dotmim.Sync
                     await runner.CommitAsync().ConfigureAwait(false);
                 }
 
-                await using (var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                await using (var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
                     ctx.ProgressPercentage = 0.55;
 
@@ -290,7 +290,7 @@ namespace Dotmim.Sync
                 if (serverScope.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 //Direction set to Download
                 ctx.SyncWay = SyncWay.Download;
@@ -343,7 +343,7 @@ namespace Dotmim.Sync
                 if (serverScope.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var ctx = this.GetContext();
                 ctx.SyncStage = SyncStage.ChangesSelecting;
                 //Direction set to Download
@@ -405,7 +405,7 @@ namespace Dotmim.Sync
                 if (!timeStampStart.HasValue)
                     return null;
 
-                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var ctx = this.GetContext();
 
                 await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);

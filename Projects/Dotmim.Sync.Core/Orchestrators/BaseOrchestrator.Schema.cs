@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 return schema;
@@ -45,7 +45,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var (schemaTable, _) = await this.InternalGetTableSchemaAsync(this.GetContext(), this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 

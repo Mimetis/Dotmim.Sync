@@ -215,7 +215,7 @@ namespace CustomProvider
             var allColumnsValuesString = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(true, true))
             {
                 var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
@@ -255,7 +255,7 @@ namespace CustomProvider
             var allColumnsString = new StringBuilder();
 
             string empty = string.Empty;
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(true, true))
             {
                 var mutableColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 allColumnsString.Append($"{empty}{mutableColumnName}");
@@ -271,7 +271,7 @@ namespace CustomProvider
             {
                 stringBuilder.Append($"{commaValues}(");
                 empty = "";
-                foreach (var mutableColumn in this.TableDescription.GetMutableColumnsWithPrimaryKeys())
+                foreach (var mutableColumn in this.TableDescription.GetMutableColumns(true, true))
                 {
                     var parameterColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().Normalized().ToString();
                     stringBuilder.Append($"{empty}@p{i}_{parameterColumnName}");

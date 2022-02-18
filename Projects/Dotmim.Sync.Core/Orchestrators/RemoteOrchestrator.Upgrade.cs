@@ -30,7 +30,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // Initialize database if needed
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // get Database builder
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 

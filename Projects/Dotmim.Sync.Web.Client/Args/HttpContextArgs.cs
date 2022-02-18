@@ -1,11 +1,8 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web.Client;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync

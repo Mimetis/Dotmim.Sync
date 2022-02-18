@@ -34,7 +34,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
                 // No need columns or primary keys to be able to deprovision a table
                 SyncSet schema = new SyncSet(this.Setup);

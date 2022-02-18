@@ -53,7 +53,7 @@ namespace Dotmim.Sync
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
         /// <param name="clientScopeInfo">client scope. Will be saved once provision is done</param>
         /// <returns>Full schema with table and columns properties</returns>
-        public virtual async Task<SyncSet> ProvisionAsync(SyncSet schema, SyncProvision provision, bool overwrite = false, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<SyncSet> ProvisionAsync(SyncMode.Writing, SyncSet schema, SyncProvision provision, bool overwrite = false, ScopeInfo clientScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -135,7 +135,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Get server scope if not supplied
                 if (clientScopeInfo == null)
                 {

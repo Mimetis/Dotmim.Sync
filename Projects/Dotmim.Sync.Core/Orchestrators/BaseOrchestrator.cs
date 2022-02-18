@@ -403,7 +403,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
                 var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -417,102 +417,102 @@ namespace Dotmim.Sync
 
 
 
-        public async Task<T> RunInTransactionAsync2<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-              DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
+        //public async Task<T> RunInTransactionAsync2<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+        //      DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
+        //{
+        //    if (!this.StartTime.HasValue)
+        //        this.StartTime = DateTime.UtcNow;
 
-            // Get context or create a new one
-            var ctx = this.GetContext();
+        //    // Get context or create a new one
+        //    var ctx = this.GetContext();
 
-            T result = default;
+        //    T result = default;
 
-            using var c = this.Provider.CreateConnection();
+        //    using var c = this.Provider.CreateConnection();
 
-            try
-            {
-                await c.OpenAsync();
+        //    try
+        //    {
+        //        await c.OpenAsync();
 
-                using (var t = c.BeginTransaction(this.Provider.IsolationLevel))
-                {
-                    if (actionTask != null)
-                        result = await actionTask(ctx, c, t);
+        //        using (var t = c.BeginTransaction(this.Provider.IsolationLevel))
+        //        {
+        //            if (actionTask != null)
+        //                result = await actionTask(ctx, c, t);
 
-                    t.Commit();
-                }
-                c.Close();
-                c.Dispose();
+        //            t.Commit();
+        //        }
+        //        c.Close();
+        //        c.Dispose();
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(ex);
-            }
-        }
+        //        return result;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw GetSyncError(ex);
+        //    }
+        //}
 
-        /// <summary>
-        /// Run an actin inside a connection / transaction
-        /// </summary>
-        public async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-              DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
-        {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
+        ///// <summary>
+        ///// Run an actin inside a connection / transaction
+        ///// </summary>
+        //public async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
+        //      DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        //{
+        //    if (!this.StartTime.HasValue)
+        //        this.StartTime = DateTime.UtcNow;
 
-            // Get context or create a new one
-            var ctx = this.GetContext();
+        //    // Get context or create a new one
+        //    var ctx = this.GetContext();
 
-            T result = default;
+        //    T result = default;
 
-            if (connection == null)
-                connection = this.Provider.CreateConnection();
+        //    if (connection == null)
+        //        connection = this.Provider.CreateConnection();
 
-            var alreadyOpened = connection.State == ConnectionState.Open;
-            var alreadyInTransaction = transaction != null && transaction.Connection == connection;
+        //    var alreadyOpened = connection.State == ConnectionState.Open;
+        //    var alreadyInTransaction = transaction != null && transaction.Connection == connection;
 
-            try
-            {
-                if (stage != SyncStage.None)
-                    ctx.SyncStage = stage;
+        //    try
+        //    {
+        //        if (stage != SyncStage.None)
+        //            ctx.SyncStage = stage;
 
-                // Open connection
-                if (!alreadyOpened)
-                    await this.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
+        //        // Open connection
+        //        if (!alreadyOpened)
+        //            await this.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
 
-                // Create a transaction
-                if (!alreadyInTransaction)
-                {
-                    transaction = connection.BeginTransaction(this.Provider.IsolationLevel);
-                    await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                }
+        //        // Create a transaction
+        //        if (!alreadyInTransaction)
+        //        {
+        //            transaction = connection.BeginTransaction(this.Provider.IsolationLevel);
+        //            await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+        //        }
 
-                if (actionTask != null)
-                    result = await actionTask(ctx, connection, transaction);
+        //        if (actionTask != null)
+        //            result = await actionTask(ctx, connection, transaction);
 
-                if (!alreadyInTransaction)
-                {
-                    await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                    transaction.Commit();
-                    transaction.Dispose();
-                }
+        //        if (!alreadyInTransaction)
+        //        {
+        //            await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+        //            transaction.Commit();
+        //            transaction.Dispose();
+        //        }
 
-                if (!alreadyOpened)
-                    await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
+        //        if (!alreadyOpened)
+        //            await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
 
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(ex);
-            }
-            finally
-            {
-                if (!alreadyOpened)
-                    await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
-            }
-        }
+        //        return result;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw GetSyncError(ex);
+        //    }
+        //    finally
+        //    {
+        //        if (!alreadyOpened)
+        //            await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
+        //    }
+        //}
 
         /// <summary>
         /// Get a snapshot root directory name and folder directory name
