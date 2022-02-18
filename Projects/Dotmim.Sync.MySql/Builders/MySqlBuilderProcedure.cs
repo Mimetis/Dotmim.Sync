@@ -332,7 +332,7 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.AppendLine("AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1);");
 
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
+            stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine();
@@ -525,7 +525,7 @@ namespace Dotmim.Sync.MySql.Builders
                 stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")}");
                 stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
+                stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
                 stringBuilder.AppendLine($"IF (sync_row_count = 0) THEN");
 
             }
@@ -556,7 +556,7 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"\tLIMIT 1;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"SELECT ROW_COUNT() LIMIT 1 INTO sync_row_count;");
+            stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
             stringBuilder.AppendLine();
 
             if (hasMutableColumns)

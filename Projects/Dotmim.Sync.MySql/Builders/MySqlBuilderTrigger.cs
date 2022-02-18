@@ -269,6 +269,8 @@ namespace Dotmim.Sync.MySql.Builders
             createTrigger.AppendLine($"\t\t,{this.timestampValue}");
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,utc_timestamp()");
+            createTrigger.AppendLine($"\tFROM {tableName.Quoted().ToString()}"); //[AB] added to be compatible with MariaDB 10.3.x
+
 
             if (this.tableDescription.GetMutableColumns().Count() > 0)
             {
