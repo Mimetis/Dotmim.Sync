@@ -94,6 +94,8 @@ internal class Program
         //var snapshotDirectory = Path.Combine("C:\\Tmp\\Snapshots");
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
+        var op = SyncOptions.GetDefaultUserBatchDiretory();
+
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
@@ -107,10 +109,10 @@ internal class Program
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
         //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var setup = new SyncSetup(regipro_tables);
-        //var options = new SyncOptions();
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
+        var setup = new SyncSetup(new string[] { "SubscriptionTransactions" });
+        var options = new SyncOptions();
 
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
         //var logger = loggerFactory.CreateLogger("Dotmim.Sync");
@@ -121,9 +123,9 @@ internal class Program
         //await ProvisionAsync(serverProvider, setup, options);
         //await CreateSnapshotAsync(serverProvider, setup, options);
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeHeavyTableAsync();
+        //await SynchronizeHeavyTableAsync();
     }
 
     private static async Task GetChangesAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
@@ -302,21 +304,21 @@ internal class Program
 
 
 
-        //// The table is read. The batch parts infos are generated and already available on disk
-        //agent.LocalOrchestrator.OnTableChangesSelected(async tcsa =>
-        //{
-        //    foreach (var bpi in tcsa.BatchPartInfos)
-        //    {
-        //        var table = await tcsa.BatchInfo.LoadBatchPartInfoAsync(bpi);
+        // The table is read. The batch parts infos are generated and already available on disk
+        agent.LocalOrchestrator.OnTableChangesSelected(async tcsa =>
+        {
+            foreach (var bpi in tcsa.BatchPartInfos)
+            {
+                var table = await tcsa.BatchInfo.LoadBatchPartInfoAsync(bpi);
 
-        //        foreach (var row in table.Rows.ToArray())
-        //        {
+                foreach (var row in table.Rows.ToArray())
+                {
 
-        //        }
+                }
 
-        //        await tcsa.BatchInfo.SaveBatchPartInfoAsync(bpi, table);
-        //    }
-        //});
+                await tcsa.BatchInfo.SaveBatchPartInfoAsync(bpi, table);
+            }
+        });
 
         //agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
         //{
@@ -441,11 +443,8 @@ internal class Program
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory());
-            var serverOptions = options;
-            var syncSetup = new SyncSetup(allTables);
-
-            services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, syncSetup, serverOptions);
+            var webServerOrchestrator = new WebServerOrchestrator(serverProvider, options, setup);
+            services.AddSyncServer(webServerOrchestrator);
         });
 
         var serverHandler = new RequestDelegate(async context =>
@@ -453,6 +452,27 @@ internal class Program
             try
             {
                 var webServerOrchestrator = context.RequestServices.GetService(typeof(WebServerOrchestrator)) as WebServerOrchestrator;
+
+                //webServerOrchestrator.OnTableChangesSelectedSyncRow(args =>
+                //{
+                //    Console.WriteLine(args.SyncRow);
+                //});
+
+                // The table is read. The batch parts infos are generated and already available on disk
+                webServerOrchestrator.OnTableChangesSelected(async tcsa =>
+                {
+                    foreach (var bpi in tcsa.BatchPartInfos)
+                    {
+                        var table = await tcsa.BatchInfo.LoadBatchPartInfoAsync(bpi);
+
+                        foreach (var row in table.Rows.ToArray())
+                        {
+                            Console.WriteLine(row);
+                        }
+
+                        await tcsa.BatchInfo.SaveBatchPartInfoAsync(bpi, table);
+                    }
+                });
 
                 await webServerOrchestrator.HandleRequestAsync(context);
 
@@ -475,7 +495,8 @@ internal class Program
                 {
                     var startTime = DateTime.Now;
 
-                    var localOrchestrator = new WebClientOrchestrator(serviceUri);
+                    // create the agent
+                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
 
                     var localProgress = new SynchronousProgress<ProgressArgs>(s =>
                     {
@@ -488,10 +509,17 @@ internal class Program
                         Console.ResetColor();
                     });
 
-                    var agent = new SyncAgent(clientProvider, localOrchestrator, options);
+                    agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
+                    {
+                        foreach (var syncRow in args.SyncRows)
+                            Console.Write(syncRow);
+                    });
 
+
+                    await agent.SetSynchronizedAsync(progress: localProgress);
                     var s = await agent.SynchronizeAsync(localProgress);
                     Console.WriteLine(s);
+
                 }
                 catch (SyncException e)
                 {

@@ -20,6 +20,7 @@ namespace Dotmim.Sync.Web.Client
         GetChangesInProgress,
         GetSnapshot,
         GetSummary,
-        SendEndDownloadChanges
+        SendEndDownloadChanges,
+        GetRemoteClientTimestamp,
     }
 }

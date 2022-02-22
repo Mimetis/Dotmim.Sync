@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Web.Server
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
                 // This is the only moment where we are initializing the sessionCache and store it in session
-                if (sessionCache == null && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes))
+                if (sessionCache == null && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
                 {
                     sessionCache = new SessionCache();
                     httpContext.Session.Set(sessionId, sessionCache);
@@ -206,6 +206,12 @@ namespace Dotmim.Sync.Web.Server
                         var s6 = await this.GetEstimatedChangesCountAsync(httpContext, m6, cancellationToken, progress);
                         await this.InterceptAsync(new HttpSendingServerChangesArgs(s6, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s6);
+                        break;
+                    case HttpStep.GetRemoteClientTimestamp:
+                        var m7 = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampRequest>().DeserializeAsync(readableStream);
+                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m7.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        var s7 = await this.GetRemoteClientTimestampAsync(httpContext, m7, cancellationToken, progress);
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampResponse>().SerializeAsync(s7);
                         break;
                 }
 
@@ -457,6 +463,23 @@ namespace Dotmim.Sync.Web.Server
 
             return changesResponse;
         }
+
+        internal protected virtual async Task<HttpMessageRemoteTimestampResponse> GetRemoteClientTimestampAsync(HttpContext httpContext, HttpMessageRemoteTimestampRequest httpMessage,
+                CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            // Get context from request message
+            var ctx = httpMessage.SyncContext;
+
+            // Set the context coming from the client
+            this.SetContext(ctx);
+
+            var ts = await base.GetLocalTimestampAsync(default, default, cancellationToken, progress);
+
+            return new HttpMessageRemoteTimestampResponse(syncContext, ts);
+        }
+
+
+
 
         internal protected virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)

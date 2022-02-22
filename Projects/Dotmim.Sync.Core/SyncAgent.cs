@@ -596,6 +596,160 @@ namespace Dotmim.Sync
             return result;
         }
 
+
+
+        /// <summary>
+        /// Set local existing database as synced.
+        /// Initial rows from server will not be downloaded when this method is called.
+        /// You can mark local rows to be downloaded on next call to SynchronizeAsync()
+        /// </summary>
+        /// <param name="remoteClientTimestamp">
+        /// Specify the server timestamp bound for retrieving rows from server
+        /// If set to null, the highest value from server is retrieved. So far, no rows from server will be downloaded on next call to SynchronizeAsync()
+        /// </param>
+        /// <param name="markRows">
+        /// Mark local rows to be uploaded on next call to SynchronizeAsync()
+        /// </param>
+        public async Task SetSynchronizedAsync(long? remoteClientTimestamp = default, bool markRows = false, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            // checkpoints dates
+            var startTime = DateTime.UtcNow;
+            var completeTime = DateTime.UtcNow;
+
+            // Create a logger
+            var logger = this.Options.Logger ?? new SyncLogger().AddDebug();
+
+            // Lock sync to prevent multi call to sync at the same time
+            LockSync();
+
+            // Context, used to back and forth data between servers
+            var context = new SyncContext(Guid.NewGuid(), this.ScopeName)
+            {
+                // if any parameters, set in context
+                Parameters = this.Parameters,
+                // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
+                SyncType = SyncType.Normal
+            };
+
+            // Result, with sync results stats.
+            var result = new SyncResult(context.SessionId)
+            {
+                // set start time
+                StartTime = startTime,
+                CompleteTime = completeTime,
+            };
+
+            this.SessionState = SyncSessionState.Synchronizing;
+            this.SessionStateChanged?.Invoke(this, this.SessionState);
+
+
+            await Task.Run(async () =>
+            {
+                try
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                    // Internal set the good reference. Don't use the SetContext method here
+                    this.LocalOrchestrator.syncContext = context;
+                    this.RemoteOrchestrator.syncContext = context;
+                    this.LocalOrchestrator.StartTime = startTime;
+                    this.RemoteOrchestrator.StartTime = startTime;
+
+                    // Begin session
+                    await this.LocalOrchestrator.BeginSessionAsync(cancellationToken, progress).ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                    // .....
+                    // Get the scope
+                    var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    //if (!clientScopeInfo.IsNewScope && clientScopeInfo.Schema != null)
+                    //    throw new CantInitiliazeAnAlreadySyncDatabaseException();
+
+                    context.ProgressPercentage = 0.2;
+
+                    // local database becomes a not new database
+                    var isNewScope = false;
+
+                    // get remote client timestamp 
+                    if (!remoteClientTimestamp.HasValue)
+                        remoteClientTimestamp = await this.RemoteOrchestrator.GetLocalTimestampAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    context.ProgressPercentage = 0.4;
+
+                    // Get the schema
+                    var serverScopeInfo = await this.RemoteOrchestrator.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Affect local setup since the setup could potentially comes from Web server
+                    // Affect local setup (equivalent to this.Setup)
+                    if (!this.Setup.EqualsByProperties(serverScopeInfo.Setup) && !this.Setup.HasTables)
+                        this.LocalOrchestrator.Setup = serverScopeInfo.Setup;
+
+                    context.ProgressPercentage = 0.6;
+
+                    // Provision the local database
+                    var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                    await this.LocalOrchestrator.ProvisionAsync(serverScopeInfo.Schema, provision, false, clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    context.ProgressPercentage = 0.8;
+
+                    // Get the local timestamp
+                    var localTs = await this.LocalOrchestrator.GetLocalTimestampAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (markRows)
+                        await this.LocalOrchestrator.UpdateUntrackedRowsAsync(serverScopeInfo.Schema, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    // generate the new scope item
+                    clientScopeInfo.IsNewScope = isNewScope;
+                    clientScopeInfo.LastSync = isNewScope ? null : DateTime.Now;
+                    clientScopeInfo.LastSyncTimestamp = localTs;
+                    clientScopeInfo.LastServerSyncTimestamp = remoteClientTimestamp;
+                    clientScopeInfo.LastSyncDuration = 1;
+                    clientScopeInfo.Setup = serverScopeInfo.Setup;
+                    clientScopeInfo.Schema = serverScopeInfo.Schema;
+
+                    await this.LocalOrchestrator.SaveClientScopeAsync(clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    completeTime = DateTime.UtcNow;
+                    this.LocalOrchestrator.CompleteTime = completeTime;
+                    this.RemoteOrchestrator.CompleteTime = completeTime;
+
+                    result.CompleteTime = completeTime;
+
+                    // Begin session
+                    context.ProgressPercentage = 1;
+                    await this.LocalOrchestrator.EndSessionAsync(cancellationToken, progress).ConfigureAwait(false);
+
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+
+                }
+                catch (SyncException se)
+                {
+                    this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
+                    throw new SyncException(ex, SyncStage.None);
+                }
+                finally
+                {
+                    // End the current session
+                    this.SessionState = SyncSessionState.Ready;
+                    this.SessionStateChanged?.Invoke(this, this.SessionState);
+                    // unlock sync since it's over
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    UnlockSync();
+                }
+            });
+        }
+
         // --------------------------------------------------------------------
         // Dispose
         // --------------------------------------------------------------------

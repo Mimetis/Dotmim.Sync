@@ -426,14 +426,20 @@ namespace Dotmim.Sync.Sqlite
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var unquotedColumnName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-                stringBuilder.AppendLine($"\t[side].{columnName}, ");
                 stringBuilder1.Append($"{empty}[side].{columnName} = @{unquotedColumnName}");
                 empty = " AND ";
             }
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var nonPkColumnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t[base].{nonPkColumnName}, ");
+
+                var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t[side].{nonPkColumnName}, ");
+                else
+                    stringBuilder.AppendLine($"\t[base].{nonPkColumnName}, ");
+
             }
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone], ");
             stringBuilder.AppendLine("\t[side].[update_scope_id] as [sync_update_scope_id]");
@@ -456,15 +462,21 @@ namespace Dotmim.Sync.Sqlite
         private void CreateSelectChangesCommandText()
         {
             var stringBuilder = new StringBuilder("SELECT ");
-            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t[side].{columnName}, ");
-            }
-            foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
+            //foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            //{
+            //    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+            //    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+            //}
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t[base].{columnName}, ");
+
+                var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                else
+                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id] ");

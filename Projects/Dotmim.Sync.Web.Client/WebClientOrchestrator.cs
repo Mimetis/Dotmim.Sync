@@ -143,15 +143,54 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Get the schema from server, by sending an http request to the server
         /// </summary>
-        public override async Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override async Task<SyncSet> GetSchemaAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
 
-            var serverScopeInfo = await this.EnsureSchemaAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
             return serverScopeInfo.Schema;
 
+        }
+
+        public override async Task<long> GetLocalTimestampAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            // Get context or create a new one
+            var ctx = this.GetContext();
+            ctx.SyncStage = SyncStage.SchemaReading;
+
+            if (!this.StartTime.HasValue)
+                this.StartTime = DateTime.UtcNow;
+
+            // Create the message to be sent
+            var httpMessage = new HttpMessageRemoteTimestampRequest(ctx);
+
+            // serialize message
+            var serializer = this.SerializerFactory.GetSerializer<HttpMessageRemoteTimestampRequest>();
+            var binaryData = await serializer.SerializeAsync(httpMessage);
+
+            // No batch size submitted here, because the schema will be generated in memory and send back to the user.
+            var response = await this.httpRequestHandler.ProcessRequestAsync
+                (this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetRemoteClientTimestamp, ctx.SessionId, this.ScopeName,
+                 this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+
+            HttpMessageRemoteTimestampResponse responseTimestamp = null;
+
+            using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+            {
+                if (streamResponse.CanRead)
+                    responseTimestamp = await this.SerializerFactory.GetSerializer<HttpMessageRemoteTimestampResponse>().DeserializeAsync(streamResponse);
+            }
+
+            if (responseTimestamp == null)
+                throw new ArgumentException("Http Message content for Get Client Remote Timestamp can't be null");
+
+            // Reaffect context
+            this.SetContext(responseTimestamp.SyncContext);
+
+            // Return scopes and new shema
+            return responseTimestamp.RemoteClientTimestamp;
         }
 
         public override Task<bool> IsOutDatedAsync(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -650,7 +689,7 @@ namespace Dotmim.Sync.Web.Client
             this.SetContext(summaryResponseContent.SyncContext);
 
             await this.InterceptAsync(new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.StartTime.Value, DateTime.UtcNow, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-            
+
             return (summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected);
         }
 
@@ -855,7 +894,7 @@ namespace Dotmim.Sync.Web.Client
 
             // Raise progress for sending request and waiting server response
             await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(0, 0, ctx, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-            
+
             // response
             var response = await this.httpRequestHandler.ProcessRequestAsync
                     (this.HttpClient, this.ServiceUri, binaryData, HttpStep.GetEstimatedChangesCount, ctx.SessionId, clientScope.Name,

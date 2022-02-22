@@ -407,15 +407,21 @@ namespace Dotmim.Sync.MySql.Builders
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn, "`").Unquoted().Normalized().ToString();
 
-                stringBuilder.AppendLine($"\t`side`.{columnName}, ");
                 stringBuilder1.Append($"{empty}`side`.{columnName} = {MYSQL_PREFIX_PARAMETER}{parameterName}");
                 empty = " AND ";
             }
-            foreach (var mutableColumn in this.tableDescription.GetMutableColumns())
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
                 var nonPkColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-                stringBuilder.AppendLine($"\t`base`.{nonPkColumnName}, ");
+
+                var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t`side`.{nonPkColumnName}, ");
+                else
+                    stringBuilder.AppendLine($"\t`base`.{nonPkColumnName}, ");
             }
+
             stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine("\t`side`.`update_scope_id` as `sync_update_scope_id`");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
@@ -823,15 +829,16 @@ namespace Dotmim.Sync.MySql.Builders
             // Add all columns
             // ----------------------------------
 
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-                stringBuilder.AppendLine($"\t`side`.{pkColumnName}, ");
-            }
-            foreach (var mutableColumn in this.tableDescription.GetMutableColumns())
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-                stringBuilder.AppendLine($"\t`base`.{columnName}, ");
+
+                var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t`side`.{columnName}, ");
+                else
+                    stringBuilder.AppendLine($"\t`base`.{columnName}, ");
             }
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine($"\t`side`.`update_scope_id` as `sync_update_scope_id` ");
