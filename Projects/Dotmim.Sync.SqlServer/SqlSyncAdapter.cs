@@ -88,7 +88,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (sqlDbType == SqlDbType.Decimal)
             {
                 var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
-                if (s > 0)
+                if (p > 0 && p > s)
                 {
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 }
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (p == 0)
                         p = 18;
                     if (s == 0)
-                        s = 6;
+                        s = Math.Min((byte)(p-1), (byte)6);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 }
 

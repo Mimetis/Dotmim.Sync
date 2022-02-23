@@ -495,9 +495,6 @@ internal class Program
                 {
                     var startTime = DateTime.Now;
 
-                    // create the agent
-                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
-
                     var localProgress = new SynchronousProgress<ProgressArgs>(s =>
                     {
                         var tsEnded = TimeSpan.FromTicks(DateTime.Now.Ticks);
@@ -509,15 +506,23 @@ internal class Program
                         Console.ResetColor();
                     });
 
-                    agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
-                    {
-                        foreach (var syncRow in args.SyncRows)
-                            Console.Write(syncRow);
-                    });
+                    //agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
+                    //{
+                    //    foreach (var syncRow in args.SyncRows)
+                    //        Console.Write(syncRow);
+                    //});
+                    
+                    // create the agent
+                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
 
+                    //var remoteTimestamp = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
 
-                    await agent.SetSynchronizedAsync(progress: localProgress);
+                    // Mark si new local database as synchronized
+                    //await agent.SetSynchronizedAsync(remoteClientTimestamp:remoteTimestamp, progress: localProgress);
+
+                    // make a synchronization to get all rows between backup and now
                     var s = await agent.SynchronizeAsync(localProgress);
+                    
                     Console.WriteLine(s);
 
                 }
