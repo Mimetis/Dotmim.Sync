@@ -563,6 +563,114 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+
+        /// <summary>
+        /// Insert one row on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Insert_Insert_Delete_Delete_FromServer(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // get rows count
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+            }
+
+            var productId1 = Guid.NewGuid();
+            var productId2 = Guid.NewGuid();
+
+            // Add 2 Products
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+
+                // Create two products on server
+                var name = HelperDatabase.GetRandomName().ToLowerInvariant();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = productId1, Name = name, ProductNumber = productNumber };
+                serverDbCtx.Product.Add(product);
+
+                name = HelperDatabase.GetRandomName().ToLowerInvariant();
+                productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product2 = new Product { ProductId = productId2, Name = name, ProductNumber = productNumber };
+                serverDbCtx.Product.Add(product2);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(2, s.TotalChangesDownloaded);
+                Assert.Equal(rowsCount + 2, this.GetServerDatabaseRowsCount(client));
+            }
+
+            // Add 2 Products and delete 2 products already synced
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                // Create two products on server
+                var name = HelperDatabase.GetRandomName().ToLowerInvariant();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+                serverDbCtx.Product.Add(product);
+
+                name = HelperDatabase.GetRandomName().ToLowerInvariant();
+                productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product2 = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+                serverDbCtx.Product.Add(product2);
+
+                var p1 = await serverDbCtx.Product.SingleAsync(a => a.ProductId == productId1);
+                var p2 = await serverDbCtx.Product.SingleAsync(a => a.ProductId == productId2);
+
+                // remove them
+                serverDbCtx.Product.Remove(p1);
+                serverDbCtx.Product.Remove(p2);
+
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(4, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount + 2, this.GetServerDatabaseRowsCount(client));
+            }
+        }
+
         /// <summary>
         /// Insert one row on each client, should be sync on server and clients
         /// </summary>

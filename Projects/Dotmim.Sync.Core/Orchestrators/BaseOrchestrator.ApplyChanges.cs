@@ -331,7 +331,7 @@ namespace Dotmim.Sync
                 }
 
                 // Any failure ?
-                var changedFailed = schemaChangesTable.Rows.Count - conflictsResolvedCount - appliedRowsTmp;
+                var changedFailed = rowsFetched - conflictsResolvedCount - appliedRowsTmp;
 
                 // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
                 if (appliedRowsTmp > 0 || conflictsResolvedCount > 0)
