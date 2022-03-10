@@ -680,8 +680,7 @@ namespace Dotmim.Sync.Web.Server
             if (cleanFolder)
                 cleanFolder = await this.InternalCanCleanFolderAsync(ctx, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
 
-            if (cleanFolder)
-                sessionCache.ClientBatchInfo.Clear(true);
+            sessionCache.ClientBatchInfo.Clear(cleanFolder);
 
             // we do not need client batch info now
             sessionCache.ClientBatchInfo = null;

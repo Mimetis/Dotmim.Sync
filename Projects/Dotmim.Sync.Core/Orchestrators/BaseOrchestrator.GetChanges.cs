@@ -143,9 +143,11 @@ namespace Dotmim.Sync
             //Set the total rows count contained in the batch info
             batchInfo.EnsureLastBatch();
 
-
             if (batchInfo.RowsCount <= 0)
-                batchInfo.Clear(true);
+            {
+                var cleanFolder = await this.InternalCanCleanFolderAsync(context, batchInfo, cancellationToken).ConfigureAwait(false);
+                batchInfo.Clear(cleanFolder);
+            }
 
             var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changesSelected, connection);
             await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
