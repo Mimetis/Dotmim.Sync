@@ -108,29 +108,5 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
-        [Fact]
-        public async Task LocalOrchestrator_CancellationToken_ShouldInterrupt_EnsureScope_OnTransactionCommit()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
-            using var cts = new CancellationTokenSource();
-
-            localOrchestrator.OnTransactionCommit(args => cts.Cancel());
-            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(default, default, cts.Token));
-            Assert.Equal(SyncSide.ClientSide, se.Side);
-            Assert.Equal("OperationCanceledException", se.TypeName);
-            
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
     }
 }
