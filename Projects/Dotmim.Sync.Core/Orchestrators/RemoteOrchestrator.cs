@@ -259,7 +259,7 @@ namespace Dotmim.Sync
                     // Commit second transaction for getting changes
                     await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                    await runner.CommitAsync().ConfigureAwait(false); ;
+                    await runner.CommitAsync().ConfigureAwait(false); 
                 }
                 return (remoteClientTimestamp, serverBatchInfo, this.Options.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
             }

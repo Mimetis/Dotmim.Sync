@@ -86,11 +86,11 @@ namespace Dotmim.Sync
                     //}
                     //else
                     //{
-                        foreach (var table in schemaTables)
-                        {
-                            await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
-                                DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                        }
+                    foreach (var table in schemaTables)
+                    {
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                            DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                    }
                     //}
 
                 }
@@ -109,11 +109,11 @@ namespace Dotmim.Sync
                     //}
                     //else
                     //{
-                        foreach (var table in schemaTables.Reverse())
-                        {
-                            await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
-                                DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                        }
+                    foreach (var table in schemaTables.Reverse())
+                    {
+                        await this.InternalApplyTableChangesAsync(context, table, message, connection, transaction,
+                            DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
+                    }
                     //}
                 }
 
@@ -218,19 +218,17 @@ namespace Dotmim.Sync
                 var batchRows = new List<SyncRow>();
 
                 var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
-                foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                if (isBatch)
                 {
-                    rowsFetched++;
-
-                    if (syncRow.RowState != applyType)
-                        continue;
-
-                    if (isBatch)
+                    foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                     {
+                        rowsFetched++;
+
                         // Adding rows to the batch rows
                         if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                         {
-                            batchRows.Add(syncRow);
+                            if (syncRow.RowState == applyType)
+                                batchRows.Add(syncRow);
 
                             if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 continue;
@@ -252,23 +250,22 @@ namespace Dotmim.Sync
                         // execute the batch, through the provider
                         await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, failedRows, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
 
-                        //// Get local and remote row and create the conflict object
-                        //foreach (var failedRow in failedRows.Rows)
-                        //{
-                        //    // Get the row that caused the conflict
-                        //    var remoteConflictRow = SyncRows.GetRowByPrimaryKeys(failedRow, batchRows, schemaChangesTable);
-                        //    conflictRows.Add(remoteConflictRow);
-                        //}
-
-                        foreach(var failedRow in failedRows.Rows)
+                        foreach (var failedRow in failedRows.Rows)
                             conflictRows.Add(failedRow);
 
                         //rows minus failed rows
                         appliedRowsTmp += batchRows.Count - failedRows.Rows.Count;
                         batchRows.Clear();
                     }
-                    else
+                }
+                else
+                {
+                    foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                     {
+                        rowsFetched++;
+
+                        if (syncRow.RowState != applyType)
+                            continue;
 
                         command.CommandText = cmdText;
                         var batchArgs = new TableChangesApplyingSyncRowsArgs(context, message.BatchInfo, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, command, connection, transaction);
@@ -300,9 +297,12 @@ namespace Dotmim.Sync
                             appliedRowsTmp++;
                         else
                             conflictRows.Add(syncRow);
+
+
                     }
 
                 }
+
 
                 // conflict rows applied
                 int rowsAppliedCount = 0;

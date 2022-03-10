@@ -96,9 +96,9 @@ internal class Program
 
         var op = SyncOptions.GetDefaultUserBatchDiretory();
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var setup = new SyncSetup(allTables);
@@ -109,9 +109,10 @@ internal class Program
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
         //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
-        var setup = new SyncSetup(new string[] { "SubscriptionTransactions" });
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
+
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
         var options = new SyncOptions();
 
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
@@ -122,8 +123,10 @@ internal class Program
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
         //await ProvisionAsync(serverProvider, setup, options);
         //await CreateSnapshotAsync(serverProvider, setup, options);
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        
+        //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
         //await SynchronizeHeavyTableAsync();
     }
