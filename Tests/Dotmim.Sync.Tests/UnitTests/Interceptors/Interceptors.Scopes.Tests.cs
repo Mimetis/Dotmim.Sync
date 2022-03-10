@@ -71,9 +71,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.Equal(scopeName, args.ScopeName);
                 Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
+                Assert.Null(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
-                Assert.Same(args.Connection, args.Transaction.Connection);
                 scopeLoading++;
             });
 
@@ -84,7 +83,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(args.ScopeInfo);
                 Assert.Equal(scopeName, args.ScopeInfo.Name);
                 Assert.NotNull(args.Connection);
-                Assert.NotNull(args.Transaction);
+                Assert.Null(args.Transaction);
                 scopeLoaded++;
             });
 
