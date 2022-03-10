@@ -172,6 +172,9 @@ namespace Dotmim.Sync
                 if (version.Minor == 9 && version.Build == 2)
                     version = await UpgdrateTo093Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                if (version.Minor == 9 && version.Build == 3)
+                    version = await UpgdrateTo094Async(context, schema, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
             }
 
             foreach (var serverScopeInfo in serverScopeInfos)
@@ -327,6 +330,27 @@ namespace Dotmim.Sync
         {
 
             var newVersion = new Version(0, 9, 3);
+            // Sorting tables based on dependencies between them
+
+            var schemaTables = schema.Tables
+                .SortByDependencies(tab => tab.GetRelations()
+                    .Select(r => r.GetParentTable()));
+
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+            await this.DeprovisionAsync(provision, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.ProvisionAsync(provision, false, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return newVersion;
+        }
+
+        private async Task<Version> UpgdrateTo094Async(SyncContext context, SyncSet schema, DbConnection connection, DbTransaction transaction,
+       CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            var newVersion = new Version(0, 9, 4);
             // Sorting tables based on dependencies between them
 
             var schemaTables = schema.Tables
