@@ -424,6 +424,9 @@ namespace Dotmim.Sync.Web.Client
                     response = await this.httpRequestHandler.ProcessRequestAsync
                         (this.HttpClient, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress, ctx.SessionId, scope.Name,
                          this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+						 
+                    if (!bpi.IsLastBatch)
+                        response.Dispose();
                 }
             }
 
