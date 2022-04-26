@@ -22,9 +22,10 @@ namespace Dotmim.Sync.Sqlite
         private SqliteObjectNames sqliteObjectNames;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
+        public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName) 
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
-            this.sqliteObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
+            this.sqliteObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup, scopeName);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 

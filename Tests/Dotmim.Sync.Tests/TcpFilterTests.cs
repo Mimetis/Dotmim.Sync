@@ -207,7 +207,7 @@ namespace Dotmim.Sync.Tests
 
                     var (tableName, trackingTableName) = client.Provider.GetParsers(syncTable, FilterSetup);
 
-                    var tableBuilder = client.Provider.GetTableBuilder(syncTable, tableName, trackingTableName, this.FilterSetup);
+                    var tableBuilder = client.Provider.GetTableBuilder(syncTable, tableName, trackingTableName, this.FilterSetup, SyncOptions.DefaultScopeName);
 
                     var clientColumns = await tableBuilder.GetColumnsAsync(c, null);
 
@@ -218,7 +218,7 @@ namespace Dotmim.Sync.Tests
 
                         serverConnection.Open();
 
-                        var tableServerManagerFactory = this.Server.Provider.GetTableBuilder(syncTable, tableName, trackingTableName, this.FilterSetup);
+                        var tableServerManagerFactory = this.Server.Provider.GetTableBuilder(syncTable, tableName, trackingTableName, this.FilterSetup, SyncOptions.DefaultScopeName);
                         var serverColumns = await tableServerManagerFactory.GetColumnsAsync(serverConnection, null);
 
                         serverConnection.Close();
@@ -776,7 +776,7 @@ namespace Dotmim.Sync.Tests
                 //--------------------------
 
                 // check if scope table is correctly created
-                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client, options.ScopeInfoTableName);
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
                 Assert.True(scopeInfoTableExists);
 
                 // get the db manager
@@ -814,7 +814,7 @@ namespace Dotmim.Sync.Tests
                 await localOrchestrator.DeprovisionAsync();
 
                 // check if scope table is correctly created
-                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client, options.ScopeInfoTableName);
+                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
                 Assert.False(scopeInfoTableExists);
 
                 // get the db manager

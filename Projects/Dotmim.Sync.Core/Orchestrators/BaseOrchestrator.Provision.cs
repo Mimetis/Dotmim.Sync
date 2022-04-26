@@ -16,15 +16,15 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
-
-
-        internal async Task<SyncSet> InternalProvisionAsync(SyncContext ctx, bool overwrite, SyncSet schema, SyncSetup setup, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<bool> InternalProvisionAsync(IScopeInfo scopeInfo, bool overwrite, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // If schema does not have any table, raise an exception
-            if (schema == null || schema.Tables == null || !schema.HasTables)
+            if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
                 throw new MissingTablesException();
 
-            await this.InterceptAsync(new ProvisioningArgs(ctx, provision, schema, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
+            var ctx = this.GetContext(scopeInfo.Name);
+
+            await this.InterceptAsync(new ProvisioningArgs(ctx, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
@@ -35,124 +35,138 @@ namespace Dotmim.Sync
             // Check if we have tables AND columns
             // If we don't have any columns it's most probably because user called method with the Setup only
             // So far we have only tables names, it's enough to get the schema
-            if (schema.HasTables && !schema.HasColumns)
-                schema = await this.InternalGetSchemaAsync(ctx, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // Get Scope Builder
-            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            if (scopeInfo.Schema.HasTables && !scopeInfo.Schema.HasColumns)
+                scopeInfo.Schema = await this.InternalGetSchemaAsync(scopeInfo.Name, scopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Shoudl we create scope
-            // if scope is not null, so obviously we have create the table before, so no need to test
-            if (provision.HasFlag(SyncProvision.ClientScope) && scope == null)
+            if (provision.HasFlag(SyncProvision.ClientScope))
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (scope == null)
-                    scope = await this.InternalGetScopeAsync<ScopeInfo>(ctx, DbScopeType.Client, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             // if scope is not null, so obviously we have create the table before, so no need to test
-            if (provision.HasFlag(SyncProvision.ServerScope) && scope == null)
+            if (provision.HasFlag(SyncProvision.ServerScope))
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (scope == null)
-                    scope = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeInfo.Name, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             // Sorting tables based on dependencies between them
-            var schemaTables = schema.Tables
+            var schemaTables = scopeInfo.Schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 // Check if we need to create a schema there
-                var schemaExists = await InternalExistsSchemaAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var schemaExists = await InternalExistsSchemaAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!schemaExists)
-                    await InternalCreateSchemaAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalCreateSchemaAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (provision.HasFlag(SyncProvision.Table))
                 {
-                    var tableExistst = await this.InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var tableExistst = await this.InternalExistsTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (!tableExistst)
-                        await this.InternalCreateTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalCreateTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.TrackingTable))
                 {
-                    var trackingTableExistst = await this.InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var trackingTableExistst = await this.InternalExistsTrackingTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (!trackingTableExistst)
-                        await this.InternalCreateTrackingTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalCreateTrackingTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.Triggers))
-                    await this.InternalCreateTriggersAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateTriggersAsync(scopeInfo, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
-                    await this.InternalCreateStoredProceduresAsync(ctx, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateStoredProceduresAsync(scopeInfo, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             }
 
-            // save scope
-            if (this is LocalOrchestrator && scope != null)
-            {
-                var clientScopeInfo = scope as ScopeInfo;
-                clientScopeInfo.Schema = schema;
-                clientScopeInfo.Setup = setup;
+            //// save scope
+            //if (this is LocalOrchestrator)
+            //{
+            //    if (clientScopeInfo == null)
+            //        clientScopeInfo = await this.InternalCreateScopeAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
-            else if (this is RemoteOrchestrator && scope != null)
-            {
-                var serverScopeInfo = scope as ServerScopeInfo;
-                serverScopeInfo.Schema = schema;
-                serverScopeInfo.Setup = setup;
+            //    var clientScopeInfo = scopeInfo as ScopeInfo;
 
-                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
+            //    clientScopeInfo.Schema = schema;
+            //    clientScopeInfo.Setup = this.Setup;
+            //    clientScopeInfo.Name = this.ScopeName;
 
-            var args = new ProvisionedArgs(ctx, provision, schema, connection);
-            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+            //    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            return schema;
+            //    var args = new ProvisionedArgs(ctx, provision, schema, connection);
+            //    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+            //    return clientScopeInfo;
+
+            //}
+            //else if (this is RemoteOrchestrator)
+            //{
+            //    var serverScopeInfo = scope as ServerScopeInfo;
+
+            //    if (serverScopeInfo == null)
+            //        serverScopeInfo = await this.InternalCreateScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            //    serverScopeInfo.Schema = schema;
+            //    serverScopeInfo.Setup = this.Setup;
+            //    serverScopeInfo.Name = this.ScopeName;
+
+            //    await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            //    var args = new ProvisionedArgs(ctx, provision, schema, connection);
+            //    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+            //    return serverScopeInfo;
+            //}
+
+            return true;
+
         }
 
-        internal async Task<bool> InternalDeprovisionAsync(SyncContext ctx, SyncSet schema, SyncSetup setup, SyncProvision provision, object scope, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<bool> InternalDeprovisionAsync(IScopeInfo scopeInfo, SyncProvision provision,DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            await this.InterceptAsync(new DeprovisioningArgs(ctx, provision, schema, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
+            // If schema does not have any table, raise an exception
+            if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
+                throw new MissingTablesException();
+
+            var ctx = this.GetContext(scopeInfo.Name);
+
+            await this.InterceptAsync(new DeprovisioningArgs(ctx, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
 
             // Sorting tables based on dependencies between them
-            var schemaTables = schema.Tables
+            var schemaTables = scopeInfo.Schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
 
             // Disable check constraints
             if (this.Options.DisableConstraintsOnApplyChanges)
                 foreach (var table in schemaTables.Reverse())
-                    await this.InternalDisableConstraintsAsync(ctx, this.GetSyncAdapter(table, setup), connection, transaction).ConfigureAwait(false);
+                    await this.InternalDisableConstraintsAsync(scopeInfo, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
 
 
             // Checking if we have to deprovision tables
@@ -164,28 +178,28 @@ namespace Dotmim.Sync
 
             foreach (var schemaTable in schemaTables)
             {
-                var tableBuilder = this.GetTableBuilder(schemaTable, setup);
+                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
-                    await InternalDropStoredProceduresAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalDropStoredProceduresAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Removing cached commands
-                    var syncAdapter = this.GetSyncAdapter(schemaTable, setup);
+                    var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
                     syncAdapter.RemoveCommands();
                 }
 
                 if (provision.HasFlag(SyncProvision.Triggers))
                 {
-                    await InternalDropTriggersAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await InternalDropTriggersAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.TrackingTable))
                 {
-                    var exists = await InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var exists = await InternalExistsTrackingTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        await this.InternalDropTrackingTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalDropTrackingTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
@@ -194,75 +208,72 @@ namespace Dotmim.Sync
             {
                 foreach (var schemaTable in schemaTables.Reverse())
                 {
-                    var tableBuilder = this.GetTableBuilder(schemaTable, setup);
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                    var exists = await InternalExistsTableAsync(ctx, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var exists = await InternalExistsTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        await this.InternalDropTableAsync(ctx, setup, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalDropTableAsync(scopeInfo, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
-
-            // Get Scope Builder
-            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             bool hasDeleteClientScopeTable = false;
             bool hasDeleteServerScopeTable = false;
             if (provision.HasFlag(SyncProvision.ClientScope))
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
                 {
-                    await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalDropScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     hasDeleteClientScopeTable = true;
                 }
             }
 
             if (provision.HasFlag(SyncProvision.ServerScope))
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
                 {
-                    await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalDropScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     hasDeleteServerScopeTable = true;
                 }
             }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
             {
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
-                    await this.InternalDropScopeInfoTableAsync(ctx, DbScopeType.ServerHistory, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalDropScopeInfoTableAsync(scopeInfo.Name, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            // save scope
-            if (this is LocalOrchestrator && !hasDeleteClientScopeTable && scope != null)
-            {
-                var clientScopeInfo = scope as ScopeInfo;
-                clientScopeInfo.Schema = null;
-                clientScopeInfo.Setup = null;
+            //// save scope
+            //if (this is LocalOrchestrator && !hasDeleteClientScopeTable && scope != null)
+            //{
+            //    var clientScopeInfo = scope as ScopeInfo;
+            //    clientScopeInfo.Schema = null;
+            //    clientScopeInfo.Setup = null;
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Client, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            //    var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (exists)
-                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
-            else if (this is RemoteOrchestrator && !hasDeleteServerScopeTable && scope != null)
-            {
-                var serverScopeInfo = scope as ServerScopeInfo;
-                serverScopeInfo.Schema = schema;
-                serverScopeInfo.Setup = setup;
+            //    if (exists)
+            //        await this.InternalSaveScopeAsync(scopeInfo, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            //}
+            //else if (this is RemoteOrchestrator && !hasDeleteServerScopeTable && scope != null)
+            //{
+            //    var serverScopeInfo = scope as ServerScopeInfo;
+            //    serverScopeInfo.Schema = schema;
+            //    serverScopeInfo.Setup = setup;
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            //    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (exists)
-                    await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
+            //    if (exists)
+            //        await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            //}
 
-            var args = new DeprovisionedArgs(ctx, provision, schema, connection);
+            var args = new DeprovisionedArgs(ctx, provision, scopeInfo.Schema, connection);
             await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             return true;

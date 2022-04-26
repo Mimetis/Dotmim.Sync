@@ -204,7 +204,8 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(this.Tables));
+                var setup = new SyncSetup(this.Tables);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -218,7 +219,7 @@ namespace Dotmim.Sync.Tests
                 var clientSchema = await agent.LocalOrchestrator.GetSchemaAsync();
                 var serverSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
 
-                foreach (var setupTable in agent.Setup.Tables)
+                foreach (var setupTable in setup.Tables)
                 {
                     var clientTable = client.ProviderType == ProviderType.Sql ? clientSchema.Tables[setupTable.TableName, setupTable.SchemaName] : clientSchema.Tables[setupTable.TableName];
                     var serverTable = serverSchema.Tables[setupTable.TableName, setupTable.SchemaName];
@@ -1407,7 +1408,7 @@ namespace Dotmim.Sync.Tests
                 //--------------------------
 
                 // check if scope table is correctly created
-                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client, options.ScopeInfoTableName);
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
                 Assert.True(scopeInfoTableExists);
 
                 // get the db manager
@@ -1445,7 +1446,7 @@ namespace Dotmim.Sync.Tests
                 await localOrchestrator.DeprovisionAsync(schema, provision);
 
                 // check if scope table is correctly created
-                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client, options.ScopeInfoTableName);
+                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
                 Assert.False(scopeInfoTableExists);
 
                 // get the db manager
@@ -3260,6 +3261,7 @@ namespace Dotmim.Sync.Tests
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
             var remoteScope = await remoteOrchestrator.GetServerScopeAsync();
+            // TODO : if serverScope.Schema is null, should we Provision here ?
 
             foreach (var client in Clients)
             {
@@ -3476,7 +3478,8 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options, new SyncSetup(Tables));
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var scope = await remoteOrchestrator.EnsureSchemaAsync();
+            var scope = await remoteOrchestrator.GetServerScopeAsync();
+            // TODO : if serverScope.Schema is null, should we Provision here ?
 
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();
 

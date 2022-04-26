@@ -22,23 +22,24 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the last timestamp from the orchestrator database
         /// </summary>
-        public async virtual Task<long> GetLocalTimestampAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async virtual Task<long> GetLocalTimestampAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                return await this.InternalGetLocalTimestampAsync(this.GetContext(), runner.Connection, runner.Transaction, cancellationToken, progress);
+                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                return await this.InternalGetLocalTimestampAsync(scopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(scopeName, ex);
             }
         }
 
         /// <summary>
         /// Read a scope info
         /// </summary>
-        internal async Task<long> InternalGetLocalTimestampAsync(SyncContext context,
+        internal async Task<long> InternalGetLocalTimestampAsync(IScopeInfo scopeInfo,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -49,6 +50,8 @@ namespace Dotmim.Sync
 
             if (command == null)
                 return 0L;
+
+            var context = this.GetContext(scopeInfo.Name);
 
             var action = await this.InterceptAsync(new LocalTimestampLoadingArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 

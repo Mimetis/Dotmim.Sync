@@ -29,7 +29,7 @@ namespace Dotmim.Sync.MySql.Builders
         }
 
 
-        public DbCommand GetAllClientScopesCommand(DbConnection connection, DbTransaction transaction)
+        public DbCommand GetClientScopeCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
                 $@"SELECT sync_scope_id
@@ -41,20 +41,11 @@ namespace Dotmim.Sync.MySql.Builders
                            , scope_last_server_sync_timestamp
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
-                    FROM  {this.ScopeInfoTableName.Quoted().ToString()}
-                    WHERE sync_scope_name = @sync_scope_name";
+                    FROM  {this.ScopeInfoTableName.Quoted().ToString()}";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-
             command.CommandText = commandText;
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_name";
-            p.DbType = DbType.String;
-            p.Size = 100;
-            command.Parameters.Add(p);
-
             return command;
 
         }
@@ -121,7 +112,7 @@ namespace Dotmim.Sync.MySql.Builders
             {
                 DbScopeType.Server => GetAllServerScopesCommand(connection, transaction),
                 DbScopeType.ServerHistory => GetAllServerHistoryScopesCommand(connection, transaction),
-                _ => GetAllClientScopesCommand(connection, transaction)
+                _ => GetClientScopeCommand(connection, transaction)
             };
 
 

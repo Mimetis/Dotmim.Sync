@@ -38,6 +38,11 @@ namespace Dotmim.Sync
         public SyncSetup Setup { get; }
 
         /// <summary>
+        /// Gets the scope name
+        /// </summary>
+        public string ScopeName { get; }
+
+        /// <summary>
         /// Get or Set the current step (could be only Added, Modified, Deleted)
         /// </summary>
         internal DataRowState ApplyType { get; set; }
@@ -71,10 +76,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a Sync Adapter
         /// </summary>
-        public DbSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public DbSyncAdapter(SyncTable tableDescription, SyncSetup setup, string scopeName)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
+            this.ScopeName = scopeName;
         }
 
         /// <summary>

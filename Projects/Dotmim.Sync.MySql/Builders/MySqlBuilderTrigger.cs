@@ -24,17 +24,19 @@ namespace Dotmim.Sync.MySql.Builders
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
+        private readonly string scopeName;
         private string timestampValue;
 
 
         private MySqlObjectNames mySqlObjectNames;
         
-        public MySqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public MySqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
-            this.mySqlObjectNames = new MySqlObjectNames(tableDescription, tableName, trackingName, setup);
+            this.mySqlObjectNames = new MySqlObjectNames(tableDescription, tableName, trackingName, setup, scopeName);
             this.timestampValue = MySqlObjectNames.TimestampValue;
             this.tableDescription = tableDescription;
             this.setup = setup;
+            this.scopeName = scopeName;
             this.tableName = tableName;
             this.trackingName = trackingName;
         }

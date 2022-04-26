@@ -24,7 +24,8 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangesAsync(
-                             SyncContext context, MessageGetChangesBatch message,
+                             IScopeInfo scopeInfo, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
+                             bool supportsMultiActiveResultSets, string batchDirectoryName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -35,38 +36,40 @@ namespace Dotmim.Sync
             // Statistics about changes that are selected
             DatabaseChangesSelected changesSelected;
 
+            var context = this.GetContext(scopeInfo.Name);
+
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
             {
-                (batchInfo, changesSelected) = await this.InternalGetEmptyChangesAsync(message).ConfigureAwait(false);
+                (batchInfo, changesSelected) = await this.InternalGetEmptyChangesAsync(scopeInfo).ConfigureAwait(false);
                 return (context, batchInfo, changesSelected);
             }
 
             // Call interceptor
-            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, message, connection, transaction);
+            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, this.Options.BatchDirectory, this.Options.BatchSize, isNew, connection, transaction);
             await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             // create local directory
-            if (!string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
-                Directory.CreateDirectory(message.BatchDirectory);
+            if (!string.IsNullOrEmpty(this.Options.BatchDirectory) && !Directory.Exists(this.Options.BatchDirectory))
+                Directory.CreateDirectory(this.Options.BatchDirectory);
 
             changesSelected = new DatabaseChangesSelected();
 
             // Create a batch 
             // batchinfo generate a schema clone with scope columns if needed
-            batchInfo = new BatchInfo(message.Schema, message.BatchDirectory, message.BatchDirectoryName);
+            batchInfo = new BatchInfo(scopeInfo.Schema, this.Options.BatchDirectory, batchDirectoryName);
             batchInfo.TryRemoveDirectory();
             batchInfo.CreateDirectory();
 
             var cptSyncTable = 0;
             var currentProgress = context.ProgressPercentage;
 
-            var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+            var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
 
             var lstAllBatchPartInfos = new ConcurrentBag<BatchPartInfo>();
 
-            var threadNumberLimits = message.SupportsMultiActiveResultSets ? 16 : 1;
+            var threadNumberLimits = supportsMultiActiveResultSets ? 16 : 1;
 
-            if (message.SupportsMultiActiveResultSets)
+            if (supportsMultiActiveResultSets)
             {
                 await schemaTables.ForEachAsync(async syncTable =>
                 {
@@ -77,7 +80,8 @@ namespace Dotmim.Sync
                     cptSyncTable++;
 
                     var (tableChangesSelected, syncTableBatchPartInfos) =
-                        await ReadSyncTableChangesAsync(context, syncTable, batchInfo, message, changesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalReadSyncTableChangesAsync(
+                            scopeInfo, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp, changesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (syncTableBatchPartInfos == null)
                         return;
@@ -85,7 +89,7 @@ namespace Dotmim.Sync
                     // Add sync table bpi to all bpi
                     syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
 
-                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);
+                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
 
                 }, threadNumberLimits);
             }
@@ -100,7 +104,8 @@ namespace Dotmim.Sync
                     cptSyncTable++;
 
                     var (tableChangesSelected, syncTableBatchPartInfos) =
-                        await ReadSyncTableChangesAsync(context, syncTable, batchInfo, message, changesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await InternalReadSyncTableChangesAsync(
+                            scopeInfo, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp, changesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (syncTableBatchPartInfos == null)
                         continue;
@@ -108,7 +113,7 @@ namespace Dotmim.Sync
                     // Add sync table bpi to all bpi
                     syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
 
-                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / message.Schema.Tables.Count);
+                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
 
                 }
             }
@@ -149,7 +154,7 @@ namespace Dotmim.Sync
                 batchInfo.Clear(cleanFolder);
             }
 
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, batchInfo, changesSelected, connection);
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, null, batchInfo, changesSelected, connection);
             await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, batchInfo, changesSelected);
@@ -157,9 +162,10 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(TableChangesSelected TableChangesSelected, List<BatchPartInfo> BatchPartInfos)> ReadSyncTableChangesAsync(
-            SyncContext context, SyncTable syncTable,
-            BatchInfo batchInfo, MessageGetChangesBatch message, DatabaseChangesSelected changesSelected, DbConnection connection, DbTransaction transaction,
+        internal virtual async Task<(TableChangesSelected TableChangesSelected, List<BatchPartInfo> BatchPartInfos)> InternalReadSyncTableChangesAsync(
+            IScopeInfo scopeInfo, Guid? excludintScopeId, SyncTable syncTable,
+            BatchInfo batchInfo, bool isNew, long? lastTimestamp,
+            DatabaseChangesSelected changesSelected, DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -168,6 +174,8 @@ namespace Dotmim.Sync
             // Only table schema is replicated, no datas are applied
             if (syncTable.SyncDirection == SyncDirection.None)
                 return (null, null);
+
+            var context = this.GetContext(scopeInfo.Name);
 
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
@@ -178,20 +186,22 @@ namespace Dotmim.Sync
                 return (null, null);
 
             // Get Command
-            var selectIncrementalChangesCommand = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
+            //var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
+            //var isNew2 = isNew ? isNew : setupTable.OverrideReinitializeFromScratch;
+
+            var selectIncrementalChangesCommand = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
 
             if (selectIncrementalChangesCommand == null)
                 return (null, null);
 
-            // Set parameters
-            this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, selectIncrementalChangesCommand);
+            this.InternalSetSelectChangesCommonParameters(context, syncTable, excludintScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
 
             var schemaChangesTable = DbSyncAdapter.CreateChangesTable(syncTable);
 
             // numbers of batch files generated
             var batchIndex = 0;
 
-            var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
+            var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
 
             var (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializer.Extension);
 
@@ -237,7 +247,7 @@ namespace Dotmim.Sync
                     var currentBatchSize = await localSerializer.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
                     // Next line if we don't reach the batch size yet.
-                    if (currentBatchSize <= message.BatchSize)
+                    if (currentBatchSize <= this.Options.BatchSize)
                         continue;
 
                     var bpi = GetNewBatchPartInfo(batchPartFileName, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatch, batchIndex);
@@ -296,12 +306,15 @@ namespace Dotmim.Sync
         /// Gets changes rows count estimation, 
         /// </summary>
         internal virtual async Task<(SyncContext, DatabaseChangesSelected)> InternalGetEstimatedChangesCountAsync(
-                             SyncContext context, MessageGetChangesBatch message,
+                             IScopeInfo scopeInfo, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
+                             bool supportsMultiActiveResultSets,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            var context = this.GetContext(scopeInfo.Name);
+
             // Call interceptor
-            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, message, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, this.Options.BatchDirectory, this.Options.BatchSize, isNew, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
@@ -309,9 +322,9 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
                 return (context, changes);
 
-            var threadNumberLimits = message.SupportsMultiActiveResultSets ? 8 : 1;
+            var threadNumberLimits = supportsMultiActiveResultSets ? 8 : 1;
 
-            await message.Schema.Tables.ForEachAsync(async syncTable =>
+            await scopeInfo.Schema.Tables.ForEachAsync(async syncTable =>
             {
                 if (cancellationToken.IsCancellationRequested)
                     return;
@@ -329,12 +342,11 @@ namespace Dotmim.Sync
                     return;
 
                 // Get Command
-                var command = await this.GetSelectChangesCommandAsync(context, syncTable, message.Setup, message.IsNew, connection, transaction);
+                var command = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
 
                 if (command == null) return;
 
-                // Set parameters
-                this.SetSelectChangesCommonParameters(context, syncTable, message.ExcludingScopeId, message.IsNew, message.LastTimestamp, command);
+                this.InternalSetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, lastTimestamp, command);
 
                 // launch interceptor if any
                 var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
@@ -381,7 +393,7 @@ namespace Dotmim.Sync
             }, threadNumberLimits);
 
             // Raise database changes selected
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, message.LastTimestamp, null, changes, connection);
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, null, null, changes, connection);
             await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, changes);
@@ -411,10 +423,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(MessageGetChangesBatch message)
+        internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(IScopeInfo scopeInfo)
         {
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo(message.Schema, message.BatchDirectory); ;
+            var batchInfo = new BatchInfo(scopeInfo.Schema, this.Options.BatchDirectory); ;
 
             // Create a new empty in-memory batch info
             return Task.FromResult((batchInfo, new DatabaseChangesSelected()));
@@ -430,13 +442,13 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        internal async Task<DbCommand> GetSelectChangesCommandAsync(SyncContext context, SyncTable syncTable, SyncSetup setup, bool isNew, DbConnection connection, DbTransaction transaction)
+        internal async Task<DbCommand> InternalGetSelectChangesCommandAsync(SyncContext context, SyncTable syncTable, IScopeInfo scopeInfo, bool isNew, DbConnection connection, DbTransaction transaction)
         {
             DbCommandType dbCommandType;
 
             SyncFilter tableFilter = null;
 
-            var syncAdapter = this.GetSyncAdapter(syncTable, setup);
+            var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
             // Check if we have parameters specified
 
@@ -465,11 +477,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set common parameters to SelectChanges Sql command
         /// </summary>
-        internal void SetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
+        internal void InternalSetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
             // Set the parameters
             DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? (object)excludingScopeId.Value : DBNull.Value);
+            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
 
             // Check filters
             SyncFilter tableFilter = null;

@@ -22,7 +22,7 @@ namespace Dotmim.Sync
     {
         // Collection of Interceptors
         private Interceptors interceptors = new Interceptors();
-        internal SyncContext syncContext;
+        internal Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
 
         //// Internal table builder cache
         //private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
@@ -51,15 +51,15 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual SyncOptions Options { get; internal set; }
 
-        /// <summary>
-        /// Gets the Setup used by this local orchestrator
-        /// </summary>
-        public virtual SyncSetup Setup { get; set; }
+        ///// <summary>
+        ///// Gets the Setup used by this local orchestrator
+        ///// </summary>
+        //public virtual SyncSetup Setup { get; set; }
 
-        /// <summary>
-        /// Gets the scope name used by this local orchestrator
-        /// </summary>
-        public virtual string ScopeName { get; internal protected set; }
+        ///// <summary>
+        ///// Gets the scope name used by this local orchestrator
+        ///// </summary>
+        //public virtual string ScopeName { get; internal protected set; }
 
         /// <summary>
         /// Gets or Sets the start time for this orchestrator
@@ -80,12 +80,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a local orchestrator, used to orchestrates the whole sync on the client side
         /// </summary>
-        public BaseOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+        public BaseOrchestrator(CoreProvider provider, SyncOptions options)
         {
-            this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
+            //this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
             this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
             this.Options = options ?? throw new ArgumentNullException(nameof(options));
-            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
+            //this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             this.Provider.Orchestrator = this;
             this.Logger = options.Logger;
@@ -195,11 +195,11 @@ namespace Dotmim.Sync
         /// Open a connection
         /// </summary>
         //[DebuggerStepThrough]
-        internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task OpenConnectionAsync(string scopeName, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), progress, cancellationToken));
+                this.InterceptAsync(new ReConnectArgs(this.GetContext(scopeName), connection, ex, cpt, ts), progress, cancellationToken));
 
             // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
@@ -214,13 +214,13 @@ namespace Dotmim.Sync
             // Let provider knows a connection is opened
             this.Provider.OnConnectionOpened(connection);
 
-            await this.InterceptAsync(new ConnectionOpenedArgs(this.GetContext(), connection), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ConnectionOpenedArgs(this.GetContext(scopeName), connection), progress, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Close a connection
         /// </summary>
-        internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task CloseConnectionAsync(string scopeName, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
@@ -234,7 +234,7 @@ namespace Dotmim.Sync
             }
 
             if (!cancellationToken.IsCancellationRequested)
-                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(scopeName), connection), progress, cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
             this.Provider.OnConnectionClosed(connection);
@@ -245,9 +245,9 @@ namespace Dotmim.Sync
 
 
         [DebuggerStepThrough]
-        internal SyncException GetSyncError(Exception exception)
+        internal SyncException GetSyncError(string scopeName, Exception exception)
         {
-            var syncException = new SyncException(exception, this.GetContext().SyncStage);
+            var syncException = new SyncException(exception, this.GetContext(scopeName).SyncStage);
 
             // try to let the provider enrich the exception
             this.Provider.EnsureSyncException(syncException);
@@ -261,7 +261,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter
         /// </summary>
-        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, IScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -282,14 +282,14 @@ namespace Dotmim.Sync
 
             //return syncAdapter;
 
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
-            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, setup);
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
+            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
         }
 
         /// <summary>
         /// Get the provider table builder
         /// </summary>
-        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, IScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -310,8 +310,8 @@ namespace Dotmim.Sync
 
             //return tableBuilder;
 
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
-            return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, setup);
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
+            return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
         }
 
 
@@ -337,21 +337,41 @@ namespace Dotmim.Sync
         /// <summary>
         /// Sets the current context
         /// </summary>
-        internal virtual void SetContext(SyncContext context) => this.syncContext = context;
+        internal virtual void SetContext(SyncContext context)
+        {
+            if (!this.syncContexts.ContainsKey(context.ScopeName))
+                this.syncContexts.Add(context.ScopeName, context);
+            else
+                this.syncContexts[context.ScopeName] = context;
+        }
 
         /// <summary>
         /// Gets the current context
         /// </summary>
-        [DebuggerStepThrough]
-        public virtual SyncContext GetContext()
+        //[DebuggerStepThrough]
+        public virtual SyncContext GetContext(string scopeName)
         {
-            if (this.syncContext != null)
-                return this.syncContext;
+            if (this.syncContexts.ContainsKey(scopeName))
+                return this.syncContexts[scopeName];
 
-            this.syncContext = new SyncContext(Guid.NewGuid(), this.ScopeName); ;
+            var syncContext = new SyncContext(Guid.NewGuid(), scopeName); ;
 
-            return this.syncContext;
+            this.syncContexts.Add(scopeName, syncContext);
+
+            return syncContext;
         }
+
+
+        private long? GetLastSyncTimestamp(SyncContext ctx, ScopeInfo  scopeInfo)
+        {
+            // Reinitialize timestamp is in Reinit Mode
+            if (ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload)
+                return null;
+
+            return this.Side == SyncSide.ClientSide ? scopeInfo.LastSyncTimestamp : scopeInfo.LastServerSyncTimestamp;
+        }
+
+
 
 
         /// <summary>
@@ -366,15 +386,13 @@ namespace Dotmim.Sync
             bool isOutdated = false;
 
             // Get context or create a new one
-            var ctx = this.GetContext();
+            var ctx = this.GetContext(clientScopeInfo.Name);
 
             // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
             // so far we return directly false
             if (clientScopeInfo.IsNewScope)
                 return false;
 
-            // Check if the provider is not outdated
-            // We can have negative value where we want to compare anyway
             if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
                 isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
 
@@ -387,7 +405,10 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(outdatedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (outdatedArgs.Action != OutdatedAction.Rollback)
+                {
                     ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
+                    this.SetContext(ctx);
+                }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
                     throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);
@@ -399,19 +420,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get hello from database
         /// </summary>
-        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        public virtual async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // TODO : get all scopes for Hello all of them
+                await using var runner = await this.GetConnectionAsync(SyncOptions.DefaultScopeName, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
                 var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
                 await runner.CommitAsync().ConfigureAwait(false);
-                return (this.GetContext(), hello.DatabaseName, hello.Version);
+                return (hello.DatabaseName, hello.Version);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(SyncOptions.DefaultScopeName, ex);
             }
         }
 
@@ -517,11 +539,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot root directory name and folder directory name
         /// </summary>
-        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<(string DirectoryRoot, string DirectoryName)>
+            GetSnapshotDirectoryAsync(SyncContext ctx, SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
             // check parameters
             // If context has no parameters specified, and user specifies a parameter collection we switch them
             if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
@@ -538,7 +558,7 @@ namespace Dotmim.Sync
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 
-            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync();
+            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(context);
 
             // if we don't have any snapshot configuration, we are sure that the current batchinfo is actually stored into a temp folder
             if (string.IsNullOrEmpty(snapshotRootDirectory))

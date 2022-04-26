@@ -14,6 +14,7 @@ namespace Dotmim.Sync
     public static class DbConnectionRunnerExtensions
     {
         public static async Task<DbConnectionRunner> GetConnectionAsync(this BaseOrchestrator orchestrator,
+                                string scopeName,
                                 SyncMode syncMode = SyncMode.Writing,
                                 SyncStage syncStage = SyncStage.None,
                                 DbConnection connection = default,
@@ -28,12 +29,12 @@ namespace Dotmim.Sync
             var alreadyInTransaction = transaction != null && transaction.Connection == connection;
 
             // Get context or create a new one
-            var ctx = orchestrator.GetContext();
+            var ctx = orchestrator.GetContext(scopeName);
             ctx.SyncStage = syncStage;
 
             // Open connection
             if (!alreadyOpened)
-                await orchestrator.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
+                await orchestrator.OpenConnectionAsync(scopeName, connection, cancellationToken, progress).ConfigureAwait(false);
 
             // Create a transaction
             if (!alreadyInTransaction && syncMode == SyncMode.Writing)
@@ -42,17 +43,18 @@ namespace Dotmim.Sync
                 await orchestrator.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
-            return new DbConnectionRunner(orchestrator, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken, progress);
+            return new DbConnectionRunner(orchestrator, scopeName, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken, progress);
         }
     }
 
     public sealed class DbConnectionRunner : IDisposable, IAsyncDisposable
     {
-        public DbConnectionRunner(BaseOrchestrator orchestrator, DbConnection connection, DbTransaction transaction,
+        public DbConnectionRunner(BaseOrchestrator orchestrator, string scopeName, DbConnection connection, DbTransaction transaction,
             bool alreadyOpened, bool alreadyInTransaction,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             this.Orchestrator = orchestrator;
+            this.ScopeName = scopeName;
             this.Connection = connection;
             this.Transaction = transaction;
             this.AlreadyOpened = alreadyOpened;
@@ -62,6 +64,7 @@ namespace Dotmim.Sync
         }
 
         public BaseOrchestrator Orchestrator { get; set; }
+        public string ScopeName { get; }
         public DbConnection Connection { get; set; }
         public DbTransaction Transaction { get; set; }
         public bool AlreadyOpened { get; }
@@ -77,7 +80,7 @@ namespace Dotmim.Sync
             if (!this.AlreadyInTransaction && this.Transaction != null)
             {
                 await this.Orchestrator.InterceptAsync(
-                    new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
+                    new TransactionCommitArgs(this.Orchestrator.GetContext(ScopeName), this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
 
                 this.Transaction.Commit();
             }
@@ -92,7 +95,7 @@ namespace Dotmim.Sync
         public async Task CloseAsync()
         {
             if (!this.AlreadyOpened && this.Connection != null)
-                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
+                await this.Orchestrator.CloseConnectionAsync(ScopeName, this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
         }
 
         public Task RollbackAsync() => Task.Run(() => this.Transaction.Rollback());
@@ -143,7 +146,7 @@ namespace Dotmim.Sync
 
             if (!this.AlreadyOpened && this.Connection != null)
             {
-                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
+                await this.Orchestrator.CloseConnectionAsync(ScopeName, this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
                 this.Connection.Dispose();
                 this.Connection = null;
             }

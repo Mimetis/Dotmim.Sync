@@ -38,8 +38,8 @@ namespace Dotmim.Sync.SampleConsole
         /// <summary>
         /// Get a specific adapter for a readonly sqlite database
         /// </summary>
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqliteDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqliteDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         /// <summary>
         /// Nothing changes here
@@ -49,8 +49,8 @@ namespace Dotmim.Sync.SampleConsole
         /// <summary>
         /// Removing tracking tables & triggers since they are not needed here
         /// </summary>
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqliteDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqliteDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
     }
 
     /// <summary>
@@ -58,8 +58,8 @@ namespace Dotmim.Sync.SampleConsole
     /// </summary>
     public class SqliteDownloadOnlyTableBuilder : SqliteTableBuilder
     {
-        public SqliteDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingTableName, setup) { }
+        public SqliteDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName) { }
         public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
         public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
@@ -75,9 +75,10 @@ namespace Dotmim.Sync.SampleConsole
         private SqliteObjectNames sqliteObjectNames;
         private ParserName tableName;
 
-        public SqliteDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, tableName, trackingName, setup)
+        public SqliteDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) 
+            : base(tableDescription, tableName, trackingName, setup, scopeName)
         {
-            this.sqliteObjectNames = new SqliteObjectNames(tableDescription, tableName, trackingName, setup);
+            this.sqliteObjectNames = new SqliteObjectNames(tableDescription, tableName, trackingName, setup, scopeName);
             this.tableName = tableName;
         }
 

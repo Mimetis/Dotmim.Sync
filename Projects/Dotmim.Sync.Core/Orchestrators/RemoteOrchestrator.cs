@@ -28,8 +28,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a remote orchestrator, used to orchestrates the whole sync on the server side
         /// </summary>
-        public RemoteOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
-           : base(provider, options, setup, scopeName)
+        public RemoteOrchestrator(CoreProvider provider, SyncOptions options) : base(provider, options)
         {
             if (!this.Provider.CanBeServerProvider)
                 throw new UnsupportedServerProviderException(this.Provider.GetProviderTypeName());
@@ -41,117 +40,117 @@ namespace Dotmim.Sync
         /// Then return the schema readed
         /// </summary>
         /// <returns>current context, the local scope info created or get from the database and the configuration from the client if changed </returns>
-        internal virtual async Task<ServerScopeInfo> EnsureSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+        //internal virtual async Task<ServerScopeInfo> EnsureSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        //{
+        //    try
+        //    {
+        //        await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        if (!exists)
+        //            await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        if (!exists)
+        //            await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                SyncSet schema;
-                // Let's compare this serverScopeInfo with the current Setup
-                // If schema is null :
-                // - Read the schema from database based on this.Setup
-                // - Provision the database with this schema
-                // - Write the scope with this.Setup and schema
-                // If schema is not null :
-                // - Compare saved setup with current setup
-                // - If not equals:
-                // - Read schema from database based on this.Setup
-                if (serverScopeInfo.Schema == null)
-                {
-                    // So far, we don't have already a database provisionned
-                    this.GetContext().SyncStage = SyncStage.Provisioning;
+        //        SyncSet schema;
+        //        // Let's compare this serverScopeInfo with the current Setup
+        //        // If schema is null :
+        //        // - Read the schema from database based on this.Setup
+        //        // - Provision the database with this schema
+        //        // - Write the scope with this.Setup and schema
+        //        // If schema is not null :
+        //        // - Compare saved setup with current setup
+        //        // - If not equals:
+        //        // - Read schema from database based on this.Setup
+        //        if (serverScopeInfo.Schema == null)
+        //        {
+        //            // So far, we don't have already a database provisionned
+        //            this.GetContext().SyncStage = SyncStage.Provisioning;
 
-                    // 1) Get Schema from remote provider
-                    schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //            // 1) Get Schema from remote provider
+        //            schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // 2) Provision
-                    var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    schema = await InternalProvisionAsync(this.GetContext(), false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
-                else
-                {
-                    // Setup stored on local or remote is different from the one provided.
-                    // So, we can migrate
-                    if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
-                    {
-                        // 1) Get Schema from remote provider
-                        schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //            // 2) Provision
+        //            var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+        //            schema = await InternalProvisionAsync(this.GetContext(), false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        }
+        //        else
+        //        {
+        //            // Setup stored on local or remote is different from the one provided.
+        //            // So, we can migrate
+        //            if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
+        //            {
+        //                // 1) Get Schema from remote provider
+        //                schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
-                        await this.InternalMigrationAsync(this.GetContext(), schema, serverScopeInfo.Setup, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress);
+        //                // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
+        //                await this.InternalMigrationAsync(this.GetContext(), schema, serverScopeInfo.Setup, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress);
 
-                        serverScopeInfo.Setup = this.Setup;
-                        serverScopeInfo.Schema = schema;
+        //                serverScopeInfo.Setup = this.Setup;
+        //                serverScopeInfo.Schema = schema;
 
-                        // Write scopes locally
-                        await this.InternalSaveScopeAsync(this.GetContext(), DbScopeType.Server, serverScopeInfo, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
+        //                // Write scopes locally
+        //                await this.InternalSaveScopeAsync(this.GetContext(), DbScopeType.Server, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //            }
 
-                    // Get the schema saved on server
-                    schema = serverScopeInfo.Schema;
-                }
+        //            // Get the schema saved on server
+        //            schema = serverScopeInfo.Schema;
+        //        }
 
-                await runner.CommitAsync().ConfigureAwait(false);
+        //        await runner.CommitAsync().ConfigureAwait(false);
 
-                return serverScopeInfo;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(ex);
-            }
-        }
+        //        return serverScopeInfo;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw GetSyncError(ex);
+        //    }
+        //}
 
 
         /// <summary>
         /// Migrate an old setup configuration to a new one. This method is usefull if you are changing your SyncSetup when a database has been already configured previously
         /// </summary>
-        public virtual async Task<ServerScopeInfo> MigrationAsync(SyncSetup oldSetup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+        //public virtual async Task<ServerScopeInfo> MigrationAsync(SyncSetup oldSetup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        //{
+        //    try
+        //    {
+        //        await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                SyncSet schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        SyncSet schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Migrate the db structure
-                await this.InternalMigrationAsync(this.GetContext(), schema, oldSetup, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        // Migrate the db structure
+        //        await this.InternalMigrationAsync(this.GetContext(), schema, oldSetup, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+        //        var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        if (!exists)
+        //            await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        var remoteScope = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var remoteScope = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        if (remoteScope == null)
+        //            remoteScope = await this.InternalCreateScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                remoteScope.Setup = this.Setup;
-                remoteScope.Schema = schema;
+        //        remoteScope.Setup = this.Setup;
+        //        remoteScope.Schema = schema;
 
-                // Write scopes locally
-                await this.InternalSaveScopeAsync(this.GetContext(), DbScopeType.Server, remoteScope, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+        //        // Write scopes locally
+        //        await this.InternalSaveScopeAsync(this.GetContext(), DbScopeType.Server, remoteScope, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
+        //        await runner.CommitAsync().ConfigureAwait(false);
 
-                return remoteScope;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(ex);
-            }
-        }
+        //        return remoteScope;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw GetSyncError(ex);
+        //    }
+        //}
 
 
         /// <summary>
@@ -166,7 +165,7 @@ namespace Dotmim.Sync
                     this.StartTime = DateTime.UtcNow;
 
                 // Get context or create a new one
-                var ctx = this.GetContext();
+                var ctx = this.GetContext(clientScope.Name);
 
                 long remoteClientTimestamp = 0L;
                 DatabaseChangesSelected serverChangesSelected = null;
@@ -178,35 +177,30 @@ namespace Dotmim.Sync
                 //Direction set to Upload
                 ctx.SyncWay = SyncWay.Upload;
 
+                IScopeInfo serverClientScopeInfo = null;
                 // Create two transactions
                 // First one to commit changes
                 // Second one to get changes now that everything is commited
-                await using (var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                await using (var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
-                    // Maybe here, get the schema from server, issue from client scope name
-                    // Maybe then compare the schema version from client scope with schema version issued from server
-                    // Maybe if different, raise an error ?
-                    // Get scope if exists
-
                     // Getting server scope assumes we have already created the schema on server
-                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-                    var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, clientScope.Name, scopeBuilder,
-                                            runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    // Scope name is the scope name coming from client
+                    // Since server can have multiples scopes
+                    serverClientScopeInfo = await this.InternalGetScopeAsync(clientScope.Name, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Should we ?
-                    if (serverScopeInfo.Schema == null)
+                    if (serverClientScopeInfo == null || serverClientScopeInfo.Schema == null)
                         throw new MissingRemoteOrchestratorSchemaException();
 
                     // Deserialiaze schema
-                    schema = serverScopeInfo.Schema;
+                    schema = serverClientScopeInfo.Schema;
 
                     // Create message containing everything we need to apply on server side
-                    var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Setup, this.Options.ConflictResolutionPolicy,
+                    var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
                                     this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo, this.Options.LocalSerializerFactory);
 
                     // Call provider to apply changes
-                    (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(ctx, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(serverClientScopeInfo, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -214,7 +208,7 @@ namespace Dotmim.Sync
                     await runner.CommitAsync().ConfigureAwait(false);
                 }
 
-                await using (var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                await using (var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
                     ctx.ProgressPercentage = 0.55;
 
@@ -223,18 +217,16 @@ namespace Dotmim.Sync
 
                     // JUST Before get changes, get the timestamp, to be sure to 
                     // get rows inserted / updated elsewhere since the sync is not over
-                    remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, runner.Connection, runner.Transaction, cancellationToken, progress);
+                    remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(serverClientScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress);
 
                     // Get if we need to get all rows from the datasource
                     var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
 
-                    var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, schema, this.Setup, 
-                        this.Options.BatchSize, this.Options.BatchDirectory, null, this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
-
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     (ctx, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangesAsync(ctx, message, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalGetChangesAsync(clientScope, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id,
+                        this.Provider.SupportsMultipleActiveResultSets, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (cancellationToken.IsCancellationRequested)
                         cancellationToken.ThrowIfCancellationRequested();
@@ -252,20 +244,18 @@ namespace Dotmim.Sync
                     };
 
                     // Write scopes locally
-                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-                    await this.InternalSaveScopeAsync(ctx, DbScopeType.ServerHistory, scopeHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalSaveScopeAsync(scopeHistory, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Commit second transaction for getting changes
                     await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                    await runner.CommitAsync().ConfigureAwait(false); 
+                    await runner.CommitAsync().ConfigureAwait(false);
                 }
                 return (remoteClientTimestamp, serverBatchInfo, this.Options.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(clientScope.Name, ex);
             }
         }
 
@@ -278,19 +268,22 @@ namespace Dotmim.Sync
             try
             {
                 // Get context or create a new one
-                var ctx = this.GetContext();
+                var ctx = this.GetContext(clientScope.Name);
 
-                if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
-                    throw new InvalidScopeInfoException();
+                //if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
+                //    throw new InvalidScopeInfoException();
+
+
+                await using var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Before getting changes, be sure we have a remote schema available
-                var serverScope = await this.EnsureSchemaAsync(connection, transaction, cancellationToken, progress);
+                var serverScope = await this.GetServerScopeAsync(clientScope.Name, runner.Connection, runner.Transaction, cancellationToken, progress);
+                // TODO : if serverScope.Schema is null, should we Provision here ?
 
                 // Should we ?
                 if (serverScope.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 //Direction set to Download
                 ctx.SyncWay = SyncWay.Download;
@@ -298,21 +291,18 @@ namespace Dotmim.Sync
                 // Output
                 // JUST Before get changes, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, runner.Connection, runner.Transaction, cancellationToken, progress);
+                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(clientScope, runner.Connection, runner.Transaction, cancellationToken, progress);
 
                 // Get if we need to get all rows from the datasource
                 var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
-
-                var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp,
-                    serverScope.Schema, this.Setup, this.Options.BatchSize, this.Options.BatchDirectory, null,
-                    this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
 
                 BatchInfo serverBatchInfo;
                 DatabaseChangesSelected serverChangesSelected;
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (ctx, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(ctx, message, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalGetChangesAsync(clientScope, fromScratch, clientScope.LastServerSyncTimestamp, 
+                    clientScope.Id, this.Provider.SupportsMultipleActiveResultSets, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -320,7 +310,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(clientScope.Name, ex);
             }
 
         }
@@ -334,17 +324,14 @@ namespace Dotmim.Sync
             try
             {
 
-                if (!string.Equals(clientScope.Name, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
-                    throw new InvalidScopeInfoException();
-
-                var serverScope = await this.EnsureSchemaAsync(connection, transaction, cancellationToken, progress);
+                var serverScope = await this.GetServerScopeAsync(clientScope.Name, connection, transaction, cancellationToken, progress); ;
 
                 // Should we ?
                 if (serverScope.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var ctx = this.GetContext();
+                await using var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var ctx = this.GetContext(clientScope.Name);
                 ctx.SyncStage = SyncStage.ChangesSelecting;
                 //Direction set to Download
                 ctx.SyncWay = SyncWay.Download;
@@ -352,36 +339,32 @@ namespace Dotmim.Sync
                 // Output
                 // JUST Before get changes, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(ctx, runner.Connection, runner.Transaction, cancellationToken, progress);
+                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(clientScope, runner.Connection, runner.Transaction, cancellationToken, progress);
 
                 // Get if we need to get all rows from the datasource
                 var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
-
-                // it's an estimation, so force In Memory (BatchSize == 0)
-                var message = new MessageGetChangesBatch(clientScope.Id, Guid.Empty, fromScratch, clientScope.LastServerSyncTimestamp, serverScope.Schema,
-                    this.Setup, 0, this.Options.BatchDirectory, null, this.Provider.SupportsMultipleActiveResultSets, this.Options.LocalSerializerFactory);
 
                 DatabaseChangesSelected serverChangesSelected;
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (ctx, serverChangesSelected) =
-                    await this.InternalGetEstimatedChangesCountAsync(ctx, message, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalGetEstimatedChangesCountAsync(clientScope, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return (remoteClientTimestamp, serverChangesSelected);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(clientScope.Name, ex);
             }
         }
 
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from history client table
         /// </summary>
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get the min timestamp, where we can without any problem, delete metadatas
-            var histories = await this.GetServerHistoryScopesAsync(connection, transaction, cancellationToken, progress);
+            var histories = await this.GetServerHistoryScopesAsync(scopeName, connection, transaction, cancellationToken, progress);
 
             if (histories == null || histories.Count == 0)
                 return new DatabaseMetadatasCleaned();
@@ -391,44 +374,33 @@ namespace Dotmim.Sync
             if (minTimestamp == 0)
                 return new DatabaseMetadatasCleaned();
 
-            return await this.DeleteMetadatasAsync(minTimestamp, connection, transaction, cancellationToken, progress);
+            return await this.DeleteMetadatasAsync(scopeName, minTimestamp, connection, transaction, cancellationToken, progress);
         }
 
         /// <summary>
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public override async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(string scopeName, long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
                 if (!timeStampStart.HasValue)
                     return null;
 
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var ctx = this.GetContext();
+                await using var runner = await this.GetConnectionAsync(SyncOptions.DefaultScopeName, SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                
+                var ctx = this.GetContext(SyncOptions.DefaultScopeName);
 
-                await this.InterceptAsync(new MetadataCleaningArgs(ctx, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                var serverScopeInfo = await this.InternalGetScopeAsync(scopeName, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ServerScopeInfo;
 
-                // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
-                // No need columns or primary keys to be able to deprovision a table
-                SyncSet schema = new SyncSet(this.Setup);
+                await this.InterceptAsync(new MetadataCleaningArgs(ctx, serverScopeInfo.Setup, timeStampStart.Value, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // Update server scope table
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-                var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(ctx, DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(ctx, DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(serverScopeInfo, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 serverScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
 
-                await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalSaveScopeAsync(serverScopeInfo, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await this.InterceptAsync(new MetadataCleanedArgs(ctx, databaseMetadatasCleaned, runner.Connection), progress, cancellationToken).ConfigureAwait(false);
 
@@ -439,7 +411,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(scopeName, ex);
             }
         }
 

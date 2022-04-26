@@ -22,6 +22,7 @@ using Dotmim.Sync.MySql;
 using System.Linq;
 using Microsoft.Data.SqlClient;
 using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.Tests.Models;
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -40,45 +41,6 @@ internal class Program
                                                     "Address", "Customer", "CustomerAddress",
                                                     "SalesOrderHeader", "SalesOrderDetail" };
 
-
-    public static string[] regipro_tables = new string[] {
-        "actualites", "analytics_exchange", "analytics_group", "analytics_group_clients",
-        "analytics_group_fournisseurs", "analytics_publishing", "analytics_turnovers",
-        "annonces", "annonces_fixed_price", "annonces_freeze", "annonces_ipinfos", "annonces_metadatas",
-        "api", "api_lesechos", "api_request", "api_tmp", "attestations", "attestations_benchmarks",
-        "attestations_signed", "avocats", "bank", "bank_banned", "bank_codes", "bank_expenses", "bank_paypal", "bank_stripe", "borne_status",
-        "cache_db", "certifications", "certifications_users",
-        "clients", "clients_comments", "clients_metas", "clients_schemas", "clients_test",
-        "codevoie_infogreffe", "commandes", "commandes_certification", "commandes_locked", "commandes_relances", "commandes_remises_client",
-        "commandes_remises_fournisseur", "commandes_translated", "comptabilite_ecritures", "comptabilite_errors", "comptabilite_etats",
-        "comptabilite_etats_rapprochements", "comptabilite_exports", "comptabilite_params", "comptabilite_pieces", "comptabilite_rapprochements",
-        "departements", "devis", "dnid", "documents",
-        "entreprises",
-        "exchange", "exchange2", "exchange_turnovers", "expedition_freeze",
-        "export_checkpoint", "facturation_freeze", "forecast", "forfaits", "formalites", "formalites_responses", "formalites_workflows", "fournisseurs",
-        "greffes", "greffes_infogreffe", "http_auth", "huissiers", "iban", "infogreffe_unittests", "journaux", "journaux_dates_special", "journaux_favoris",
-        "journaux_fermeture", "journaux_freeze", "journaux_partenariats", "journaux_price_variations", "justificatifs", "justificatifs_numeriques",
-        "justificatifs_pages",
-        "justificatifs_papier", "justificatifs_papier_events", "medialex_api_logs", "numerotation", "open_data_bodacc", "paiements",
-        "paiements_configurations", "passwords_requests",
-        "prolegal_sessions",
-        "prospects_convert", "provisions",
-        "regiepro_sessions",
-        "reglements",
-        "relances_clients", "releves_clients", "releves_clients_pieces", "releves_com_clients", "releves_fournisseurs", "releves_fournisseurs_pieces",
-        "releves_temp", "releves_temp_pieces", "repartitions", "robot_drafts", "robot_publications", "robot_translate", "sent_emails", "sent_emails_events",
-        "sent_emails_events_metas", "sepas_order", "sip_events", "tribunaux_commerce", "tribunaux_grande_instance",
-
-        //"users_sessions", -------------------------------
-
-        "utilisateurs",
-        "values_compare",
-        "villes",
-
-        //"villes_infogreffe", ----------------------------
-
-        "zipcode_error"
-    };
     public static string[] oneTable = new string[] { "ProductCategory" };
 
 
@@ -96,39 +58,364 @@ internal class Program
 
         var op = SyncOptions.GetDefaultUserBatchDiretory();
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup(new string[] { "ProductCategory" });
-        //var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
         //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
 
-        var setup = new SyncSetup(new string[] { "SubscriptionTransactions" });
-        var options = new SyncOptions();
+        //var setup = new SyncSetup(new string[] { "SubscriptionTransactions" });
+        //var options = new SyncOptions();
 
         //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
         //var logger = loggerFactory.CreateLogger("Dotmim.Sync");
         //options.Logger = logger;
-        options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
+        //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
         //await GetChangesAsync(clientProvider, serverProvider, setup, options);
         //await ProvisionAsync(serverProvider, setup, options);
-        await CreateSnapshotAsync(serverProvider, setup, options);
-        
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        
+        //await CreateSnapshotAsync(serverProvider, setup, options);
+
+        // await ScenarioAddColumnSyncAsync(clientProvider, serverProvider, setup, options);
+
+
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        //await SynchronizeHeavyTableAsync();
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await ScenarioMigrationAddingColumnsAndTableAsync();
+
+    }
+
+
+
+
+    private static async Task ScenarioMigrationAddingColumnsAndTableAsync()
+    {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        // Server provider
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        // Client 1 provider. Will migrate to the new schema (with one more column)
+        var clientProvider1 = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        // Client 2 provider: Will stay with old schema
+        var clientProvider2 = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client2"));
+
+        // --------------------------
+        // Step 1: Create a default scope and Sync clients
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        setup.Tables["ProductCategory"].Columns.AddRange(
+            new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name", "rowguid", "ModifiedDate" });
+
+        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Debug};
+
+        // Sync 2 clients
+        var agent1 = new SyncAgent(clientProvider1, serverProvider, options, setup);
+        Console.WriteLine(await agent1.SynchronizeAsync(progress));
+        //var agent2 = new SyncAgent(clientProvider2, serverProvider, options, setup);
+        //Console.WriteLine(await agent2.SynchronizeAsync(progress));
+
+        // --------------------------
+        // Step2 : Adding a new column "CreatedDate datetime NULL" on the server
+        //         Then create the corresponding scope (called "v1")
+        await AddColumnsToProductCategoryAsync(serverProvider);
+
+        // Step 2 : Add a new scope to server with this new column
+        //          Creating a new scope called "V1" on server
+        var setupV1 = new SyncSetup(new string[] { "ProductCategory", "Product" });
+        setupV1.Tables["ProductCategory"].Columns.AddRange(
+            new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name", "rowguid", "ModifiedDate", "CreatedDate" });
+
+        var serverOrchestrator = new RemoteOrchestrator(serverProvider, options);
+        var serverScope = await serverOrchestrator.ProvisionAsync("v1", setupV1);
+
+        // Add a product category row on server (just to check we are still able to get this row on clients)
+        await AddProductCategoryRowWithOneMoreColumnAsync(serverProvider);
+
+        // Add a product category row on both client (just to check we are still able to get this row on server)
+        await AddProductCategoryRowAsync(clientProvider1);
+        //await AddProductCategoryRowAsync(clientProvider2);
+
+        // --------------------------
+        // Step 3 : Add the column to client 1, add the new scope "v1" and sync
+        await AddColumnsToProductCategoryAsync(clientProvider1);
+
+        // Provision the "v1" scope on the client with the new setup
+        var clientOrchestrator = new LocalOrchestrator(clientProvider1, options);
+        var scopeInfo = await clientOrchestrator.ProvisionAsync(serverScope);
+
+        var oldClientOrchestrator = new LocalOrchestrator(clientProvider1, options);
+        var defaultScopeInfo = await oldClientOrchestrator.GetClientScopeAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
+
+        scopeInfo.LastServerSyncTimestamp = defaultScopeInfo.LastServerSyncTimestamp;
+        scopeInfo.LastSyncTimestamp = defaultScopeInfo.LastSyncTimestamp;
+        scopeInfo.LastSync = defaultScopeInfo.LastSync;
+        scopeInfo.LastSyncDuration = defaultScopeInfo.LastSyncDuration;
+
+        await clientOrchestrator.SaveClientScopeAsync(scopeInfo);
+
+        // create a new agent and make a sync on the "v1" scope
+        // don't need to pass setup and options anymore
+        var agent1v1 = new SyncAgent(clientProvider1, serverProvider, options, setupV1, "v1") ;
+
+        Console.WriteLine(await agent1v1.SynchronizeAsync(SyncType.ReinitializeWithUpload,  progress)); ;
+
+        // --------------------------
+        // Step 4 : Do nothing on client 2 and see if we can still sync
+        // Console.WriteLine(await agent2.SynchronizeAsync(progress));
+
+
+    }
+
+
+    private static async Task ScenarioMigrationRemovingColumnsAsync()
+    {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        // Server provider
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        // Client 1 provider
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        // First startup Setup with ALL columns
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        setup.Tables["ProductCategory"].Columns.AddRange(
+            new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name", "rowguid", "ModifiedDate" });
+
+        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+        // Make a first sync to get the client schema created and synced
+        var s = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(s);
+
+        // Step 1 : creating a new scope on server without columns "rowguid", "ModifiedDate"
+        setup = new SyncSetup(new string[] { "ProductCategory" });
+        setup.Tables["ProductCategory"].Columns.AddRange(
+            new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
+
+        // Creating a new scope called "V1" on server
+        var orchestrator = new RemoteOrchestrator(serverProvider, options);
+        await orchestrator.ProvisionAsync("v1", setup);
+
+        // add a product category on server (just to check we are still able to get this row)
+        await AddProductCategoryRowAsync(serverProvider);
+
+        // Optional : Deprovision client old scope
+        // var clientOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
+        // We just need to deprovision the stored proc
+        // await clientOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures);
+
+        // Removing columns from client
+        await RemoveColumnsFromProductCategoryAsync(clientProvider);
+
+        // Provision the "v1" scope on the client with the new setup
+        var clientOrchestrator = new LocalOrchestrator(clientProvider, options);
+        await clientOrchestrator.ProvisionAsync("v1", setup, SyncProvision.StoredProcedures);
+
+        // create a new agent and make a sync on the "v1" scope
+        agent = new SyncAgent(clientProvider, serverProvider, options, setup, "v1");
+
+        var s2 = await agent.SynchronizeAsync(progress);
+        Console.WriteLine(s2);
+
+    }
+
+
+    private static async Task ScenarioAddColumnSyncAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
+    {
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+
+        Console.Clear();
+        Console.WriteLine("Sync start");
+        try
+        {
+            // Creating an agent that will handle all the process
+            var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+            var s = await agent.SynchronizeAsync(SyncType.Normal, progress);
+            Console.WriteLine(s);
+
+            // change Setup to remove a column from Server
+            setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name", "ModifiedDate" });
+
+            // Creating an agent that will handle all the process
+            agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+
+            await AddProductCategoryRowAsync(serverProvider);
+
+            s = await agent.SynchronizeAsync(SyncType.Normal, progress);
+            Console.WriteLine(s);
+
+        }
+        catch (SyncException e)
+        {
+            Console.WriteLine(e.ToString());
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+        }
+
+
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
+    }
+
+    private static async Task RemoveColumnsFromProductCategoryAsync(CoreProvider provider)
+    {
+        var commandText = @"ALTER TABLE dbo.ProductCategory DROP COLUMN rowguid, ModifiedDate;";
+
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.Connection = connection;
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
+    }
+
+    private static async Task AddColumnsToProductCategoryAsync(CoreProvider provider)
+    {
+        var commandText = @"ALTER TABLE dbo.ProductCategory ADD CreatedDate datetime NULL;";
+
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.Connection = connection;
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
+    }
+
+    private static async Task AddProductCategoryRowAsync(CoreProvider provider)
+    {
+
+        string commandText = "Insert into ProductCategory (ProductCategoryId, Name, ModifiedDate, rowguid) Values (@ProductCategoryId, @Name, @ModifiedDate, @rowguid)";
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.Connection = connection;
+
+        var p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.ParameterName = "@Name";
+        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Guid;
+        p.ParameterName = "@ProductCategoryId";
+        p.Value = Guid.NewGuid();
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Guid;
+        p.ParameterName = "@rowguid";
+        p.Value = Guid.NewGuid();
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.DateTime;
+        p.ParameterName = "@ModifiedDate";
+        p.Value = DateTime.UtcNow;
+        command.Parameters.Add(p);
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
+
+    }
+
+    private static async Task AddProductCategoryRowWithOneMoreColumnAsync(CoreProvider provider)
+    {
+
+        string commandText = "Insert into ProductCategory (ProductCategoryId, Name, ModifiedDate, CreatedDate, rowguid) Values (@ProductCategoryId, @Name, @ModifiedDate, @CreatedDate, @rowguid)";
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.Connection = connection;
+
+        var p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.ParameterName = "@Name";
+        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Guid;
+        p.ParameterName = "@ProductCategoryId";
+        p.Value = Guid.NewGuid();
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.DateTime;
+        p.ParameterName = "@ModifiedDate";
+        p.Value = DateTime.UtcNow;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.DateTime;
+        p.ParameterName = "@CreatedDate";
+        p.Value = DateTime.UtcNow;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Guid;
+        p.ParameterName = "@rowguid";
+        p.Value = Guid.NewGuid();
+        command.Parameters.Add(p);
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
+
     }
 
     private static async Task GetChangesAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
@@ -177,7 +464,7 @@ internal class Program
     }
 
 
-    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
+    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         //var options = new SyncOptions();
         // Using the Progress pattern to handle progession during the synchronization
@@ -189,7 +476,7 @@ internal class Program
         });
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+        var agent = new SyncAgent(clientProvider, serverProvider, options, setup, scopeName);
 
         do
         {
@@ -197,7 +484,7 @@ internal class Program
             Console.WriteLine("Sync start");
             try
             {
-                var s = await agent.SynchronizeAsync(SyncType.Normal, progress);
+                var s = await agent.SynchronizeAsync(progress);
                 Console.WriteLine(s);
             }
             catch (SyncException e)
@@ -237,9 +524,10 @@ internal class Program
         // getting the scope will provision the database
         // so we will need to deprovision - provision again
         var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+        // TODO : if serverScope.Schema is null, should we Provision here ?
 
         // [Optional] Create table on client if not exists
-        await agent.LocalOrchestrator.ProvisionAsync(serverScope.Schema, SyncProvision.Table);
+        await agent.LocalOrchestrator.ProvisionAsync(serverScope, SyncProvision.Table);
 
         // Get client scope
         var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
@@ -270,13 +558,11 @@ internal class Program
         clientScope.Schema = schema;
 
         // Provision
-        await agent.RemoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures |
-            SyncProvision.TrackingTable |
-            SyncProvision.Triggers, true, serverScope);
+        var p = SyncProvision.StoredProcedures | SyncProvision.TrackingTable | SyncProvision.Triggers;
 
-        await agent.LocalOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures |
-            SyncProvision.TrackingTable |
-            SyncProvision.Triggers, true, clientScope);
+        await agent.RemoteOrchestrator.ProvisionAsync(serverScope, p, true);
+
+        await agent.LocalOrchestrator.ProvisionAsync(clientScope, p, true);
 
 
         // This event is raised before selecting the changes for a particular table
@@ -354,7 +640,7 @@ internal class Program
 
     private static async Task ProvisionAsync(CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
-        var snapshotProgress = new SynchronousProgress<ProgressArgs>(s =>
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
@@ -363,14 +649,14 @@ internal class Program
 
         Console.WriteLine($"Provision");
 
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
         try
         {
             Stopwatch stopw = new Stopwatch();
             stopw.Start();
 
-            await remoteOrchestrator.ProvisionAsync(progress: snapshotProgress);
+            await remoteOrchestrator.ProvisionAsync(progress: progress);
 
             stopw.Stop();
             Console.WriteLine($"Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff}");
@@ -384,7 +670,7 @@ internal class Program
     private static async Task DeprovisionAsync(CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
 
-        var snapshotProgress = new SynchronousProgress<ProgressArgs>(pa =>
+        var progress = new SynchronousProgress<ProgressArgs>(pa =>
         {
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
@@ -393,14 +679,14 @@ internal class Program
 
         Console.WriteLine($"Deprovision ");
 
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
         try
         {
             Stopwatch stopw = new Stopwatch();
             stopw.Start();
 
-            await remoteOrchestrator.DeprovisionAsync(progress: snapshotProgress);
+            await remoteOrchestrator.DeprovisionAsync(progress: progress);
 
             stopw.Stop();
             Console.WriteLine($"Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff}");
@@ -422,7 +708,7 @@ internal class Program
 
         Console.WriteLine($"Creating snapshot");
 
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
         try
         {
@@ -514,7 +800,7 @@ internal class Program
                     //    foreach (var syncRow in args.SyncRows)
                     //        Console.Write(syncRow);
                     //});
-                    
+
                     // create the agent
                     var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
 
@@ -525,7 +811,7 @@ internal class Program
 
                     // make a synchronization to get all rows between backup and now
                     var s = await agent.SynchronizeAsync(localProgress);
-                    
+
                     Console.WriteLine(s);
 
                 }
@@ -551,8 +837,8 @@ internal class Program
     private static async Task SynchronizeOutdatedAsync()
     {
         // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -582,12 +868,12 @@ internal class Program
 
             Console.WriteLine("Generates Outdated date value in Server");
 
-            // Generate a lower sync_timestamp on client
-            var clientConnection = new SqlConnection(DBHelper.GetDatabaseConnectionString(clientDbName));
-            var clientCommand = new SqlCommand($"Update scope_info set scope_last_server_sync_timestamp=-1", clientConnection);
-            clientConnection.Open();
-            clientCommand.ExecuteNonQuery();
-            clientConnection.Close();
+
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+
+            var scope = await localOrchestrator.GetClientScopeAsync();
+            scope.LastServerSyncTimestamp = -1;
+            await localOrchestrator.SaveClientScopeAsync(scope);
 
 
             Console.WriteLine("Second Sync");
@@ -621,11 +907,11 @@ internal class Program
 
         var originalSetup = new SyncSetup(new string[] { "ProductCategory" });
 
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, originalSetup);
-        var localOrchestrator = new LocalOrchestrator(clientProvider, options, originalSetup);
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+        var localOrchestrator = new LocalOrchestrator(clientProvider, options);
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
+        var agent = new SyncAgent(localOrchestrator, remoteOrchestrator, originalSetup);
 
         var s = await agent.SynchronizeAsync();
         Console.WriteLine(s);
@@ -638,32 +924,30 @@ internal class Program
         await AddNewColumn(clientProvider.CreateConnection(),
             "ProductCategory", "CreationDate", "datetime");
 
+        var p = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+
         // Deprovision server and client
-        await remoteOrchestrator.DeprovisionAsync(
-            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
-        await localOrchestrator.DeprovisionAsync(
-            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+        await remoteOrchestrator.DeprovisionAsync(p);
+        await localOrchestrator.DeprovisionAsync(p);
 
         var newSetup = new SyncSetup(new string[] { "ProductCategory", "Product" });
 
         // re create orchestrators with new setup
-        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, newSetup);
-        localOrchestrator = new LocalOrchestrator(clientProvider, options, newSetup);
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+        localOrchestrator = new LocalOrchestrator(clientProvider, options);
 
         // Provision again the server 
-        await remoteOrchestrator.ProvisionAsync(
-            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+        await remoteOrchestrator.ProvisionAsync(newSetup, p, true);
 
         // Get the server schema to be sure we can create the table on client side
-        var schema = await remoteOrchestrator.GetSchemaAsync();
+        var serverScope = await remoteOrchestrator.GetServerScopeAsync();
 
         // Provision local orchestrator based on server schema
         // Adding option Table to be sure I'm provisioning the new table
-        await localOrchestrator.ProvisionAsync(schema,
-            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.Table);
+        await localOrchestrator.ProvisionAsync(serverScope, p, true);
 
         // Sync with Reinitialize
-        agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
+        agent = new SyncAgent(localOrchestrator, remoteOrchestrator, newSetup);
 
         s = await agent.SynchronizeAsync(SyncType.Reinitialize);
         Console.WriteLine(s);
@@ -701,7 +985,7 @@ internal class Program
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Source}:\t{s.Message}"));
 
-        var orchestrator = new RemoteOrchestrator(serverProvider, new SyncOptions(), syncSetup);
+        var orchestrator = new RemoteOrchestrator(serverProvider, new SyncOptions());
 
         await orchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers, progress: progress);
         await orchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers, progress: progress);
@@ -781,16 +1065,16 @@ internal class Program
                     var setup = new SyncSetup(new string[] { "Customer" });
 
                     // creating a localorchestrator with this fake setup
-                    var localOrchestrator = new LocalOrchestrator(clientProvider, clientOptions, setup);
+                    var localOrchestrator = new LocalOrchestrator(clientProvider, clientOptions);
 
                     // Deprovision all stored procedure for the table from the fake setup
-                    await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
+                    await localOrchestrator.DeprovisionAsync(setup, SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable);
 
                     // getting server scope with new column
-                    var serverFullSchema = await agent.RemoteOrchestrator.GetSchemaAsync().ConfigureAwait(false);
+                    var serverScopeInfo = await agent.RemoteOrchestrator.GetServerScopeAsync().ConfigureAwait(false);
 
                     // Provision again
-                    await agent.LocalOrchestrator.ProvisionAsync(serverFullSchema).ConfigureAwait(false);
+                    await agent.LocalOrchestrator.ProvisionAsync(serverScopeInfo).ConfigureAwait(false);
 
                     // make a sync
                     var s = await agent.SynchronizeAsync(localProgress);
@@ -1219,10 +1503,10 @@ internal class Program
         Console.WriteLine("----------------------");
         Console.WriteLine("1 - Deprovision The Server");
 
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
         // We are in change tracking mode, so no need to deprovision triggers and tracking table.
-        await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures, progress: progress);
+        await remoteOrchestrator.DeprovisionAsync(setup, SyncProvision.StoredProcedures, progress: progress);
 
         // DeprovisionAsync
         Console.WriteLine();
@@ -1242,9 +1526,9 @@ internal class Program
         setup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
         setup.Tables["ProductCategory"].SyncDirection = SyncDirection.DownloadOnly;
 
-        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-        var newSchema = await remoteOrchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
+        var newSchema = await remoteOrchestrator.ProvisionAsync(setup, SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable, progress: progress);
 
         // Snapshot
         Console.WriteLine();
@@ -1259,9 +1543,9 @@ internal class Program
             BatchSize = 5000
         };
 
-        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
         // Create a snapshot
-        var bi = await remoteOrchestrator.CreateSnapshotAsync(progress: progress);
+        var bi = await remoteOrchestrator.CreateSnapshotAsync(setup, progress: progress);
 
         Console.WriteLine("Create snapshot done.");
         Console.WriteLine($"Rows Count in the snapshot:{bi.RowsCount}");

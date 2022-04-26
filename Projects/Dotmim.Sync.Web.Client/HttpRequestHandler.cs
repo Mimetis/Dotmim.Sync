@@ -98,7 +98,9 @@ namespace Dotmim.Sync.Web.Client
                 if (response.Content == null)
                     throw new HttpEmptyResponseContentException();
 
-                await this.orchestrator.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.orchestrator.GetContext()), progress, cancellationToken).ConfigureAwait(false);
+                var ctx = this.orchestrator.GetContext(scopeName);
+
+                await this.orchestrator.InterceptAsync(new HttpGettingResponseMessageArgs(response, ctx), progress, cancellationToken).ConfigureAwait(false);
 
                 return response;
             }
@@ -177,7 +179,9 @@ namespace Dotmim.Sync.Web.Client
             if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
                 requestMessage.Content.Headers.Add("content-type", contentType);
 
-            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, this.orchestrator.GetContext()), progress:default, cancellationToken).ConfigureAwait(false);
+            var ctx = this.orchestrator.GetContext(scopeName);
+
+            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, ctx), progress:default, cancellationToken).ConfigureAwait(false);
 
             // Eventually, send the request
             var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);

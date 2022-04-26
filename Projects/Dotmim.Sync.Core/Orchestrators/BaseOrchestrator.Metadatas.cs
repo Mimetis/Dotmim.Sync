@@ -27,41 +27,44 @@ namespace Dotmim.Sync
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="progress">Progress args</param>
-        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(string scopeName, long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!timeStampStart.HasValue)
                 return null;
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
-                // No need columns or primary keys to be able to deprovision a table
-                SyncSet schema = new SyncSet(this.Setup);
-                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(this.GetContext(), schema, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(scopeInfo, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 await runner.CommitAsync().ConfigureAwait(false);
                 return databaseMetadatasCleaned;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(scopeName, ex);
             }
 
         }
 
 
-        internal virtual async Task<DatabaseMetadatasCleaned> InternalDeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit,
+        internal virtual async Task<DatabaseMetadatasCleaned> InternalDeleteMetadatasAsync(IScopeInfo scopeInfo, long timestampLimit,
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            await this.InterceptAsync(new MetadataCleaningArgs(context, this.Setup, timestampLimit, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
+
+            var context = this.GetContext(scopeInfo.Name);
+
+            await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfo.Setup, timestampLimit, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
-            foreach (var syncTable in schema.Tables)
+            foreach (var syncTable in scopeInfo.Schema.Tables)
             {
                 // Create sync adapter
-                var syncAdapter = this.GetSyncAdapter(syncTable, setup);
+                var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
                 var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
@@ -105,7 +108,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update a metadata row
         /// </summary>
-        internal async Task<bool> InternalUpdateMetadatasAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        internal async Task<bool> InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
@@ -116,6 +119,8 @@ namespace Dotmim.Sync
 
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
+
+            var context = this.GetContext(scopeInfo.Name);
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 

@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             var localOrchestrator = new LocalOrchestrator(provider, options, setup);
-            var ctx = localOrchestrator.GetContext();
+            var ctx = localOrchestrator.GetContext(SyncOptions.DefaultScopeName);
 
             localOrchestrator.OnSessionBegin(args =>
             {
@@ -91,8 +91,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var provider = new SqlSyncProvider();
             var onSessionEnd = false;
 
-            var localOrchestrator = new LocalOrchestrator(provider, options, setup);
-            var ctx = localOrchestrator.GetContext();
+            var localOrchestrator = new LocalOrchestrator(provider, options);
+            var ctx = localOrchestrator.GetContext(SyncOptions.DefaultScopeName);
 
             localOrchestrator.OnSessionEnd(args =>
             {
@@ -103,7 +103,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSessionEnd = true;
             });
 
-            await localOrchestrator.EndSessionAsync();
+            await localOrchestrator.EndSessionAsync(SyncOptions.DefaultScopeName);
 
             Assert.Equal(SyncStage.EndSession, ctx.SyncStage);
             Assert.True(onSessionEnd);

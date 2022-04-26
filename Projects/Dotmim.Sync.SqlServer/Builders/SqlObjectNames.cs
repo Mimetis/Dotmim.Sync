@@ -10,33 +10,33 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlObjectNames
     {
-        internal const string insertTriggerName = "[{0}].[{1}_insert_trigger]";
-        internal const string updateTriggerName = "[{0}].[{1}_update_trigger]";
-        internal const string deleteTriggerName = "[{0}].[{1}_delete_trigger]";
+        internal const string insertTriggerName = "[{0}].[{1}insert_trigger]";
+        internal const string updateTriggerName = "[{0}].[{1}update_trigger]";
+        internal const string deleteTriggerName = "[{0}].[{1}delete_trigger]";
 
-        internal const string selectChangesProcName = "[{0}].[{1}_changes]";
-        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}_{2}_changes]";
+        internal const string selectChangesProcName = "[{0}].[{1}{2}changes]";
+        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}{2}{3}changes]";
 
-        internal const string initializeChangesProcName = "[{0}].[{1}_initialize]";
-        internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}_{2}_initialize]";
+        internal const string initializeChangesProcName = "[{0}].[{1}{2}initialize]";
+        internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}{2}{3}initialize]";
 
-        internal const string selectRowProcName = "[{0}].[{1}_selectrow]";
+        internal const string selectRowProcName = "[{0}].[{1}{2}selectrow]";
 
-        internal const string insertProcName = "[{0}].[{1}_insert]";
-        internal const string updateProcName = "[{0}].[{1}_update]";
-        internal const string deleteProcName = "[{0}].[{1}_delete]";
+        internal const string insertProcName = "[{0}].[{1}{2}insert]";
+        internal const string updateProcName = "[{0}].[{1}{2}update]";
+        internal const string deleteProcName = "[{0}].[{1}{2}delete]";
 
-        internal const string insertMetadataProcName = "[{0}].[{1}_insertmetadata]";
-        internal const string updateMetadataProcName = "[{0}].[{1}_updatemetadata]";
-        internal const string deleteMetadataProcName = "[{0}].[{1}_deletemetadata]";
+        internal const string insertMetadataProcName = "[{0}].[{1}{2}insertmetadata]";
+        internal const string updateMetadataProcName = "[{0}].[{1}{2}updatemetadata]";
+        internal const string deleteMetadataProcName = "[{0}].[{1}{2}deletemetadata]";
 
-        internal const string resetMetadataProcName = "[{0}].[{1}_reset]";
+        internal const string resetMetadataProcName = "[{0}].[{1}{2}reset]";
 
-        internal const string bulkTableTypeName = "[{0}].[{1}_BulkType]";
+        internal const string bulkTableTypeName = "[{0}].[{1}{2}BulkType]";
 
-        internal const string bulkInsertProcName = "[{0}].[{1}_bulkinsert]";
-        internal const string bulkUpdateProcName = "[{0}].[{1}_bulkupdate]";
-        internal const string bulkDeleteProcName = "[{0}].[{1}_bulkdelete]";
+        internal const string bulkInsertProcName = "[{0}].[{1}{2}bulkinsert]";
+        internal const string bulkUpdateProcName = "[{0}].[{1}{2}bulkupdate]";
+        internal const string bulkDeleteProcName = "[{0}].[{1}{2}bulkdelete]";
 
         internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
         internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
@@ -52,6 +52,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
+        public string ScopeName { get; }
+
         public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
         {
             if (storedProceduresNames.ContainsKey(objectType))
@@ -114,13 +116,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             return commandName;
         }
 
-        public SqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public SqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.TableDescription = tableDescription;
             this.tableName = tableName;
             this.trackingName = trackingName;
             this.Setup = setup;
-            SetDefaultNames();
+            this.ScopeName = scopeName;
+            this.SetDefaultNames();
         }
 
         /// <summary>
@@ -135,27 +138,32 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var tableName = ParserName.Parse(TableDescription);
 
+            var scopeNameWithoutDefaultScope = ScopeName == SyncOptions.DefaultScopeName ? "" : $"{ScopeName}_";
+
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"));
+            var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}_";
+            var triggerName = $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}_";
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(selectChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
 
-            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
-            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
-            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"));
+            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, schema, triggerName));
+            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, schema, triggerName));
+            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, schema, triggerName));
+
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
             this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
             this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));

@@ -11,12 +11,12 @@ namespace Dotmim.Sync.Enumerations
     public enum SyncSide
     {
         /// <summary>
-        /// Occurs when error comes from LocalOrchestrator
+        /// Occurs when something comes from LocalOrchestrator
         /// </summary>
         ClientSide,
 
         /// <summary>
-        /// Occurs when error comes from RemoteOrchestrator
+        /// Occurs when something comes from RemoteOrchestrator
         /// </summary>
         ServerSide
     }

@@ -105,11 +105,11 @@ namespace Dotmim.Sync.MariaDB
         }
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MySqlTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();

@@ -101,39 +101,39 @@ namespace Dotmim.Sync
 
     public class Migration
     {
-        private readonly SyncSetup newSetup;
-        private readonly SyncSetup oldSetup;
+        private readonly ScopeInfo oldScopeInfo;
+        private readonly ServerScopeInfo newScopeInfo;
 
-
-
-        public Migration(SyncSetup newSetup, SyncSetup oldSetup)
+        public Migration(ScopeInfo oldScopeInfo, ServerScopeInfo newScopeInfo)
         {
-            this.newSetup = newSetup;
-            this.oldSetup = oldSetup;
+            this.oldScopeInfo = oldScopeInfo;
+            this.newScopeInfo = newScopeInfo;
         }
 
         public MigrationResults Compare()
         {
             MigrationResults migrationSetup = new MigrationResults();
-
-            if (newSetup.EqualsByProperties(oldSetup))
-                return migrationSetup;
-
             var sc = SyncGlobalization.DataSourceStringComparison;
 
+            if (newScopeInfo.Setup.EqualsByProperties(oldScopeInfo.Setup) && string.Equals(newScopeInfo.Name, oldScopeInfo.Name, sc))
+                return migrationSetup;
+
+
             // if we change the prefix / suffix, we should recreate all stored procedures
-            if (!string.Equals(newSetup.StoredProceduresPrefix, oldSetup.StoredProceduresPrefix, sc) || !string.Equals(newSetup.StoredProceduresSuffix, oldSetup.StoredProceduresSuffix, sc))
+            if (!string.Equals(newScopeInfo.Setup.StoredProceduresPrefix, oldScopeInfo.Setup.StoredProceduresPrefix, sc) 
+                || !string.Equals(newScopeInfo.Setup.StoredProceduresSuffix, oldScopeInfo.Setup.StoredProceduresSuffix, sc)
+                || !string.Equals(newScopeInfo.Name, oldScopeInfo.Name, sc))
                 migrationSetup.AllStoredProcedures = MigrationAction.Create;
 
             // if we change the prefix / suffix, we should recreate all triggers
-            if (!string.Equals(newSetup.TriggersPrefix, oldSetup.TriggersPrefix, sc) || !string.Equals(newSetup.TriggersSuffix, oldSetup.TriggersSuffix, sc))
+            if (!string.Equals(newScopeInfo.Setup.TriggersPrefix, oldScopeInfo.Setup.TriggersPrefix, sc) || !string.Equals(newScopeInfo.Setup.TriggersSuffix, oldScopeInfo.Setup.TriggersSuffix, sc))
                 migrationSetup.AllTriggers = MigrationAction.Create;
 
             // If we change tracking tables prefix and suffix, we should:
             // - RENAME the tracking tables (and keep the rows)
             // - RECREATE the stored procedure
             // - RECREATE the triggers
-            if (!string.Equals(newSetup.TrackingTablesPrefix, oldSetup.TrackingTablesPrefix, sc) || !string.Equals(newSetup.TrackingTablesSuffix, oldSetup.TrackingTablesSuffix, sc))
+            if (!string.Equals(newScopeInfo.Setup.TrackingTablesPrefix, oldScopeInfo.Setup.TrackingTablesPrefix, sc) || !string.Equals(newScopeInfo.Setup.TrackingTablesSuffix, oldScopeInfo.Setup.TrackingTablesSuffix, sc))
             {
                 migrationSetup.AllStoredProcedures = MigrationAction.Create;
                 migrationSetup.AllTriggers = MigrationAction.Create;
@@ -141,7 +141,7 @@ namespace Dotmim.Sync
             }
 
             // Search for deleted tables
-            var deletedTables = oldSetup.Tables.Where(oldt => newSetup.Tables[oldt.TableName, oldt.SchemaName] == null);
+            var deletedTables = oldScopeInfo.Setup.Tables.Where(oldt => newScopeInfo.Setup.Tables[oldt.TableName, oldt.SchemaName] == null);
 
             // We found some tables present in the old setup, but not in the new setup
             // So, we are removing all the sync elements from the table, but we do not remote the table itself
@@ -159,7 +159,7 @@ namespace Dotmim.Sync
             }
 
             // Search for new tables
-            var newTables = newSetup.Tables.Where(newdt => oldSetup.Tables[newdt.TableName, newdt.SchemaName] == null);
+            var newTables = newScopeInfo.Setup.Tables.Where(newdt => oldScopeInfo.Setup.Tables[newdt.TableName, newdt.SchemaName] == null);
 
             // We found some tables present in the new setup, but not in the old setup
             foreach (var newTable in newTables)
@@ -176,10 +176,10 @@ namespace Dotmim.Sync
             }
 
             // Compare existing tables
-            foreach (var newTable in newSetup.Tables)
+            foreach (var newTable in newScopeInfo.Setup.Tables)
             {
                 // Getting corresponding table in old setup
-                var oldTable = oldSetup.Tables[newTable.TableName, newTable.SchemaName];
+                var oldTable = oldScopeInfo.Setup.Tables[newTable.TableName, newTable.SchemaName];
 
                 // We do not found the old setup table, we can conclude this "newTable" is a new table included in the new setup
                 // And therefore will be setup during the last call the EnsureSchema()
@@ -216,11 +216,11 @@ namespace Dotmim.Sync
 
             // Search for new filters
             // If we have any filter, just recreate them, just in case
-            if (newSetup.Filters != null && newSetup.Filters.Count > 0)
+            if (newScopeInfo.Setup.Filters != null && newScopeInfo.Setup.Filters.Count > 0)
             {
-                foreach (var filter in newSetup.Filters)
+                foreach (var filter in newScopeInfo.Setup.Filters)
                 {
-                    var setupTable = newSetup.Tables[filter.TableName, filter.SchemaName];
+                    var setupTable = newScopeInfo.Setup.Tables[filter.TableName, filter.SchemaName];
 
                     if (setupTable == null)
                         continue;

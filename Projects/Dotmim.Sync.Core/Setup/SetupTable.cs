@@ -44,6 +44,19 @@ namespace Dotmim.Sync
         [DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncDirection SyncDirection { get; set; }
 
+
+        ///// <summary>
+        ///// Gets or set the last server sync timestamp for this table
+        ///// </summary>
+        //[DataMember(Name = "lsst", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        //public long? LastServerSyncTimestamp { get; set; }
+
+        ///// <summary>
+        ///// Gets or set the last client sync timestamp for this table
+        ///// </summary>
+        //[DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        //public long? LastSyncTimestamp { get; set; }
+
         /// <summary>
         /// Check if SetupTable has columns. If not columns specified, all the columns from server database are retrieved
         /// </summary>

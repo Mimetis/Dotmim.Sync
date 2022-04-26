@@ -1508,7 +1508,8 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options, new SyncSetup(Tables));
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var scope = await remoteOrchestrator.EnsureSchemaAsync();
+            var scope = await remoteOrchestrator.GetServerScopeAsync();
+            // TODO : if serverScope.Schema is null, should we Provision here ?
 
             // configure server orchestrator
             this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);

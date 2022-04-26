@@ -20,13 +20,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SyncSetup setup;
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
-        public SqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public SqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, setup);
+            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, setup, scopeName);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 

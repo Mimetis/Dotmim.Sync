@@ -17,8 +17,8 @@ namespace Dotmim.Sync.SqlServer.Builders
     public class SqlChangeTrackingBuilderTrigger : SqlBuilderTrigger
     {
         private ParserName tableName;
-        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingName, setup)
+        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingName, setup, scopeName)
         {
             this.tableName = tableName;
         }

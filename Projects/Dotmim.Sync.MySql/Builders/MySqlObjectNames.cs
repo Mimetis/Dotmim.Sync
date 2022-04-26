@@ -48,6 +48,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
+        public string ScopeName { get; }
 
         public void AddCommandName(DbCommandType objectType, string name)
         {
@@ -113,10 +114,11 @@ namespace Dotmim.Sync.MySql.Builders
         }
 
 
-        public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
+            this.ScopeName = scopeName;
             this.tableName = tableName;
             this.trackingName = trackingName;
 
@@ -132,6 +134,9 @@ namespace Dotmim.Sync.MySql.Builders
             var spSuf = this.Setup.StoredProceduresSuffix != null ? this.Setup.StoredProceduresSuffix : "";
             var trigPref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : "";
             var trigSuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : "";
+
+            // TODO
+            var scopeNameWithoutDefaultScope = ScopeName == SyncOptions.DefaultScopeName ? "" : ScopeName;
 
             this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"));
             this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, $"{trigPref}{tableName.Unquoted().Normalized().ToString()}{trigSuf}"));

@@ -22,7 +22,12 @@ namespace Dotmim.Sync.Web.Server
         /// Default ctor. Using default options and schema
         /// </summary>
         public WebServerOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
-            : base(provider, options, setup, scopeName) => this.WebServerOptions = webServerOptions ?? new WebServerOptions();
+            : base(provider, options)
+        {
+            this.Setup = setup;
+            this.WebServerOptions = webServerOptions ?? new WebServerOptions();
+            this.ScopeName = scopeName;
+        }
 
         public WebServerOrchestrator(CoreProvider provider, string[] tables, string scopeName = SyncOptions.DefaultScopeName)
             : this(provider, new SyncOptions(), new SyncSetup(tables), new WebServerOptions(), scopeName)
@@ -32,10 +37,13 @@ namespace Dotmim.Sync.Web.Server
         /// Client Converter
         private IConverter clientConverter;
 
+        public SyncSetup Setup { get; }
+
         /// <summary>
         /// Gets or Sets Web server options parameters
         /// </summary>
         public WebServerOptions WebServerOptions { get; set; }
+        public string ScopeName { get; }
 
 
         /// <summary>
@@ -111,6 +119,9 @@ namespace Dotmim.Sync.Web.Server
                 // check session id
                 var tempSessionId = httpContext.Session.GetString("session_id");
 
+                // scope context
+                var ctx = this.GetContext(scopeName);
+
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
                     throw new HttpSessionLostException();
 
@@ -141,12 +152,12 @@ namespace Dotmim.Sync.Web.Server
                         var s1 = await this.EnsureScopesAsync(httpContext, m1, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
                         break;
-                    case HttpStep.EnsureSchema:
-                        var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
-                        await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m11.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s11 = await this.EnsureSchemaAsync(httpContext, m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
-                        break;
+                    //case HttpStep.EnsureSchema:
+                    //    var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
+                    //    await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m11.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                    //    var s11 = await this.EnsureSchemaAsync(httpContext, m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                    //    binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
+                    //    break;
 
                     // version >= 0.8    
                     case HttpStep.SendChangesInProgress:
@@ -235,7 +246,8 @@ namespace Dotmim.Sync.Web.Server
                 // save session
                 await httpContext.Session.CommitAsync(cancellationToken);
 
-                await this.InterceptAsync(new HttpSendingResponseArgs(httpContext, this.GetContext(), sessionCache, data, step), progress, cancellationToken).ConfigureAwait(false);
+
+                await this.InterceptAsync(new HttpSendingResponseArgs(httpContext, ctx, sessionCache, data, step), progress, cancellationToken).ConfigureAwait(false);
 
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
             }
@@ -372,7 +384,8 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.GetServerScopeAsync(httpMessage.SyncContext.ScopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+            // TODO : if serverScope.Schema is null, should we Provision here ?
 
             // Create http response
             var httpResponse = new HttpMessageEnsureScopesResponse(ctx, serverScopeInfo);
@@ -380,35 +393,35 @@ namespace Dotmim.Sync.Web.Server
             return httpResponse;
         }
 
-        internal protected virtual async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
-            CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        {
+        //internal protected virtual async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
+        //    CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        //{
 
-            if (httpMessage == null)
-                throw new ArgumentException("EnsureScopesAsync message could not be null");
+        //    if (httpMessage == null)
+        //        throw new ArgumentException("EnsureScopesAsync message could not be null");
 
-            if (this.Setup == null)
-                throw new ArgumentException("You need to set the tables to sync on server side");
+        //    if (this.Setup == null)
+        //        throw new ArgumentException("You need to set the tables to sync on server side");
 
-            // Get context from request message
-            var ctx = httpMessage.SyncContext;
+        //    // Get context from request message
+        //    var ctx = httpMessage.SyncContext;
 
-            // Set the context coming from the client
-            this.SetContext(ctx);
+        //    // Set the context coming from the client
+        //    this.SetContext(ctx);
 
-            // Get schema
-            var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+        //    // Get schema
+        //    var serverScopeInfo = await base.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
 
-            var schema = serverScopeInfo.Schema;
-            schema.EnsureSchema();
-            httpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
+        //    var schema = serverScopeInfo.Schema;
+        //    schema.EnsureSchema();
+        //    httpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
 
-            var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
+        //    var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
 
-            return httpResponse;
+        //    return httpResponse;
 
 
-        }
+        //}
 
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -451,7 +464,7 @@ namespace Dotmim.Sync.Web.Server
 
             var changes = await base.GetEstimatedChangesCountAsync(httpMessage.Scope, default, default, cancellationToken, progress);
 
-            var changesResponse = new HttpMessageSendChangesResponse(syncContext)
+            var changesResponse = new HttpMessageSendChangesResponse(ctx)
             {
                 ServerChangesSelected = changes.ServerChangesSelected,
                 ClientChangesApplied = new DatabaseChangesApplied(),
@@ -473,9 +486,9 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
-            var ts = await base.GetLocalTimestampAsync(default, default, cancellationToken, progress);
+            var ts = await base.GetLocalTimestampAsync(ctx.ScopeName, default, default, cancellationToken, progress);
 
-            return new HttpMessageRemoteTimestampResponse(syncContext, ts);
+            return new HttpMessageRemoteTimestampResponse(ctx, ts);
         }
 
 
@@ -495,7 +508,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // get changes
-            var snap = await this.GetSnapshotAsync(schema, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(ctx.ScopeName, schema, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(ctx)
             {
@@ -521,7 +534,8 @@ namespace Dotmim.Sync.Web.Server
 
             if (schema == null || !schema.HasTables || !schema.HasColumns)
             {
-                var serverScopeInfo = await base.EnsureSchemaAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await base.GetServerScopeAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+                // TODO : if serverScope.Schema is null, should we Provision here ?
 
                 schema = serverScopeInfo.Schema;
                 schema.EnsureSchema();
@@ -544,7 +558,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // get changes
-            var snap = await this.GetSnapshotAsync(schema, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(ctx.ScopeName, schema, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
@@ -946,14 +960,13 @@ namespace Dotmim.Sync.Web.Server
             foreach (var webOrchestrator in orchestrators)
             {
 
-                SyncContext ctx = null;
                 string dbName = null;
                 string version = null;
                 string exceptionMessage = null;
                 bool hasException = false;
                 try
                 {
-                    (ctx, dbName, version) = await webOrchestrator.GetHelloAsync();
+                    (dbName, version) = await webOrchestrator.GetHelloAsync();
                 }
                 catch (Exception ex)
                 {

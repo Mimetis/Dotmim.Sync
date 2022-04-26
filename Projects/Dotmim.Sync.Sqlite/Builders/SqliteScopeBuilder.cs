@@ -20,8 +20,7 @@ namespace Dotmim.Sync.Sqlite
             if (scopeType != DbScopeType.Client)
                 return null;
 
-            var commandText =
-                                $@"SELECT sync_scope_id
+            var commandText = $@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_schema
                            , sync_scope_setup
@@ -30,8 +29,7 @@ namespace Dotmim.Sync.Sqlite
                            , scope_last_server_sync_timestamp
                            , scope_last_sync_timestamp
                            , scope_last_sync_duration
-                    FROM  {ScopeInfoTableName.Unquoted().ToString()}
-                    WHERE sync_scope_name = @sync_scope_name";
+                    FROM  {ScopeInfoTableName.Unquoted().ToString()}";
 
             var command = connection.CreateCommand();
 
@@ -39,12 +37,6 @@ namespace Dotmim.Sync.Sqlite
 
             command.Connection = connection;
                 command.Transaction = transaction;
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_name";
-            p.DbType = DbType.String;
-            p.Size = 100;
-            command.Parameters.Add(p);
 
             return command;
         }

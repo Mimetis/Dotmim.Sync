@@ -22,13 +22,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
         private readonly SqlObjectNames sqlObjectNames;
-        public SqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public SqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
+            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, this.setup, scopeName);
 
         }
 
@@ -160,41 +160,41 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
 
-            if (this.tableDescription.GetMutableColumns().Count() > 0)
-            {
-                stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-                stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
+            //if (this.tableDescription.GetMutableColumns().Count() > 0)
+            //{
+            //    stringBuilder.Append($"JOIN DELETED AS [d] ON ");
+            //    stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
 
-                stringBuilder.AppendLine("WHERE (");
-                string or = "";
-                foreach (var column in this.tableDescription.GetMutableColumns())
-                {
-                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+            //    stringBuilder.AppendLine("WHERE (");
+            //    string or = "";
+            //    foreach (var column in this.tableDescription.GetMutableColumns())
+            //    {
+            //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-                    stringBuilder.Append("\t");
-                    stringBuilder.Append(or);
-                    stringBuilder.Append("ISNULL(");
-                    stringBuilder.Append("NULLIF(");
-                    stringBuilder.Append("[d].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("[i].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(")");
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("NULLIF(");
-                    stringBuilder.Append("[i].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("[d].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(")");
-                    stringBuilder.AppendLine(") IS NOT NULL");
+            //        stringBuilder.Append("\t");
+            //        stringBuilder.Append(or);
+            //        stringBuilder.Append("ISNULL(");
+            //        stringBuilder.Append("NULLIF(");
+            //        stringBuilder.Append("[d].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(", ");
+            //        stringBuilder.Append("[i].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(")");
+            //        stringBuilder.Append(", ");
+            //        stringBuilder.Append("NULLIF(");
+            //        stringBuilder.Append("[i].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(", ");
+            //        stringBuilder.Append("[d].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(")");
+            //        stringBuilder.AppendLine(") IS NOT NULL");
 
-                    or = " OR ";
-                }
-                stringBuilder.AppendLine(") ");
-            }
+            //        or = " OR ";
+            //    }
+            //    stringBuilder.AppendLine(") ");
+            //}
 
             stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
 
@@ -234,38 +234,38 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
-            if (this.tableDescription.GetMutableColumns().Count() > 0)
-            {
-                stringBuilder.AppendLine("AND (");
-                string or = "";
-                foreach (var column in this.tableDescription.GetMutableColumns())
-                {
-                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+            //if (this.tableDescription.GetMutableColumns().Count() > 0)
+            //{
+            //    stringBuilder.AppendLine("AND (");
+            //    string or = "";
+            //    foreach (var column in this.tableDescription.GetMutableColumns())
+            //    {
+            //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-                    stringBuilder.Append("\t");
-                    stringBuilder.Append(or);
-                    stringBuilder.Append("ISNULL(");
-                    stringBuilder.Append("NULLIF(");
-                    stringBuilder.Append("[d].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("[i].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(")");
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("NULLIF(");
-                    stringBuilder.Append("[i].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(", ");
-                    stringBuilder.Append("[d].");
-                    stringBuilder.Append(quotedColumn);
-                    stringBuilder.Append(")");
-                    stringBuilder.AppendLine(") IS NOT NULL");
+            //        stringBuilder.Append("\t");
+            //        stringBuilder.Append(or);
+            //        stringBuilder.Append("ISNULL(");
+            //        stringBuilder.Append("NULLIF(");
+            //        stringBuilder.Append("[d].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(", ");
+            //        stringBuilder.Append("[i].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(")");
+            //        stringBuilder.Append(", ");
+            //        stringBuilder.Append("NULLIF(");
+            //        stringBuilder.Append("[i].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(", ");
+            //        stringBuilder.Append("[d].");
+            //        stringBuilder.Append(quotedColumn);
+            //        stringBuilder.Append(")");
+            //        stringBuilder.AppendLine(") IS NOT NULL");
 
-                    or = " OR ";
-                }
-                stringBuilder.AppendLine(") ");
-            }
+            //        or = " OR ";
+            //    }
+            //    stringBuilder.AppendLine(") ");
+            //}
 
             return stringBuilder.ToString();
 

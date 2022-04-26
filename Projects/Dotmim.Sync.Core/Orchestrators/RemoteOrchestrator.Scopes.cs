@@ -21,31 +21,31 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the server scope histories
         /// </summary>
-        public virtual async Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<List<ServerHistoryScopeInfo>> GetServerHistoryScopesAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                List<ServerHistoryScopeInfo> serverHistoryScopes = null;
+                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Get Scope Builder
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-                var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Get scope if exists
-                serverHistoryScopes = await this.InternalGetAllScopesAsync<ServerHistoryScopeInfo>(this.GetContext(), DbScopeType.ServerHistory, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopes = await this.InternalGetAllScopesAsync(scopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
+
+                var serverHistoryScopes = new List<ServerHistoryScopeInfo>();
+                foreach (var scope in scopes)
+                    serverHistoryScopes.Add(scope as ServerHistoryScopeInfo);
 
                 return serverHistoryScopes;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(scopeName, ex);
             }
         }
 
@@ -53,53 +53,74 @@ namespace Dotmim.Sync
         /// Get the local configuration, ensures the local scope is created
         /// </summary>
         /// <returns>Server scope info, containing all scopes names, version, setup and related schema infos</returns>
-        public virtual async Task<ServerScopeInfo> GetServerScopeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> GetServerScopeAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                ServerScopeInfo serverScopeInfo = null;
+                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-
-                var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeName, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
+                exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.InternalGetScopeAsync(scopeName, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (serverScopeInfo == null)
+                {
+                    serverScopeInfo = this.InternalCreateScope(scopeName, DbScopeType.Server, cancellationToken, progress);
+                    serverScopeInfo = await this.InternalSaveScopeAsync(serverScopeInfo, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+                return serverScopeInfo as ServerScopeInfo;
+
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(scopeName, ex);
+            }
+
+        }
+
+        public virtual Task<ServerScopeInfo> GetServerScopeAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetServerScopeAsync(SyncOptions.DefaultScopeName, setup, connection, transaction, cancellationToken, progress);
+
+        /// <summary>
+        /// Get the local configuration, ensures the local scope is created.
+        /// Provision is setup is defined
+        /// </summary>
+        /// <returns>Server scope info, containing all scopes names, version, setup and related schema infos</returns>
+        public virtual async Task<ServerScopeInfo> GetServerScopeAsync(string scopeName, SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // Get server scope. Create tables and the row if needed
+                var serverScopeInfo = await this.GetServerScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // if serverscopeinfo is a new, because we never run any sync before, grab schema and affect setup
-                if (serverScopeInfo.Setup == null && serverScopeInfo.Schema == null)
+                if (serverScopeInfo.Setup == null && serverScopeInfo.Schema == null && setup != null && setup.Tables.Count > 0)
                 {
-                    // 1) Get Schema from remote provider
-                    var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var schema = await this.InternalGetSchemaAsync(scopeName, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    serverScopeInfo.Setup = setup;
+                    serverScopeInfo.Schema = schema;
 
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    await InternalProvisionAsync(this.GetContext(), false, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
-                else if (!serverScopeInfo.Setup.EqualsByProperties(this.Setup))
-                {
-                    // Compare serverscope setup with current
-                    SyncSet schema;
-                    // 1) Get Schema from remote provider
-                    schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    // Migrate the old setup (serverScopeInfo.Setup) to the new setup (this.Setup) based on the new schema 
-                    await this.InternalMigrationAsync(this.GetContext(), schema, serverScopeInfo.Setup, this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    serverScopeInfo.Setup = this.Setup;
-                    serverScopeInfo.Schema = schema;
+                    await this.InternalProvisionAsync(serverScopeInfo, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Write scopes locally
-                    await this.InternalSaveScopeAsync(this.GetContext(), DbScopeType.Server, serverScopeInfo, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalSaveScopeAsync(serverScopeInfo, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
+
+
+                if (!serverScopeInfo.Setup.EqualsByProperties(setup))
+                    throw new Exception("Seems you are trying another Setup tables that what is stored in your server scope database. Please make a migration or create a new scope");
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -107,12 +128,10 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(scopeName, ex);
             }
 
         }
-
-
 
         /// <summary>
         /// Update or Insert a server scope row
@@ -121,23 +140,23 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Write scopes locally
-                var scopeInfoUpdated = await this.InternalSaveScopeAsync(this.GetContext(), DbScopeType.Server, scopeInfo, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopeInfoUpdated = await this.InternalSaveScopeAsync(scopeInfo, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return scopeInfoUpdated;
+                return scopeInfoUpdated as ServerScopeInfo;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -148,23 +167,22 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(this.GetContext(), DbScopeType.ServerHistory, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(scopeInfo.Name, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Write scopes locally
-                var scopeInfoUpdated = await this.InternalSaveScopeAsync(this.GetContext(), DbScopeType.ServerHistory, scopeInfo, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopeInfoUpdated = await this.InternalSaveScopeAsync(scopeInfo, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return scopeInfoUpdated;
+                return scopeInfoUpdated as ServerHistoryScopeInfo;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
     }

@@ -263,9 +263,10 @@ namespace Dotmim.Sync.Tests.Models
                     .ValueGeneratedNever();
 
                 entity.Property(e => e.ModifiedDate)
+                    .IsRequired(false)
                     .HasColumnType("datetime");
 
-                entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
+                //entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
 
                 entity.Property(e => e.Name)
                     .IsRequired()
@@ -273,9 +274,10 @@ namespace Dotmim.Sync.Tests.Models
                     .HasMaxLength(50);
 
                 entity.Property(e => e.Rowguid)
+                    .IsRequired(false)
                     .HasColumnName("rowguid");
 
-                entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
+                //entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
             });
 
             modelBuilder.Entity<ProductModel>(entity =>

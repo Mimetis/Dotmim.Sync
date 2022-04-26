@@ -23,15 +23,16 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlBuilderTrackingTable sqlBuilderTrackingTable;
         private SqlBuilderTrigger sqlBuilderTrigger;
 
-        public SqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
+        public SqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
-            this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingTableName, setup);
+            this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingTableName, setup, scopeName);
             this.SqlDbMetadata = new SqlDbMetadata();
 
-            this.sqlBuilderProcedure = new SqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderProcedure = new SqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup, scopeName);
             this.sqlBuilderTable = new SqlBuilderTable(tableDescription, tableName, trackingTableName, Setup);
             this.sqlBuilderTrackingTable = new SqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
-            this.sqlBuilderTrigger = new SqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderTrigger = new SqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup, scopeName);
         }
 
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)

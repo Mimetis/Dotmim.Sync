@@ -121,11 +121,11 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get the table builder. Table builder builds table, stored procedures and triggers
         /// </summary>
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-        => new SqlTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+        => new SqlTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqlSyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
 

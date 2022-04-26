@@ -24,18 +24,20 @@ namespace Dotmim.Sync.MySql.Builders
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
+        private readonly string scopeName;
         private MySqlObjectNames objectNames;
         private MySqlDbMetadata dbMetadata;
         public const string MYSQL_PREFIX_PARAMETER = "in_";
 
 
-        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
+            this.scopeName = scopeName;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.objectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
+            this.objectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup, scopeName);
             this.dbMetadata = new MySqlDbMetadata();
         }
 

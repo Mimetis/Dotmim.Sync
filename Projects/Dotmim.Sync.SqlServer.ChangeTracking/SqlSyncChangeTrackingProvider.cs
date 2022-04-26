@@ -45,11 +45,11 @@ namespace Dotmim.Sync.SqlServer
         }
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
 

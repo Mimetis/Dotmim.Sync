@@ -15,12 +15,12 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         private SqlChangeTrackingBuilderTrigger sqlChangeTrackingBuilderTrigger;
 
       
-        public SqlChangeTrackingTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingTableName, setup) 
+        public SqlChangeTrackingTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName) 
         {
             this.sqlChangeTrackingBuilderTrackingTable = new SqlChangeTrackingBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-            this.sqlChangeTrackingBuilderProcedure = new SqlChangeTrackingBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
-            this.sqlChangeTrackingBuilderTrigger = new SqlChangeTrackingBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
+            this.sqlChangeTrackingBuilderProcedure = new SqlChangeTrackingBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup, scopeName);
+            this.sqlChangeTrackingBuilderTrigger = new SqlChangeTrackingBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup, scopeName);
         }
 
 

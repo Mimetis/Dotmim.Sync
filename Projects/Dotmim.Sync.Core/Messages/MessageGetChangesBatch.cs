@@ -10,11 +10,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class MessageGetChangesBatch
     {
-        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
+        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, SyncSet schema,
                                       int batchSize, string batchDirectory, string batchDirectoryName, bool supportsMultiActiveResultSets, ILocalSerializerFactory localSerializerFactory)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
-            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
             this.BatchDirectoryName = batchDirectoryName;
             this.SupportsMultiActiveResultSets = supportsMultiActiveResultSets;
@@ -23,7 +22,7 @@ namespace Dotmim.Sync
             this.ExcludingScopeId = excludingScopeId;
             this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
-            this.LastTimestamp = lastTimestamp;
+            //this.LastTimestamp = lastTimestamp;
             this.BatchSize = batchSize;
         }
 
@@ -48,18 +47,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the last date timestamp from where we want rows
         /// </summary>
-        public long? LastTimestamp { get; set; }
+        //public long? LastTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema used for this sync
         /// </summary>
         public SyncSet Schema { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Setup used for this sync
-        /// </summary>
-        public SyncSetup Setup { get; }
-
+ 
         /// <summary>
         /// Gets or Sets the download batch size, if needed
         /// </summary>

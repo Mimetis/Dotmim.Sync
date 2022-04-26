@@ -19,13 +19,22 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseChangesSelectingArgs : ProgressArgs
     {
-        public DatabaseChangesSelectingArgs(SyncContext context, MessageGetChangesBatch changesRequest, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction) => this.ChangesRequest = changesRequest;
+        public DatabaseChangesSelectingArgs(SyncContext context, string batchDirectory, int batchSize, bool isNew, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.BatchDirectory = batchDirectory;
+            this.BatchSize = batchSize;
+            this.IsNew = isNew;
+        }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Getting Changes. [{ChangesRequest.BatchDirectory}]. Batch size:{ChangesRequest.BatchSize}. IsNew:{ChangesRequest.IsNew}. LastTimestamp:{ChangesRequest.LastTimestamp}. ";
+        public override string Message => $"[{Connection.Database}] Getting Changes. [{BatchDirectory}]. Batch size:{BatchSize}. IsNew:{IsNew}.";
         public MessageGetChangesBatch ChangesRequest { get; }
         public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
+
+        public string BatchDirectory { get; }
+        public int BatchSize { get; }
+        public bool IsNew { get; }
     }
 
     /// <summary>

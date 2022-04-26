@@ -183,6 +183,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             var serverScopeInfo = await remoteOrchestrator.GetServerScopeAsync();
+            // TODO : if serverScope.Schema is null, should we Provision here ?
 
             serverScopeInfo.Version = "2.0";
 

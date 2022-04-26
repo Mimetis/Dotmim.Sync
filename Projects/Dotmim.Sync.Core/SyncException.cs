@@ -244,9 +244,9 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTableException : Exception
     {
-        const string message = "Table {0} does not exists.";
+        const string message = "Table {0} does not exists in your scope info setup (scope name : {1}).";
 
-        public MissingTableException(string tableName) : base(string.Format(message, tableName)) { }
+        public MissingTableException(string tableName, string schemaName, string scopeName) : base(string.Format(message, string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}", scopeName)) { }
     }
 
     /// <summary>
@@ -289,6 +289,16 @@ namespace Dotmim.Sync
         const string message = "Your setup does not contains any table.";
 
         public MissingTablesException() : base(message) { }
+    }
+
+    /// <summary>
+    /// No schema in the scope
+    /// </summary>
+    public class MissingSchemaInScopeException : Exception
+    {
+        const string message = "Your scope does not contains any schema.";
+
+        public MissingSchemaInScopeException() : base(message) { }
     }
 
 

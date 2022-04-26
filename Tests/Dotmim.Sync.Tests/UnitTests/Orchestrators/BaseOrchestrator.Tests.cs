@@ -440,14 +440,14 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            var schema = await localOrchestrator.ProvisionAsync(provision);
+            var clientScopeInfo = await localOrchestrator.ProvisionAsync(provision);
 
             var context = localOrchestrator.GetContext();
 
             Assert.Equal(SyncStage.Provisioning, context.SyncStage);
-            Assert.Single(schema.Tables);
-            Assert.Equal("SalesLT.Product", schema.Tables[0].GetFullName());
-            Assert.Equal(17, schema.Tables[0].Columns.Count);
+            Assert.Single(clientScopeInfo.Schema.Tables);
+            Assert.Equal("SalesLT.Product", clientScopeInfo.Schema.Tables[0].GetFullName());
+            Assert.Equal(17, clientScopeInfo.Schema.Tables[0].Columns.Count);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

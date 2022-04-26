@@ -4,11 +4,13 @@ using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
+
+
     /// <summary>
     /// Mapping sur la table ScopeInfo
     /// </summary>
     [DataContract(Name = "scope"), Serializable]
-    public class ScopeInfo
+    public class ScopeInfo : IScopeInfo
     {
         /// <summary>
         /// For serialization purpose

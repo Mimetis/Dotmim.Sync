@@ -8,7 +8,7 @@ namespace Dotmim.Sync
     /// Mapping sur la table ScopeInfo
     /// </summary>
     [DataContract(Name = "server_scope"), Serializable]
-    public class ServerScopeInfo
+    public class ServerScopeInfo : IScopeInfo
     {
         /// <summary>
         /// Scope name. Shared by all clients and the server

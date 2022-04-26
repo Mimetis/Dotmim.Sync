@@ -10,8 +10,8 @@ namespace Dotmim.Sync
 {
     public class HttpSyncPolicyArgs : ProgressArgs
     {
-        public HttpSyncPolicyArgs(SyncContext context, int retryCount, int retryNumber, TimeSpan delay)
-            : base(context, null, null)
+        public HttpSyncPolicyArgs(int retryCount, int retryNumber, TimeSpan delay)
+            : base(null, null, null)
         {
             this.RetryCount = retryCount;
             this.RetryNumber = retryNumber;
