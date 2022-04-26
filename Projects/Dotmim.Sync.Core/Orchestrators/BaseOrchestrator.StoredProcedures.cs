@@ -24,19 +24,23 @@ namespace Dotmim.Sync
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedure</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
         /// <param name="overwrite">If true, drop the existing stored procedure then create again</param>
-        public async Task<bool> CreateStoredProcedureAsync(string scopeName, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateStoredProcedureAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null,
+            DbStoredProcedureType storedProcedureType = default, bool overwrite = false,
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                bool hasBeenCreated = false;
-
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
+                    return false;
 
                 var syncTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
                 if (syncTable == null)
                     return false;
+
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                
+                bool hasBeenCreated = false;
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
@@ -61,7 +65,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -70,29 +74,31 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedures</param>
         /// <param name="overwrite">If true, drop the existing Stored Procedures then create them all, again</param>
-        public async Task<bool> CreateStoredProceduresAsync(string scopeName, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateStoredProceduresAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
+                    return false;
 
                 var syncTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
                 if (syncTable == null)
                     return false;
 
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
-                var r = await InternalCreateStoredProceduresAsync(scopeInfo, overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var isCreated = await InternalCreateStoredProceduresAsync(scopeInfo, overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
-                return r;
+
+                return isCreated;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName,ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
 
         }
@@ -102,30 +108,19 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to check if the Stored Procedure exists</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
-        public async Task<bool> ExistStoredProcedureAsync(string scopeName, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistStoredProcedureAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var setupTable = scopeInfo.Setup.Tables[tableName, schemaName];
-
-                if (setupTable == null)
+                if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                // using a fake SyncTable based on SetupTable, since we don't need columns
-                var schemaTable = new SyncTable(tableName, schemaName);
+                var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
-                // Create a temporary SyncSet for attaching to the schemaTable
-                var schema = new SyncSet();
-                schema.Tables.Add(schemaTable);
-                schema.EnsureSchema();
+                if (schemaTable == null)
+                    return false;
 
-                // copy filters from setup
-                foreach (var filter in scopeInfo.Setup.Filters)
-                    schema.Filters.Add(filter);
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
@@ -136,7 +131,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -145,31 +140,20 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop the Stored Procedure</param>
         /// <param name="storedProcedureType">Stored Procedure type</param>
-        public async Task<bool> DropStoredProcedureAsync(string scopeName, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropStoredProcedureAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                bool hasBeenDropped = false;
-
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var setupTable = scopeInfo.Setup.Tables[tableName, schemaName];
-
-                if (setupTable == null)
+                if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                // using a fake SyncTable based on SetupTable, since we don't need columns
-                var schemaTable = new SyncTable(tableName, schemaName);
+                var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
-                // Create a temporary SyncSet for attaching to the schemaTable
-                var schema = new SyncSet();
-                schema.Tables.Add(schemaTable);
-                schema.EnsureSchema();
+                if (schemaTable == null)
+                    return false;
 
-                // copy filters from setup
-                foreach (var filter in scopeInfo.Setup.Filters)
-                    schema.Filters.Add(filter);
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                bool hasBeenDropped = false;
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
@@ -188,7 +172,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -196,32 +180,21 @@ namespace Dotmim.Sync
         /// Drop all Stored Procedures
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop all the Stored Procedures</param>
-        public async Task<bool> DropStoredProceduresAsync(string scopeName, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropStoredProceduresAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var hasDroppedAtLeastOneStoredProcedure = false;
-
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var setupTable = scopeInfo.Setup.Tables[tableName, schemaName];
-
-                if (setupTable == null)
+                if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                // using a fake SyncTable based on SetupTable, since we don't need columns
-                var schemaTable = new SyncTable(tableName, schemaName);
+                var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
-                // Create a temporary SyncSet for attaching to the schemaTable
-                var schema = new SyncSet();
-                schema.Tables.Add(schemaTable);
-                schema.EnsureSchema();
+                if (schemaTable == null)
+                    return false;
 
-                // copy filters from setup
-                foreach (var filter in scopeInfo.Setup.Filters)
-                    schema.Filters.Add(filter);
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                var hasDroppedAtLeastOneStoredProcedure = false;
 
                 // using a fake SyncTable based on SetupTable, since we don't need columns
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
@@ -239,7 +212,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
 
         }

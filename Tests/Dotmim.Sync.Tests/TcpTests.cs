@@ -179,10 +179,11 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options,
-                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                var setup = new SyncSetup(this.Tables)
+                { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -205,9 +206,9 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 var setup = new SyncSetup(this.Tables);
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -216,8 +217,11 @@ namespace Dotmim.Sync.Tests
                 using var clientConnection = client.Provider.CreateConnection();
                 await clientConnection.OpenAsync();
 
-                var clientSchema = await agent.LocalOrchestrator.GetSchemaAsync();
-                var serverSchema = await agent.RemoteOrchestrator.GetSchemaAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var clientSchema = clientScope.Schema;
+
+                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+                var serverSchema = serverScope.Schema;
 
                 foreach (var setupTable in setup.Tables)
                 {
@@ -308,7 +312,7 @@ namespace Dotmim.Sync.Tests
                 Console.WriteLine(str);
 
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, this.Tables);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 var onReconnect = new Action<ReConnectArgs>(args =>
                     Console.WriteLine($"[Retry Connection] Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
@@ -318,7 +322,7 @@ namespace Dotmim.Sync.Tests
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync();
+                    var s = await agent.SynchronizeAsync(this.Tables);
                 });
             }
         }
@@ -338,7 +342,7 @@ namespace Dotmim.Sync.Tests
                 // Set a connection string that will faile everywhere (event Sqlite)
                 client.Provider.ConnectionString = $@"Data Source=D;";
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, this.Tables);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 var onReconnect = new Action<ReConnectArgs>(args =>
                     Console.WriteLine($"[Retry Connection] Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
@@ -349,7 +353,7 @@ namespace Dotmim.Sync.Tests
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync();
+                    var s = await agent.SynchronizeAsync(this.Tables);
                 });
             }
         }
@@ -373,11 +377,11 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new string[] { "TableTest" });
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync();
+                    var s = await agent.SynchronizeAsync(new string[] { "TableTest" });
                 });
 
                 Assert.Equal(SyncSide.ServerSide, se.Side);
@@ -406,11 +410,11 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync();
+                    var s = await agent.SynchronizeAsync(setup);
                 });
 
                 Assert.Equal(SyncSide.ServerSide, se.Side);
@@ -435,11 +439,11 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync();
+                    var s = await agent.SynchronizeAsync(setup);
                 });
 
                 Assert.Equal(SyncSide.ServerSide, se.Side);
@@ -464,9 +468,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -488,8 +492,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
@@ -518,9 +523,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -553,8 +558,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
@@ -586,9 +592,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -621,8 +627,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(2, s.TotalChangesDownloaded);
@@ -661,7 +668,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -689,9 +696,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -718,7 +725,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -747,9 +754,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -777,7 +784,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -805,9 +812,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -839,7 +846,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -853,7 +860,7 @@ namespace Dotmim.Sync.Tests
             // Now sync again to be sure all clients have all lines
             foreach (var client in Clients)
             {
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync();
             }
 
             // check rows count on server and on each client
@@ -897,9 +904,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -928,7 +935,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -971,9 +978,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1006,7 +1013,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1018,7 +1025,7 @@ namespace Dotmim.Sync.Tests
             // Now sync again to be sure all clients have all lines
             foreach (var client in Clients)
             {
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync();
             }
 
             // get rows count
@@ -1074,9 +1081,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1105,7 +1112,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1117,7 +1124,7 @@ namespace Dotmim.Sync.Tests
             // Now sync again to be sure all clients have all lines
             foreach (var client in Clients)
             {
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync();
             }
 
             rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1170,9 +1177,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1194,7 +1201,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1223,7 +1230,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1308,9 +1315,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1345,7 +1352,7 @@ namespace Dotmim.Sync.Tests
             // Sync and check we have delete these lines on each server
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1390,7 +1397,7 @@ namespace Dotmim.Sync.Tests
                 // create a client schema without seeding
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
-                var localOrchestrator = new LocalOrchestrator(client.Provider, options, setup);
+                var localOrchestrator = new LocalOrchestrator(client.Provider, options);
                 var provision = SyncProvision.ClientScope | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
                 // just check interceptor
@@ -1398,44 +1405,44 @@ namespace Dotmim.Sync.Tests
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
                 // Read client schema
-                var schema = await localOrchestrator.GetSchemaAsync();
+                var clientScope = await localOrchestrator.GetClientScopeAsync(SyncOptions.DefaultScopeName, setup);
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.ProvisionAsync(schema, provision);
+                await localOrchestrator.ProvisionAsync(clientScope, provision);
 
                 //--------------------------
                 // ASSERTION
                 //--------------------------
 
                 // check if scope table is correctly created
-                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Client);
                 Assert.True(scopeInfoTableExists);
 
                 // get the db manager
                 foreach (var setupTable in setup.Tables)
                 {
-                    Assert.True(await localOrchestrator.ExistTrackingTableAsync(setupTable));
+                    Assert.True(await localOrchestrator.ExistTrackingTableAsync(setupTable.TableName, setupTable.SchemaName));
 
-                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Delete));
-                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
-                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbTriggerType.Delete));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbTriggerType.Insert));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbTriggerType.Update));
 
                     if (client.ProviderType == ProviderType.Sql)
                     {
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChanges));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChanges));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectRow));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.UpdateRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.BulkTableType));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.DeleteRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.Reset));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectChanges));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.UpdateRow));
 
                         // No filters here
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChangesWithFilters));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
                     }
 
                 }
@@ -1443,37 +1450,37 @@ namespace Dotmim.Sync.Tests
                 //localOrchestrator.OnTableProvisioned(null);
 
                 //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.DeprovisionAsync(schema, provision);
+                await localOrchestrator.DeprovisionAsync(provision);
 
                 // check if scope table is correctly created
-                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
+                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();
                 Assert.False(scopeInfoTableExists);
 
                 // get the db manager
                 foreach (var setupTable in setup.Tables)
                 {
-                    Assert.False(await localOrchestrator.ExistTrackingTableAsync(setupTable));
+                    Assert.False(await localOrchestrator.ExistTrackingTableAsync(setupTable.TableName, setupTable.SchemaName));
 
-                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Delete));
-                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
-                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbTriggerType.Delete));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbTriggerType.Insert));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbTriggerType.Update));
 
                     if (client.ProviderType == ProviderType.Sql)
                     {
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChanges));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChanges));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectRow));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.UpdateRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.Reset));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.UpdateRow));
 
                         // No filters here
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChangesWithFilters));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable.TableName, setupTable.SchemaName, SyncOptions.DefaultScopeName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
                     }
 
                 }
@@ -1498,22 +1505,22 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, Tables);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                var schema = await agent.LocalOrchestrator.GetSchemaAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
 
                 using var connection = client.Provider.CreateConnection();
                 await connection.OpenAsync();
                 using var transaction = connection.BeginTransaction();
 
 
-                var tablePricesListCategory = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["PricesListCategory"], agent.Setup);
+                var tablePricesListCategory = agent.LocalOrchestrator.GetTableBuilder(clientScope.Schema.Tables["PricesListCategory"], clientScope);
                 Assert.NotNull(tablePricesListCategory);
 
                 var relations = (await tablePricesListCategory.GetRelationsAsync(connection, transaction)).ToList();
@@ -1524,7 +1531,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Single(relations[0].Columns);
 
-                var tablePricesListDetail = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["PricesListDetail"], agent.Setup);
+                var tablePricesListDetail = agent.LocalOrchestrator.GetTableBuilder(clientScope.Schema.Tables["PricesListDetail"], clientScope);
 
                 Assert.NotNull(tablePricesListDetail);
 
@@ -1536,7 +1543,7 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(2, relations2[0].Columns.Count);
 
-                var tableEmployeeAddress = agent.LocalOrchestrator.GetTableBuilder(schema.Tables["EmployeeAddress"], agent.Setup);
+                var tableEmployeeAddress = agent.LocalOrchestrator.GetTableBuilder(clientScope.Schema.Tables["EmployeeAddress"], clientScope);
                 Assert.NotNull(tableEmployeeAddress);
 
                 var relations3 = (await tableEmployeeAddress.GetRelationsAsync(connection, transaction)).ToArray();
@@ -1573,9 +1580,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1645,12 +1652,12 @@ namespace Dotmim.Sync.Tests
                     return;
                 };
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Intercept TableChangesSelected
                 agent.LocalOrchestrator.OnTableChangesSelected(tableChangesSelected);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 agent.LocalOrchestrator.OnTableChangesSelected(null);
 
@@ -1667,7 +1674,7 @@ namespace Dotmim.Sync.Tests
             download = 3 * (Clients.Count - 1);
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1684,7 +1691,7 @@ namespace Dotmim.Sync.Tests
             download = Clients.Count - 1;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1734,7 +1741,7 @@ namespace Dotmim.Sync.Tests
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
             // Insert one thousand lines on each client
             foreach (var client in Clients)
@@ -1761,7 +1768,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1778,7 +1785,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
             foreach (var client in Clients)
             {
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync();
                 Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
         }
@@ -1813,7 +1820,7 @@ namespace Dotmim.Sync.Tests
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
 
             // Add a product and its product category
@@ -1840,7 +1847,7 @@ namespace Dotmim.Sync.Tests
             // Sync all clients 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1870,7 +1877,7 @@ namespace Dotmim.Sync.Tests
             // Sync all clients. Should not raise an error, because we disable constraint check
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1915,13 +1922,12 @@ namespace Dotmim.Sync.Tests
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
 
             // Add a product and its product category
             using (var ctx = new AdventureWorksContext(this.Server))
             {
-
                 var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
                 ctx.ProductCategory.Add(pc);
 
@@ -1943,7 +1949,7 @@ namespace Dotmim.Sync.Tests
             // Sync all clients 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1973,7 +1979,9 @@ namespace Dotmim.Sync.Tests
             // Sync all clients. Should raise an error
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
 
                 //await Assert.ThrowsAsync<SyncException>(async () =>
                 //{
@@ -2018,7 +2026,7 @@ namespace Dotmim.Sync.Tests
                     }
                     if (client.ProviderType == ProviderType.Sql)
                     {
-                        foreach (var table in agent.Schema.Tables.Where(t => t.TableName == "Product" || t.TableName == "ProductCategory"))
+                        foreach (var table in clientScope.Schema.Tables.Where(t => t.TableName == "Product" || t.TableName == "ProductCategory"))
                         {
                             var cmd = tca.Connection.CreateCommand();
                             var tableAndSchemaName = ParserName.Parse(table).Schema().Quoted().ToString();
@@ -2052,7 +2060,7 @@ namespace Dotmim.Sync.Tests
 
                     if (client.ProviderType == ProviderType.Sql)
                     {
-                        foreach (var table in agent.Schema.Tables.Where(t => t.TableName == "Product" || t.TableName == "ProductCategory"))
+                        foreach (var table in clientScope.Schema.Tables.Where(t => t.TableName == "Product" || t.TableName == "ProductCategory"))
                         {
                             var cmd = tca.Connection.CreateCommand();
                             var tableAndSchemaName = ParserName.Parse(table).Schema().Quoted().ToString();
@@ -2106,9 +2114,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2139,7 +2147,7 @@ namespace Dotmim.Sync.Tests
             // inserted rows will be deleted 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
@@ -2171,9 +2179,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2204,7 +2212,7 @@ namespace Dotmim.Sync.Tests
             int download = 2;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
@@ -2217,7 +2225,7 @@ namespace Dotmim.Sync.Tests
             rowsCount = this.GetServerDatabaseRowsCount(this.Server);
             foreach (var client in Clients)
             {
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync().ConfigureAwait(false);
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync().ConfigureAwait(false);
                 Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
@@ -2249,9 +2257,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2409,7 +2417,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -2481,9 +2489,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), setup); ;
+                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions()); ;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2641,7 +2649,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
 
                 var s = await agent.SynchronizeAsync();
@@ -2707,7 +2715,7 @@ namespace Dotmim.Sync.Tests
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
             // Insert a new product category on each client
             foreach (var client in Clients)
@@ -2726,7 +2734,7 @@ namespace Dotmim.Sync.Tests
             var download = 0;
             foreach (var client in Clients)
             {
-                var s = await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                var s = await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync();
 
                 Assert.Equal(download, s.TotalChangesDownloaded);
                 Assert.Equal(download, s.TotalChangesApplied);
@@ -2739,7 +2747,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to be sure all clients have download all others clients product
             foreach (var client in Clients)
             {
-                await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync();
                 Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
@@ -2757,7 +2765,7 @@ namespace Dotmim.Sync.Tests
             var cpt = 0; // first client won't have any conflicts, but others will upload their deleted rows that are ALREADY deleted
             foreach (var client in Clients)
             {
-                var s = await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+                var s = await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync();
 
                 // we may download deleted rows from server
                 Assert.Equal(cpt, s.TotalChangesDownloaded);
@@ -2816,13 +2824,13 @@ namespace Dotmim.Sync.Tests
                 BatchSize = 3000,
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
             Server.Provider.SupportsMultipleActiveResultSets = false;
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await remoteOrchestrator.CreateSnapshotAsync();
+            await remoteOrchestrator.CreateSnapshotAsync(setup);
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -2851,9 +2859,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2917,7 +2925,7 @@ namespace Dotmim.Sync.Tests
                 // Defining options with Batchsize to enable serialization on disk
                 var options = new SyncOptions { BatchSize = 1000 };
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables), scopeName);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Get the orchestrators
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -2930,7 +2938,7 @@ namespace Dotmim.Sync.Tests
                 remoteOrchestrator.OnDeserializingSet(deserializing);
 
                 // Making a first sync, will initialize everything we need
-                var result = await agent.SynchronizeAsync();
+                var result = await agent.SynchronizeAsync(Tables, scopeName);
 
                 Assert.Equal(GetServerDatabaseRowsCount(this.Server), result.TotalChangesDownloaded);
 
@@ -2981,10 +2989,10 @@ namespace Dotmim.Sync.Tests
                 // Defining options with Batchsize to enable serialization on disk
                 var options = new SyncOptions { BatchSize = 1000 };
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables), scopeName);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Making a first sync, will initialize everything we need
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables, scopeName);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2997,10 +3005,10 @@ namespace Dotmim.Sync.Tests
                 // Defining options with Batchsize to enable serialization on disk
                 var options = new SyncOptions { BatchSize = 1000 };
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables), scopeName);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
-                var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync();
+                var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync(scopeName);
 
                 // Client side : Create a product category and a product
                 var productId = Guid.NewGuid();
@@ -3083,9 +3091,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -3249,7 +3257,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -3259,13 +3267,13 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
             var remoteScope = await remoteOrchestrator.GetServerScopeAsync();
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             foreach (var client in Clients)
             {
-                var localOrchestrator = new LocalOrchestrator(client.Provider, options, setup);
+                var localOrchestrator = new LocalOrchestrator(client.Provider, options);
                 var localScope = await localOrchestrator.GetClientScopeAsync();
 
                 Assert.True(localScope.Setup.Equals(remoteScope.Setup));
@@ -3340,12 +3348,12 @@ namespace Dotmim.Sync.Tests
                 BatchSize = 3000
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await remoteOrchestrator.CreateSnapshotAsync();
+            await remoteOrchestrator.CreateSnapshotAsync(setup);
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -3394,9 +3402,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -3429,7 +3437,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -3448,7 +3456,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
@@ -3475,10 +3483,10 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // Provision server, to be sure no clients will try to do something that could break server
-            var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options, new SyncSetup(Tables));
+            var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options);
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var scope = await remoteOrchestrator.GetServerScopeAsync();
+            var scope = await remoteOrchestrator.GetServerScopeAsync(SyncOptions.DefaultScopeName, new SyncSetup(Tables));
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();
@@ -3507,7 +3515,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and add the task to a list of tasks
             foreach (var clientProvider in clientProviders)
             {
-                var agent = new SyncAgent(clientProvider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(clientProvider, Server.Provider, options);
                 allTasks.Add(agent.SynchronizeAsync());
             }
 
@@ -3538,7 +3546,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to get the new server row
             foreach (var clientProvider in clientProviders)
             {
-                var agent = new SyncAgent(clientProvider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(clientProvider, Server.Provider, options);
                 allTasks.Add(agent.SynchronizeAsync());
             }
 
@@ -3598,9 +3606,9 @@ namespace Dotmim.Sync.Tests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 // Editing Rowguid on client. This column is not part of the setup
                 // So far, it should not be uploaded to server
@@ -3622,7 +3630,7 @@ namespace Dotmim.Sync.Tests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
@@ -3680,9 +3688,9 @@ namespace Dotmim.Sync.Tests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 // call CleanMetadata to be sure we don't have row in tracking
                 var ts = await agent.LocalOrchestrator.GetLocalTimestampAsync();
@@ -3733,9 +3741,9 @@ namespace Dotmim.Sync.Tests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
 
@@ -3795,9 +3803,9 @@ namespace Dotmim.Sync.Tests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 // Editing Rowguid on client. This column is not part of the setup
                 // So far, it should not be uploaded to server
@@ -3827,8 +3835,8 @@ namespace Dotmim.Sync.Tests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
-                var s = await agent.SynchronizeAsync();
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                var s = await agent.SynchronizeAsync(setup);
 
                 // "Mimecity" change should be received from server
                 Assert.Equal(1, s.TotalChangesDownloaded);
@@ -3871,10 +3879,11 @@ namespace Dotmim.Sync.Tests
             // Execute a sync to initialize all clients
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(),
-                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+                var setup = new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
 
-                var s = await agent.SynchronizeAsync();
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+
+                var s = await agent.SynchronizeAsync(setup);
             }
 
             // Create a new product on server with a big thumbnail photo
@@ -3918,15 +3927,13 @@ namespace Dotmim.Sync.Tests
             // Two sync to be sure all clients have all rows from all
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(),
-                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 await agent.SynchronizeAsync();
             }
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(),
-                    new SyncSetup(this.Tables) { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" });
+                var agent = new SyncAgent(client.Provider, Server.Provider);
 
                 await agent.SynchronizeAsync();
             }

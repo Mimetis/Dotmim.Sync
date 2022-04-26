@@ -134,7 +134,7 @@ namespace Dotmim.Sync
 
                 // JUST before the whole process, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                clientTimestamp = await this.InternalGetLocalTimestampAsync(localScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                clientTimestamp = await this.InternalGetLocalTimestampAsync(localScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
                 // Locally, if we are new, no need to get changes
@@ -161,7 +161,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         public async Task<(long ClientTimestamp, DatabaseChangesSelected ClientChangesSelected)>
-            GetEstimatedChangesCountAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetEstimatedChangesCountAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -194,7 +194,7 @@ namespace Dotmim.Sync
                 // Output
                 // JUST before the whole process, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                var clientTimestamp = await this.InternalGetLocalTimestampAsync(localScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var clientTimestamp = await this.InternalGetLocalTimestampAsync(localScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 DatabaseChangesSelected clientChangesSelected;
 

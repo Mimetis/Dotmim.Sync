@@ -44,10 +44,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync();
+            var s = await agent.SynchronizeAsync(this.Tables, scopeName);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync();
+            var changes = await localOrchestrator.GetChangesAsync(scopeName);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(this.Tables.Length, onSelected);
@@ -116,7 +116,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task LocalOrchestrator_GetBacthChanges()
+        public async Task LocalOrchestrator_GetBatchChanges()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
@@ -142,10 +142,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, syncOptions, this.Tables, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider, syncOptions);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync();
+            var s = await agent.SynchronizeAsync(this.Tables, scopeName);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -208,7 +208,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync();
+            var changes = await localOrchestrator.GetChangesAsync(scopeName);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(16, onSelected);
@@ -244,10 +244,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync();
+            var s = await agent.SynchronizeAsync(this.Tables, scopeName);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -302,7 +302,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDatabaseSelected++;
             });
 
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
+            var clientScope = await localOrchestrator.GetClientScopeAsync(scopeName);
 
             // Get changes to be populated to be sent to the client
             var changes = await remoteOrchestrator.GetChangesAsync(clientScope);

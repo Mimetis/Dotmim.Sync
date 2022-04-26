@@ -51,16 +51,6 @@ namespace Dotmim.Sync
         /// </summary>
         public virtual SyncOptions Options { get; internal set; }
 
-        ///// <summary>
-        ///// Gets the Setup used by this local orchestrator
-        ///// </summary>
-        //public virtual SyncSetup Setup { get; set; }
-
-        ///// <summary>
-        ///// Gets the scope name used by this local orchestrator
-        ///// </summary>
-        //public virtual string ScopeName { get; internal protected set; }
-
         /// <summary>
         /// Gets or Sets the start time for this orchestrator
         /// </summary>
@@ -82,10 +72,8 @@ namespace Dotmim.Sync
         /// </summary>
         public BaseOrchestrator(CoreProvider provider, SyncOptions options)
         {
-            //this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
             this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
             this.Options = options ?? throw new ArgumentNullException(nameof(options));
-            //this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
 
             this.Provider.Orchestrator = this;
             this.Logger = options.Logger;

@@ -35,7 +35,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
 
             var scopeTableCreating = 0;
@@ -87,7 +87,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoaded++;
             });
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var localScopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
 
 
             Assert.Equal(1, scopeTableCreating);
@@ -131,7 +131,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options, setup, scopeName);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeTableCreating = 0;
             var scopeTableCreated = 0;
@@ -182,7 +182,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoaded++;
             });
 
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeAsync();
+            var serverScopeInfo = await remoteOrchestrator.GetServerScopeAsync(scopeName, setup);
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             serverScopeInfo.Version = "2.0";

@@ -22,13 +22,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the last timestamp from the orchestrator database
         /// </summary>
-        public async virtual Task<long> GetLocalTimestampAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async virtual Task<long> GetLocalTimestampAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                return await this.InternalGetLocalTimestampAsync(scopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress);
+                return await this.InternalGetLocalTimestampAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress);
             }
             catch (Exception ex)
             {
@@ -39,7 +38,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        internal async Task<long> InternalGetLocalTimestampAsync(IScopeInfo scopeInfo,
+        internal async Task<long> InternalGetLocalTimestampAsync(string scopeName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
@@ -51,7 +50,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return 0L;
 
-            var context = this.GetContext(scopeInfo.Name);
+            var context = this.GetContext(scopeName);
 
             var action = await this.InterceptAsync(new LocalTimestampLoadingArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 

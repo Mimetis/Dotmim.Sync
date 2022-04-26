@@ -504,11 +504,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             schema.Tables.Add(table);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await localOrchestrator.ProvisionAsync(schema, provision);
+            await localOrchestrator.ProvisionAsync(scopeName, setup, provision);
 
             using (var c = new SqlConnection(cs))
             {

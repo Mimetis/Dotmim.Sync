@@ -33,11 +33,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctx.Database.EnsureCreatedAsync();
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-            setup.TrackingTablesPrefix = "t_";
-            setup.TrackingTablesSuffix = "_t";
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            {
+                TrackingTablesPrefix = "t_",
+                TrackingTablesSuffix = "_t"
+            };
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
 
             var onCreating = false;
             var onCreated = false;
@@ -54,7 +59,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onCreated = true;
             });
 
-            await localOrchestrator.CreateTrackingTableAsync(setup.Tables[0]);
+            await localOrchestrator.CreateTrackingTableAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(onCreating);
             Assert.True(onCreated);
@@ -90,13 +95,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            await localOrchestrator.CreateTrackingTableAsync(setup.Tables[0]);
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
 
-            var exists = await localOrchestrator.ExistTrackingTableAsync(setup.Tables[0]);
+            await localOrchestrator.CreateTrackingTableAsync(scopeInfo, "Product", "SalesLT");
+
+            var exists = await localOrchestrator.ExistTrackingTableAsync(scopeInfo, "Product", "SalesLT");
             Assert.True(exists);
-            exists = await localOrchestrator.ExistTrackingTableAsync(setup.Tables[1]);
+
+            exists = await localOrchestrator.ExistTrackingTableAsync(scopeInfo, "ProductCategory", "SalesLT");
             Assert.False(exists);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -116,11 +124,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctx.Database.EnsureCreatedAsync();
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
-            setup.TrackingTablesPrefix = "t_";
-            setup.TrackingTablesSuffix = "_t";
+            var setup = new SyncSetup(new string[]
+            { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" })
+            {
+                TrackingTablesPrefix = "t_",
+                TrackingTablesSuffix = "_t"
+            };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -132,7 +145,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnTrackingTableDropping(ttca => onDropping++);
             localOrchestrator.OnTrackingTableDropped(ttca => onDropped++);
 
-            await localOrchestrator.CreateTrackingTablesAsync();
+            await localOrchestrator.CreateTrackingTablesAsync(scopeInfo);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);
@@ -144,7 +157,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            await localOrchestrator.CreateTrackingTablesAsync();
+            await localOrchestrator.CreateTrackingTablesAsync(scopeInfo);
 
             Assert.Equal(0, onCreating);
             Assert.Equal(0, onCreated);
@@ -156,7 +169,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            await localOrchestrator.CreateTrackingTablesAsync(true);
+            await localOrchestrator.CreateTrackingTablesAsync(scopeInfo, true);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);
@@ -183,7 +196,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
 
             var onDropping = false;
             var onDropped = false;
@@ -198,8 +213,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDropped = true;
             });
 
-            await localOrchestrator.CreateTrackingTableAsync(setup.Tables[0]);
-            await localOrchestrator.DropTrackingTableAsync(setup.Tables[0]);
+            await localOrchestrator.CreateTrackingTableAsync(scopeInfo, "Product", "SalesLT");
+            await localOrchestrator.DropTrackingTableAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(onDropping);
             Assert.True(onDropped);
@@ -237,7 +252,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
 
             var onDropping = false;
             var onDropped = false;
@@ -253,8 +270,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDropped = true;
             });
 
-            await localOrchestrator.CreateTrackingTableAsync(setup.Tables[0]);
-            await localOrchestrator.DropTrackingTableAsync(setup.Tables[0]);
+            await localOrchestrator.CreateTrackingTableAsync(scopeInfo, "Product", "SalesLT");
+            await localOrchestrator.DropTrackingTableAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(onDropping);
             Assert.False(onDropped);
@@ -291,7 +308,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
 
             var onDropping = 0;
             var onDropped = 0;
@@ -299,8 +318,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnTrackingTableDropping(ttca => onDropping++);
             localOrchestrator.OnTrackingTableDropped(ttca => onDropped++);
 
-            await localOrchestrator.CreateTrackingTablesAsync();
-            await localOrchestrator.DropTrackingTablesAsync();
+            await localOrchestrator.CreateTrackingTablesAsync(scopeInfo);
+            await localOrchestrator.DropTrackingTablesAsync(scopeInfo);
 
 
             Assert.Equal(4, onDropping);

@@ -52,7 +52,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if a scope info table exists
         /// </summary>
-        public async Task<bool> ExistScopeInfoTableAsync(string scopeName, DbScopeType scopeType, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName, DbScopeType scopeType = DbScopeType.Client, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {

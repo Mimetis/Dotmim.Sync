@@ -159,7 +159,7 @@ namespace Dotmim.Sync
                 var serverScopeInfo = await this.GetServerScopeAsync(scopeName, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // 4) Getting the most accurate timestamp
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(serverScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // 5) Create the snapshot with
                 localSerializerFactory = localSerializerFactory == null ? new LocalJsonSerializerFactory() : localSerializerFactory;

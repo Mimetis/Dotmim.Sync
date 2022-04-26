@@ -21,13 +21,17 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
+        public virtual Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)=>
+            DeleteMetadatasAsync(SyncOptions.DefaultScopeName, timeStampStart, connection, transaction, cancellationToken, progress);
+
+
         /// <summary>
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <param name="progress">Progress args</param>
-        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(string scopeName, long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(string scopeName, long? timeStampStart = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!timeStampStart.HasValue)
                 return null;

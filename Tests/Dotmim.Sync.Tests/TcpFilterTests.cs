@@ -762,14 +762,14 @@ namespace Dotmim.Sync.Tests
                 // create a client schema without seeding
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
-                var localOrchestrator = new LocalOrchestrator(client.Provider, options, this.FilterSetup);
+                var localOrchestrator = new LocalOrchestrator(client.Provider, options);
 
                 // just check interceptor
                 var onTableCreatedCount = 0;
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.ProvisionAsync();
+                await localOrchestrator.ProvisionAsync(this.FilterSetup);
 
                 //--------------------------
                 // ASSERTION

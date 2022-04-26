@@ -1,0 +1,10 @@
+- Add ScopeName as first paremeter in orchestrators methods
+   this is good : await localOrchestrator.GetClientScopeAsync(scopeName, setup); 
+   this seems bad:  await agent.SynchronizeAsync(this.Tables, scopeName);
+
+- In creation of sp or table, we have
+
+                if (scopeInfo.Schema == null)
+                    return false;
+
+Maybe, we should log something here ?

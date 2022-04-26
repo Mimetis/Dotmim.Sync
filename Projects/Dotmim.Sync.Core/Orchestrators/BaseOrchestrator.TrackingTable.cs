@@ -22,25 +22,23 @@ namespace Dotmim.Sync
         /// Create a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public async Task<bool> CreateTrackingTableAsync(string scopeName, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateTrackingTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
+                    return false;
+
+                var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
+
+                if (schemaTable == null)
+                    return false;
+
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 bool hasBeenCreated = false;
-
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (scopeInfo.Schema == null)
-                    return false;
-
-                var syncTable = scopeInfo.Schema.Tables[tableName, schemaName];
-
-                if (syncTable == null)
-                    return false;
-
+                
                 // Get table builder
-                var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
+                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 var schemaExists = await InternalExistsSchemaAsync(scopeInfo, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -67,7 +65,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -76,14 +74,19 @@ namespace Dotmim.Sync
         /// Check if a tracking table exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, you want to check if the corresponding tracking table exists</param>
-        public async Task<bool> ExistTrackingTableAsync(string scopeName, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistTrackingTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
+                    return false;
 
-                var schemaTable = new SyncTable(tableName, schemaName);
+                var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
+
+                if (schemaTable == null)
+                    return false;
+
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
@@ -94,7 +97,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -102,17 +105,15 @@ namespace Dotmim.Sync
         /// Create a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public async Task<bool> CreateTrackingTablesAsync(string scopeName, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateTrackingTablesAsync(IScopeInfo scopeInfo, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var atLeastOneHasBeenCreated = false;
-
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
+                if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;
+
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var atLeastOneHasBeenCreated = false;
 
                 foreach (var schemaTable in scopeInfo.Schema.Tables)
                 {
@@ -148,25 +149,30 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
+
 
         /// <summary>
         /// Drop a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public async Task<bool> DropTrackingTableAsync(string scopeName, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropTrackingTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
+                    return false;
+
+                var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
+
+                if (schemaTable == null)
+                    return false;
+
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 bool hasBeenDropped = false;
 
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // Fake sync table without column definitions. Not needed for making drop call
-                var schemaTable = new SyncTable(tableName, schemaName);
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 var exists = await InternalExistsTrackingTableAsync(scopeInfo, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -179,7 +185,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
 
         }
@@ -188,20 +194,17 @@ namespace Dotmim.Sync
         /// Drop all tracking tables
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public async Task<bool> DropTrackingTablesAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropTrackingTablesAsync(IScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
+                    return false;
+
+                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 bool atLeastOneTrackingTableHasBeenDropped = false;
 
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var schemaTables = new List<SyncTable>();
-                foreach (var table in scopeInfo.Setup.Tables.Reverse())
-                    schemaTables.Add(new SyncTable(table.TableName, table.SchemaName));
-
-                foreach (var schemaTable in schemaTables)
+                foreach (var schemaTable in scopeInfo.Schema.Tables.Reverse())
                 {
                     // Get table builder
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
@@ -210,7 +213,6 @@ namespace Dotmim.Sync
 
                     if (exists)
                         atLeastOneTrackingTableHasBeenDropped = await InternalDropTrackingTableAsync(scopeInfo, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -219,7 +221,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -263,7 +265,7 @@ namespace Dotmim.Sync
 
             var ctx = this.GetContext(scopeInfo.Name);
 
-            var action = await this.InterceptAsync(new TrackingTableCreatingArgs(ctx, tableBuilder.TableDescription, trackingTableName, command, connection, transaction),progress,  cancellationToken).ConfigureAwait(false);
+            var action = await this.InterceptAsync(new TrackingTableCreatingArgs(ctx, tableBuilder.TableDescription, trackingTableName, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
                 return false;
