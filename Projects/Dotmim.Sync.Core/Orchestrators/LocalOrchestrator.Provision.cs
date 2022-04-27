@@ -24,23 +24,23 @@ namespace Dotmim.Sync
         /// Provision the local database based on the scope info parameter.
         /// Scope info parameter should contains Schema and Setup properties
         /// </summary>
-        public virtual async Task<ScopeInfo> ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
+        //public virtual async Task<ScopeInfo> ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        //{
 
-            if (serverScopeInfo.Schema == null)
-                throw new Exception($"No Schema in your server scope {serverScopeInfo.Name}");
+        //    if (serverScopeInfo.Schema == null)
+        //        throw new Exception($"No Schema in your server scope {serverScopeInfo.Name}");
 
-            if (serverScopeInfo.Schema == null)
-                throw new Exception($"No Setup in your server scope {serverScopeInfo.Name}");
+        //    if (serverScopeInfo.Schema == null)
+        //        throw new Exception($"No Setup in your server scope {serverScopeInfo.Name}");
 
-            var scopeInfo = await this.GetClientScopeAsync(serverScopeInfo.Name, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+        //    var scopeInfo = await this.GetClientScopeAsync(serverScopeInfo.Name, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            scopeInfo.Setup = serverScopeInfo.Setup;
-            scopeInfo.Schema = serverScopeInfo.Schema;
-            scopeInfo.Version = serverScopeInfo.Version;
+        //    scopeInfo.Setup = serverScopeInfo.Setup;
+        //    scopeInfo.Schema = serverScopeInfo.Schema;
+        //    scopeInfo.Version = serverScopeInfo.Version;
 
-            return await this.ProvisionAsync(scopeInfo, provision, overwrite, connection, transaction, cancellationToken, progress);
-        }
+        //    return await this.ProvisionAsync(scopeInfo, provision, overwrite, connection, transaction, cancellationToken, progress);
+        //}
 
         /// <summary>
         /// Provision the local database based on the scope info parameter.
@@ -115,7 +115,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return scopeInfo as ScopeInfo;
+                return scopeInfo;
             }
             catch (Exception ex)
             {

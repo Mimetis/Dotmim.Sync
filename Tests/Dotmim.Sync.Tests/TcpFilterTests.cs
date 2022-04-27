@@ -186,15 +186,15 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions(), this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
 
-                var schema = await agent.LocalOrchestrator.GetSchemaAsync();
+                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeAsync();
 
                 // Check we have the correct columns replicated
                 using var c = client.Provider.CreateConnection();
@@ -260,10 +260,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -294,11 +294,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -331,11 +331,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(2, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -368,11 +368,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -423,11 +423,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 //Assert.Equal(download, s.TotalChangesDownloaded);
                 Assert.Equal(4, s.TotalChangesUploaded);
@@ -439,11 +439,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                await agent.SynchronizeAsync();
+                await agent.SynchronizeAsync(this.FilterSetup);
             }
 
             rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -473,11 +473,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -524,11 +524,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 //Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(4, s.TotalChangesUploaded);
@@ -539,11 +539,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                await agent.SynchronizeAsync();
+                await agent.SynchronizeAsync(this.FilterSetup);
             }
 
 
@@ -562,11 +562,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 //Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(8, s.TotalChangesUploaded);
@@ -602,8 +602,8 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
-            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterSetup, this.FilterParameters);
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -636,7 +636,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var snapshotApplying = 0;
                 var snapshotApplied = 0;
@@ -646,7 +646,7 @@ namespace Dotmim.Sync.Tests
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -678,11 +678,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -733,11 +733,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(5, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -769,41 +769,41 @@ namespace Dotmim.Sync.Tests
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.ProvisionAsync(this.FilterSetup);
+                var clientScope = await localOrchestrator.ProvisionAsync(this.FilterSetup);
 
                 //--------------------------
                 // ASSERTION
                 //--------------------------
 
                 // check if scope table is correctly created
-                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.Client);
                 Assert.True(scopeInfoTableExists);
 
                 // get the db manager
                 foreach (var setupTable in this.FilterSetup.Tables)
                 {
-                    Assert.True(await localOrchestrator.ExistTrackingTableAsync(setupTable));
+                    Assert.True(await localOrchestrator.ExistTrackingTableAsync(clientScope, setupTable.TableName, setupTable.SchemaName));
 
-                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Delete));
-                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
-                    Assert.True(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
 
                     if (client.ProviderType == ProviderType.Sql)
                     {
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChanges));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChanges));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectRow));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.UpdateRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
 
                         // Filters here
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChangesWithFilters));
-                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
                     }
 
                 }
@@ -811,39 +811,39 @@ namespace Dotmim.Sync.Tests
                 //localOrchestrator.OnTableProvisioned(null);
 
                 //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.DeprovisionAsync();
+                await localOrchestrator.DeprovisionAsync(clientScope);
 
                 // check if scope table is correctly created
-                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(DbScopeType.Client);
+                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.Client);
                 Assert.False(scopeInfoTableExists);
 
                 // get the db manager
                 foreach (var setupTable in this.FilterSetup.Tables)
                 {
-                    Assert.False(await localOrchestrator.ExistTrackingTableAsync(setupTable));
+                    Assert.False(await localOrchestrator.ExistTrackingTableAsync(clientScope, setupTable.TableName, setupTable.SchemaName));
 
-                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Delete));
-                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
-                    Assert.False(await localOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
 
 
                     if (client.ProviderType == ProviderType.Sql)
                     {
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
 
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChanges));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChanges));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectRow));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.UpdateRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
 
                         // check filters are deleted
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChangesWithFilters));
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
                     }
 
                 }
@@ -891,10 +891,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
@@ -926,10 +926,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -941,10 +941,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup, SyncOptions.DefaultScopeName, default);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -976,10 +976,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -992,7 +992,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 if (Server.ProviderType == ProviderType.MySql || Server.ProviderType == ProviderType.MariaDB)
                 {
@@ -1015,7 +1015,7 @@ namespace Dotmim.Sync.Tests
                 // create agent with filtered tables and parameter
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup, SyncOptions.DefaultScopeName, default);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1047,10 +1047,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1063,9 +1063,9 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(0, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1097,35 +1097,37 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
-                await agent.LocalOrchestrator.DeprovisionAsync();
+                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeAsync();
+
+                await agent.LocalOrchestrator.DeprovisionAsync(setup);
 
                 foreach (var setupTable in setup.Tables)
                 {
-                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Delete));
-                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Insert));
-                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(setupTable, DbTriggerType.Update));
+                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
 
                     if (client.ProviderType == ProviderType.Sql)
                     {
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkDeleteRows));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkTableType));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.BulkUpdateRows));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteMetadata));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.DeleteRow));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.Reset));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChanges));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChanges));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectRow));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.UpdateRow));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectChangesWithFilters));
-                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(setupTable, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
                     }
                 }
 
@@ -1159,10 +1161,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1174,10 +1176,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1209,10 +1211,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1224,7 +1226,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create an agent 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // ON SERVER : When trying to get changes from the server, just replace the command with the Initialize command
                 // and get ALL the rows for the migrated new table
@@ -1238,7 +1240,8 @@ namespace Dotmim.Sync.Tests
                         var addProp = tcs.Context.AdditionalProperties[tcs.SchemaTable.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.SchemaTable, setup);
+                            var scopeInfo = await agent.RemoteOrchestrator.GetServerScopeAsync(SyncOptions.DefaultScopeName, default, tcs.Connection, tcs.Transaction);
+                            var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.SchemaTable, scopeInfo);
                             var (command, isBatch) = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.SchemaTable.GetFilter());
                             tcs.Command = command;
                         }
@@ -1280,7 +1283,9 @@ namespace Dotmim.Sync.Tests
                         var addProp = tca.Context.AdditionalProperties[tca.SchemaTable.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            await agent.LocalOrchestrator.ResetTableAsync(setup.Tables[tca.SchemaTable.TableName, tca.SchemaTable.SchemaName], tca.Connection, tca.Transaction);
+                            var scopeInfo = await agent.LocalOrchestrator.GetClientScopeAsync(tca.Connection, tca.Transaction);
+
+                            await agent.LocalOrchestrator.ResetTableAsync(scopeInfo, tca.SchemaTable.TableName, tca.SchemaTable.SchemaName, tca.Connection, tca.Transaction);
                         }
                     }
                 });
@@ -1331,15 +1336,18 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
 
             // getting snapshot directory names
-            var (rootDirectory, nameDirectory) = await remoteOrchestrator.GetSnapshotDirectoryAsync(this.FilterParameters).ConfigureAwait(false);
+            var (rootDirectory, nameDirectory) 
+                = await remoteOrchestrator.GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, this.FilterParameters).ConfigureAwait(false);
 
             Assert.False(Directory.Exists(rootDirectory));
             Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
 
-            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+            var setup = new SyncSetup(new string[] { "[Customer]" });
+
+            await remoteOrchestrator.CreateSnapshotAsync(setup, this.FilterParameters);
 
             Assert.True(Directory.Exists(rootDirectory));
             Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
@@ -1373,11 +1381,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.True(Directory.Exists(rootDirectory));
                 Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
@@ -1409,9 +1417,9 @@ namespace Dotmim.Sync.Tests
                 BatchSize = 200
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
 
-            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterSetup, this.FilterParameters);
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -1459,11 +1467,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1494,11 +1502,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.FilterSetup);
 
                 Assert.Equal(download++, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1516,12 +1524,12 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, this.FilterSetup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, this.FilterSetup);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1554,10 +1562,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
@@ -1565,8 +1573,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // Deprovision everything
-                var localOrchestrator = new LocalOrchestrator(client.Provider, options, setup);
-                await localOrchestrator.DeprovisionAsync();
+                var localOrchestrator = new LocalOrchestrator(client.Provider, options);
+                await localOrchestrator.DeprovisionAsync(setup);
 
             }
 
@@ -1583,10 +1591,10 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup);
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 

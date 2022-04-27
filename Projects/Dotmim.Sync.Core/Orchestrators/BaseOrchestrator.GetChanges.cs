@@ -150,7 +150,7 @@ namespace Dotmim.Sync
 
             if (batchInfo.RowsCount <= 0)
             {
-                var cleanFolder = await this.InternalCanCleanFolderAsync(context, batchInfo, cancellationToken).ConfigureAwait(false);
+                var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, batchInfo, cancellationToken).ConfigureAwait(false);
                 batchInfo.Clear(cleanFolder);
             }
 

@@ -47,10 +47,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync();
+            var s = await agent.SynchronizeAsync(this.Tables, scopeName);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetEstimatedChangesCountAsync();
+            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName);
 
             Assert.NotNull(changes.ClientChangesSelected);
             Assert.Equal(2, changes.ClientChangesSelected.TableChangesSelected.Count);
@@ -112,7 +112,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -140,7 +140,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Get changes to be populated to the server
             // Since we are new and not yet initialized, no rows are marked to be sent
-            var ex = await Assert.ThrowsAsync<SyncException>(() => localOrchestrator.GetEstimatedChangesCountAsync());
+            var ex = await Assert.ThrowsAsync<SyncException>(() => localOrchestrator.GetEstimatedChangesCountAsync(scopeName));
 
             Assert.Equal("MissingLocalOrchestratorSchemaException", ex.TypeName);
         }

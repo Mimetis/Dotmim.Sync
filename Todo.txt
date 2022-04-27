@@ -8,3 +8,17 @@
                     return false;
 
 Maybe, we should log something here ?
+
+
+- SyncContext GetContext(string scopeName) : Add SyncOptions.DefaultScopeName when everything has been refactored
+
+
+- public LocalOrchestrator(CoreProvider provider, SyncOptions options)  : Add options = default
+
+- agent.Parameters should come directly in SynchronizeAsync() arguments
+
+- ExistScopeInfoTableAsync for localOrchestrator and remoteOrchestrator
+
+- var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup, SyncOptions.DefaultScopeName, default); make a easiest call method
+
+- test DisableConstraintsAsync()

@@ -37,13 +37,13 @@ namespace Dotmim.Sync.Web.Server
         /// Client Converter
         private IConverter clientConverter;
 
-        public SyncSetup Setup { get; }
+        public SyncSetup Setup { get; set; }
 
         /// <summary>
         /// Gets or Sets Web server options parameters
         /// </summary>
         public WebServerOptions WebServerOptions { get; set; }
-        public string ScopeName { get; }
+        public string ScopeName { get; set; }
 
 
         /// <summary>
@@ -384,7 +384,7 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.GetServerScopeAsync(httpMessage.SyncContext.ScopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var serverScopeInfo = await this.GetServerScopeAsync(httpMessage.SyncContext.ScopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             // Create http response
@@ -507,8 +507,10 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
+            var serverScopeInfo = await this.GetServerScopeAsync(ctx.ScopeName);
+
             // get changes
-            var snap = await this.GetSnapshotAsync(ctx.ScopeName, schema, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(ctx)
             {
@@ -534,7 +536,7 @@ namespace Dotmim.Sync.Web.Server
 
             if (schema == null || !schema.HasTables || !schema.HasColumns)
             {
-                var serverScopeInfo = await base.GetServerScopeAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await base.GetServerScopeAsync(scopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
                 // TODO : if serverScope.Schema is null, should we Provision here ?
 
                 schema = serverScopeInfo.Schema;
@@ -557,8 +559,10 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
+            var serverScopeInfo = await this.GetServerScopeAsync(ctx.ScopeName);
+
             // get changes
-            var snap = await this.GetSnapshotAsync(ctx.ScopeName, schema, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
@@ -692,7 +696,7 @@ namespace Dotmim.Sync.Web.Server
             var cleanFolder = this.Options.CleanFolder;
 
             if (cleanFolder)
-                cleanFolder = await this.InternalCanCleanFolderAsync(ctx, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
+                cleanFolder = await this.InternalCanCleanFolderAsync(ScopeName, ctx.Parameters, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
 
             sessionCache.ClientBatchInfo.Clear(cleanFolder);
 
@@ -827,7 +831,7 @@ namespace Dotmim.Sync.Web.Server
                 var cleanFolder = this.Options.CleanFolder;
 
                 if (cleanFolder)
-                    cleanFolder = await this.InternalCanCleanFolderAsync(httpMessage.SyncContext, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
+                    cleanFolder = await this.InternalCanCleanFolderAsync(ScopeName, httpMessage.SyncContext.Parameters, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
 
                 if (cleanFolder)
                     sessionCache.ServerBatchInfo.TryRemoveDirectory();

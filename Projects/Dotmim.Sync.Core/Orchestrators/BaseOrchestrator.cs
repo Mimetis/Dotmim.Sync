@@ -524,29 +524,33 @@ namespace Dotmim.Sync
         //    }
         //}
 
+
+        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, syncParameters, cancellationToken, progress);
+
         /// <summary>
         /// Get a snapshot root directory name and folder directory name
         /// </summary>
         public virtual Task<(string DirectoryRoot, string DirectoryName)>
-            GetSnapshotDirectoryAsync(SyncContext ctx, SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetSnapshotDirectoryAsync(string scopeName, SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // check parameters
             // If context has no parameters specified, and user specifies a parameter collection we switch them
-            if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
-                ctx.Parameters = syncParameters;
+            //if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
+            //    ctx.Parameters = syncParameters;
 
-            return this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress);
+            return this.InternalGetSnapshotDirectoryAsync(scopeName, syncParameters, cancellationToken, progress);
         }
 
         /// <summary>
         /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
         /// </summary>
-        internal virtual async Task<bool> InternalCanCleanFolderAsync(SyncContext context, BatchInfo batchInfo,
+        internal virtual async Task<bool> InternalCanCleanFolderAsync(string scopeName, SyncParameters parameters,  BatchInfo batchInfo,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 
-            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(context);
+            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(scopeName, parameters);
 
             // if we don't have any snapshot configuration, we are sure that the current batchinfo is actually stored into a temp folder
             if (string.IsNullOrEmpty(snapshotRootDirectory))
@@ -564,24 +568,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal routine to get the snapshot root directory and batch directory name
         /// </summary>
-        internal virtual Task<(string DirectoryRoot, string DirectoryName)> InternalGetSnapshotDirectoryAsync(SyncContext context,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        internal virtual Task<(string DirectoryRoot, string DirectoryName)> 
+            InternalGetSnapshotDirectoryAsync(string scopeName, SyncParameters parameters=null,
+                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
                 return Task.FromResult<(string, string)>((default, default));
 
             // cleansing scope name
-            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+            var directoryScopeName = new string(scopeName.Where(char.IsLetterOrDigit).ToArray());
 
             var directoryFullPath = Path.Combine(this.Options.SnapshotsDirectory, directoryScopeName);
 
             var sb = new StringBuilder();
             var underscore = "";
 
-            if (context.Parameters != null)
+            if (parameters != null)
             {
-                foreach (var p in context.Parameters.OrderBy(p => p.Name))
+                foreach (var p in parameters.OrderBy(p => p.Name))
                 {
                     var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());

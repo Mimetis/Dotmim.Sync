@@ -225,6 +225,9 @@ namespace Dotmim.Sync
         public Task<SyncResult> SynchronizeAsync(SyncType syncType, string scopeName = SyncOptions.DefaultScopeName, IProgress<ProgressArgs> progress = null)
             => SynchronizeAsync(syncType, null, scopeName, CancellationToken.None, progress);
 
+        public Task<SyncResult> SynchronizeAsync(SyncType syncType, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName, IProgress<ProgressArgs> progress = null)
+            => SynchronizeAsync(syncType, setup, scopeName, CancellationToken.None, progress);
+
         /// <summary>
         /// 
         /// </summary>
@@ -355,7 +358,7 @@ namespace Dotmim.Sync
                 if (fromScratch)
                 {
                     // Get snapshot files
-                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(scopeName, serverScopeInfo.Schema, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     // Apply snapshot
                     if (serverSnapshotChanges.ServerBatchInfo != null)

@@ -273,7 +273,7 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Before getting changes, be sure we have a remote schema available
-                var serverScope = await this.GetServerScopeAsync(clientScope.Name, runner.Connection, runner.Transaction, cancellationToken, progress);
+                var serverScope = await this.GetServerScopeAsync(clientScope.Name, clientScope.Setup, runner.Connection, runner.Transaction, cancellationToken, progress);
                 // TODO : if serverScope.Schema is null, should we Provision here ?
 
                 // Should we ?
@@ -320,7 +320,7 @@ namespace Dotmim.Sync
             try
             {
 
-                var serverScope = await this.GetServerScopeAsync(clientScope.Name, connection, transaction, cancellationToken, progress); ;
+                var serverScope = await this.GetServerScopeAsync(clientScope.Name, clientScope.Setup, connection, transaction, cancellationToken, progress); ;
 
                 // Should we ?
                 if (serverScope.Schema == null)

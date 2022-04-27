@@ -49,8 +49,11 @@ namespace Dotmim.Sync
             }
         }
 
-        public virtual Task<ServerScopeInfo> GetServerScopeAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => GetServerScopeAsync(scopeName, null, connection, transaction, cancellationToken, progress);
+        public virtual Task<ServerScopeInfo> GetServerScopeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetServerScopeAsync(SyncOptions.DefaultScopeName, null, connection, transaction, cancellationToken, progress);
+
+        public virtual Task<ServerScopeInfo> GetServerScopeAsync(SyncSetup setup , DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetServerScopeAsync(SyncOptions.DefaultScopeName, setup, connection, transaction, cancellationToken, progress);
 
         /// <summary>
         /// Get the server scope info, ensures the scope is created.

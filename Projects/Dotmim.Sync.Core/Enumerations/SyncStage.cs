@@ -22,8 +22,6 @@ namespace Dotmim.Sync.Enumerations
         SnapshotCreating,
         SnapshotApplying,
 
-        SchemaReading,
-
         Provisioning,
         Deprovisioning,
 

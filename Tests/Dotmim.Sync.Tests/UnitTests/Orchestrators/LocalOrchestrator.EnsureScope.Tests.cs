@@ -27,9 +27,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
             var provider = new SqlSyncProvider(cs);
 
-            var localOrchestrator = new LocalOrchestrator(provider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(provider, options);
 
-            var scope = await localOrchestrator.GetClientScopeAsync();
+            var scope = await localOrchestrator.GetClientScopeAsync(setup);
 
             Assert.NotNull(scope);
 
@@ -54,23 +54,23 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var localScopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
 
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
             Assert.True(localScopeInfo.IsNewScope);
             Assert.NotEqual(Guid.Empty, localScopeInfo.Id);
-            //Assert.Null(localScopeInfo.LastServerSyncTimestamp);
+            Assert.Null(localScopeInfo.LastServerSyncTimestamp);
             Assert.Null(localScopeInfo.LastSync);
             Assert.Equal(0, localScopeInfo.LastSyncDuration);
-            //Assert.Null(localScopeInfo.LastSyncTimestamp);
+            Assert.Null(localScopeInfo.LastSyncTimestamp);
             Assert.Null(localScopeInfo.Schema);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
 
             // Check context
-            SyncContext syncContext = localOrchestrator.GetContext();
+            SyncContext syncContext = localOrchestrator.GetContext(scopeName);
             Assert.Equal(scopeName, syncContext.ScopeName);
             Assert.NotEqual(Guid.Empty, syncContext.SessionId);
             Assert.Null(syncContext.Parameters);
@@ -96,12 +96,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
             using var cts = new CancellationTokenSource();
 
             localOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
-            var se = await Assert.ThrowsAsync<SyncException>(async () => await localOrchestrator.GetClientScopeAsync(default, default, cts.Token));
+            var se = await Assert.ThrowsAsync<SyncException>(
+                async () => await localOrchestrator.GetClientScopeAsync(setup, default, default, cts.Token));
 
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);

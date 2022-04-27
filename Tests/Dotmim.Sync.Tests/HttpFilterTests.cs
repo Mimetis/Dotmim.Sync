@@ -458,8 +458,8 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
-            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterSetup, this.FilterParameters);
 
 
             // ----------------------------------
@@ -627,7 +627,7 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, serverOptions, this.FilterSetup);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, serverOptions);
 
             // getting snapshot directory names
             var (rootDirectory, nameDirectory) = await remoteOrchestrator.GetSnapshotDirectoryAsync(this.FilterParameters).ConfigureAwait(false);
@@ -635,7 +635,7 @@ namespace Dotmim.Sync.Tests
             Assert.False(Directory.Exists(rootDirectory));
             Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
 
-            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterSetup, this.FilterParameters);
 
             Assert.True(Directory.Exists(rootDirectory));
             Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
@@ -723,8 +723,8 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options, this.FilterSetup);
-            await remoteOrchestrator.CreateSnapshotAsync(this.FilterParameters);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
+            await remoteOrchestrator.CreateSnapshotAsync(this.FilterSetup, this.FilterParameters);
 
 
             // ----------------------------------

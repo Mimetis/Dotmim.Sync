@@ -110,7 +110,7 @@ namespace Dotmim.Sync
             var cleanFolder = message.CleanFolder;
 
             if (cleanFolder)
-                cleanFolder = await this.InternalCanCleanFolderAsync(context, message.BatchInfo, cancellationToken, progress).ConfigureAwait(false);
+                cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, message.BatchInfo, cancellationToken, progress).ConfigureAwait(false);
 
             // clear the changes because we don't need them anymore
             message.BatchInfo.Clear(cleanFolder);

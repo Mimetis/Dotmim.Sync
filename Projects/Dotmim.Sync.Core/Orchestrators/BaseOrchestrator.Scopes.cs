@@ -80,11 +80,24 @@ namespace Dotmim.Sync
                     _ => throw new NotImplementedException($"Can't get {scopeType} from the reader ")
                 };
 
-                if (scopeInfo != null)
-                    scopes.Add(scopeInfo);
-            }
 
+                if (scopeInfo != null)
+                {
+                    if (scopeInfo.Schema != null)
+                        scopeInfo.Schema.EnsureSchema();
+
+                    scopes.Add(scopeInfo);
+                }
+            }
+           
             reader.Close();
+
+            foreach (var scopeInfo in scopes)
+            {
+                var scopeLoadedArgs = new ScopeLoadedArgs<IScopeInfo>(ctx, scopeName, scopeType, scopeInfo, connection, transaction);
+                await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+            }
 
             return scopes;
         }
@@ -94,28 +107,12 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<IScopeInfo> InternalGetScopeAsync(string scopeName, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var ctx = this.GetContext(scopeName);
 
             var scopes = await InternalGetAllScopesAsync(scopeName, scopeType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (scopes == null || scopes.Count <= 0)
                 return default;
 
-            foreach (var scopeInfo in scopes)
-            {
-                if (scopeInfo.GetType() == typeof(ScopeInfo))
-                {
-                    var localScopeInfo = scopeInfo as ScopeInfo;
-                    localScopeInfo.IsNewScope = localScopeInfo.LastSync == null;
-                }
-
-                if (scopeInfo?.Schema != null)
-                    scopeInfo.Schema.EnsureSchema();
-
-                var scopeLoadedArgs = new ScopeLoadedArgs<IScopeInfo>(ctx, scopeName, scopeType, scopeInfo, connection, transaction);
-                await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-            }
             // get first scope
             return scopes.FirstOrDefault();
         }

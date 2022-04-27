@@ -1064,9 +1064,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options, "customScope1");
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync("customScope1");
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1504,11 +1504,12 @@ namespace Dotmim.Sync.Tests
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
+            var setup = new SyncSetup(Tables);
             // Provision server, to be sure no clients will try to do something that could break server
-            var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options, new SyncSetup(Tables));
+            var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options);
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var scope = await remoteOrchestrator.GetServerScopeAsync();
+            var serverScopeInfo = await remoteOrchestrator.GetServerScopeAsync(setup);
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             // configure server orchestrator
@@ -1541,7 +1542,7 @@ namespace Dotmim.Sync.Tests
             foreach (var clientProvider in clientProviders)
             {
                 var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri), options);
-                allTasks.Add(agent.SynchronizeAsync());
+                allTasks.Add(agent.SynchronizeAsync(setup));
             }
 
             // Await all tasks
@@ -1573,7 +1574,7 @@ namespace Dotmim.Sync.Tests
             foreach (var clientProvider in clientProviders)
             {
                 var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri), options);
-                allTasks.Add(agent.SynchronizeAsync());
+                allTasks.Add(agent.SynchronizeAsync(setup));
             }
 
             // Await all tasks
@@ -1662,8 +1663,8 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
-                await agent.SynchronizeAsync();
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
             }
 
             var finalRowsCount = this.GetServerDatabaseRowsCount(this.Server);

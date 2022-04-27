@@ -28,13 +28,13 @@ namespace Dotmim.Sync
         /// Get a snapshot
         /// </summary>
         public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
-            GetSnapshotAsync(string scopeName, SyncSet schema = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetSnapshotAsync(IScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             try
             {
                 // Get context or create a new one
-                var ctx = this.GetContext(scopeName);
+                var ctx = this.GetContext(scopeInfo.Name);
                 var changesSelected = new DatabaseChangesSelected();
 
                 BatchInfo serverBatchInfo = null;
@@ -48,16 +48,14 @@ namespace Dotmim.Sync
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Get Schema from remote provider if no schema passed from args
-                if (schema == null)
+                if (scopeInfo.Schema == null)
                 {
-                    var serverScopeInfo = await this.GetServerScopeAsync(scopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    // TODO : if serverScope.Schema is null, should we Provision here ?
-                    schema = serverScopeInfo.Schema;
+                    scopeInfo = await this.GetServerScopeAsync(scopeInfo.Name, scopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // When we get the changes from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress).ConfigureAwait(false);
+                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(scopeInfo.Name, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!string.IsNullOrEmpty(rootDirectory))
                 {
@@ -80,9 +78,9 @@ namespace Dotmim.Sync
                         var changesSet = new SyncSet();
 
                         // Create a Schema set without readonly columns, attached to memory changes
-                        foreach (var table in schema.Tables)
+                        foreach (var table in scopeInfo.Schema.Tables)
                         {
-                            DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], changesSet);
+                            DbSyncAdapter.CreateChangesTable(scopeInfo.Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
                             // Get all stats about this table
                             var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>
@@ -121,7 +119,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(scopeInfo.Name, ex);
             }
         }
 
@@ -189,7 +187,7 @@ namespace Dotmim.Sync
             if (!Directory.Exists(this.Options.SnapshotsDirectory))
                 Directory.CreateDirectory(this.Options.SnapshotsDirectory);
 
-            var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(context, cancellationToken, progress).ConfigureAwait(false);
+            var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(serverScopeInfo.Name, context.Parameters, cancellationToken, progress).ConfigureAwait(false);
 
             // create local directory with scope inside
             if (!Directory.Exists(rootDirectory))

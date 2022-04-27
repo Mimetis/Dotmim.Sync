@@ -212,15 +212,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 // The first sync has inserted records,
                 // so now we have to synchronize again so that the next sync will have the latest change version.
                 // This does mean that when the sync inserts records and then before the next sync a column is updated that is not part
                 // of the sync process, it will still be synchronized.
-                var s2 = await agent.SynchronizeAsync();
+                var s2 = await agent.SynchronizeAsync(setup);
 
                 // Editing Rowguid on client. This column is not part of the setup
                 // So far, it should not be uploaded to server
@@ -242,8 +242,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
-                var s = await agent.SynchronizeAsync();
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
 
@@ -313,15 +313,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 // The first sync has inserted records,
                 // so now we have to synchronize again so that the next sync will have the latest change version.
                 // This does mean that when the sync inserts records and then before the next sync a column is updated that is not part
                 // of the sync process, it will still be synchronized.
-                var s2 = await agent.SynchronizeAsync();
+                var s2 = await agent.SynchronizeAsync(setup);
 
                 // Editing Rowguid on client. This column is not part of the setup
                 // So far, it should not be uploaded to server
@@ -351,8 +351,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Add all columns to address except Rowguid and ModifiedDate
                 setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
-                var s = await agent.SynchronizeAsync();
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                var s = await agent.SynchronizeAsync(setup);
 
                 // "Mimecity" change should be received from server
                 Assert.Equal(1, s.TotalChangesDownloaded);
