@@ -94,7 +94,7 @@ namespace Dotmim.Sync
 
             foreach (var scopeInfo in scopes)
             {
-                var scopeLoadedArgs = new ScopeLoadedArgs<IScopeInfo>(ctx, scopeName, scopeType, scopeInfo, connection, transaction);
+                var scopeLoadedArgs = new ScopeLoadedArgs(ctx, scopeName, scopeType, scopeInfo, connection, transaction);
                 await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             }

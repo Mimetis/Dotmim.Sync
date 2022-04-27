@@ -86,11 +86,12 @@ namespace Dotmim.Sync
         public override int EventId => SyncEventsId.ScopeTableCreating.Id;
     }
 
-    public class ScopeLoadedArgs<T> : ProgressArgs where T : class
+    public class ScopeLoadedArgs : ProgressArgs
     {
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
-        public ScopeLoadedArgs(SyncContext context, string scopeName, DbScopeType scopeType, T scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
+        public ScopeLoadedArgs(SyncContext context, string scopeName, 
+            DbScopeType scopeType, IScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, connection, transaction)
         {
             this.ScopeName = scopeName;
@@ -111,7 +112,7 @@ namespace Dotmim.Sync
                 };
             }
         }
-        public T ScopeInfo { get; }
+        public IScopeInfo ScopeInfo { get; }
         public override int EventId => SyncEventsId.ScopeLoaded.Id;
     }
 
@@ -161,7 +162,7 @@ namespace Dotmim.Sync
     {
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
-        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
+        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, IScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, connection, transaction)
         {
             this.ScopeType = scopeType;
@@ -172,7 +173,7 @@ namespace Dotmim.Sync
         public override string Source => Connection.Database;
         public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Saved.";
 
-        public object ScopeInfo { get; }
+        public IScopeInfo ScopeInfo { get; }
         public override int EventId => SyncEventsId.ScopeSaved.Id;
     }
 
@@ -247,23 +248,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
-        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs<ScopeInfo>> action)
+        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
             => orchestrator.SetInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
-        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Func<ScopeLoadedArgs<ScopeInfo>, Task> action)
+        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
-        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs<ServerScopeInfo>> action)
+        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
             => orchestrator.SetInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
-        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Func<ScopeLoadedArgs<ServerScopeInfo>, Task> action)
+        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>

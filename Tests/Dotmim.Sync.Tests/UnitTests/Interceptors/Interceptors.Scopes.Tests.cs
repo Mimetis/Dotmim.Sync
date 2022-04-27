@@ -166,7 +166,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.Equal(scopeName, args.ScopeName);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
                 scopeLoading++;
             });
@@ -178,7 +178,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(args.ScopeInfo);
                 Assert.Equal(scopeName, args.ScopeInfo.Name);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 scopeLoaded++;
             });
 

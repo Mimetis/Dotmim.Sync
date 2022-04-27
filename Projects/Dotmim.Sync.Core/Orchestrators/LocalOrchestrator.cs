@@ -252,10 +252,9 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-
-                //// check if we need to delete metadatas
-                //if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastSyncTS.HasValue)
-                //    await this.InternalDeleteMetadatasAsync(ctx, schema, this.Setup, lastSyncTS.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                // check if we need to delete metadatas
+                if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastTimestamp.HasValue)
+                    await this.InternalDeleteMetadatasAsync(clientScopeInfo, lastTimestamp.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // now the sync is complete, remember the time
                 this.CompleteTime = DateTime.UtcNow;

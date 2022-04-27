@@ -22,3 +22,9 @@ Maybe, we should log something here ?
 - var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup, SyncOptions.DefaultScopeName, default); make a easiest call method
 
 - test DisableConstraintsAsync()
+
+- Make all comments for public methods
+
+- Check any public methods will not call any other public methods (because syncstage will change and we don't want that)
+
+- In providers, make triggers creation UNION of all scopes columns

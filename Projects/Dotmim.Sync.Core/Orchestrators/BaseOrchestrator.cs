@@ -233,9 +233,10 @@ namespace Dotmim.Sync
 
 
         [DebuggerStepThrough]
-        internal SyncException GetSyncError(string scopeName, Exception exception)
+        internal SyncException GetSyncError(string scopeName, Exception exception, SyncStage overridenStage = default)
         {
-            var syncException = new SyncException(exception, this.GetContext(scopeName).SyncStage);
+            var syncStage = this.GetContext(scopeName).SyncStage;
+            var syncException = new SyncException(exception, syncStage);
 
             // try to let the provider enrich the exception
             this.Provider.EnsureSyncException(syncException);

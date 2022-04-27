@@ -230,7 +230,6 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(clientTable.Columns.Count, serverTable.Columns.Count);
 
-
                     foreach (var serverColumn in serverTable.Columns)
                     {
                         var clientColumn = clientTable.Columns.FirstOrDefault(c => c.ColumnName == serverColumn.ColumnName);

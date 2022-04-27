@@ -40,8 +40,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
 
             var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions();
-            var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
@@ -90,8 +88,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             });
 
-            // Making a first sync, will call cleaning, but nothing is cleaned
-            var s2 = await agent.SynchronizeAsync();
+            // Making a first sync, will call cleaning, but nothing is cleaned (still interceptors are called)
+            var s2 = await agent.SynchronizeAsync(scopeName);
 
             Assert.Equal(1, cleaning);
             Assert.Equal(1, cleaned);
@@ -114,7 +112,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Making a second empty sync.
-            var s3 = await agent.SynchronizeAsync();
+            var s3 = await agent.SynchronizeAsync(scopeName);
 
             // If there is no changes on any tables, no metadata cleaning is called
             Assert.Equal(0, cleaning);
@@ -155,7 +153,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(1, args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount);
 
             });
-            var s4 = await agent.SynchronizeAsync();
+            var s4 = await agent.SynchronizeAsync(scopeName);
 
             Assert.Equal(1, cleaning);
             Assert.Equal(1, cleaned);
@@ -200,7 +198,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
             });
 
-            var s5 = await agent.SynchronizeAsync();
+            var s5 = await agent.SynchronizeAsync(scopeName);
 
             // cleaning is always called on N-1 rows, so nothing here should be called
             Assert.Equal(1, cleaning);

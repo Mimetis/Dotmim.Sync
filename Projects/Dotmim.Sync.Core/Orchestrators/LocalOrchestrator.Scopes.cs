@@ -27,42 +27,18 @@ namespace Dotmim.Sync
         public virtual Task<ScopeInfo> GetClientScopeAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => GetClientScopeAsync(SyncOptions.DefaultScopeName, setup, connection, transaction, cancellationToken, progress);
 
-
-
         public virtual async Task<ScopeInfo> GetClientScopeAsync(string scopeName, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.Client, runner.Connection, runner.Transaction, runner.CancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(scopeName, DbScopeType.Client, runner.Connection, runner.Transaction, runner.CancellationToken, progress).ConfigureAwait(false);
-
-                // Get scope from local client 
-                var localScope = await this.InternalGetScopeAsync(scopeName, DbScopeType.Client, runner.Connection, runner.Transaction, runner.CancellationToken, progress).ConfigureAwait(false);
-
-                if (localScope == null)
-                {
-                    localScope = this.InternalCreateScope(scopeName, DbScopeType.Client, cancellationToken, progress);
-                    localScope = await this.InternalSaveScopeAsync(localScope, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
-
-                // if localScope is empty, grab the schema locally from setup 
-                if (localScope.Setup == null && localScope.Schema == null && setup != null && setup.Tables.Count > 0)
-                {
-                    var schema = await this.InternalGetSchemaAsync(scopeName, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                    localScope.Setup = setup;
-                    localScope.Schema = schema;
-
-                    // Write scopes locally
-                    await this.InternalSaveScopeAsync(localScope, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
+                var localScope = await InternalGetClientScopeInfo(scopeName, setup,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return localScope as ScopeInfo;
+                return localScope;
             }
             catch (Exception ex)
             {
@@ -97,5 +73,45 @@ namespace Dotmim.Sync
             }
         }
 
+
+        internal async Task<ScopeInfo> InternalGetClientScopeInfo(string scopeName, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            var exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (!exists)
+                await this.InternalCreateScopeInfoTableAsync(scopeName, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            // Get scope from local client 
+            var localScope = await this.InternalGetScopeAsync(scopeName, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            var shouldSave = false;
+
+            if (localScope == null)
+            {
+                localScope = this.InternalCreateScope(scopeName, DbScopeType.Client, cancellationToken, progress);
+                shouldSave = true;
+            }
+
+            // if localScope is empty, grab the schema locally from setup 
+            if (localScope.Setup == null && localScope.Schema == null && setup != null && setup.Tables.Count > 0)
+            {
+                var schema = await this.InternalGetSchemaAsync(scopeName, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                localScope.Setup = setup;
+                localScope.Schema = schema;
+                shouldSave = true;
+            }
+
+            if (shouldSave)
+            {
+                localScope = await this.InternalSaveScopeAsync(localScope, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // if not shouldSave, that means we already raised this event before
+                var scopeLoadedArgs = new ScopeLoadedArgs(this.GetContext(scopeName), scopeName, DbScopeType.Client, localScope, connection, transaction);
+                await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+            }
+
+            return localScope as ScopeInfo;
+        }
     }
 }

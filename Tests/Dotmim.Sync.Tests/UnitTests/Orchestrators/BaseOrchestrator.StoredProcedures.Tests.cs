@@ -52,11 +52,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
 
             // Adding a filter to check if stored procedures "with filters" are also generated
-            scopeInfo.Setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
+            setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
+            // Create a new scope with this filter
+            var scopeName2 = "scope2";
+            var scopeInfo2 = await localOrchestrator.GetClientScopeAsync(scopeName2, setup);
 
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
+            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
+
+            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -208,6 +212,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"
             };
+            // Adding a filter to check if stored procedures "with filters" are also generated
+            setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
@@ -225,15 +231,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChanges));
             Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectRow));
             Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.UpdateRow));
-
-            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
-            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChangesWithFilters));
-
-            // Adding a filter to check if stored procedures "with filters" are also generated
-            scopeInfo.Setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
-
-            await localOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT", false);
-
             Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
             Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChangesWithFilters));
 

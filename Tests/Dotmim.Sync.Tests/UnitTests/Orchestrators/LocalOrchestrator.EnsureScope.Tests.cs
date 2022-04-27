@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Null(localScopeInfo.LastSync);
             Assert.Equal(0, localScopeInfo.LastSyncDuration);
             Assert.Null(localScopeInfo.LastSyncTimestamp);
-            Assert.Null(localScopeInfo.Schema);
+            Assert.NotNull(localScopeInfo.Schema);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
 
             // Check context

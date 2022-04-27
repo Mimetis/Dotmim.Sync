@@ -93,7 +93,7 @@ namespace Dotmim.Sync
         internal async Task<SyncSet> InternalGetSchemaAsync(string scopeName, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (setup == null || setup.Tables.Count <= 0)
-                throw new MissingTablesException();
+                throw new MissingTablesException(scopeName);
 
             var context = this.GetContext(scopeName);
 

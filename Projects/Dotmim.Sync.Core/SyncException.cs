@@ -286,9 +286,9 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTablesException : Exception
     {
-        const string message = "Your setup does not contains any table.";
+        const string message = "Your setup with scope name {0} does not contains any table.";
 
-        public MissingTablesException() : base(message) { }
+        public MissingTablesException(string scopeName) : base(string.Format(message, scopeName)) { }
     }
 
     /// <summary>

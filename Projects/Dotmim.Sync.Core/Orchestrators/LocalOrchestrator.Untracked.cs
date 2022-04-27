@@ -32,8 +32,7 @@ namespace Dotmim.Sync
                 var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
-                    throw new MissingTablesException();
-
+                    throw new MissingTablesException(scopeName);
 
                 // Update untracked rows
                 foreach (var table in scopeInfo.Schema.Tables)

@@ -42,6 +42,7 @@ namespace Dotmim.Sync
                     serverHistoryScopes.Add(scope as ServerHistoryScopeInfo);
 
                 return serverHistoryScopes;
+
             }
             catch (Exception ex)
             {
@@ -85,7 +86,7 @@ namespace Dotmim.Sync
 
                 // Raise error only on server side, since we can't do nothing if we don't have any tables provisionned and no setup provided
                 if ((serverScopeInfo.Setup == null || serverScopeInfo.Schema == null) && (setup == null || setup.Tables.Count <= 0))
-                    throw new Exception($"Setup does not exist on server, for scope name {scopeName}. Please provision server side.");
+                    throw new MissingTablesException(scopeName);
 
                 // if serverscopeinfo is a new, because we never run any sync before, grab schema and affect setup
                 if (serverScopeInfo.Setup == null && serverScopeInfo.Schema == null && setup != null && setup.Tables.Count > 0)
@@ -100,10 +101,12 @@ namespace Dotmim.Sync
 
                     // Write scopes locally
                     await this.InternalSaveScopeAsync(serverScopeInfo, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    var scopeLoadedArgs = new ScopeLoadedArgs(this.GetContext(scopeName), scopeName, DbScopeType.Server, serverScopeInfo, runner.Connection, runner.Transaction );
+                    await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
                 }
 
-
-                if (!serverScopeInfo.Setup.EqualsByProperties(setup))
+                if (setup != null && setup.Tables.Count > 0 && !serverScopeInfo.Setup.EqualsByProperties(setup))
                     throw new Exception("Seems you are trying another Setup tables that what is stored in your server scope database. Please make a migration or create a new scope");
 
                 await runner.CommitAsync().ConfigureAwait(false);

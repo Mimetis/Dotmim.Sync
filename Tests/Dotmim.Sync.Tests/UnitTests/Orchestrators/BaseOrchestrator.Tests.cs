@@ -58,7 +58,6 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var provider = new SqlSyncProvider();
             var options = new SyncOptions();
-            var setup = new SyncSetup();
             var orchestrator = new LocalOrchestrator(provider, options);
 
             Assert.NotNull(orchestrator.Options);
@@ -595,7 +594,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldCreate_StoredProcedures()
+        public async Task BaseOrchestrator_Provision_ShouldCreate_StoredProcedures_WithSpecificScopeName()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -606,6 +605,63 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctx.Database.EnsureCreatedAsync();
 
             var scopeName = "scope";
+
+            var options = new SyncOptions();
+            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            {
+                StoredProceduresPrefix = "s",
+                StoredProceduresSuffix = "proc"
+            };
+
+            // trackign table name is composed with prefix and suffix from setup
+            var bulkDelete = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_bulkdelete";
+            var bulkUpdate = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_bulkupdate";
+            var changes = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_changes";
+            var delete = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_delete";
+            var deletemetadata = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_deletemetadata";
+            var initialize = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_initialize";
+            var reset = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_reset";
+            var selectrow = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_selectrow";
+            var update = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_update";
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            // Needs the tracking table to be able to create stored procedures
+            var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures;
+
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+
+            await localOrchestrator.ProvisionAsync(scopeInfo, provision);
+
+            using (var connection = new SqlConnection(cs))
+            {
+                await connection.OpenAsync().ConfigureAwait(false);
+
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, changes));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, delete));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, deletemetadata));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, initialize));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, reset));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, selectrow));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, update));
+
+                connection.Close();
+            }
+
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+        }
+        [Fact]
+        public async Task BaseOrchestrator_Provision_ShouldCreate_StoredProcedures_WithDefaultScopeName()
+        {
+            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
+            var sqlProvider = new SqlSyncProvider(cs);
+            // Create default table
+            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
+            await ctx.Database.EnsureCreatedAsync();
 
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
@@ -630,25 +686,25 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Needs the tracking table to be able to create stored procedures
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures;
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
 
             await localOrchestrator.ProvisionAsync(scopeInfo, provision);
 
-            using (var c = new SqlConnection(cs))
+            using (var connection = new SqlConnection(cs))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, bulkDelete));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, bulkUpdate));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, changes));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, delete));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, deletemetadata));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, initialize));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, reset));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, selectrow));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(c, null, update));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, changes));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, delete));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, deletemetadata));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, initialize));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, reset));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, selectrow));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, update));
 
-                c.Close();
+                connection.Close();
             }
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);

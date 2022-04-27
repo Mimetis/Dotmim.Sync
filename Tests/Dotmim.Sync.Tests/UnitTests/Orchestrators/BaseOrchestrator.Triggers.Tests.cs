@@ -48,7 +48,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName);
+            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
 
             // Needs the tracking table to be able to create triggers
             var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;

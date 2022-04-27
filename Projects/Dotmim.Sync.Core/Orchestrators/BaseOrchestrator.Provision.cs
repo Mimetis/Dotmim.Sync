@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         {
             // If schema does not have any table, raise an exception
             if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
-                throw new MissingTablesException();
+                throw new MissingTablesException(scopeInfo.Name);
 
             var ctx = this.GetContext(scopeInfo.Name);
 
@@ -149,7 +149,7 @@ namespace Dotmim.Sync
         {
             // If schema does not have any table, raise an exception
             if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
-                throw new MissingTablesException();
+                throw new MissingTablesException(scopeInfo.Name);
 
             var ctx = this.GetContext(scopeInfo.Name);
 
