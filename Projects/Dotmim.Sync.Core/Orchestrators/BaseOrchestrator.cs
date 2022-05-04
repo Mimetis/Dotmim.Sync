@@ -233,7 +233,7 @@ namespace Dotmim.Sync
 
 
         [DebuggerStepThrough]
-        internal SyncException GetSyncError(string scopeName, Exception exception, SyncStage overridenStage = default)
+        internal SyncException GetSyncError(string scopeName, Exception exception)
         {
             var syncStage = this.GetContext(scopeName).SyncStage;
             var syncException = new SyncException(exception, syncStage);

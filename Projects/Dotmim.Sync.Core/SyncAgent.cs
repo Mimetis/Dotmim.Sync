@@ -296,13 +296,22 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Get Server scope
-                // Will provision server database if needed
-                // Provision server side if needed
-                var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeAsync(scopeName, setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+                // on remote orchestrator, get Server scope
+                var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+
+                // If we just have create the server scope, we need to provision it
+                // the WebServerOrchestrator will do this setp on the GetServrScopeInfoAsync task, just before
+                // So far, on Http mode, this if() will not be called
+                if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
+                {
+                    // 2) Provision
+                    var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                    await this.RemoteOrchestrator.ProvisionAsync(serverScopeInfo, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                }
 
                 // On local orchestrator, get scope info.
-                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeAsync(scopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
+                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeInfoAsync(scopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (setup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(setup))
                     throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your scope");

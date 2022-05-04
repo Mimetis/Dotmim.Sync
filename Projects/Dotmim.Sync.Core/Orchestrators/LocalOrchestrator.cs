@@ -79,12 +79,12 @@ namespace Dotmim.Sync
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalGetScopeAsync(scopeName, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var localScopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
 
                 if (localScopeInfo == null)
                     return default;
 
-                var (clientTimestamp, clientBatchInfo, clientChangesSelected) 
+                var (clientTimestamp, clientBatchInfo, clientChangesSelected)
                     = await this.GetChangesAsync(localScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -139,10 +139,10 @@ namespace Dotmim.Sync
 
                 // Locally, if we are new, no need to get changes
                 if (isNew)
-                    (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(localScopeInfo).ConfigureAwait(false);
+                    (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(localScopeInfo, this.Options.BatchDirectory).ConfigureAwait(false);
                 else
                     (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(localScopeInfo, isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
-                        null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -172,7 +172,7 @@ namespace Dotmim.Sync
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalGetScopeAsync(scopeName, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var localScopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
 
                 if (localScopeInfo == null)
                     return default;
@@ -203,7 +203,7 @@ namespace Dotmim.Sync
                     clientChangesSelected = new DatabaseChangesSelected();
                 else
                     (ctx, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(localScopeInfo,
-                        isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets, 
+                        isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                         runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -254,7 +254,18 @@ namespace Dotmim.Sync
 
                 // check if we need to delete metadatas
                 if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastTimestamp.HasValue)
-                    await this.InternalDeleteMetadatasAsync(clientScopeInfo, lastTimestamp.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                {
+                    var allScopes = await this.InternalLoadAllClientScopesAsync(clientScopeInfo.Name, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    if (allScopes.Count > 0)
+                    {
+                        // Get the min value from LastSyncTimestamp from all scopes
+                        var minLastTimeStamp = allScopes.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
+                        minLastTimeStamp = minLastTimeStamp > lastTimestamp.Value ? lastTimestamp.Value : minLastTimeStamp;
+
+                        await this.InternalDeleteMetadatasAsync(allScopes, minLastTimeStamp, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+                }
 
                 // now the sync is complete, remember the time
                 this.CompleteTime = DateTime.UtcNow;
@@ -267,7 +278,7 @@ namespace Dotmim.Sync
                 clientScopeInfo.LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks;
 
                 // Write scopes locally
-                await this.InternalSaveScopeAsync(clientScopeInfo, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                clientScopeInfo = await this.InternalSaveClientScopeAsync(clientScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -313,26 +324,6 @@ namespace Dotmim.Sync
 
             return (changesApplied, newClientScopeInfo);
 
-        }
-
-        /// <summary>
-        /// Delete all metadatas from tracking tables, based on min timestamp from scope info table
-        /// </summary>
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            // TODO : To be implemented
-            return new DatabaseMetadatasCleaned();
-
-            //if (!this.StartTime.HasValue)
-            //    this.StartTime = DateTime.UtcNow;
-
-            //// Get the min timestamp, where we can without any problem, delete metadatas
-            //var clientScopeInfo = await this.GetClientScopeAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            //if (clientScopeInfo.LastSyncTimestamp == 0)
-            //    return new DatabaseMetadatasCleaned();
-
-            //return await base.DeleteMetadatasAsync(clientScopeInfo.LastSyncTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
         }
 
 
@@ -382,7 +373,7 @@ namespace Dotmim.Sync
         //        throw GetSyncError(ex);
         //    }
         //}
-    
-    
+
+
     }
 }

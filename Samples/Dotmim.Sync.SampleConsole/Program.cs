@@ -158,10 +158,10 @@ internal class Program
 
         // Provision the "v1" scope on the client with the new setup
         var clientOrchestrator = new LocalOrchestrator(clientProvider1, options);
-        var scopeInfo = await clientOrchestrator.ProvisionAsync(serverScope);
+        var scopeInfo = await clientOrchestrator.ProvisionAsync("v1", setupV1);
 
         var oldClientOrchestrator = new LocalOrchestrator(clientProvider1, options);
-        var defaultScopeInfo = await oldClientOrchestrator.GetClientScopeAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
+        var defaultScopeInfo = await oldClientOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
 
         scopeInfo.LastServerSyncTimestamp = defaultScopeInfo.LastServerSyncTimestamp;
         scopeInfo.LastSyncTimestamp = defaultScopeInfo.LastSyncTimestamp;
@@ -186,13 +186,13 @@ internal class Program
 
     //private static async Task ScenarioMigrationRemovingColumnsAsync()
     //{
-    //    var progress = new SynchronousProgress<ProgressArgs>(s =>
-    //    {
-    //        Console.ForegroundColor = ConsoleColor.Green;
-    //        Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
-    //        Console.ResetColor();
+        //var progress = new SynchronousProgress<ProgressArgs>(s =>
+        //{
+        //    Console.ForegroundColor = ConsoleColor.Green;
+        //    Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+        //    Console.ResetColor();
 
-    //    });
+        //});
 
     //    // Server provider
     //    var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));

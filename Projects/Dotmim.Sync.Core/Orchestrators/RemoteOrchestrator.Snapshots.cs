@@ -50,7 +50,7 @@ namespace Dotmim.Sync
                 // Get Schema from remote provider if no schema passed from args
                 if (scopeInfo.Schema == null)
                 {
-                    scopeInfo = await this.GetServerScopeAsync(scopeInfo.Name, scopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    scopeInfo = await this.GetServerScopeInfoAsync(scopeInfo.Name, scopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // When we get the changes from server, we create the batches if it's requested by the client
@@ -154,16 +154,29 @@ namespace Dotmim.Sync
                     context.Parameters = syncParameters;
 
                 // 1) Get Schema from remote provider
-                var serverScopeInfo = await this.GetServerScopeAsync(scopeName, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.InternalGetServerScopeInfoAsync(scopeName, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // If we just have create the server scope, we need to provision it
+                if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
+                {
+                    // 2) Provision
+                    var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                    await this.InternalProvisionAsync(serverScopeInfo, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Write scopes locally
+                    serverScopeInfo = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
 
                 // 4) Getting the most accurate timestamp
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(serverScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(serverScopeInfo.Name, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // 5) Create the snapshot with
                 localSerializerFactory = localSerializerFactory == null ? new LocalJsonSerializerFactory() : localSerializerFactory;
 
                 var batchInfo = await this.InternalCreateSnapshotAsync(serverScopeInfo, localSerializerFactory, remoteClientTimestamp,
-                    runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -196,13 +209,16 @@ namespace Dotmim.Sync
             // Delete directory if already exists
             var directoryFullPath = Path.Combine(rootDirectory, nameDirectory);
 
+            // Delete old version if exists
             if (Directory.Exists(directoryFullPath))
                 Directory.Delete(directoryFullPath, true);
 
             BatchInfo serverBatchInfo;
 
             (_, serverBatchInfo, _) =
-                    await this.InternalGetChangesAsync(serverScopeInfo, true, null, Guid.Empty, this.Provider.SupportsMultipleActiveResultSets, nameDirectory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalGetChangesAsync(serverScopeInfo, true, null, Guid.Empty, 
+                    this.Provider.SupportsMultipleActiveResultSets,
+                    rootDirectory, nameDirectory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // since we explicitely defined remote client timestamp to null, to get all rows, just reaffect here
             serverBatchInfo.Timestamp = remoteClientTimestamp;

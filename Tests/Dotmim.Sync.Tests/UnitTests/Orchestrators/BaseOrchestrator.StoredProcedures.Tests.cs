@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
@@ -56,7 +56,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Create a new scope with this filter
             var scopeName2 = "scope2";
-            var scopeInfo2 = await localOrchestrator.GetClientScopeAsync(scopeName2, setup);
+            var scopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync(scopeName2, setup);
 
             await localOrchestrator.CreateStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
 
@@ -90,7 +90,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
@@ -135,7 +135,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
@@ -179,9 +179,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
-
-            var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
@@ -217,7 +215,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             await localOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 

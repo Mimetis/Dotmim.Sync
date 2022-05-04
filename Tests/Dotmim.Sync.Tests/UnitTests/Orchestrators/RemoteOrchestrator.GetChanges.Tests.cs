@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
             // Get changes to be populated to the server
             var changes = await remoteOrchestrator.GetChangesAsync(clientScope);
@@ -160,7 +160,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetClientScopeAsync(scopeName);
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
             // Get the estimated changes count to be applied to the client
             var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
@@ -184,7 +184,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
 
             var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, new SyncOptions());
@@ -210,7 +209,9 @@ namespace Dotmim.Sync.Tests.UnitTests
                 await ctx.SaveChangesAsync();
             }
 
-            var serverScope = await remoteOrchestrator.GetServerScopeAsync(scopeName, setup);
+            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+
+            await remoteOrchestrator.ProvisionAsync(serverScope);
 
             // fake client scope
             var clientScope = new ScopeInfo()

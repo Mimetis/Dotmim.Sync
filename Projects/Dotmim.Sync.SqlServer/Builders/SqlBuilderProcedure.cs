@@ -35,9 +35,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            if (storedProcedureType == DbStoredProcedureType.BulkInitRows)
-                return Task.FromResult<DbCommand>(null);
-
             var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
 
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
@@ -68,9 +65,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            if (storedProcedureType == DbStoredProcedureType.BulkInitRows)
-                return Task.FromResult<DbCommand>(null);
-
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
             var text = $"DROP PROCEDURE {commandName};";
 

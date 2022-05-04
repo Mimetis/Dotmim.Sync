@@ -22,6 +22,14 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public SyncSet Schema { get; set; }
 
+
+        /// <summary>
+        /// Gets or Sets if this server scope has just been created now in server database.
+        /// We don't need it on the client side, so ignore it
+        /// </summary>
+        [IgnoreDataMember]
+        public bool IsNewScope { get; set; }
+
         /// <summary>
         /// Setup. stored locally
         /// </summary>

@@ -199,7 +199,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Get server scope from server, by sending an http request to the server 
         /// </summary>
-        public override async Task<ServerScopeInfo> GetServerScopeAsync(string scopeName, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override async Task<ServerScopeInfo> GetServerScopeInfoAsync(string scopeName, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (setup != default)
                 throw new Exception("Can't get a server scope with a setup provided. consider calling this method with only the scopename argument");
@@ -330,7 +330,7 @@ namespace Dotmim.Sync.Web.Client
             if (scope.Schema == null)
             {
                 // Make a remote call to get Schema from remote provider
-                var serverScopeInfo = await this.GetServerScopeAsync(scope.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await this.GetServerScopeInfoAsync(scope.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 schema = serverScopeInfo.Schema;
             }
             else
@@ -582,7 +582,7 @@ namespace Dotmim.Sync.Web.Client
             // Make a remote call to get Schema from remote provider
             if (scopeInfo.Schema == null)
             {
-                scopeInfo = await this.GetServerScopeAsync(scopeInfo.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                scopeInfo = await this.GetServerScopeInfoAsync(scopeInfo.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 scopeInfo.Schema.EnsureSchema();
             }
 
@@ -702,8 +702,28 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Not Allowed from WebClientOrchestrator
         /// </summary>
-        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(string scopeName, long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
+
+
+        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
+        public override Task<ServerScopeInfo> ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
+        public override Task<ServerScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
+        public override Task<ServerScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
+        public override Task<ServerScopeInfo> ProvisionAsync(SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
+        public override Task<ServerScopeInfo> ProvisionAsync(SyncSetup setup, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
 
         /// <summary>
         /// Not Allowed from WebClientOrchestrator
@@ -736,7 +756,7 @@ namespace Dotmim.Sync.Web.Client
             ServerScopeInfo serverScopeInfo;
 
             // Need the server scope
-            serverScopeInfo = await this.GetServerScopeAsync(clientScope.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            serverScopeInfo = await this.GetServerScopeInfoAsync(clientScope.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             schema = serverScopeInfo.Schema;
             schema.EnsureSchema();
 
@@ -877,7 +897,7 @@ namespace Dotmim.Sync.Web.Client
             ServerScopeInfo serverScopeInfo;
 
             // Need the server scope
-            serverScopeInfo = await this.GetServerScopeAsync(clientScope.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            serverScopeInfo = await this.GetServerScopeInfoAsync(clientScope.Name, default, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             schema = serverScopeInfo.Schema;
             schema.EnsureSchema();
 

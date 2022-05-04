@@ -48,7 +48,7 @@ namespace Dotmim.Sync
 
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var scopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
 
                 if (scopeInfo == null || scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return null;
@@ -74,7 +74,7 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var scopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (scopeInfo == null || scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return false;
@@ -149,7 +149,7 @@ namespace Dotmim.Sync
             if (oldVersion != version)
             {
                 scopeInfo.Version = version.ToString();
-                scopeInfo = await this.InternalSaveScopeAsync(scopeInfo, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                scopeInfo = await this.InternalSaveClientScopeAsync(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
             }
             return scopeInfo;
 
@@ -310,7 +310,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo093Async(IScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo093Async(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var context = this.GetContext(scopeInfo.Name);
@@ -331,7 +331,7 @@ namespace Dotmim.Sync
 
             return newVersion;
         }
-        private async Task<Version> UpgdrateTo094Async(IScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo094Async(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var context = this.GetContext(scopeInfo.Name);
@@ -349,6 +349,51 @@ namespace Dotmim.Sync
 
             await this.DeprovisionAsync(scopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             await this.ProvisionAsync(scopeInfo, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            return newVersion;
+        }
+
+        private async Task<Version> UpgdrateTo095Async(IScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
+                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+
+        {
+            var context = this.GetContext(scopeInfo.Name);
+            var newVersion = new Version(0, 9, 4);
+
+            // get scope info table name
+            var scopeInfoTableName = ParserName.Parse(this.Options.ScopeInfoTableName);
+            var tableName = $"{scopeInfoTableName.Unquoted().Normalized().ToString()}";
+
+            var alterScopeInfoTableCommandTextSql = @$"
+            ALTER TABLE [dbo].[{tableName}] DROP CONSTRAINT [PK_{tableName}];
+            ALTER TABLE dbo.scope_info ADD CONSTRAINT
+                [PK_{tableName}] PRIMARY KEY CLUSTERED (sync_scope_id, sync_scope_name) ON[PRIMARY];";
+
+            var alterScopeInfoTableCommandTextSqlite = @$"
+            PRAGMA foreign_keys=off;
+            BEGIN TRANSACTION;
+
+            ALTER TABLE [{tableName}] RENAME TO old_table_{tableName};
+            CREATE TABLE [{tableName}](
+                        sync_scope_id blob NOT NULL,
+	                    sync_scope_name text NOT NULL,
+	                    sync_scope_schema text NULL,
+	                    sync_scope_setup text NULL,
+	                    sync_scope_version text NULL,
+                        scope_last_server_sync_timestamp integer NULL,
+                        scope_last_sync_timestamp integer NULL,
+                        scope_last_sync_duration integer NULL,
+                        scope_last_sync datetime NULL,
+                        CONSTRAINT PK_{tableName} PRIMARY KEY(sync_scope_id, sync_scope_name));
+
+            INSERT INTO [{tableName}] SELECT * FROM old_table_{tableName};
+            COMMIT;
+
+            DROP TABLE old_table_{tableName};
+
+            PRAGMA foreign_keys=on;";
+
+
 
             return newVersion;
         }

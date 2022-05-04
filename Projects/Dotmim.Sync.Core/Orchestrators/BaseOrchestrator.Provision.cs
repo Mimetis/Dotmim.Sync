@@ -104,43 +104,6 @@ namespace Dotmim.Sync
 
             }
 
-            //// save scope
-            //if (this is LocalOrchestrator)
-            //{
-            //    if (clientScopeInfo == null)
-            //        clientScopeInfo = await this.InternalCreateScopeAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            //    var clientScopeInfo = scopeInfo as ScopeInfo;
-
-            //    clientScopeInfo.Schema = schema;
-            //    clientScopeInfo.Setup = this.Setup;
-            //    clientScopeInfo.Name = this.ScopeName;
-
-            //    await this.InternalSaveScopeAsync(ctx, DbScopeType.Client, clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            //    var args = new ProvisionedArgs(ctx, provision, schema, connection);
-            //    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-            //    return clientScopeInfo;
-
-            //}
-            //else if (this is RemoteOrchestrator)
-            //{
-            //    var serverScopeInfo = scope as ServerScopeInfo;
-
-            //    if (serverScopeInfo == null)
-            //        serverScopeInfo = await this.InternalCreateScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Client, this.ScopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            //    serverScopeInfo.Schema = schema;
-            //    serverScopeInfo.Setup = this.Setup;
-            //    serverScopeInfo.Name = this.ScopeName;
-
-            //    await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            //    var args = new ProvisionedArgs(ctx, provision, schema, connection);
-            //    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-            //    return serverScopeInfo;
-            //}
-
             return true;
 
         }

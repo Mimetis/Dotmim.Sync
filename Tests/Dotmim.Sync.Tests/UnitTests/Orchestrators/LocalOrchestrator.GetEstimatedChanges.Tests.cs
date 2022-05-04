@@ -197,7 +197,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // create the local scope, empty
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName);  
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);  
 
             // Get changes to be populated to the server
             // Since we are new and not yet initialized, no rows are marked to be sent

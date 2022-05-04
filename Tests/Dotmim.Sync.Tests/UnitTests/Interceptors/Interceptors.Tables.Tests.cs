@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
             await localOrchestrator.SaveClientScopeAsync(scopeInfo);
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
             await localOrchestrator.SaveClientScopeAsync(scopeInfo);
@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
             await localOrchestrator.SaveClientScopeAsync(scopeInfo);
@@ -178,7 +178,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnTableDropped(ttca => onDropped = true);
 
             // get scope info again
-            scopeInfo = await localOrchestrator.GetClientScopeAsync();
+            scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
 
             isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
@@ -221,7 +221,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var clientScope = await localOrchestrator.GetClientScopeAsync(setup);
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             // new empty db
             dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -242,7 +242,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnTableDropping(ttca => onDropping++);
             localOrchestrator.OnTableDropped(ttca => onDropped++);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = clientScope.Setup;
             scopeInfo.Schema = clientScope.Schema;
             await localOrchestrator.SaveClientScopeAsync(scopeInfo);
@@ -302,7 +302,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
             await localOrchestrator.SaveClientScopeAsync(scopeInfo);
@@ -373,7 +373,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
             await localOrchestrator.SaveClientScopeAsync(scopeInfo);
@@ -441,7 +441,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onDropping = 0;
             var onDropped = 0;
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             localOrchestrator.OnTableDropping(ttca => onDropping++);
             localOrchestrator.OnTableDropped(ttca => onDropped++);

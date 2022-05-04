@@ -194,7 +194,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
 
-                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // Check we have the correct columns replicated
                 using var c = client.Provider.CreateConnection();
@@ -1104,9 +1104,9 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
-                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
-                await agent.LocalOrchestrator.DeprovisionAsync(setup);
+                await agent.LocalOrchestrator.DeprovisionAsync(scopeInfo);
 
                 foreach (var setupTable in setup.Tables)
                 {
@@ -1240,7 +1240,7 @@ namespace Dotmim.Sync.Tests
                         var addProp = tcs.Context.AdditionalProperties[tcs.SchemaTable.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            var scopeInfo = await agent.RemoteOrchestrator.GetServerScopeAsync(SyncOptions.DefaultScopeName, default, tcs.Connection, tcs.Transaction);
+                            var scopeInfo = await agent.RemoteOrchestrator.GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, default, tcs.Connection, tcs.Transaction);
                             var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.SchemaTable, scopeInfo);
                             var (command, isBatch) = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.SchemaTable.GetFilter());
                             tcs.Command = command;
@@ -1283,7 +1283,7 @@ namespace Dotmim.Sync.Tests
                         var addProp = tca.Context.AdditionalProperties[tca.SchemaTable.GetFullName()];
                         if (addProp == "Reinitialize")
                         {
-                            var scopeInfo = await agent.LocalOrchestrator.GetClientScopeAsync(tca.Connection, tca.Transaction);
+                            var scopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync(tca.Connection, tca.Transaction);
 
                             await agent.LocalOrchestrator.ResetTableAsync(scopeInfo, tca.SchemaTable.TableName, tca.SchemaTable.SchemaName, tca.Connection, tca.Transaction);
                         }
@@ -1574,7 +1574,7 @@ namespace Dotmim.Sync.Tests
             {
                 // Deprovision everything
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options);
-                await localOrchestrator.DeprovisionAsync(setup);
+                await localOrchestrator.DeprovisionAsync();
 
             }
 

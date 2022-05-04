@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
@@ -384,8 +385,15 @@ namespace Dotmim.Sync.Web.Server
             this.SetContext(ctx);
 
             // Get schema
-            var serverScopeInfo = await this.GetServerScopeAsync(httpMessage.SyncContext.ScopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
-            // TODO : if serverScope.Schema is null, should we Provision here ?
+            var serverScopeInfo = await this.GetServerScopeInfoAsync(httpMessage.SyncContext.ScopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+            // Provision if needed
+            if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
+            {
+                // 2) Provision
+                var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                await this.ProvisionAsync(serverScopeInfo, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            }
 
             // Create http response
             var httpResponse = new HttpMessageEnsureScopesResponse(ctx, serverScopeInfo);
@@ -507,7 +515,7 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
-            var serverScopeInfo = await this.GetServerScopeAsync(ctx.ScopeName);
+            var serverScopeInfo = await this.GetServerScopeInfoAsync(ctx.ScopeName);
 
             // get changes
             var snap = await this.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
@@ -536,7 +544,7 @@ namespace Dotmim.Sync.Web.Server
 
             if (schema == null || !schema.HasTables || !schema.HasColumns)
             {
-                var serverScopeInfo = await base.GetServerScopeAsync(scopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfo = await base.GetServerScopeInfoAsync(scopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
                 // TODO : if serverScope.Schema is null, should we Provision here ?
 
                 schema = serverScopeInfo.Schema;
@@ -559,7 +567,7 @@ namespace Dotmim.Sync.Web.Server
             // Set the context coming from the client
             this.SetContext(ctx);
 
-            var serverScopeInfo = await this.GetServerScopeAsync(ctx.ScopeName);
+            var serverScopeInfo = await this.GetServerScopeInfoAsync(ctx.ScopeName);
 
             // get changes
             var snap = await this.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);

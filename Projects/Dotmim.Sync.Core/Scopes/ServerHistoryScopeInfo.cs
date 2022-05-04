@@ -48,8 +48,8 @@ namespace Dotmim.Sync
             }
         }
 
-        public SyncSet Schema { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public SyncSetup Setup { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public string Version { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public SyncSet Schema { get; set; }
+        public SyncSetup Setup { get; set; }
+        public string Version { get; set; }
     }
 }

@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -95,7 +95,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
 
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -181,7 +181,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var isCreated = await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
             Assert.True(isCreated);
@@ -242,7 +242,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var isCreated = await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
             Assert.True(isCreated);
@@ -303,7 +303,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -366,7 +366,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;

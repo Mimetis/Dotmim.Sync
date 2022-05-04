@@ -38,7 +38,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -89,7 +89,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
 
@@ -131,7 +131,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
             localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var isCreated = await localOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
@@ -188,7 +188,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -257,7 +257,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var isCreated = await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
             Assert.True(isCreated);
@@ -318,7 +318,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var isCreated = await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
             Assert.True(isCreated);
@@ -379,7 +379,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -442,7 +442,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;

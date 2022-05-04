@@ -76,8 +76,17 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
+            var scopeCommandType = scopeType switch
+            {
+                DbScopeType.Client => DbScopeCommandType.ExistsClientScopeInfoTable,
+                DbScopeType.Server => DbScopeCommandType.ExistsServerScopeInfoTable,
+                DbScopeType.ServerHistory => DbScopeCommandType.ExistsServerHistoryScopeInfoTable,
+                _ => throw new NotImplementedException()
+            };
+
+
             // Get exists command
-            var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistsScopeTable, scopeType, connection, transaction);
+            var existsCommand = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
 
             if (existsCommand == null)
                 return false;
@@ -98,7 +107,15 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.DropScopeTable, scopeType, connection, transaction);
+            var scopeCommandType = scopeType switch
+            {
+                DbScopeType.Client => DbScopeCommandType.DropServerScopeInfoTable,
+                DbScopeType.Server => DbScopeCommandType.DropServerScopeInfoTable,
+                DbScopeType.ServerHistory => DbScopeCommandType.DropServerHistoryScopeInfoTable,
+                _ => throw new NotImplementedException()
+            };
+
+            var command = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
 
             if (command == null) return false;
 
@@ -126,7 +143,15 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.CreateScopeTable, scopeType, connection, transaction);
+            var scopeCommandType = scopeType switch
+            {
+                DbScopeType.Client => DbScopeCommandType.CreateClientScopeInfoTable,
+                DbScopeType.Server => DbScopeCommandType.CreateServerScopeInfoTable,
+                DbScopeType.ServerHistory => DbScopeCommandType.CreateServerHistoryScopeInfoTable,
+                _ => throw new NotImplementedException()
+            };
+
+            var command = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
 
             if (command == null)
                 return false;

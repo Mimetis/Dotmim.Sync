@@ -1103,7 +1103,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var changes = await webClientOrchestrator.GetChangesAsync(clientScope);
@@ -1176,7 +1176,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var changes = await webClientOrchestrator.GetChangesAsync(clientScope);
@@ -1217,7 +1217,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var changes = await webClientOrchestrator.GetEstimatedChangesCountAsync(clientScope);
@@ -1290,7 +1290,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var changes = await webClientOrchestrator.GetEstimatedChangesCountAsync(clientScope);
@@ -1509,7 +1509,7 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options);
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeAsync(setup);
+            var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             // configure server orchestrator

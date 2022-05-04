@@ -32,7 +32,7 @@ using Xunit.Abstractions;
 namespace Dotmim.Sync.Tests
 {
     //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public abstract class TcpTests : IClassFixture<HelperProvider>, IDisposable
+    public abstract partial class TcpTests : IClassFixture<HelperProvider>, IDisposable
     {
         private Stopwatch stopwatch;
 
@@ -217,10 +217,10 @@ namespace Dotmim.Sync.Tests
                 using var clientConnection = client.Provider.CreateConnection();
                 await clientConnection.OpenAsync();
 
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
-                var clientSchema = clientScope.Schema;
+                // force to get schema from database by calling the GetSchemaAsync (that will not read the ScopInfo record, but will make a full read of the database schema)
+                var clientSchema = await agent.LocalOrchestrator.GetSchemaAsync(setup);
 
-                var serverScope = await agent.RemoteOrchestrator.GetServerScopeAsync();
+                var serverScope = await agent.RemoteOrchestrator.GetServerScopeInfoAsync();
                 var serverSchema = serverScope.Schema;
 
                 foreach (var setupTable in setup.Tables)
@@ -447,6 +447,44 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingTableException", se.TypeName);
+            }
+        }
+
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task RowsCount_MultipleScopes(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                var setup = new SyncSetup(this.Tables)
+                { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
+                var s2 = await agent.SynchronizeAsync(setup, "v2");
+
+                Assert.Equal(rowsCount, s2.TotalChangesDownloaded);
+                Assert.Equal(0, s2.TotalChangesUploaded);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
             }
         }
 
@@ -1404,7 +1442,7 @@ namespace Dotmim.Sync.Tests
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
                 // Read client schema
-                var clientScope = await localOrchestrator.GetClientScopeAsync(SyncOptions.DefaultScopeName, setup);
+                var clientScope = await localOrchestrator.GetClientScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
                 clientScope = await localOrchestrator.ProvisionAsync(clientScope, provision);
@@ -1512,7 +1550,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 using var connection = client.Provider.CreateConnection();
                 await connection.OpenAsync();
@@ -1980,7 +2018,7 @@ namespace Dotmim.Sync.Tests
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeAsync();
+                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 //await Assert.ThrowsAsync<SyncException>(async () =>
                 //{
@@ -3007,7 +3045,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
-                var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync(scopeName);
+                var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync();
 
                 // Client side : Create a product category and a product
                 var productId = Guid.NewGuid();
@@ -3032,7 +3070,7 @@ namespace Dotmim.Sync.Tests
                                     $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
 
                 // Making a first sync, will initialize everything we need
-                var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
+                var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(scopeName));
 
                 Assert.Equal(SyncSide.ClientSide, se.Side);
                 Assert.Equal("OutOfDateException", se.TypeName);
@@ -3040,7 +3078,7 @@ namespace Dotmim.Sync.Tests
                 // Intercept outdated event, and make a reinitialize with upload action
                 agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.ReinitializeWithUpload);
 
-                var r = await agent.SynchronizeAsync();
+                var r = await agent.SynchronizeAsync(scopeName);
                 var c = GetServerDatabaseRowsCount(this.Server);
                 Assert.Equal(c, r.TotalChangesDownloaded);
                 Assert.Equal(2, r.TotalChangesUploaded);
@@ -3258,7 +3296,7 @@ namespace Dotmim.Sync.Tests
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 // Server shoud not sent back lines, so download equals 1 (just product category)
                 Assert.Equal(1, s.TotalChangesDownloaded);
@@ -3267,13 +3305,13 @@ namespace Dotmim.Sync.Tests
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-            var remoteScope = await remoteOrchestrator.GetServerScopeAsync();
+            var remoteScope = await remoteOrchestrator.GetServerScopeInfoAsync();
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             foreach (var client in Clients)
             {
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options);
-                var localScope = await localOrchestrator.GetClientScopeAsync();
+                var localScope = await localOrchestrator.GetClientScopeInfoAsync();
 
                 Assert.True(localScope.Setup.Equals(remoteScope.Setup));
             }
@@ -3485,8 +3523,9 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options);
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var scope = await remoteOrchestrator.GetServerScopeAsync(SyncOptions.DefaultScopeName, new SyncSetup(Tables));
-            // TODO : if serverScope.Schema is null, should we Provision here ?
+            var setup = new SyncSetup(Tables);
+            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
+            await remoteOrchestrator.ProvisionAsync(serverScope);   
 
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();
 
@@ -3575,7 +3614,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async virtual Task OneColumn_NotInSetup_ShouldNotBe_UploadToServer(SyncOptions options)
+        public async virtual Task OneColumn_NotInSetup_Row_IsUploaded_ToServer_ButValue_RemainsTheSame(SyncOptions options)
         {
             // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
@@ -3603,14 +3642,15 @@ namespace Dotmim.Sync.Tests
                 var setup = new SyncSetup(new string[] { "Address" });
 
                 // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
+                setup.Tables["Address"].Columns.AddRange(new string[] {
+                    "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince",
+                    "CountryRegion", "PostalCode" });
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
 
                 // Editing Rowguid on client. This column is not part of the setup
-                // So far, it should not be uploaded to server
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
 
                 var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
@@ -3624,18 +3664,12 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var setup = new SyncSetup(new string[] { "Address" });
-
-                // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
-
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
 
-                // No upload since Rowguid is not part of SyncSetup (and trigger shoul not add a line)
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row on client should not have been updated 
@@ -3659,7 +3693,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async virtual Task OneColumn_NotInSetup_AfterCleanMetadata_ShouldNotBe_Tracked_AND_ShouldNotBe_UploadedToServer(SyncOptions options)
+        public async virtual Task OneColumn_NotInSetup_AfterCleanMetadata_IsTracked_ButNotUpdated(SyncOptions options)
         {
             // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
@@ -3685,7 +3719,9 @@ namespace Dotmim.Sync.Tests
                 var setup = new SyncSetup(new string[] { "Address" });
 
                 // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
+                setup.Tables["Address"].Columns.AddRange(
+                    new string[] { "AddressId", "AddressLine1", "AddressLine2",
+                        "City", "StateProvince", "CountryRegion", "PostalCode" });
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
@@ -3712,7 +3748,7 @@ namespace Dotmim.Sync.Tests
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
 
                 // Editing Rowguid on client. This column is not part of the setup
-                // So far, it should not be uploaded to server
+                // So far, it should be uploaded to server but without the column value
                 var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
 
                 // Now Update on client this address with a rowGuid
@@ -3720,13 +3756,10 @@ namespace Dotmim.Sync.Tests
 
                 await ctx.SaveChangesAsync();
 
-                // Check again no rows has been inserted
-                // this test ensure an existing row does not execute the second part of the UPDATE Trigger
-                // if the updated column is not part of the setup
                 await connection.OpenAsync();
                 count = await command.ExecuteScalarAsync();
                 countRows = Convert.ToInt32(count);
-                Assert.Equal(0, countRows);
+                Assert.Equal(1, countRows);
                 connection.Close();
 
 
@@ -3735,19 +3768,14 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var setup = new SyncSetup(new string[] { "Address" });
-
-                // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
-
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
 
-                // No upload since Rowguid is not part of SyncSetup (and trigger shoul not add a line)
-                Assert.Equal(0, s.TotalChangesUploaded);
+                // 1 upload since Rowguid is modified, but the column value is not part of the upload
+                Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row on client should not have been updated 
@@ -3800,14 +3828,18 @@ namespace Dotmim.Sync.Tests
                 var setup = new SyncSetup(new string[] { "Address" });
 
                 // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
+                setup.Tables["Address"].Columns.AddRange(new string[]
+                {   "AddressId", "AddressLine1",
+                    "AddressLine2", "City", "StateProvince",
+                    "CountryRegion", "PostalCode"
+                });
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
 
                 // Editing Rowguid on client. This column is not part of the setup
-                // So far, it should not be uploaded to server
+                // The row will be uploaded to the server but the column will not be overriden
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
 
                 var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
@@ -3829,20 +3861,16 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                var setup = new SyncSetup(new string[] { "Address" });
-
-                // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
-
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync();
 
                 // "Mimecity" change should be received from server
                 Assert.Equal(1, s.TotalChangesDownloaded);
 
-                // No upload since Rowguid is not part of SyncSetup (and trigger shoul not add a line)
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
+                // One upload
+                Assert.Equal(1, s.TotalChangesUploaded);
+                // We have resolved a conflict here
+                Assert.Equal(1, s.TotalResolvedConflicts);
 
                 // check row on client should not have been updated 
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);

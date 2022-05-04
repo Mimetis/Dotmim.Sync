@@ -48,7 +48,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             // Needs the tracking table to be able to create triggers
             var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
@@ -164,7 +164,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
@@ -205,7 +205,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
@@ -283,7 +283,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TriggersSuffix = "_trg";
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";

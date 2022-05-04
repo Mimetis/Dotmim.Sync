@@ -12,7 +12,6 @@ Maybe, we should log something here ?
 
 - SyncContext GetContext(string scopeName) : Add SyncOptions.DefaultScopeName when everything has been refactored
 
-
 - public LocalOrchestrator(CoreProvider provider, SyncOptions options)  : Add options = default
 
 - agent.Parameters should come directly in SynchronizeAsync() arguments
@@ -28,3 +27,9 @@ Maybe, we should log something here ?
 - Check any public methods will not call any other public methods (because syncstage will change and we don't want that)
 
 - In providers, make triggers creation UNION of all scopes columns
+
+- New test : Create a client scope that does not exists, should return a correct error
+
+- New test : Launch SynchronizeAsync(Tables) twice with different tables
+
+- Check all behaviors from Sql Change Tracking are same now that Triggers are agnostic to columns. Check tests 

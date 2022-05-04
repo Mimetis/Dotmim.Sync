@@ -55,7 +55,17 @@ namespace Dotmim.Sync
                 if (provision.HasFlag(SyncProvision.ClientScope))
                     throw new InvalidProvisionForRemoteOrchestratorException();
 
-                var serverScopeInfo = await this.GetServerScopeAsync(scopeName, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var serverScopeInfo = await this.InternalGetServerScopeInfoAsync(scopeName, setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                // 2) Provision
+                if (provision == SyncProvision.None)
+                    provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                
+                await this.InternalProvisionAsync(serverScopeInfo, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
 
                 return serverScopeInfo;
             }
@@ -87,7 +97,7 @@ namespace Dotmim.Sync
                 await this.InternalProvisionAsync(serverScopeInfo, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Write scopes locally
-                await this.InternalSaveScopeAsync(serverScopeInfo, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                serverScopeInfo = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -116,11 +126,11 @@ namespace Dotmim.Sync
             try
             {
                 if (provision == default)
-                    provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+                    provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var serverScopeInfo = await this.InternalGetScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ServerScopeInfo;
+                var serverScopeInfo = await this.InternalLoadServerScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ServerScopeInfo;
 
                 if (serverScopeInfo == null || serverScopeInfo.Schema == null || serverScopeInfo.Schema.Tables == null || serverScopeInfo.Schema.Tables.Count <= 0 || !serverScopeInfo.Schema.HasColumns)
                     throw new MissingSchemaInScopeException();
@@ -155,7 +165,7 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Creating a fake scope info
-                var serverScopeInfo = this.InternalCreateScope(scopeName, DbScopeType.Server, cancellationToken, progress);
+                var serverScopeInfo = this.InternalCreateScopeInfo(scopeName, DbScopeType.Server);
                 serverScopeInfo.Setup = setup;
 
                 var isDeprovisioned = await InternalDeprovisionAsync(serverScopeInfo, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);

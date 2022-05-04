@@ -33,7 +33,7 @@ namespace Dotmim.Sync
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                var serverScopeInfos = await this.InternalGetAllScopesAsync(SyncOptions.DefaultScopeName, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var serverScopeInfos = await this.InternalLoadAllServerScopesInfosAsync(SyncOptions.DefaultScopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (serverScopeInfos == null || serverScopeInfos.Count <= 0)
                     throw new MissingServerScopeInfoException();
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
                 if (!exists)
                     return false;
 
-                var scopes = await this.InternalGetAllScopesAsync(scopeName, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopes = await this.InternalLoadAllServerScopesInfosAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (scopes == null || scopes.Count <= 0)
                     return false;
@@ -85,7 +85,7 @@ namespace Dotmim.Sync
             }
         }
 
-        internal virtual bool InternalNeedsToUpgrade(List<IScopeInfo> serverScopeInfos)
+        internal virtual bool InternalNeedsToUpgrade(List<ServerScopeInfo> serverScopeInfos)
         {
             var version = SyncVersion.Current;
 
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<bool> InternalUpgradeAsync(List<IScopeInfo> serverScopeInfos, DbConnection connection, DbTransaction transaction,
+        internal virtual async Task<bool> InternalUpgradeAsync(List<ServerScopeInfo> serverScopeInfos, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -159,7 +159,7 @@ namespace Dotmim.Sync
                 }
 
                 serverScopeInfo.Version = version.ToString();
-                await this.InternalSaveScopeAsync(serverScopeInfo, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             }
 

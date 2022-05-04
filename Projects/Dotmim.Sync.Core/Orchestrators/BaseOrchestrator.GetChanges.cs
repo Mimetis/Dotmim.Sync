@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangesAsync(
                              IScopeInfo scopeInfo, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
-                             bool supportsMultiActiveResultSets, string batchDirectoryName,
+                             bool supportsMultiActiveResultSets, string batchRootDirectory, string batchDirectoryName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -40,23 +40,23 @@ namespace Dotmim.Sync
 
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
             {
-                (batchInfo, changesSelected) = await this.InternalGetEmptyChangesAsync(scopeInfo).ConfigureAwait(false);
+                (batchInfo, changesSelected) = await this.InternalGetEmptyChangesAsync(scopeInfo, batchRootDirectory).ConfigureAwait(false);
                 return (context, batchInfo, changesSelected);
             }
 
             // Call interceptor
-            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, this.Options.BatchDirectory, this.Options.BatchSize, isNew, connection, transaction);
+            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchRootDirectory, this.Options.BatchSize, isNew, connection, transaction);
             await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             // create local directory
-            if (!string.IsNullOrEmpty(this.Options.BatchDirectory) && !Directory.Exists(this.Options.BatchDirectory))
-                Directory.CreateDirectory(this.Options.BatchDirectory);
+            if (!string.IsNullOrEmpty(batchRootDirectory) && !Directory.Exists(batchRootDirectory))
+                Directory.CreateDirectory(batchRootDirectory);
 
             changesSelected = new DatabaseChangesSelected();
 
             // Create a batch 
             // batchinfo generate a schema clone with scope columns if needed
-            batchInfo = new BatchInfo(scopeInfo.Schema, this.Options.BatchDirectory, batchDirectoryName);
+            batchInfo = new BatchInfo(scopeInfo.Schema, batchRootDirectory, batchDirectoryName);
             batchInfo.TryRemoveDirectory();
             batchInfo.CreateDirectory();
 
@@ -162,7 +162,8 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(TableChangesSelected TableChangesSelected, List<BatchPartInfo> BatchPartInfos)> InternalReadSyncTableChangesAsync(
+        internal virtual async Task<(TableChangesSelected TableChangesSelected, List<BatchPartInfo> BatchPartInfos)> 
+            InternalReadSyncTableChangesAsync(
             IScopeInfo scopeInfo, Guid? excludintScopeId, SyncTable syncTable,
             BatchInfo batchInfo, bool isNew, long? lastTimestamp,
             DatabaseChangesSelected changesSelected, DbConnection connection, DbTransaction transaction,
@@ -423,10 +424,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(IScopeInfo scopeInfo)
+        internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(IScopeInfo scopeInfo, string dir)
         {
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo(scopeInfo.Schema, this.Options.BatchDirectory); ;
+            var batchInfo = new BatchInfo(scopeInfo.Schema, dir);
 
             // Create a new empty in-memory batch info
             return Task.FromResult((batchInfo, new DatabaseChangesSelected()));

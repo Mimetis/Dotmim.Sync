@@ -142,7 +142,7 @@ namespace Dotmim.Sync
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
 
-        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, object scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, IScopeInfo scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
             : base(context, connection, transaction)
         {
             this.Command = command;
@@ -154,7 +154,7 @@ namespace Dotmim.Sync
         public override string Source => Connection.Database;
         public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Saving.";
 
-        public object ScopeInfo { get; }
+        public IScopeInfo ScopeInfo { get; }
         public override int EventId => SyncEventsId.ScopeSaving.Id;
     }
 

@@ -10,14 +10,14 @@ namespace Dotmim.Sync
 {
     public class MetadataCleaningArgs : ProgressArgs
     {
-        public SyncSetup Setup { get; }
+        public IEnumerable<IScopeInfo> ScopeInfos { get; }
         public long TimeStampStart { get; }
 
-        public MetadataCleaningArgs(SyncContext context, SyncSetup setup, long timeStampStart, DbConnection connection, DbTransaction transaction)
+        public MetadataCleaningArgs(SyncContext context, IEnumerable<IScopeInfo> scopeInfos, long timeStampStart, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
-            this.Setup = setup;
+            this.ScopeInfos = scopeInfos;
             this.TimeStampStart = timeStampStart;
         }
         public override string Source => Connection.Database;

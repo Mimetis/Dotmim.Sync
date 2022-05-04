@@ -216,7 +216,7 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
                 storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
                 return Task.FromResult<DbCommand>(null);
 
@@ -250,7 +250,7 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
                 storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
                 return Task.FromResult<DbCommand>(null);
 

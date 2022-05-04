@@ -175,207 +175,117 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             return totalCountRows;
         }
 
-        /// <summary>
-        /// Testing an insert / update on a table where a column is not part of the sync setup, and should stay alive after a sync
-        /// NOTE: This test is slightly different than the base as CT marks all columns as changed after an insert,
-        /// so this only tests updates after the insert is synchronized.
-        /// </summary>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
-        public async override Task OneColumn_NotInSetup_ShouldNotBe_UploadToServer(SyncOptions options)
-        {
-            // create a server schema with seeding
-            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+        ///// <summary>
+        ///// Since we do not have control on the change tracking mechanism, any row updated will be marked as updated
+        ///// Even if the value is the same or if the column is not part of sync setup
+        ///// </summary>
+        //public override Task OneColumn_NotInSetup_AfterCleanMetadata_IsTracked_ButNotUpdated(SyncOptions options)
+        //{
+        //    // TODO : Maybe this method now works also for change tracking
+        //    // Since all triggers are now agnostic to columns
+        //    return Task.CompletedTask;
+        //}
 
-            // create empty client databases with schema
-            foreach (var client in this.Clients)
-                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+        ///// <summary>
+        ///// Testing that an upate from the server does not replace, but just update the local row, so that columns that are not included in the sync are not owervritten/cleared
+        ///// NOTE: This test is slightly different than the base as CT marks all columns as changed after an insert,
+        ///// so this only tests updates after the insert is synchronized.
+        ///// </summary>
+        //[Theory]
+        //[ClassData(typeof(SyncOptionsData))]
+        //public async override Task OneColumn_NotInSetup_IfServerSendsChanges_UpdatesLocalRow_AndDoesNotClear_OneColumn(SyncOptions options)
+        //{
+        //    // create a server schema with seeding
+        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
-
-            // this Guid will be updated on the client
-            var clientGuid = Guid.NewGuid();
-
-            // Get server Guid value, that should not change
-            Guid? serverGuid;
-            using (var serverDbCtx = new AdventureWorksContext(this.Server))
-            {
-                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
-                serverGuid = address.Rowguid;
-            }
-
-
-            // Execute a sync on all clients to initialize client and server schema 
-            foreach (var client in Clients)
-            {
-                var setup = new SyncSetup(new string[] { "Address" });
-
-                // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
-
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                var s = await agent.SynchronizeAsync(setup);
-
-                // The first sync has inserted records,
-                // so now we have to synchronize again so that the next sync will have the latest change version.
-                // This does mean that when the sync inserts records and then before the next sync a column is updated that is not part
-                // of the sync process, it will still be synchronized.
-                var s2 = await agent.SynchronizeAsync(setup);
-
-                // Editing Rowguid on client. This column is not part of the setup
-                // So far, it should not be uploaded to server
-                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-
-                var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
-
-                // Now Update on client this address with a rowGuid
-                cliAddress.Rowguid = clientGuid;
-
-                await ctx.SaveChangesAsync();
-            }
-
-            // Execute a sync on all clients and check results
-            foreach (var client in Clients)
-            {
-                var setup = new SyncSetup(new string[] { "Address" });
-
-                // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
-
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                var s = await agent.SynchronizeAsync(setup);
-
-                Assert.Equal(0, s.TotalChangesDownloaded);
-
-                // No upload since Rowguid is not part of SyncSetup (and trigger shoul not add a line)
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
-
-                // check row on client should not have been updated 
-                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
-
-                Assert.Equal(clientGuid, cliAddress.Rowguid);
-            }
+        //    // create empty client databases with schema
+        //    foreach (var client in this.Clients)
+        //        await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
 
-            // Check on server guid has not been uploaded
-            using (var serverDbCtx = new AdventureWorksContext(this.Server))
-            {
-                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
-                Assert.Equal(serverGuid, address.Rowguid);
-            }
-        }
+        //    // this Guid will be updated on the client
+        //    var clientGuid = Guid.NewGuid();
 
-        /// <summary>
-        /// Since we do not have control on the change tracking mechanism, any row updated will be marked as updated
-        /// Even if the value is the same or if the column is not part of sync setup
-        /// </summary>
-        public override Task OneColumn_NotInSetup_AfterCleanMetadata_ShouldNotBe_Tracked_AND_ShouldNotBe_UploadedToServer(SyncOptions options)
-        {
-            return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// Testing that an upate from the server does not replace, but just update the local row, so that columns that are not included in the sync are not owervritten/cleared
-        /// NOTE: This test is slightly different than the base as CT marks all columns as changed after an insert,
-        /// so this only tests updates after the insert is synchronized.
-        /// </summary>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
-        public async override Task OneColumn_NotInSetup_IfServerSendsChanges_UpdatesLocalRow_AndDoesNotClear_OneColumn(SyncOptions options)
-        {
-            // create a server schema with seeding
-            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-            // create empty client databases with schema
-            foreach (var client in this.Clients)
-                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+        //    // Get server Guid value, that should not change
+        //    Guid? serverGuid;
+        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
+        //    {
+        //        var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+        //        serverGuid = address.Rowguid;
+        //    }
 
 
-            // this Guid will be updated on the client
-            var clientGuid = Guid.NewGuid();
+        //    // Execute a sync on all clients to initialize client and server schema 
+        //    foreach (var client in Clients)
+        //    {
+        //        var setup = new SyncSetup(new string[] { "Address" });
 
-            // Get server Guid value, that should not change
-            Guid? serverGuid;
-            using (var serverDbCtx = new AdventureWorksContext(this.Server))
-            {
-                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
-                serverGuid = address.Rowguid;
-            }
+        //        // Add all columns to address except Rowguid and ModifiedDate
+        //        setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
+        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-            // Execute a sync on all clients to initialize client and server schema 
-            foreach (var client in Clients)
-            {
-                var setup = new SyncSetup(new string[] { "Address" });
+        //        var s = await agent.SynchronizeAsync(setup);
 
-                // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
+        //        // The first sync has inserted records,
+        //        // so now we have to synchronize again so that the next sync will have the latest change version.
+        //        // This does mean that when the sync inserts records and then before the next sync a column is updated that is not part
+        //        // of the sync process, it will still be synchronized.
+        //        var s2 = await agent.SynchronizeAsync(setup);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+        //        // Editing Rowguid on client. This column is not part of the setup
+        //        // So far, it should not be uploaded to server
+        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
 
-                var s = await agent.SynchronizeAsync(setup);
+        //        var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
 
-                // The first sync has inserted records,
-                // so now we have to synchronize again so that the next sync will have the latest change version.
-                // This does mean that when the sync inserts records and then before the next sync a column is updated that is not part
-                // of the sync process, it will still be synchronized.
-                var s2 = await agent.SynchronizeAsync(setup);
+        //        // Now Update on client this address with a rowGuid
+        //        cliAddress.Rowguid = clientGuid;
 
-                // Editing Rowguid on client. This column is not part of the setup
-                // So far, it should not be uploaded to server
-                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+        //        await ctx.SaveChangesAsync();
+        //    }
 
-                var cliAddress = await ctx.Address.SingleAsync(a => a.AddressId == 1);
+        //    // Act
+        //    // Change row on server and make sure that client rows are just UPDATED and not REPLACED
+        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
+        //    {
+        //        var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+        //        address.City = "Mimecity";
+        //        await serverDbCtx.SaveChangesAsync();
+        //    }
 
-                // Now Update on client this address with a rowGuid
-                cliAddress.Rowguid = clientGuid;
+        //    foreach (var client in Clients)
+        //    {
+        //        var setup = new SyncSetup(new string[] { "Address" });
 
-                await ctx.SaveChangesAsync();
-            }
+        //        // Add all columns to address except Rowguid and ModifiedDate
+        //        setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
 
-            // Act
-            // Change row on server and make sure that client rows are just UPDATED and not REPLACED
-            using (var serverDbCtx = new AdventureWorksContext(this.Server))
-            {
-                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
-                address.City = "Mimecity";
-                await serverDbCtx.SaveChangesAsync();
-            }
+        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
+        //        var s = await agent.SynchronizeAsync(setup);
 
-            foreach (var client in Clients)
-            {
-                var setup = new SyncSetup(new string[] { "Address" });
+        //        // "Mimecity" change should be received from server
+        //        Assert.Equal(1, s.TotalChangesDownloaded);
 
-                // Add all columns to address except Rowguid and ModifiedDate
-                setup.Tables["Address"].Columns.AddRange(new string[] { "AddressId", "AddressLine1", "AddressLine2", "City", "StateProvince", "CountryRegion", "PostalCode" });
+        //        // No upload since Rowguid is not part of SyncSetup (and trigger shoul not add a line)
+        //        Assert.Equal(0, s.TotalChangesUploaded);
+        //        Assert.Equal(0, s.TotalResolvedConflicts);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                var s = await agent.SynchronizeAsync(setup);
+        //        // check row on client should not have been updated 
+        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+        //        var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
 
-                // "Mimecity" change should be received from server
-                Assert.Equal(1, s.TotalChangesDownloaded);
-
-                // No upload since Rowguid is not part of SyncSetup (and trigger shoul not add a line)
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
-
-                // check row on client should not have been updated 
-                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
-
-                Assert.Equal(clientGuid, cliAddress.Rowguid);
-                Assert.Equal("Mimecity", cliAddress.City);
-            }
+        //        Assert.Equal(clientGuid, cliAddress.Rowguid);
+        //        Assert.Equal("Mimecity", cliAddress.City);
+        //    }
 
 
-            // Check on server guid has not been uploaded
-            using (var serverDbCtx = new AdventureWorksContext(this.Server))
-            {
-                var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
-                Assert.Equal(serverGuid, address.Rowguid);
-            }
-        }
+        //    // Check on server guid has not been uploaded
+        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
+        //    {
+        //        var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == 1);
+        //        Assert.Equal(serverGuid, address.Rowguid);
+        //    }
+        //}
     }
 }

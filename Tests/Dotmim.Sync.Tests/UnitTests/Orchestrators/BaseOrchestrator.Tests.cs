@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var orchestrator = new RemoteOrchestrator(provider, options);
 
             var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await orchestrator.GetServerScopeAsync("scope1", setup));
+                async () => await orchestrator.GetServerScopeInfoAsync("scope1", setup));
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);
@@ -208,7 +208,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             AssertConnectionAndTransaction(localOrchestrator, scopeName, SyncStage.ScopeLoading);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             Assert.NotNull(scopeInfo.Schema);
             Assert.NotNull(scopeInfo.Setup);
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var scopeInfo = await localOrchestrator.GetClientScopeAsync(cancellationToken: cts.Token);
+                var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(cancellationToken: cts.Token);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
@@ -278,7 +278,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             Assert.Equal(SyncStage.ScopeLoading, localOrchestrator.GetContext(SyncOptions.DefaultScopeName).SyncStage);
             Assert.Equal(3, scopeInfo.Schema.Tables.Count);
@@ -313,7 +313,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+                var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
@@ -344,7 +344,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await localOrchestrator.GetClientScopeAsync(setup);
+                await localOrchestrator.GetClientScopeInfoAsync(setup);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
@@ -380,7 +380,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await localOrchestrator.GetClientScopeAsync(setup);
+                await localOrchestrator.GetClientScopeInfoAsync(setup);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
@@ -505,7 +505,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
             scopeInfo.Schema = schema;
             scopeInfo.Setup = setup;
 
@@ -566,7 +566,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
 
@@ -629,7 +629,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Needs the tracking table to be able to create stored procedures
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures;
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
             await localOrchestrator.ProvisionAsync(scopeInfo, provision);
 
@@ -686,7 +686,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Needs the tracking table to be able to create stored procedures
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures;
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(setup);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
 
             await localOrchestrator.ProvisionAsync(scopeInfo, provision);
 
@@ -738,7 +738,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
             scopeInfo.Schema = schema;
             scopeInfo.Setup = setup;
 
@@ -792,7 +792,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
             scopeInfo.Schema = schema;
             scopeInfo.Setup = setup;
 
@@ -826,7 +826,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
-                await localOrchestrator.GetClientScopeAsync(scopeName, setup));
+                await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
             Assert.Equal(SyncSide.ClientSide, se.Side);

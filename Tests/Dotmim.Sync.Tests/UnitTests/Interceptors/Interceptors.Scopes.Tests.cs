@@ -87,7 +87,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoaded++;
             });
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeAsync(scopeName, setup);
+            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
 
 
             Assert.Equal(1, scopeTableCreating);
@@ -182,12 +182,12 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoaded++;
             });
 
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeAsync(scopeName, setup);
+            var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             serverScopeInfo.Version = "2.0";
 
-            await remoteOrchestrator.SaveServerScopeAsync(serverScopeInfo);
+            await remoteOrchestrator.SaveServerScopeInfoAsync(serverScopeInfo);
 
             Assert.Equal(2, scopeTableCreating);
             Assert.Equal(2, scopeTableCreated);

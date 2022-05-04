@@ -26,20 +26,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return command;
         }
 
-        public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-            => this.GetUpdateScopeInfoCommand(scopeType, connection, transaction);
-
-        public override DbCommand GetUpdateScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-            => scopeType switch
-            {
-                DbScopeType.Client => GetSaveClientScopeInfoCommand(connection, transaction),
-                DbScopeType.ServerHistory => GetSaveServerHistoryScopeInfoCommand(connection, transaction),
-                DbScopeType.Server => GetSaveServerScopeInfoCommandForTrackingChange(connection, transaction),
-                _ => throw new NotImplementedException($"Can't save this DbScopeType {scopeType}")
-            };
-
-
-        public DbCommand GetSaveServerScopeInfoCommandForTrackingChange(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetUpdateServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
             var commandText = $@"
