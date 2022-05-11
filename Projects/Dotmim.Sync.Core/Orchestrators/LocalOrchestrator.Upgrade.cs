@@ -48,7 +48,7 @@ namespace Dotmim.Sync
 
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var scopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var scopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
 
                 if (scopeInfo == null || scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return null;
@@ -74,7 +74,7 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var scopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (scopeInfo == null || scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return false;
@@ -149,7 +149,7 @@ namespace Dotmim.Sync
             if (oldVersion != version)
             {
                 scopeInfo.Version = version.ToString();
-                scopeInfo = await this.InternalSaveClientScopeAsync(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                scopeInfo = await this.InternalSaveClientScopeInfoAsync(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
             }
             return scopeInfo;
 

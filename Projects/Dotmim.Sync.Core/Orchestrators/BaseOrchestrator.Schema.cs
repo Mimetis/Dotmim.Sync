@@ -129,7 +129,7 @@ namespace Dotmim.Sync
         private void FillSyncTableWithColumns(SetupTable setupTable, SyncTable schemaTable, IEnumerable<SyncColumn> columns)
         {
             schemaTable.OriginalProvider = this.Provider.GetProviderTypeName();
-            schemaTable.SyncDirection = setupTable.SyncDirection;
+            //schemaTable.SyncDirection = setupTable.SyncDirection;
 
             var ordinal = 0;
 
@@ -211,15 +211,15 @@ namespace Dotmim.Sync
                     {
                         var (p, s) = this.Provider.GetMetadata().GetPrecisionAndScale(column);
                         column.Precision = p;
-                        column.PrecisionSpecified = true;
+                        column.PrecisionIsSpecified = true;
                         column.Scale = s;
-                        column.ScaleSpecified = true;
+                        column.ScaleIsSpecified = true;
                     }
                     else
                     {
                         column.Precision = this.Provider.GetMetadata().GetPrecision(column);
-                        column.PrecisionSpecified = true;
-                        column.ScaleSpecified = false;
+                        column.PrecisionIsSpecified = true;
+                        column.ScaleIsSpecified = false;
                     }
 
                 }

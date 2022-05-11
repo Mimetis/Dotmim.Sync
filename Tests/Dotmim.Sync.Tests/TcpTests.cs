@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
@@ -20,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -205,7 +207,8 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var setup = new SyncSetup(this.Tables);
+                //var setup = new SyncSetup(this.Tables);
+                var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory" });
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
@@ -218,6 +221,7 @@ namespace Dotmim.Sync.Tests
                 await clientConnection.OpenAsync();
 
                 // force to get schema from database by calling the GetSchemaAsync (that will not read the ScopInfo record, but will make a full read of the database schema)
+                // The schema get here is not serialized / deserialiazed, like the remote schema (loaded from database)
                 var clientSchema = await agent.LocalOrchestrator.GetSchemaAsync(setup);
 
                 var serverScope = await agent.RemoteOrchestrator.GetServerScopeInfoAsync();
@@ -249,9 +253,9 @@ namespace Dotmim.Sync.Tests
                             //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);
 
                             Assert.Equal(maxPrecision, clientColumn.Precision);
-                            Assert.Equal(serverColumn.PrecisionSpecified, clientColumn.PrecisionSpecified);
+                            Assert.Equal(serverColumn.PrecisionIsSpecified, clientColumn.PrecisionIsSpecified);
                             Assert.Equal(maxScale, clientColumn.Scale);
-                            Assert.Equal(serverColumn.ScaleSpecified, clientColumn.ScaleSpecified);
+                            Assert.Equal(serverColumn.ScaleIsSpecified, clientColumn.ScaleIsSpecified);
 
                             Assert.Equal(serverColumn.DefaultValue, clientColumn.DefaultValue);
                             Assert.Equal(serverColumn.ExtraProperty1, clientColumn.ExtraProperty1);
@@ -1487,6 +1491,7 @@ namespace Dotmim.Sync.Tests
                 //localOrchestrator.OnTableProvisioned(null);
 
                 //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
+
                 await localOrchestrator.DeprovisionAsync(clientScope, provision);
 
                 // check if scope table is correctly created
@@ -2909,58 +2914,78 @@ namespace Dotmim.Sync.Tests
         }
 
 
-
         [Fact]
         public async Task Serialize_And_Deserialize()
         {
             // create a server schema without seeding
-            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             var scopeName = "scopesnap1";
+            var setup = new SyncSetup(Tables);
+            //var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+
+            // Defining options with Batchsize to enable serialization on disk
+            var options = new SyncOptions { BatchSize = 1000 };
 
             var myRijndael = new RijndaelManaged();
             myRijndael.GenerateKey();
             myRijndael.GenerateIV();
 
-            // Create action for serializing and deserialzing for both remote and local orchestrators
-            var deserializing = new Action<DeserializingSetArgs>(dsa =>
-            {
-                // Create an encryptor to perform the stream transform.
-                var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+            var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+            var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
 
-                using var csDecrypt = new CryptoStream(dsa.FileStream, decryptor, CryptoStreamMode.Read);
-                using var swDecrypt = new StreamReader(csDecrypt);
-                //Read all data to the ContainerSet
-                var str = swDecrypt.ReadToEnd();
-                dsa.Result = JsonConvert.DeserializeObject<ContainerSet>(str);
-            });
+            var writringRowsTables = new Dictionary<string, int>();
+            var readingRowsTables = new Dictionary<string, int>();
+
+            //options.LocalSerializer.OnWritingRow((schemaTable, array) =>
+            //{
+            //    // assert
+            //    if (writringRowsTables.ContainsKey(schemaTable.GetFullName()))
+            //        writringRowsTables[schemaTable.GetFullName()]++;
+            //    else
+            //        writringRowsTables[schemaTable.GetFullName()] = 1;
+
+            //    var strSet = JsonConvert.SerializeObject(array);
+
+            //    using var msEncrypt = new MemoryStream();
+            //    using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+            //    using (var swEncrypt = new StreamWriter(csEncrypt))
+            //        swEncrypt.Write(strSet);
+
+            //    return Convert.ToBase64String(msEncrypt.ToArray());
+            //});
+
+            //options.LocalSerializer.onReadingRow((schemaTable, strValue) =>
+            //{
+            //    // assert
+            //    if (readingRowsTables.ContainsKey(schemaTable.GetFullName()))
+            //        readingRowsTables[schemaTable.GetFullName()]++;
+            //    else
+            //        readingRowsTables[schemaTable.GetFullName()] = 1;
 
 
-            var serializing = new Action<SerializingSetArgs>(ssa =>
-            {
-                // Create an encryptor to perform the stream transform.
-                var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+            //    string value;
+            //    var byteArray = Convert.FromBase64String(strValue);
+            //    using var msDecrypt = new MemoryStream(byteArray);
+            //    using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+            //    using (var swDecrypt = new StreamReader(csDecrypt))
+            //        value = swDecrypt.ReadToEnd();
 
-                using var msEncrypt = new MemoryStream();
-                using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
-                using (var swEncrypt = new StreamWriter(csEncrypt))
-                {
-                    //Write all data to the stream.
-                    var strSet = JsonConvert.SerializeObject(ssa.Set);
-                    swEncrypt.Write(strSet);
-                }
-                ssa.Result = msEncrypt.ToArray();
+            //    var array = JsonConvert.DeserializeObject<object[]>(value);
 
-            });
+            //    return array;
+
+            //});
+
 
             foreach (var client in this.Clients)
             {
-                // Defining options with Batchsize to enable serialization on disk
-                var options = new SyncOptions { BatchSize = 1000 };
+                writringRowsTables.Clear();
+                readingRowsTables.Clear();
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
@@ -2968,14 +2993,24 @@ namespace Dotmim.Sync.Tests
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
-                // Encrypting / decrypting data on disk
-                localOrchestrator.OnSerializingSet(serializing);
-                localOrchestrator.OnDeserializingSet(deserializing);
-                remoteOrchestrator.OnSerializingSet(serializing);
-                remoteOrchestrator.OnDeserializingSet(deserializing);
-
                 // Making a first sync, will initialize everything we need
-                var result = await agent.SynchronizeAsync(Tables, scopeName);
+                var result = await agent.SynchronizeAsync(setup, scopeName);
+
+                foreach (var table in result.ChangesAppliedOnClient.TableChangesApplied)
+                {
+                    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                    var writedRows = writringRowsTables[fullName];
+                    Assert.Equal(table.Applied, writedRows);
+
+                }
+
+                foreach (var table in result.ServerChangesSelected.TableChangesSelected)
+                {
+                    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                    var writedRows = readingRowsTables[fullName];
+                    Assert.Equal(table.TotalChanges, writedRows);
+                }
+
 
                 Assert.Equal(GetServerDatabaseRowsCount(this.Server), result.TotalChangesDownloaded);
 
@@ -3000,10 +3035,29 @@ namespace Dotmim.Sync.Tests
                     await ctx.SaveChangesAsync();
                 }
 
+                writringRowsTables.Clear();
+                readingRowsTables.Clear();
+
                 // Making a first sync, will initialize everything we need
-                var r = await agent.SynchronizeAsync();
+                var r = await agent.SynchronizeAsync(scopeName);
 
                 Assert.Equal(2, r.TotalChangesUploaded);
+
+                foreach (var table in result.ClientChangesSelected.TableChangesSelected)
+                {
+                    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                    var writedRows = readingRowsTables[fullName];
+                    Assert.Equal(table.TotalChanges, writedRows);
+                }
+
+                foreach (var table in result.ChangesAppliedOnServer.TableChangesApplied)
+                {
+                    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                    var writedRows = writringRowsTables[fullName];
+                    Assert.Equal(table.Applied, writedRows);
+
+                }
+
             }
         }
 
@@ -3137,11 +3191,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
             }
 
-            // Change Employee, Address, EmployeeAddress to Upload only
-            // All others stay Bidirectional
-            setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
-            setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
-            setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
+
 
             // Insert one line on each client
             int index = 10;
@@ -3296,26 +3346,27 @@ namespace Dotmim.Sync.Tests
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var localScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                localScope.Setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
+                localScope.Setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
+                localScope.Setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
+                await agent.LocalOrchestrator.SaveClientScopeInfoAsync(localScope);
+
+
+                var remoteScope = await agent.RemoteOrchestrator.GetServerScopeInfoAsync();
+                remoteScope.Setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
+                remoteScope.Setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
+                remoteScope.Setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
+                await agent.RemoteOrchestrator.SaveServerScopeInfoAsync(remoteScope);
+
+
+                var s = await agent.SynchronizeAsync();
 
                 // Server shoud not sent back lines, so download equals 1 (just product category)
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(3, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
-
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-            var remoteScope = await remoteOrchestrator.GetServerScopeInfoAsync();
-            // TODO : if serverScope.Schema is null, should we Provision here ?
-
-            foreach (var client in Clients)
-            {
-                var localOrchestrator = new LocalOrchestrator(client.Provider, options);
-                var localScope = await localOrchestrator.GetClientScopeInfoAsync();
-
-                Assert.True(localScope.Setup.Equals(remoteScope.Setup));
-            }
-
 
 
             // check rows count on server and on each client
@@ -3525,7 +3576,7 @@ namespace Dotmim.Sync.Tests
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
             var setup = new SyncSetup(Tables);
             var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
-            await remoteOrchestrator.ProvisionAsync(serverScope);   
+            await remoteOrchestrator.ProvisionAsync(serverScope);
 
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();
 

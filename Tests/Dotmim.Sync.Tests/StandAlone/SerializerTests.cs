@@ -165,7 +165,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             var tbl1 = outSchema.Tables[0];
             Assert.Equal("ServiceTickets", tbl1.TableName);
             Assert.Null(tbl1.SchemaName);
-            Assert.Equal(SyncDirection.Bidirectional, tbl1.SyncDirection);
+            //Assert.Equal(SyncDirection.Bidirectional, tbl1.SyncDirection);
             Assert.NotNull(tbl1.Schema);
             Assert.Equal(outSchema, tbl1.Schema);
             Assert.Equal(8, tbl1.Columns.Count);
@@ -188,7 +188,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             var tbl2 = outSchema.Tables[1];
             Assert.Equal("Product", tbl2.TableName);
             Assert.Equal("SalesLT", tbl2.SchemaName);
-            Assert.Equal(SyncDirection.UploadOnly, tbl2.SyncDirection);
+            //Assert.Equal(SyncDirection.UploadOnly, tbl2.SyncDirection);
             Assert.NotNull(tbl2.Schema);
             Assert.Equal(outSchema, tbl2.Schema);
             Assert.Equal(2, tbl2.Columns.Count);
@@ -263,7 +263,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             var tbl = new SyncTable("ServiceTickets", null);
             tbl.OriginalProvider = "SqlServerProvider";
-            tbl.SyncDirection = Enumerations.SyncDirection.Bidirectional;
+            //tbl.SyncDirection = SyncDirection.Bidirectional;
 
             set.Tables.Add(tbl);
 
@@ -289,7 +289,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             // Add Second tables
             var tbl2 = new SyncTable("Product", "SalesLT");
-            tbl2.SyncDirection = SyncDirection.UploadOnly;
+            //tbl2.SyncDirection = SyncDirection.UploadOnly;
 
             tbl2.Columns.Add(SyncColumn.Create<int>("Id"));
             tbl2.Columns.Add(SyncColumn.Create<string>("Title"));

@@ -13,91 +13,52 @@ namespace Dotmim.Sync
     /// <summary>
     /// Raise before serialize a change set to get a byte array
     /// </summary>
-    public class SerializingSetArgs : ProgressArgs
+    public class SerializingRowArgs : ProgressArgs
     {
-        public SerializingSetArgs(SyncContext context, ContainerSet set, ISerializerFactory serializerFactory, string fileName, string directoryPath) : base(context, null, null)
+        public SerializingRowArgs(SyncContext context, SyncTable schemaTable, object[] rowArray) : base(context, null, null)
         {
-            this.Set = set;
-            this.SerializerFactory = serializerFactory;
-            this.FileName = fileName;
-            this.DirectoryPath = directoryPath;
+            this.SchemaTable = schemaTable;
+            this.RowArray = rowArray;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <summary>
-        /// Gets or Sets byte array representing the Set to serialize to the disk. If the Result property is Null, Dotmim.Sync will serialized the container set using the serializer factory configured in the SyncOptions instance
+        /// Gets or Sets the result string that will be serialized in the json stream
         /// </summary>
-        public byte[] Result { get; set; }
+        public string Result { get; set; }
 
         /// <summary>
-        /// Container set to serialize
+        /// Gets the schema table, corresponding to the row array ObjectArray
         /// </summary>
-        public ContainerSet Set { get; }
-        
-        /// <summary>
-        /// Gets or Sets the serializer factory used to serialize the ContainerSet
-        /// </summary>
-        public ISerializerFactory SerializerFactory { get; }
+        public SyncTable SchemaTable { get; }
 
         /// <summary>
-        /// File name, where the content will be serialized
+        /// Gets the row array to serialize
         /// </summary>
-        public string FileName { get; }
+        public object[] RowArray { get; }
 
-        /// <summary>
-        /// Directory containing the file, about to be serialized
-        /// </summary>
-        public string DirectoryPath { get; }
-        public override int EventId => SyncEventsId.SerializingSet.Id;
 
-        public override string Source => String.IsNullOrEmpty(DirectoryPath) ? "" : new DirectoryInfo(DirectoryPath).Name;
-        public override string Message => $"[{FileName}] Serializing Set.";
+        public override int EventId => SyncEventsId.SerializingSyncRow.Id;
 
     }
 
     /// <summary>
     /// Raise just after loading a binary change set from disk, just before calling the deserializer
     /// </summary>
-    public class DeserializingSetArgs : ProgressArgs
+    public class DeserializingRowArgs : ProgressArgs
     {
-        public DeserializingSetArgs(SyncContext context, FileStream fileStream, ISerializerFactory serializerFactory, string fileName, string directoryPath) : base(context, null, null)
+        public DeserializingRowArgs(SyncContext context, SyncTable schemaTable, string rowString) : base(context, null, null)
         {
-            this.FileStream = fileStream;
-            this.SerializerFactory = serializerFactory;
-            this.FileName = fileName;
-            this.DirectoryPath = directoryPath;
+            this.SchemaTable = schemaTable;
+            this.RowString = rowString;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        /// <summary>
-        /// Gets the Filestream to deserialize
-        /// </summary>
-        public FileStream FileStream { get; }
+        public object[] Result { get; }
+        public override int EventId => SyncEventsId.DeserializingSyncRow.Id;
 
-        /// <summary>
-        /// Gets or Sets the serializer factory used to deserialize the filestream
-        /// </summary>
-        public ISerializerFactory SerializerFactory { get; }
-
-        /// <summary>
-        /// File name containing the set to be deserialized
-        /// </summary>
-        public string FileName { get; }
-
-        /// <summary>
-        /// Directory containing the file, about to be deserialized
-        /// </summary>
-        public string DirectoryPath { get; }
-
-        public override string Source => String.IsNullOrEmpty(DirectoryPath) ? "" : new DirectoryInfo(DirectoryPath).Name;
-        public override string Message => $"[{FileName}] Deserializing Set.";
-
-        /// <summary>
-        /// Gets or Sets the container set result, after having deserialized the FileStream. If the Result property is Null, Dotmim.Sync will deserialized the stream using a simple Json converter
-        /// </summary>
-        public ContainerSet Result { get; set; }
-
-        public override int EventId => SyncEventsId.DeserializingSet.Id;
+        public SyncTable SchemaTable { get; }
+        public string RowString { get; }
     }
 
 
@@ -105,27 +66,33 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Occurs just before saving a serialized set to disk
+        /// Occurs just before serializing a SyncRow in a json stream
         /// </summary>
-        public static void OnSerializingSet(this BaseOrchestrator orchestrator, Action<SerializingSetArgs> action)
+        public static void OnSerializingSyncRow(this BaseOrchestrator orchestrator, Action<SerializingRowArgs> action)
             => orchestrator.SetInterceptor(action);
-        public static void OnSerializingSet(this BaseOrchestrator orchestrator, Func<SerializingSetArgs, Task> action)
+        /// <summary>
+        /// Occurs just before serializing a SyncRow in a json stream
+        /// </summary>
+        public static void OnSerializingSyncRow(this BaseOrchestrator orchestrator, Func<SerializingRowArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
         /// <summary>
-        /// Occurs just after loading a serialized set from disk
+        /// Occurs just after loading a serialized SyncRow from a json stream
         /// </summary>
-        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Action<DeserializingSetArgs> action)
+        public static void OnDeserializingSyncRow(this BaseOrchestrator orchestrator, Action<DeserializingRowArgs> action)
             => orchestrator.SetInterceptor(action);
-        public static void OnDeserializingSet(this BaseOrchestrator orchestrator, Func<DeserializingSetArgs, Task> action)
+        /// <summary>
+        /// Occurs just after loading a serialized SyncRow from a json stream
+        /// </summary>
+        public static void OnDeserializingSyncRow(this BaseOrchestrator orchestrator, Func<DeserializingRowArgs, Task> action)
             => orchestrator.SetInterceptor(action);
 
 
     }
     public static partial class SyncEventsId
     {
-        public static EventId SerializingSet => CreateEventId(8000, nameof(SerializingSet));
-        public static EventId DeserializingSet => CreateEventId(8050, nameof(DeserializingSet));
+        public static EventId SerializingSyncRow => CreateEventId(8000, nameof(SerializingSyncRow));
+        public static EventId DeserializingSyncRow => CreateEventId(8050, nameof(DeserializingSyncRow));
 
     }
 }

@@ -57,7 +57,7 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var localScopes = await InternalLoadAllClientScopesAsync(scopeName,
+                var localScopes = await InternalLoadAllClientScopesInfoAsync(scopeName,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -73,7 +73,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Write a server scope 
         /// </summary> 
-        public virtual async Task<ScopeInfo> SaveClientScopeAsync(ScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ScopeInfo> SaveClientScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -85,7 +85,7 @@ namespace Dotmim.Sync
                     await this.InternalCreateScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Write scopes locally
-                scopeInfo = await this.InternalSaveClientScopeAsync(scopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                scopeInfo = await this.InternalSaveClientScopeInfoAsync(scopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -108,7 +108,7 @@ namespace Dotmim.Sync
                 await this.InternalCreateScopeInfoTableAsync(scopeName, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Get scope from local client 
-            var localScope = await this.InternalLoadClientScopeAsync(scopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var localScope = await this.InternalLoadClientScopeInfoAsync(scopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             var shouldSave = false;
 
@@ -121,7 +121,7 @@ namespace Dotmim.Sync
 
                 // Checking if we have already some scopes
                 // Then gets the first scope to get the id
-                var allScopes = await this.InternalLoadAllClientScopesAsync(scopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var allScopes = await this.InternalLoadAllClientScopesInfoAsync(scopeName, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (allScopes.Count > 0)
                 {
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
 
             if (shouldSave)
             {
-                localScope = await this.InternalSaveClientScopeAsync(localScope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                localScope = await this.InternalSaveClientScopeInfoAsync(localScope, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // if not shouldSave, that means we already raised this event before
                 var scopeLoadedArgs = new ScopeLoadedArgs(this.GetContext(scopeName), scopeName, DbScopeType.Client, localScope, connection, transaction);
@@ -208,7 +208,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load a scope by scope name
         /// </summary>
-        internal async Task<ScopeInfo> InternalLoadClientScopeAsync(string scopeName, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<ScopeInfo> InternalLoadClientScopeInfoAsync(string scopeName, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -249,7 +249,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load all scopes. scopeName arg is just here for getting context
         /// </summary>
-        internal async Task<List<ScopeInfo>> InternalLoadAllClientScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<List<ScopeInfo>> InternalLoadAllClientScopesInfoAsync(string scopeName, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -296,7 +296,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal upsert scope info in a scope table
         /// </summary>
-        internal async Task<ScopeInfo> InternalSaveClientScopeAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<ScopeInfo> InternalSaveClientScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 

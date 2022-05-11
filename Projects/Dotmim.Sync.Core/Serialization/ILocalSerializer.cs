@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync.Serialization
 {
 
-    public interface ILocalSerializerFactory
-    {
-        string Key { get; }
+    //public interface ILocalSerializerFactory
+    //{
+    //    string Key { get; }
 
-        ILocalSerializer GetLocalSerializer();
-    }
+    //    ILocalSerializer GetLocalSerializer();
+    //}
     public interface ILocalSerializer
     {
         Task CloseFileAsync(string path, SyncTable shemaTable);
@@ -20,5 +20,10 @@ namespace Dotmim.Sync.Serialization
         Task<long> GetCurrentFileSizeAsync();
         IEnumerable<SyncRow> ReadRowsFromFile(string path, SyncTable shemaTable);
         string Extension { get; }
+
+        void OnWritingRow(Func<SyncTable, object[], string> func);
+
+        void onReadingRow(Func<SyncTable, string, object[]> func);
+
     }
 }

@@ -180,8 +180,6 @@ namespace Dotmim.Sync
                 }
             }
 
-            bool hasDeleteClientScopeTable = false;
-            bool hasDeleteServerScopeTable = false;
             if (provision.HasFlag(SyncProvision.ClientScope))
             {
                 var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -189,7 +187,6 @@ namespace Dotmim.Sync
                 if (exists)
                 {
                     await this.InternalDropScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    hasDeleteClientScopeTable = true;
                 }
             }
 
@@ -200,7 +197,6 @@ namespace Dotmim.Sync
                 if (exists)
                 {
                     await this.InternalDropScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    hasDeleteServerScopeTable = true;
                 }
             }
 
@@ -211,30 +207,6 @@ namespace Dotmim.Sync
                 if (exists)
                     await this.InternalDropScopeInfoTableAsync(scopeInfo.Name, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
-
-            //// save scope
-            //if (this is LocalOrchestrator && !hasDeleteClientScopeTable && scope != null)
-            //{
-            //    var clientScopeInfo = scope as ScopeInfo;
-            //    clientScopeInfo.Schema = null;
-            //    clientScopeInfo.Setup = null;
-
-            //    var exists = await this.InternalExistsScopeInfoTableAsync(scopeInfo.Name, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            //    if (exists)
-            //        await this.InternalSaveScopeAsync(scopeInfo, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            //}
-            //else if (this is RemoteOrchestrator && !hasDeleteServerScopeTable && scope != null)
-            //{
-            //    var serverScopeInfo = scope as ServerScopeInfo;
-            //    serverScopeInfo.Schema = schema;
-            //    serverScopeInfo.Setup = setup;
-
-            //    var exists = await this.InternalExistsScopeInfoTableAsync(ctx, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            //    if (exists)
-            //        await this.InternalSaveScopeAsync(ctx, DbScopeType.Server, serverScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            //}
 
             var args = new DeprovisionedArgs(ctx, provision, scopeInfo.Schema, connection);
             await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);

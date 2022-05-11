@@ -88,10 +88,10 @@ namespace Dotmim.Sync
         /// </summary>
         public ILogger Logger { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the local serializer used to buffer rows on disk
-        /// </summary>
-        public ILocalSerializerFactory LocalSerializerFactory { get; set; }
+        ///// <summary>
+        ///// Gets or Sets the local serializer used to buffer rows on disk
+        ///// </summary>
+        //public ILocalSerializer LocalSerializer { get; set; }
 
         /// <summary>
         /// Gets the Progress Level
@@ -114,7 +114,6 @@ namespace Dotmim.Sync
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();
             this.ProgressLevel = SyncProgressLevel.Information;
-            this.LocalSerializerFactory = new LocalJsonSerializerFactory();
         }
 
 

@@ -11,14 +11,13 @@ namespace Dotmim.Sync
     public class MessageGetChangesBatch
     {
         public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, SyncSet schema,
-                                      int batchSize, string batchDirectory, string batchDirectoryName, bool supportsMultiActiveResultSets, ILocalSerializerFactory localSerializerFactory)
+                                      int batchSize, string batchDirectory, string batchDirectoryName, bool supportsMultiActiveResultSets, ILocalSerializer localSerializer)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
             this.BatchDirectoryName = batchDirectoryName;
             this.SupportsMultiActiveResultSets = supportsMultiActiveResultSets;
-            //this.SerializerFactory = serializerFactory;
-            this.LocalSerializerFactory = localSerializerFactory;
+            this.LocalSerializer = localSerializer;
             this.ExcludingScopeId = excludingScopeId;
             this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
@@ -71,14 +70,9 @@ namespace Dotmim.Sync
 
         public bool SupportsMultiActiveResultSets { get; }
 
-        ///// <summary>
-        ///// Gets or Sets the Serializer used to serialize rows
-        ///// </summary>
-        //public ISerializerFactory SerializerFactory { get; set; }
-
         /// <summary>
-        /// Gets or Sets the Local Serializer factory, used to buffer rows when reading from datasource
+        /// Gets or Sets the Local Serializer, used to buffer rows when reading from datasource
         /// </summary>
-        public ILocalSerializerFactory LocalSerializerFactory { get; set; }
+        public ILocalSerializer LocalSerializer { get; set; }
     }
 }

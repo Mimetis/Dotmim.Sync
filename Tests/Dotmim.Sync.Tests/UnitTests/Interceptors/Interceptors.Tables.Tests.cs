@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
-            await localOrchestrator.SaveClientScopeAsync(scopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             var onCreating = false;
             var onCreated = false;
@@ -116,7 +116,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
-            await localOrchestrator.SaveClientScopeAsync(scopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             await localOrchestrator.CreateTableAsync(scopeInfo, "Product", "SalesLT");
 
@@ -159,7 +159,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
-            await localOrchestrator.SaveClientScopeAsync(scopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             // Call create a first time to have an existing table
             var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
@@ -245,7 +245,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = clientScope.Setup;
             scopeInfo.Schema = clientScope.Schema;
-            await localOrchestrator.SaveClientScopeAsync(scopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             await localOrchestrator.CreateTablesAsync(scopeInfo);
 
@@ -305,7 +305,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
-            await localOrchestrator.SaveClientScopeAsync(scopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
@@ -376,7 +376,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
-            await localOrchestrator.SaveClientScopeAsync(scopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             // Call create a first time to have an existing table
             var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);

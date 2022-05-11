@@ -21,7 +21,7 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
         // Collection of Interceptors
-        private Interceptors interceptors = new Interceptors();
+        internal Interceptors interceptors = new Interceptors();
         internal Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
 
         //// Internal table builder cache

@@ -168,7 +168,7 @@ internal class Program
         scopeInfo.LastSync = defaultScopeInfo.LastSync;
         scopeInfo.LastSyncDuration = defaultScopeInfo.LastSyncDuration;
 
-        await clientOrchestrator.SaveClientScopeAsync(scopeInfo);
+        await clientOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
         // create a new agent and make a sync on the "v1" scope
         // don't need to pass setup and options anymore

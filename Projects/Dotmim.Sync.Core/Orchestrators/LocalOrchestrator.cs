@@ -79,7 +79,7 @@ namespace Dotmim.Sync
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
 
                 if (localScopeInfo == null)
                     return default;
@@ -172,7 +172,7 @@ namespace Dotmim.Sync
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
 
                 if (localScopeInfo == null)
                     return default;
@@ -237,7 +237,7 @@ namespace Dotmim.Sync
                 // Create the message containing everything needed to apply changes
                 var applyChanges = new MessageApplyChanges(clientScopeInfo.Id, Guid.Empty, isNew, lastTimestamp, clientScopeInfo.Schema, policy,
                                 this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
-                                serverBatchInfo, this.Options.LocalSerializerFactory);
+                                serverBatchInfo);
 
                 DatabaseChangesApplied clientChangesApplied;
 
@@ -255,7 +255,7 @@ namespace Dotmim.Sync
                 // check if we need to delete metadatas
                 if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastTimestamp.HasValue)
                 {
-                    var allScopes = await this.InternalLoadAllClientScopesAsync(clientScopeInfo.Name, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    var allScopes = await this.InternalLoadAllClientScopesInfoAsync(clientScopeInfo.Name, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (allScopes.Count > 0)
                     {
@@ -278,7 +278,7 @@ namespace Dotmim.Sync
                 clientScopeInfo.LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks;
 
                 // Write scopes locally
-                clientScopeInfo = await this.InternalSaveClientScopeAsync(clientScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                clientScopeInfo = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

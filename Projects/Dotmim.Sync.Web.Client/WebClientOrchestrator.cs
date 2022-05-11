@@ -397,7 +397,7 @@ namespace Dotmim.Sync.Web.Client
                     var fullPath = Path.Combine(clientBatchInfo.GetDirectoryFullPath(), bpi.FileName);
                     containerSet.Tables.Add(containerTable);
 
-                    var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+                    var localSerializer = new LocalJsonSerializer();
                     // read rows from file
                     foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
                         containerTable.Rows.Add(row.ToArray());
@@ -503,13 +503,13 @@ namespace Dotmim.Sync.Web.Client
 
                 if (this.SerializerFactory.Key != "json")
                 {
-                    var s = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
+                    var webSerializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
                     using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                    var getMoreChanges = await s.DeserializeAsync(responseStream);
+                    var getMoreChanges = await webSerializer.DeserializeAsync(responseStream);
 
                     if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
                     {
-                        var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+                        var localSerializer = new LocalJsonSerializer();
 
                         // Should have only one table
                         var table = getMoreChanges.Changes.Tables[0];
@@ -661,7 +661,7 @@ namespace Dotmim.Sync.Web.Client
 
                     if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
                     {
-                        var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+                        var localSerializer = new LocalJsonSerializer();
 
                         // Should have only one table
                         var table = getMoreChanges.Changes.Tables[0];

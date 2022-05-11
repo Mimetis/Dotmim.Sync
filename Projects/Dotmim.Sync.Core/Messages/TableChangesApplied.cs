@@ -57,13 +57,13 @@ namespace Dotmim.Sync
         public int Failed { get; set; }
 
         /// <summary>
-        /// Gets the total rows count to apply for all tables
+        /// Gets the total rows count to apply for all tables (used for progress during sync)
         /// </summary>
         [DataMember(Name = "trc", IsRequired = false, Order = 7)]
         public int TotalRowsCount { get; set; }
 
         /// <summary>
-        /// Gets the total rows count applied on all tables
+        /// Gets the total rows count already applied for all tables (used for progress during sync)
         /// </summary>
         [DataMember(Name = "tac", IsRequired = false, Order = 8)]
         public int TotalAppliedCount { get; set; }

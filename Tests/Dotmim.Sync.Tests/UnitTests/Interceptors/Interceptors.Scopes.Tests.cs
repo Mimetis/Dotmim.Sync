@@ -106,7 +106,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localScopeInfo.Version = "2.0";
 
-            await localOrchestrator.SaveClientScopeAsync(localScopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(localScopeInfo);
 
             Assert.Equal(0, scopeTableCreating);
             Assert.Equal(0, scopeTableCreated);

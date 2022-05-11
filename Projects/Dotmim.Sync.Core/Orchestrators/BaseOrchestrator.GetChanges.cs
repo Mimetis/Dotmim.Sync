@@ -172,23 +172,25 @@ namespace Dotmim.Sync
             if (cancellationToken.IsCancellationRequested)
                 return (null, null);
 
+            var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
+
+            if (setupTable == null)
+                return (null, null);
+
+
             // Only table schema is replicated, no datas are applied
-            if (syncTable.SyncDirection == SyncDirection.None)
+            if (setupTable.SyncDirection == SyncDirection.None)
                 return (null, null);
 
             var context = this.GetContext(scopeInfo.Name);
 
             // if we are in upload stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
+            if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
                 return (null, null);
 
             // if we are in download stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
+            if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                 return (null, null);
-
-            // Get Command
-            //var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
-            //var isNew2 = isNew ? isNew : setupTable.OverrideReinitializeFromScratch;
 
             var selectIncrementalChangesCommand = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
 
@@ -202,7 +204,19 @@ namespace Dotmim.Sync
             // numbers of batch files generated
             var batchIndex = 0;
 
-            var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+            //var localSerializer = this.Options.LocalSerializer;
+            var localSerializer = new LocalJsonSerializer();
+
+            var interceptorWriting = this.interceptors.GetInterceptor<SerializingRowArgs>();
+            if (!interceptorWriting.IsEmpty)
+            {
+                localSerializer.OnWritingRow((syncTable, rowArray) =>
+                {
+                    var args = new SerializingRowArgs(context, syncTable, rowArray);
+                    this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false).GetAwaiter().GetResult();
+                    return args.Result;
+                });
+            }
 
             var (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializer.Extension);
 
@@ -320,6 +334,7 @@ namespace Dotmim.Sync
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
 
+
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
                 return (context, changes);
 
@@ -330,16 +345,21 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
+                var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
+
+                if (setupTable == null)
+                    return;
+
                 // Only table schema is replicated, no datas are applied
-                if (syncTable.SyncDirection == SyncDirection.None)
+                if (setupTable.SyncDirection == SyncDirection.None)
                     return;
 
                 // if we are in upload stage, so check if table is not download only
-                if (context.SyncWay == SyncWay.Upload && syncTable.SyncDirection == SyncDirection.DownloadOnly)
+                if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
                     return;
 
                 // if we are in download stage, so check if table is not download only
-                if (context.SyncWay == SyncWay.Download && syncTable.SyncDirection == SyncDirection.UploadOnly)
+                if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                     return;
 
                 // Get Command

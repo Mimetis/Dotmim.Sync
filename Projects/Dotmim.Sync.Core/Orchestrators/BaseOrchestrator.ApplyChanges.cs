@@ -2,6 +2,7 @@
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
@@ -130,18 +131,23 @@ namespace Dotmim.Sync
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
+            var setupTable = scopeInfo.Setup.Tables[schemaTable.TableName, schemaTable.SchemaName];
+
+            if (setupTable == null)
+                return;
+
             // Only table schema is replicated, no datas are applied
-            if (schemaTable.SyncDirection == SyncDirection.None)
+            if (setupTable.SyncDirection == SyncDirection.None)
                 return;
 
             var context = this.GetContext(scopeInfo.Name);
 
             // if we are in upload stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Upload && schemaTable.SyncDirection == SyncDirection.DownloadOnly)
+            if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
                 return;
 
             // if we are in download stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Download && schemaTable.SyncDirection == SyncDirection.UploadOnly)
+            if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                 return;
 
             var hasChanges = message.BatchInfo.HasData(schemaTable.TableName, schemaTable.SchemaName);
@@ -199,7 +205,7 @@ namespace Dotmim.Sync
                 // accumulating rows
                 var batchRows = new List<SyncRow>();
 
-                var localSerializer = message.LocalSerializerFactory.GetLocalSerializer();
+                var localSerializer = new LocalJsonSerializer();
                 if (isBatch)
                 {
                     foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))

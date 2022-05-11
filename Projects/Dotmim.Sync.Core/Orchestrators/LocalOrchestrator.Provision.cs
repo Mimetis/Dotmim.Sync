@@ -47,7 +47,7 @@ namespace Dotmim.Sync
                 await this.InternalProvisionAsync(scopeInfo, overwrite, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Write scopes locally
-                scopeInfo = await this.InternalSaveClientScopeAsync(scopeInfo,  runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                scopeInfo = await this.InternalSaveClientScopeInfoAsync(scopeInfo,  runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -89,7 +89,7 @@ namespace Dotmim.Sync
                 await this.InternalProvisionAsync(scopeInfo, overwrite, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Write scopes locally
-                scopeInfo = await this.InternalSaveClientScopeAsync(scopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                scopeInfo = await this.InternalSaveClientScopeInfoAsync(scopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -144,7 +144,7 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // get client scope and create tables / row if needed
-                var scopeInfo = await this.InternalLoadClientScopeAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var scopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (scopeInfo == null || scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;

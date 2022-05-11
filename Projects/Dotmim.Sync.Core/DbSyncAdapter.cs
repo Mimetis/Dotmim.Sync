@@ -202,7 +202,7 @@ namespace Dotmim.Sync
             var changesTable = new SyncTable(syncTable.TableName, syncTable.SchemaName)
             {
                 OriginalProvider = syncTable.OriginalProvider,
-                SyncDirection = syncTable.SyncDirection
+                //SyncDirection = syncTable.SyncDirection
             };
 
             // Adding primary keys

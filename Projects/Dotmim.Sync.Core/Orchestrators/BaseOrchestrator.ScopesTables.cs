@@ -109,7 +109,7 @@ namespace Dotmim.Sync
 
             var scopeCommandType = scopeType switch
             {
-                DbScopeType.Client => DbScopeCommandType.DropServerScopeInfoTable,
+                DbScopeType.Client => DbScopeCommandType.DropClientScopeInfoTable,
                 DbScopeType.Server => DbScopeCommandType.DropServerScopeInfoTable,
                 DbScopeType.ServerHistory => DbScopeCommandType.DropServerHistoryScopeInfoTable,
                 _ => throw new NotImplementedException()

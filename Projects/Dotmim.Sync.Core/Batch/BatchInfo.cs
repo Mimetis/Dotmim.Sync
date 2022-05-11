@@ -226,39 +226,10 @@ namespace Dotmim.Sync.Batch
         }
 
 
-        /// <summary>
-        /// Load the Batch part info in memory, in a SyncTable
-        /// </summary>
-        public Task<SyncTable> LoadBatchPartInfoAsync(BatchPartInfo batchPartInfo, ILocalSerializerFactory localSerializerFactory = null)
+
+        public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
-            if (localSerializerFactory == null)
-                localSerializerFactory = new LocalJsonSerializerFactory();
-
-            // Get full path of my batchpartinfo
-            var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
-
-            if (!File.Exists(fullPath))
-                return Task.FromResult<SyncTable>(null);
-
-            if (this.SanitizedSchema == null || batchPartInfo.Tables == null || batchPartInfo.Tables.Count() < 1)
-                return Task.FromResult<SyncTable>(null);
-
-            var schemaTable = this.SanitizedSchema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName];
-
-            var localSerializer = localSerializerFactory.GetLocalSerializer();
-
-            var table = schemaTable.Clone();
-
-            foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
-                table.Rows.Add(syncRow);
-
-            return Task.FromResult(table);
-        }
-
-        public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable, ILocalSerializerFactory localSerializerFactory = null)
-        {
-            if (localSerializerFactory == null)
-                localSerializerFactory = new LocalJsonSerializerFactory();
+             var localSerializer = new LocalJsonSerializer();
 
             // Get full path of my batchpartinfo
             var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
@@ -267,8 +238,6 @@ namespace Dotmim.Sync.Batch
                 return;
 
             File.Delete(fullPath);
-
-            var localSerializer = localSerializerFactory.GetLocalSerializer();
 
             // open the file and write table header
             await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);

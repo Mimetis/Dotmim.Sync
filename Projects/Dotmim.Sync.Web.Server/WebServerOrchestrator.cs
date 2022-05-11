@@ -639,7 +639,7 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
                 // we have only one table here
-                var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+                var localSerializer = new LocalJsonSerializer();
                 var containerTable = httpMessage.Changes.Tables[0];
                 var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
@@ -737,7 +737,7 @@ namespace Dotmim.Sync.Web.Server
                     foreach (var part in serverBatchInfo.GetBatchPartsInfo(table))
                     {
                         var paths = serverBatchInfo.GetBatchPartInfoPath(part);
-                        var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+                        var localSerializer = new LocalJsonSerializer();
                         foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
                         {
                             containerTable.Rows.Add(syncRow.ToArray());
@@ -808,7 +808,7 @@ namespace Dotmim.Sync.Web.Server
             containerSet.Tables.Add(containerTable);
 
             // read rows from file
-            var localSerializer = this.Options.LocalSerializerFactory.GetLocalSerializer();
+            var localSerializer = new LocalJsonSerializer();
             foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
                 containerTable.Rows.Add(row.ToArray());
 

@@ -127,9 +127,9 @@ namespace Dotmim.Sync
 
 
         public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null,
-            ILocalSerializerFactory localSerializerFactory = default, DbConnection connection = default, DbTransaction transaction = default,
+            ILocalSerializer localSerializer = default, DbConnection connection = default, DbTransaction transaction = default,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters, localSerializerFactory, connection, transaction, cancellationToken, progress);
+            => CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters, localSerializer, connection, transaction, cancellationToken, progress);
 
         /// <summary>
         /// Create a snapshot, based on the Setup object. 
@@ -137,7 +137,7 @@ namespace Dotmim.Sync
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
         public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null,
-            ILocalSerializerFactory localSerializerFactory = default, DbConnection connection = default, DbTransaction transaction = default,
+            ILocalSerializer localSerializer = default, DbConnection connection = default, DbTransaction transaction = default,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
@@ -173,9 +173,9 @@ namespace Dotmim.Sync
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // 5) Create the snapshot with
-                localSerializerFactory = localSerializerFactory == null ? new LocalJsonSerializerFactory() : localSerializerFactory;
+                localSerializer = localSerializer == null ? new LocalJsonSerializer() : localSerializer;
 
-                var batchInfo = await this.InternalCreateSnapshotAsync(serverScopeInfo, localSerializerFactory, remoteClientTimestamp,
+                var batchInfo = await this.InternalCreateSnapshotAsync(serverScopeInfo, localSerializer, remoteClientTimestamp,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -190,7 +190,7 @@ namespace Dotmim.Sync
         }
 
         internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(ServerScopeInfo serverScopeInfo,
-              ILocalSerializerFactory localSerializerFactory, long remoteClientTimestamp, DbConnection connection, DbTransaction transaction,
+              ILocalSerializer localSerializer, long remoteClientTimestamp, DbConnection connection, DbTransaction transaction,
               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             var context = this.GetContext(serverScopeInfo.Name);

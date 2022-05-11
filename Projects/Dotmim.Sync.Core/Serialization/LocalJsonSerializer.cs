@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,11 +9,11 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync.Serialization
 {
 
-    public class LocalJsonSerializerFactory : ILocalSerializerFactory
-    {
-        public string Key => "json";
-        public ILocalSerializer GetLocalSerializer() => new LocalJsonSerializer();
-    }
+    //public class LocalJsonSerializerFactory : ILocalSerializerFactory
+    //{
+    //    public string Key => "json";
+    //    public ILocalSerializer GetLocalSerializer() => new LocalJsonSerializer();
+    //}
     public class LocalJsonSerializer : ILocalSerializer
     {
         private StreamWriter sw;
@@ -63,15 +64,35 @@ namespace Dotmim.Sync.Serialization
         public Task WriteRowToFileAsync(SyncRow row, SyncTable shemaTable)
         {
             writer.WriteStartArray();
+
             var innerRow = row.ToArray();
-            for (var i = 0; i < innerRow.Length; i++)
-                writer.WriteValue(innerRow[i]);
+
+            if (this.writingRow != null)
+            {
+                var str = this.writingRow(shemaTable, innerRow);
+                writer.WriteValue(str);
+            }
+            else
+            {
+                for (var i = 0; i < innerRow.Length; i++)
+                    writer.WriteValue(innerRow[i]);
+
+            }
+
             writer.WriteEndArray();
             writer.WriteWhitespace(Environment.NewLine);
             writer.Flush();
 
             return Task.CompletedTask;
         }
+
+        private Func<SyncTable, object[], string> writingRow;
+        private Func<SyncTable, string, object[]> readingRow;
+
+        public void OnWritingRow(Func<SyncTable, object[], string> func) => this.writingRow = func;
+
+        public void onReadingRow(Func<SyncTable, string, object[]> func) => this.readingRow = func;
+
         public Task<long> GetCurrentFileSizeAsync()
             => this.sw != null && this.sw.BaseStream != null ?
                 Task.FromResult(this.sw.BaseStream.Position / 1024L) :
@@ -155,7 +176,20 @@ namespace Dotmim.Sync.Serialization
                             {
                                 if (reader.TokenType == JsonToken.StartArray)
                                 {
-                                    var array = serializer.Deserialize<object[]>(reader);
+                                    object[] array = null;
+
+                                    if (this.readingRow != null)
+                                    {
+                                        var jArray = serializer.Deserialize<JArray>(reader);
+                                        var value = jArray[0].Value<string>();
+                                        array = this.readingRow(schemaTable, value);
+
+                                    }
+                                    else
+                                    {
+                                        array = serializer.Deserialize<object[]>(reader);
+                                    }
+
                                     if (isSameColumns)
                                     {
                                         yield return new SyncRow(schemaTable, array);

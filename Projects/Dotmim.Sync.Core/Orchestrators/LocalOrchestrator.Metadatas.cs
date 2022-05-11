@@ -32,7 +32,7 @@ namespace Dotmim.Sync
             if (!exists)
                 await this.InternalCreateScopeInfoTableAsync(SyncOptions.DefaultScopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var clientScopes = await this.InternalLoadAllClientScopesAsync(SyncOptions.DefaultScopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+            var clientScopes = await this.InternalLoadAllClientScopesInfoAsync(SyncOptions.DefaultScopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (clientScopes == null || clientScopes.Count == 0)
                 return new DatabaseMetadatasCleaned();
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
                 if (!exists)
                     await this.InternalCreateScopeInfoTableAsync(SyncOptions.DefaultScopeName, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var allScopes = await this.InternalLoadAllClientScopesAsync(SyncOptions.DefaultScopeName, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                var allScopes = await this.InternalLoadAllClientScopesInfoAsync(SyncOptions.DefaultScopeName, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (allScopes == null || allScopes.Count == 0)
                     return new DatabaseMetadatasCleaned();

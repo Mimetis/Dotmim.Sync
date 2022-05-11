@@ -320,9 +320,12 @@ namespace Dotmim.Sync
 
         private DbCommand InternalSetSaveServerScopeInfoParameters(ServerScopeInfo serverScopeInfo, DbCommand command)
         {
+            var serializedSchema = JsonConvert.SerializeObject(serverScopeInfo.Schema);
+            var serializedSetup = JsonConvert.SerializeObject(serverScopeInfo.Setup);
+
             DbSyncAdapter.SetParameterValue(command, "sync_scope_name", serverScopeInfo.Name);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_schema", serverScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Schema));
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_setup", serverScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Setup));
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_schema", serverScopeInfo.Schema == null ? DBNull.Value : serializedSchema);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_setup", serverScopeInfo.Setup == null ? DBNull.Value : serializedSetup);
             DbSyncAdapter.SetParameterValue(command, "sync_scope_version", serverScopeInfo.Version);
             DbSyncAdapter.SetParameterValue(command, "sync_scope_last_clean_timestamp", serverScopeInfo.LastCleanupTimestamp);
 
