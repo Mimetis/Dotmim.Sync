@@ -307,7 +307,7 @@ namespace Dotmim.Sync
                 {
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    await this.RemoteOrchestrator.ProvisionAsync(serverScopeInfo, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    serverScopeInfo = await this.RemoteOrchestrator.ProvisionAsync(serverScopeInfo, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // On local orchestrator, get scope info.

@@ -53,7 +53,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -65,10 +65,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
-
-
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -85,7 +82,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
@@ -114,11 +111,11 @@ namespace Dotmim.Sync.Tests
                  Console.WriteLine($"Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
             // change the remote orchestrator connection string
-            this.WebServerOrchestrator.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+            this.WebServerBinder.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
 
-            this.WebServerOrchestrator.OnReConnect(onReconnect);
+            this.WebServerBinder.RemoteOrchestrator.OnReConnect(onReconnect);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -155,7 +152,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.Add("TableTest");
+            this.WebServerBinder.Setup.Tables.Add("TableTest");
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -187,9 +184,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
             // Add a malformatted column name
-            this.WebServerOrchestrator.Setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
+            this.WebServerBinder.Setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -220,9 +217,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
             // Add a fake table to setup tables
-            this.WebServerOrchestrator.Setup.Tables.Add("WeirdTable");
+            this.WebServerBinder.Setup.Tables.Add("WeirdTable");
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -257,7 +254,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -311,7 +308,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -373,7 +370,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // part of the filter
             var employeeId = 1;
@@ -490,7 +487,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -549,7 +546,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -613,7 +610,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -682,7 +679,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
@@ -722,15 +719,15 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
-            this.WebServerOrchestrator.OnHttpGettingRequest(r =>
+            this.WebServerBinder.OnHttpGettingRequest(r =>
             {
                 Assert.NotNull(r.HttpContext);
                 Assert.NotNull(r.Context);
             });
 
-            this.WebServerOrchestrator.OnHttpSendingResponse(r =>
+            this.WebServerBinder.OnHttpSendingResponse(r =>
             {
                 Assert.NotNull(r.HttpContext);
                 Assert.NotNull(r.Context);
@@ -748,8 +745,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
 
-            this.WebServerOrchestrator.OnHttpGettingRequest(null);
-            this.WebServerOrchestrator.OnHttpSendingResponse(null);
+            this.WebServerBinder.OnHttpGettingRequest(null);
+            this.WebServerBinder.OnHttpSendingResponse(null);
         }
 
         /// <summary>
@@ -767,7 +764,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             foreach (var client in Clients)
             {
@@ -850,14 +847,14 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Register converter on the server side
-            this.WebServerOrchestrator.WebServerOptions.Converters.Add(new DateConverter());
+            this.WebServerBinder.WebServerOptions.Converters.Add(new DateConverter());
 
             // Get response just before response sent back from server
             // Assert if datetime are correctly converted to long
-            this.WebServerOrchestrator.OnHttpSendingChanges(sra =>
+            this.WebServerBinder.OnHttpSendingChanges(sra =>
             {
                 if (sra.Response.Changes == null)
                     return;
@@ -894,7 +891,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
 
-            this.WebServerOrchestrator.OnHttpSendingChanges(null);
+            this.WebServerBinder.OnHttpSendingChanges(null);
         }
 
 
@@ -917,14 +914,14 @@ namespace Dotmim.Sync.Tests
             var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
-            this.WebServerOrchestrator.Options.SnapshotsDirectory = snapshotDirectory;
-            this.WebServerOrchestrator.Options.BatchSize = 2000;
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Options.SnapshotsDirectory = snapshotDirectory;
+            this.WebServerBinder.Options.BatchSize = 2000;
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await this.WebServerOrchestrator.CreateSnapshotAsync();
+            await this.WebServerBinder.RemoteOrchestrator.CreateSnapshotAsync();
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -978,7 +975,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
 
             // Execute a sync on all clients to initialize client and server schema 
@@ -994,7 +991,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
-            var dmc = await this.WebServerOrchestrator.DeleteMetadatasAsync();
+            var dmc = await this.WebServerBinder.RemoteOrchestrator.DeleteMetadatasAsync();
 
             // Insert one line on each client
             foreach (var client in Clients)
@@ -1058,8 +1055,8 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
-            this.WebServerOrchestrator.ScopeName = "customScope1";
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.ScopeName = "customScope1";
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
@@ -1088,7 +1085,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1127,7 +1124,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1202,7 +1199,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1241,7 +1238,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1314,7 +1311,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1354,7 +1351,7 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(this.ServiceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
-                this.WebServerOrchestrator.OnHttpSendingResponse(async args =>
+                this.WebServerBinder.OnHttpSendingResponse(async args =>
                 {
                     // SendChangesInProgress is occuring when server is receiving data from client
                     // We are droping session on the second batch
@@ -1370,7 +1367,7 @@ namespace Dotmim.Sync.Tests
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
 
-                this.WebServerOrchestrator.OnHttpSendingResponse(null);
+                this.WebServerBinder.OnHttpSendingResponse(null);
 
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
@@ -1409,7 +1406,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1450,7 +1447,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, orch, options);
 
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                this.WebServerOrchestrator.OnHttpSendingResponse(async args =>
+                this.WebServerBinder.OnHttpSendingResponse(async args =>
                 {
                     // GetMoreChanges is occuring when server is sending back data to client
                     // We are droping session on the second batch
@@ -1473,7 +1470,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(ex); //"exception required!"
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
-                this.WebServerOrchestrator.OnHttpSendingResponse(null);
+                this.WebServerBinder.OnHttpSendingResponse(null);
 
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
@@ -1513,7 +1510,7 @@ namespace Dotmim.Sync.Tests
             // TODO : if serverScope.Schema is null, should we Provision here ?
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
 
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();
@@ -1618,12 +1615,12 @@ namespace Dotmim.Sync.Tests
 
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             var interrupted = new Dictionary<HttpStep, bool>();
 
             // When Server Orchestrator send back the response, we will make an interruption
-            this.WebServerOrchestrator.OnHttpGettingRequest(args =>
+            this.WebServerBinder.OnHttpGettingRequest(args =>
             {
                 if (!interrupted.ContainsKey(args.HttpStep))
                     interrupted.Add(args.HttpStep, false);
@@ -1672,7 +1669,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
 
 
-            this.WebServerOrchestrator.OnHttpGettingRequest(null);
+            this.WebServerBinder.OnHttpGettingRequest(null);
 
         }
 
@@ -1694,12 +1691,12 @@ namespace Dotmim.Sync.Tests
 
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             var interrupted = new Dictionary<HttpStep, bool>();
 
             // When Server Orchestrator send back the response, we will make an interruption
-            this.WebServerOrchestrator.OnHttpSendingResponse(args =>
+            this.WebServerBinder.OnHttpSendingResponse(args =>
             {
                 if (!interrupted.ContainsKey(args.HttpStep))
                     interrupted.Add(args.HttpStep, false);
@@ -1737,7 +1734,7 @@ namespace Dotmim.Sync.Tests
                 interrupted.Clear();
             }
 
-            this.WebServerOrchestrator.OnHttpSendingResponse(null);
+            this.WebServerBinder.OnHttpSendingResponse(null);
         }
 
 
@@ -1759,7 +1756,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             SyncOptions options = new SyncOptions { BatchSize = 100 };
 
@@ -1804,7 +1801,7 @@ namespace Dotmim.Sync.Tests
             {
                 var interruptedBatch = false;
                 // When Server Orchestrator send back the response, we will make an interruption
-                this.WebServerOrchestrator.OnHttpSendingResponse(args =>
+                this.WebServerBinder.OnHttpSendingResponse(args =>
                 {
                     // Throw error when sending changes to server
                     if (args.HttpStep == HttpStep.SendChangesInProgress && !interruptedBatch)
@@ -1818,7 +1815,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
                 var s = await agent.SynchronizeAsync();
 
-                this.WebServerOrchestrator.OnHttpSendingResponse(null);
+                this.WebServerBinder.OnHttpSendingResponse(null);
 
                 Assert.Equal(download, s.TotalChangesDownloaded);
                 Assert.Equal(1000, s.TotalChangesUploaded);
@@ -1853,7 +1850,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+            this.WebServerBinder.Setup.Tables.AddRange(Tables);
 
             // Execute a sync on all clients to initialize schemas
             foreach (var client in this.Clients)

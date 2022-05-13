@@ -12,18 +12,18 @@ namespace Dotmim.Sync.Serialization
 
     //    ILocalSerializer GetLocalSerializer();
     //}
-    public interface ILocalSerializer
-    {
-        Task CloseFileAsync(string path, SyncTable shemaTable);
-        Task OpenFileAsync(string path, SyncTable shemaTable);
-        Task WriteRowToFileAsync(SyncRow row, SyncTable shemaTable);
-        Task<long> GetCurrentFileSizeAsync();
-        IEnumerable<SyncRow> ReadRowsFromFile(string path, SyncTable shemaTable);
-        string Extension { get; }
+    //public interface ILocalSerializer
+    //{
+    //    Task CloseFileAsync(string path, SyncTable shemaTable);
+    //    Task OpenFileAsync(string path, SyncTable shemaTable);
+    //    Task WriteRowToFileAsync(SyncRow row, SyncTable shemaTable);
+    //    Task<long> GetCurrentFileSizeAsync();
+    //    IEnumerable<SyncRow> ReadRowsFromFile(string path, SyncTable shemaTable);
+    //    string Extension { get; }
 
-        void OnWritingRow(Func<SyncTable, object[], string> func);
+    //    void OnWritingRow(Func<SyncTable, object[], string> func);
 
-        void onReadingRow(Func<SyncTable, string, object[]> func);
+    //    void OnReadingRow(Func<SyncTable, string, object[]> func);
 
-    }
+    //}
 }

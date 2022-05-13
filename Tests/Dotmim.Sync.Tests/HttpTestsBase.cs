@@ -51,7 +51,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Gets the Web Server Orchestrator used for the tests
         /// </summary>
-        public WebServerOrchestrator WebServerOrchestrator { get; private set; }
+        public WebServerBinder WebServerBinder { get; private set; }
 
         /// <summary>
         /// Get the server rows count
@@ -127,13 +127,13 @@ namespace Dotmim.Sync.Tests
             var serverProvider = this.CreateProvider(this.ServerType, serverDatabaseName);
 
             // create web remote orchestrator
-            this.WebServerOrchestrator = new WebServerOrchestrator(serverProvider, new SyncOptions(), new SyncSetup(), new WebServerOptions());
+            this.WebServerBinder = new WebServerBinder(serverProvider, new SyncOptions(), new SyncSetup(), new WebServerOptions());
 
             // public property
             this.Server = (serverDatabaseName, this.ServerType, serverProvider);
 
             // Create a kestrell server
-            this.kestrell = new KestrellTestServer(this.WebServerOrchestrator, this.UseFiddler);
+            this.kestrell = new KestrellTestServer(this.WebServerBinder, this.UseFiddler);
 
             // start server and get uri
             this.ServiceUri = this.kestrell.Run();

@@ -14,7 +14,7 @@ namespace Dotmim.Sync.Serialization
     //    public string Key => "json";
     //    public ILocalSerializer GetLocalSerializer() => new LocalJsonSerializer();
     //}
-    public class LocalJsonSerializer : ILocalSerializer
+    public class LocalJsonSerializer
     {
         private StreamWriter sw;
         private JsonTextWriter writer;
@@ -61,15 +61,15 @@ namespace Dotmim.Sync.Serialization
             this.writer.WriteWhitespace(Environment.NewLine);
 
         }
-        public Task WriteRowToFileAsync(SyncRow row, SyncTable shemaTable)
+        public async Task WriteRowToFileAsync(SyncRow row, SyncTable shemaTable)
         {
             writer.WriteStartArray();
 
             var innerRow = row.ToArray();
 
-            if (this.writingRow != null)
+            if (this.writingRowAsync != null)
             {
-                var str = this.writingRow(shemaTable, innerRow);
+                var str = await this.writingRowAsync(shemaTable, innerRow).ConfigureAwait(false);
                 writer.WriteValue(str);
             }
             else
@@ -82,16 +82,16 @@ namespace Dotmim.Sync.Serialization
             writer.WriteEndArray();
             writer.WriteWhitespace(Environment.NewLine);
             writer.Flush();
-
-            return Task.CompletedTask;
         }
 
-        private Func<SyncTable, object[], string> writingRow;
-        private Func<SyncTable, string, object[]> readingRow;
+        //private Func<SyncTable, object[], string> writingRow;
+        //private Func<SyncTable, string, object[]> readingRow;
+        private Func<SyncTable, object[], Task<string>> writingRowAsync;
+        private Func<SyncTable, string, Task<object[]>> readingRowAsync;
 
-        public void OnWritingRow(Func<SyncTable, object[], string> func) => this.writingRow = func;
+        public void OnWritingRow(Func<SyncTable, object[], Task<string>> func) => this.writingRowAsync = func;
 
-        public void onReadingRow(Func<SyncTable, string, object[]> func) => this.readingRow = func;
+        public void OnReadingRow(Func<SyncTable, string, Task<object[]>> func) => this.readingRowAsync = func;
 
         public Task<long> GetCurrentFileSizeAsync()
             => this.sw != null && this.sw.BaseStream != null ?
@@ -178,11 +178,11 @@ namespace Dotmim.Sync.Serialization
                                 {
                                     object[] array = null;
 
-                                    if (this.readingRow != null)
+                                    if (this.readingRowAsync != null)
                                     {
                                         var jArray = serializer.Deserialize<JArray>(reader);
                                         var value = jArray[0].Value<string>();
-                                        array = this.readingRow(schemaTable, value);
+                                        array = this.readingRowAsync(schemaTable, value).GetAwaiter().GetResult();
 
                                     }
                                     else

@@ -39,8 +39,6 @@ namespace Dotmim.Sync
             // Check if we have some data available
             var hasChanges = message.BatchInfo.HasData();
 
-            var threadNumberLimits = this.Provider.SupportsMultipleActiveResultSets ? 16 : 1;
-
             // if we have changes or if we are in re init mode
             if (hasChanges || context.SyncType != SyncType.Normal)
             {
@@ -190,6 +188,18 @@ namespace Dotmim.Sync
             // Conflicts occured when trying to apply rows
             var conflictRows = new List<SyncRow>();
 
+            var localSerializer = new LocalJsonSerializer();
+
+            var interceptorReading = this.interceptors.GetInterceptor<DeserializingRowArgs>();
+            if (!interceptorReading.IsEmpty)
+            {
+                localSerializer.OnReadingRow(async (schemaTable, rowString) =>
+                {
+                    var args = new DeserializingRowArgs(context, schemaTable, rowString);
+                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                    return args.Result;
+                });
+            }
             // I've got all files for my table
             // applied rows for this bpi
             foreach (var batchPartInfo in bpiTables)
@@ -205,7 +215,6 @@ namespace Dotmim.Sync
                 // accumulating rows
                 var batchRows = new List<SyncRow>();
 
-                var localSerializer = new LocalJsonSerializer();
                 if (isBatch)
                 {
                     foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))

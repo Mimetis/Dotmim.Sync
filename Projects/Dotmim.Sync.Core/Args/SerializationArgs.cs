@@ -54,7 +54,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public object[] Result { get; }
+        public object[] Result { get; set; }
         public override int EventId => SyncEventsId.DeserializingSyncRow.Id;
 
         public SyncTable SchemaTable { get; }

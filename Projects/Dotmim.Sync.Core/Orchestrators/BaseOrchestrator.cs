@@ -343,7 +343,7 @@ namespace Dotmim.Sync
             if (this.syncContexts.ContainsKey(scopeName))
                 return this.syncContexts[scopeName];
 
-            var syncContext = new SyncContext(Guid.NewGuid(), scopeName); ;
+            var syncContext = new SyncContext(Guid.NewGuid(), scopeName);
 
             this.syncContexts.Add(scopeName, syncContext);
 
@@ -351,14 +351,14 @@ namespace Dotmim.Sync
         }
 
 
-        private long? GetLastSyncTimestamp(SyncContext ctx, ScopeInfo  scopeInfo)
-        {
-            // Reinitialize timestamp is in Reinit Mode
-            if (ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload)
-                return null;
+        //private long? GetLastSyncTimestamp(SyncContext ctx, ClientScopeInfo  clientScopeInfo)
+        //{
+        //    // Reinitialize timestamp is in Reinit Mode
+        //    if (ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload)
+        //        return null;
 
-            return this.Side == SyncSide.ClientSide ? scopeInfo.LastSyncTimestamp : scopeInfo.LastServerSyncTimestamp;
-        }
+        //    return this.Side == SyncSide.ClientSide ? clientScopeInfo.LastSyncTimestamp : clientScopeInfo.LastServerSyncTimestamp;
+        //}
 
 
 
@@ -367,7 +367,7 @@ namespace Dotmim.Sync
         /// Check if the orchestrator database is outdated
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<bool> IsOutDatedAsync(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> IsOutDatedAsync(ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (!this.StartTime.HasValue)
                 this.StartTime = DateTime.UtcNow;
@@ -425,106 +425,6 @@ namespace Dotmim.Sync
                 throw GetSyncError(SyncOptions.DefaultScopeName, ex);
             }
         }
-
-
-
-        //public async Task<T> RunInTransactionAsync2<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-        //      DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
-        //{
-        //    if (!this.StartTime.HasValue)
-        //        this.StartTime = DateTime.UtcNow;
-
-        //    // Get context or create a new one
-        //    var ctx = this.GetContext();
-
-        //    T result = default;
-
-        //    using var c = this.Provider.CreateConnection();
-
-        //    try
-        //    {
-        //        await c.OpenAsync();
-
-        //        using (var t = c.BeginTransaction(this.Provider.IsolationLevel))
-        //        {
-        //            if (actionTask != null)
-        //                result = await actionTask(ctx, c, t);
-
-        //            t.Commit();
-        //        }
-        //        c.Close();
-        //        c.Dispose();
-
-        //        return result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw GetSyncError(ex);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Run an actin inside a connection / transaction
-        ///// </summary>
-        //public async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-        //      DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
-        //{
-        //    if (!this.StartTime.HasValue)
-        //        this.StartTime = DateTime.UtcNow;
-
-        //    // Get context or create a new one
-        //    var ctx = this.GetContext();
-
-        //    T result = default;
-
-        //    if (connection == null)
-        //        connection = this.Provider.CreateConnection();
-
-        //    var alreadyOpened = connection.State == ConnectionState.Open;
-        //    var alreadyInTransaction = transaction != null && transaction.Connection == connection;
-
-        //    try
-        //    {
-        //        if (stage != SyncStage.None)
-        //            ctx.SyncStage = stage;
-
-        //        // Open connection
-        //        if (!alreadyOpened)
-        //            await this.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
-
-        //        // Create a transaction
-        //        if (!alreadyInTransaction)
-        //        {
-        //            transaction = connection.BeginTransaction(this.Provider.IsolationLevel);
-        //            await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-        //        }
-
-        //        if (actionTask != null)
-        //            result = await actionTask(ctx, connection, transaction);
-
-        //        if (!alreadyInTransaction)
-        //        {
-        //            await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-        //            transaction.Commit();
-        //            transaction.Dispose();
-        //        }
-
-        //        if (!alreadyOpened)
-        //            await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
-
-        //        return result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw GetSyncError(ex);
-        //    }
-        //    finally
-        //    {
-        //        if (!alreadyOpened)
-        //            await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
-        //    }
-        //}
-
 
         public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, syncParameters, cancellationToken, progress);

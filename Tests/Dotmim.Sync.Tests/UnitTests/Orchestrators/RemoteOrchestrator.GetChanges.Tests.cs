@@ -89,21 +89,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
+            var productTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "Product", "SalesLT");
+            var productRowName = productTable.Rows[0]["Name"];
+            Assert.Equal(productName, productRowName);
 
-            foreach (var bpi in changes.ServerBatchInfo.GetBatchPartsInfo("Product", "SalesLT"))
-            {
-                var productTable = await changes.ServerBatchInfo.LoadBatchPartInfoAsync(bpi);
-                var productRowName = productTable.Rows[0]["Name"];
-                Assert.Equal(productName, productRowName);
-            }
-
-
-            foreach (var bpi in changes.ServerBatchInfo.GetBatchPartsInfo("ProductCategory", "SalesLT"))
-            {
-                var productCategoryTable = await changes.ServerBatchInfo.LoadBatchPartInfoAsync(bpi);
-                var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
-                Assert.Equal(productCategoryName, productCategoryRowName);
-            }
+            var productCategoryTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
+            Assert.Equal(productCategoryName, productCategoryRowName);
 
         }
 
@@ -214,7 +206,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.ProvisionAsync(serverScope);
 
             // fake client scope
-            var clientScope = new ScopeInfo()
+            var clientScopeInfo = new ClientScopeInfo()
             {
                 Name = scopeName,
                 IsNewScope = true,
@@ -224,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get estimated changes count to be sent to the client
-            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScopeInfo);
 
             Assert.NotNull(changes.ServerChangesSelected);
             Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);

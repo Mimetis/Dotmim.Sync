@@ -14,10 +14,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class MigratingArgs : ProgressArgs
     {
-        public MigratingArgs(SyncContext context, ScopeInfo oldScopeInfo, ServerScopeInfo newScopeInfo, MigrationResults migrationResults, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+        public MigratingArgs(SyncContext context, ClientScopeInfo oldClientScopeInfo, ServerScopeInfo newServerScopeInfo, MigrationResults migrationResults, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
-            this.OldScopeInfo = oldScopeInfo;
-            this.NewScopeInfo = newScopeInfo;
+            this.OldClientScopeInfo = oldClientScopeInfo;
+            this.NewServerScopeInfo = newServerScopeInfo;
             this.MigrationResults = migrationResults;
         }
 
@@ -29,8 +29,8 @@ namespace Dotmim.Sync
         /// </summary>
         public override string Message => $"Applying Migration.";
 
-        public ScopeInfo OldScopeInfo { get; }
-        public ServerScopeInfo NewScopeInfo { get; }
+        public ClientScopeInfo OldClientScopeInfo { get; }
+        public ServerScopeInfo NewServerScopeInfo { get; }
         public MigrationResults MigrationResults { get; }
 
         public override int EventId => SyncEventsId.DatabaseMigrating.Id;

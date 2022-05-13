@@ -227,28 +227,28 @@ namespace Dotmim.Sync.Batch
 
 
 
-        public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable)
-        {
-             var localSerializer = new LocalJsonSerializer();
+        //public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable)
+        //{
+        //     var localSerializer = new LocalJsonSerializer();
 
-            // Get full path of my batchpartinfo
-            var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
+        //    // Get full path of my batchpartinfo
+        //    var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
-            if (!File.Exists(fullPath))
-                return;
+        //    if (!File.Exists(fullPath))
+        //        return;
 
-            File.Delete(fullPath);
+        //    File.Delete(fullPath);
 
-            // open the file and write table header
-            await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
+        //    // open the file and write table header
+        //    await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
 
-            foreach (var row in syncTable.Rows)
-                await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
+        //    foreach (var row in syncTable.Rows)
+        //        await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
 
-            // Close file
-            await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
+        //    // Close file
+        //    await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
 
-        }
+        //}
 
         /// <summary>
         /// try to delete the Batch tmp directory and all the files stored in it

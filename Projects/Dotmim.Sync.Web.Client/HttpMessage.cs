@@ -112,10 +112,10 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public HttpMessageSendChangesRequest(SyncContext context, ScopeInfo scope)
+        public HttpMessageSendChangesRequest(SyncContext context, ClientScopeInfo clientScopeInfo)
         {
             this.SyncContext = context;
-            this.Scope = scope;
+            this.ClientScopeInfo = clientScopeInfo;
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
@@ -125,7 +125,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the reference scope for local repository, stored on server
         /// </summary>
         [DataMember(Name = "scope", IsRequired = true, Order = 2)]
-        public ScopeInfo Scope { get; set; }
+        public ClientScopeInfo ClientScopeInfo { get; set; }
 
         /// <summary>
         /// Get the current batch index 
@@ -260,7 +260,6 @@ namespace Dotmim.Sync.Web.Client
 
         /// <summary>
         /// Create a new message to web remote server.
-        /// Scope info table name is not provided since we do not care about it on the server side
         /// </summary>
         public HttpMessageRemoteTimestampRequest(SyncContext context)
         {

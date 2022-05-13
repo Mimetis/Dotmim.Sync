@@ -79,7 +79,7 @@ namespace Dotmim.Sync
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ClientScopeInfo;
 
                 if (localScopeInfo == null)
                     return default;
@@ -103,30 +103,30 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns></returns>
         public async Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)>
-            GetChangesAsync(ScopeInfo localScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetChangesAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(localScopeInfo.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(clientScopeInfo.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Output
                 long clientTimestamp = 0L;
                 BatchInfo clientBatchInfo = null;
                 DatabaseChangesSelected clientChangesSelected = null;
 
                 // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
-                if (localScopeInfo.Schema == null)
+                if (clientScopeInfo.Schema == null)
                     throw new MissingLocalOrchestratorSchemaException();
 
                 // On local, we don't want to chase rows from "others" 
                 // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
                 Guid? remoteScopeId = null;
                 // lastSyncTS : get lines inserted / updated / deteleted after the last sync commited
-                var lastTimestamp = localScopeInfo.LastSyncTimestamp;
+                var lastTimestamp = clientScopeInfo.LastSyncTimestamp;
                 // isNew : If isNew, lasttimestamp is not correct, so grab all
-                var isNew = localScopeInfo.IsNewScope;
+                var isNew = clientScopeInfo.IsNewScope;
 
-                var ctx = this.GetContext(localScopeInfo.Name);
+                var ctx = this.GetContext(clientScopeInfo.Name);
 
 
                 //Direction set to Upload
@@ -134,14 +134,14 @@ namespace Dotmim.Sync
 
                 // JUST before the whole process, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                clientTimestamp = await this.InternalGetLocalTimestampAsync(localScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                clientTimestamp = await this.InternalGetLocalTimestampAsync(clientScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
                 // Locally, if we are new, no need to get changes
                 if (isNew)
-                    (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(localScopeInfo, this.Options.BatchDirectory).ConfigureAwait(false);
+                    (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(clientScopeInfo, this.Options.BatchDirectory).ConfigureAwait(false);
                 else
-                    (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(localScopeInfo, isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
+                    (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(clientScopeInfo, isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                         this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -151,7 +151,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(localScopeInfo.Name, ex);
+                throw GetSyncError(clientScopeInfo.Name, ex);
             }
         }
 
@@ -172,7 +172,7 @@ namespace Dotmim.Sync
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ClientScopeInfo;
 
                 if (localScopeInfo == null)
                     return default;
@@ -220,8 +220,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes locally
         /// </summary>
-        internal async Task<(DatabaseChangesApplied ChangesApplied, ScopeInfo ClientScopeInfo)>
-            ApplyChangesAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo,
+        internal async Task<(DatabaseChangesApplied ChangesApplied, ClientScopeInfo ClientScopeInfo)>
+            ApplyChangesAsync(ClientScopeInfo clientScopeInfo, BatchInfo serverBatchInfo,
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, bool snapshotApplied, DatabaseChangesSelected allChangesSelected,
                               DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -295,8 +295,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a snapshot locally
         /// </summary>
-        internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ScopeInfo clientScopeInfo)>
-            ApplySnapshotAsync(ScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
+        internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ClientScopeInfo clientScopeInfo)>
+            ApplySnapshotAsync(ClientScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (serverBatchInfo == null)

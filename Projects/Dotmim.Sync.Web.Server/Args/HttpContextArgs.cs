@@ -69,30 +69,30 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http response message is sent back to the client
         /// </summary>
-        public static void OnHttpSendingResponse(this WebServerOrchestrator orchestrator,
+        public static void OnHttpSendingResponse(this WebServerBinder binder,
             Action<HttpSendingResponseArgs> action)
-            => orchestrator.SetInterceptor(action);
+            => binder.RemoteOrchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http response message is sent back to the client
         /// </summary>
-        public static void OnHttpSendingResponse(this WebServerOrchestrator orchestrator,
+        public static void OnHttpSendingResponse(this WebServerBinder binder,
             Func<HttpSendingResponseArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+            => binder.RemoteOrchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message request from the client arrived to the server
         /// </summary>
-        public static void OnHttpGettingRequest(this WebServerOrchestrator orchestrator,
+        public static void OnHttpGettingRequest(this WebServerBinder binder,
             Action<HttpGettingRequestArgs> action)
-            => orchestrator.SetInterceptor(action);
+            => binder.RemoteOrchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message request from the client arrived to the server
         /// </summary>
-        public static void OnHttpGettingRequest(this WebServerOrchestrator orchestrator,
+        public static void OnHttpGettingRequest(this WebServerBinder binder,
             Func<HttpGettingRequestArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+            => binder.RemoteOrchestrator.SetInterceptor(action);
 
     }
 }

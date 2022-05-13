@@ -131,15 +131,8 @@ namespace Dotmim.Sync.SqlServer.Scope
         public override DbCommand GetAllClientScopesInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
-                $@"SELECT [sync_scope_id]
-                           , [sync_scope_name]
-                           , [sync_scope_schema]
-                           , [sync_scope_setup]
-                           , [sync_scope_version]
-                           , [scope_last_sync]
-                           , [scope_last_server_sync_timestamp]
-                           , [scope_last_sync_timestamp]
-                           , [scope_last_sync_duration]
+                $@"SELECT [sync_scope_id], [sync_scope_name], [sync_scope_schema], [sync_scope_setup], [sync_scope_version], 
+                          [scope_last_sync], [scope_last_server_sync_timestamp], [scope_last_sync_timestamp], [scope_last_sync_duration]
                     FROM  {this.ScopeInfoTableName.Quoted().ToString()}";
 
             var command = connection.CreateCommand();
@@ -561,8 +554,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
 
-            command.CommandText = $@"Select count(*) from [{tableName}] 
-                                     where sync_scope_name = @sync_scope_name;";
+            command.CommandText = $@"Select count(*) from [{tableName}] where sync_scope_name = @sync_scope_name;";
 
             var p1 = command.CreateParameter();
             p1.ParameterName = "@sync_scope_name";

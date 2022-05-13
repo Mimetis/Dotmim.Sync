@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class SqlServerHttpTests : HttpTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            {  ProviderType.Sql, ProviderType.Sqlite, ProviderType.MariaDB};
+            {  ProviderType.Sql};
 
         public SqlServerHttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {

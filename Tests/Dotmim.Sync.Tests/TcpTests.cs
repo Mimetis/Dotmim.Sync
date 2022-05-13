@@ -18,6 +18,7 @@ using MySql.Data.MySqlClient;
 #endif
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -2935,52 +2936,41 @@ namespace Dotmim.Sync.Tests
             myRijndael.GenerateKey();
             myRijndael.GenerateIV();
 
-            var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
-            var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+            var writringRowsTables = new ConcurrentDictionary<string, int>();
+            var readingRowsTables = new ConcurrentDictionary<string, int>();
 
-            var writringRowsTables = new Dictionary<string, int>();
-            var readingRowsTables = new Dictionary<string, int>();
+            var serializingRowsAction = new Func<SerializingRowArgs, Task>(async (args) =>
+            {
+                // Assertion
+                writringRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
 
-            //options.LocalSerializer.OnWritingRow((schemaTable, array) =>
-            //{
-            //    // assert
-            //    if (writringRowsTables.ContainsKey(schemaTable.GetFullName()))
-            //        writringRowsTables[schemaTable.GetFullName()]++;
-            //    else
-            //        writringRowsTables[schemaTable.GetFullName()] = 1;
+                var strSet = JsonConvert.SerializeObject(args.RowArray);
+                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+                using var msEncrypt = new MemoryStream();
+                using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+                using (var swEncrypt = new StreamWriter(csEncrypt))
+                    swEncrypt.Write(strSet);
 
-            //    var strSet = JsonConvert.SerializeObject(array);
+                args.Result = Convert.ToBase64String(msEncrypt.ToArray());
+            });
 
-            //    using var msEncrypt = new MemoryStream();
-            //    using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
-            //    using (var swEncrypt = new StreamWriter(csEncrypt))
-            //        swEncrypt.Write(strSet);
+            var deserializingRowsAction = new Func<DeserializingRowArgs, Task>(async (args) =>
+            {
+                // Assertion
+                readingRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
 
-            //    return Convert.ToBase64String(msEncrypt.ToArray());
-            //});
+                string value;
+                var byteArray = Convert.FromBase64String(args.RowString);
+                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+                using var msDecrypt = new MemoryStream(byteArray);
+                using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+                using (var swDecrypt = new StreamReader(csDecrypt))
+                    value = swDecrypt.ReadToEnd();
 
-            //options.LocalSerializer.onReadingRow((schemaTable, strValue) =>
-            //{
-            //    // assert
-            //    if (readingRowsTables.ContainsKey(schemaTable.GetFullName()))
-            //        readingRowsTables[schemaTable.GetFullName()]++;
-            //    else
-            //        readingRowsTables[schemaTable.GetFullName()] = 1;
+                var array = JsonConvert.DeserializeObject<object[]>(value);
 
-
-            //    string value;
-            //    var byteArray = Convert.FromBase64String(strValue);
-            //    using var msDecrypt = new MemoryStream(byteArray);
-            //    using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
-            //    using (var swDecrypt = new StreamReader(csDecrypt))
-            //        value = swDecrypt.ReadToEnd();
-
-            //    var array = JsonConvert.DeserializeObject<object[]>(value);
-
-            //    return array;
-
-            //});
-
+                args.Result = array;
+            });
 
             foreach (var client in this.Clients)
             {
@@ -2993,13 +2983,20 @@ namespace Dotmim.Sync.Tests
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
+
+                localOrchestrator.OnSerializingSyncRow(serializingRowsAction);
+                remoteOrchestrator.OnSerializingSyncRow(serializingRowsAction);
+
+                localOrchestrator.OnDeserializingSyncRow(deserializingRowsAction);
+                remoteOrchestrator.OnDeserializingSyncRow(deserializingRowsAction);
+
                 // Making a first sync, will initialize everything we need
                 var result = await agent.SynchronizeAsync(setup, scopeName);
 
                 foreach (var table in result.ChangesAppliedOnClient.TableChangesApplied)
                 {
                     var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
-                    var writedRows = writringRowsTables[fullName];
+                    writringRowsTables.TryGetValue(fullName, out int writedRows);
                     Assert.Equal(table.Applied, writedRows);
 
                 }
@@ -3007,56 +3004,56 @@ namespace Dotmim.Sync.Tests
                 foreach (var table in result.ServerChangesSelected.TableChangesSelected)
                 {
                     var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
-                    var writedRows = readingRowsTables[fullName];
-                    Assert.Equal(table.TotalChanges, writedRows);
+                    readingRowsTables.TryGetValue(fullName, out int readRows);
+                    Assert.Equal(table.TotalChanges, readRows);
                 }
 
 
                 Assert.Equal(GetServerDatabaseRowsCount(this.Server), result.TotalChangesDownloaded);
 
-                // Client side : Create a product category and a product
-                // Create a productcategory item
-                // Create a new product on server
-                var productId = Guid.NewGuid();
-                var productName = HelperDatabase.GetRandomName();
-                var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+                //// Client side : Create a product category and a product
+                //// Create a productcategory item
+                //// Create a new product on server
+                //var productId = Guid.NewGuid();
+                //var productName = HelperDatabase.GetRandomName();
+                //var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                var productCategoryName = HelperDatabase.GetRandomName();
-                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+                //var productCategoryName = HelperDatabase.GetRandomName();
+                //var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
-                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                {
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.Add(pc);
+                //using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+                //{
+                //    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                //    ctx.Add(pc);
 
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                    ctx.Add(product);
+                //    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                //    ctx.Add(product);
 
-                    await ctx.SaveChangesAsync();
-                }
+                //    await ctx.SaveChangesAsync();
+                //}
 
-                writringRowsTables.Clear();
-                readingRowsTables.Clear();
+                //writringRowsTables.Clear();
+                //readingRowsTables.Clear();
 
-                // Making a first sync, will initialize everything we need
-                var r = await agent.SynchronizeAsync(scopeName);
+                //// Making a first sync, will initialize everything we need
+                //var r = await agent.SynchronizeAsync(scopeName);
 
-                Assert.Equal(2, r.TotalChangesUploaded);
+                //Assert.Equal(2, r.TotalChangesUploaded);
 
-                foreach (var table in result.ClientChangesSelected.TableChangesSelected)
-                {
-                    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
-                    var writedRows = readingRowsTables[fullName];
-                    Assert.Equal(table.TotalChanges, writedRows);
-                }
+                //foreach (var table in result.ClientChangesSelected.TableChangesSelected)
+                //{
+                //    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                //    var writedRows = readingRowsTables[fullName];
+                //    Assert.Equal(table.TotalChanges, writedRows);
+                //}
 
-                foreach (var table in result.ChangesAppliedOnServer.TableChangesApplied)
-                {
-                    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
-                    var writedRows = writringRowsTables[fullName];
-                    Assert.Equal(table.Applied, writedRows);
+                //foreach (var table in result.ChangesAppliedOnServer.TableChangesApplied)
+                //{
+                //    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
+                //    var writedRows = writringRowsTables[fullName];
+                //    Assert.Equal(table.Applied, writedRows);
 
-                }
+                //}
 
             }
         }
@@ -3712,22 +3709,30 @@ namespace Dotmim.Sync.Tests
                 await ctx.SaveChangesAsync();
             }
 
+            // each client (except first one) will downloaded row from previous client sync
+            var cliDownload = 0;
+            // but it will raise a conflict
+            var cliConflict = 0;
+
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(cliDownload, s.TotalChangesDownloaded);
 
                 Assert.Equal(1, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(cliConflict, s.TotalResolvedConflicts);
 
                 // check row on client should not have been updated 
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
 
                 Assert.Equal(clientGuid, cliAddress.Rowguid);
+
+                cliDownload = 1;
+                cliConflict = 1;
             }
 
 
@@ -3816,6 +3821,11 @@ namespace Dotmim.Sync.Tests
 
             }
 
+            // each client (except first one) will downloaded row from previous client sync
+            var cliDownload = 0;
+            // but it will raise a conflict
+            var cliConflict = 0;
+
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
@@ -3823,17 +3833,19 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
+                Assert.Equal(cliDownload, s.TotalChangesDownloaded);
 
                 // 1 upload since Rowguid is modified, but the column value is not part of the upload
                 Assert.Equal(1, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(cliConflict, s.TotalResolvedConflicts);
 
                 // check row on client should not have been updated 
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
 
                 Assert.Equal(clientGuid, cliAddress.Rowguid);
+                cliConflict = 1;
+                cliDownload = 1;
             }
 
 

@@ -128,7 +128,7 @@ namespace Dotmim.Sync
             // create a new scope id for the current owner (could be server or client as well)
             IScopeInfo scope = scopeType switch
             {
-                DbScopeType.Client => new ScopeInfo { Id = Guid.NewGuid(), Name = scopeName, IsNewScope = true, LastSync = null, Version = SyncVersion.Current.ToString() },
+                DbScopeType.Client => new ClientScopeInfo { Id = Guid.NewGuid(), Name = scopeName, IsNewScope = true, LastSync = null, Version = SyncVersion.Current.ToString() },
                 DbScopeType.Server => new ServerScopeInfo { Name = scopeName, LastCleanupTimestamp = 0, IsNewScope = true, Version = SyncVersion.Current.ToString() },
                 _ => throw new NotImplementedException($"Type of scope {scopeName} is not implemented when trying to get a single instance")
             };

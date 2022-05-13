@@ -32,7 +32,7 @@ namespace Dotmim.Sync.Batch
         public bool IsLastBatch { get; set; }
 
         /// <summary>
-        /// Tables contained in the SyncSet (serialiazed or not) (NEW v0.9.3 : Only One table per file)
+        /// Tables contained in the batchpart (NEW v0.9.3 : Only One table per file)
         /// </summary>
         [DataMember(Name = "tables", IsRequired = true, Order = 4)]
         public BatchPartTableInfo[] Tables { get; set; }

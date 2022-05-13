@@ -71,7 +71,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Gets the Web Server Orchestrator used for the tests
         /// </summary>
-        public WebServerOrchestrator WebServerOrchestrator { get; }
+        public WebServerBinder WebServerBinder { get; }
 
 
         /// <summary>
@@ -155,13 +155,13 @@ namespace Dotmim.Sync.Tests
             var serverProvider = this.CreateProvider(this.ServerType, serverDatabaseName);
 
             // create web remote orchestrator
-            this.WebServerOrchestrator = new WebServerOrchestrator(serverProvider, new SyncOptions(), new SyncSetup(), new WebServerOptions());
+            this.WebServerBinder = new WebServerBinder(serverProvider, new SyncOptions(), new SyncSetup(), new WebServerOptions());
 
             // public property
             this.Server = (serverDatabaseName, this.ServerType, serverProvider);
 
             // Create a kestrell server
-            this.kestrell = new KestrellTestServer(this.WebServerOrchestrator, this.UseFiddler);
+            this.kestrell = new KestrellTestServer(this.WebServerBinder, this.UseFiddler);
 
             // start server and get uri
             this.ServiceUri = this.kestrell.Run();
@@ -213,7 +213,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerBinder.Setup = this.FilterSetup;
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -242,7 +242,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerBinder.Setup = this.FilterSetup;
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
@@ -276,7 +276,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerBinder.Setup = this.FilterSetup;
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -347,7 +347,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
+            this.WebServerBinder.Setup = this.FilterSetup;
 
 
             // Execute a sync on all clients to initialize client and server schema 
@@ -490,9 +490,9 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
-            this.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
-            this.WebServerOrchestrator.Options.BatchSize = 200;
+            this.WebServerBinder.Setup = this.FilterSetup;
+            this.WebServerBinder.Options.SnapshotsDirectory = directory;
+            this.WebServerBinder.Options.BatchSize = 200;
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -536,8 +536,8 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
-            this.WebServerOrchestrator.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
+            this.WebServerBinder.Setup = this.FilterSetup;
+            this.WebServerBinder.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -669,10 +669,10 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
-            this.WebServerOrchestrator.Options.SnapshotsDirectory = serverOptions.SnapshotsDirectory;
-            this.WebServerOrchestrator.Options.BatchSize = serverOptions.BatchSize;
-            this.WebServerOrchestrator.Options.BatchDirectory = serverOptions.BatchDirectory;
+            this.WebServerBinder.Setup = this.FilterSetup;
+            this.WebServerBinder.Options.SnapshotsDirectory = serverOptions.SnapshotsDirectory;
+            this.WebServerBinder.Options.BatchSize = serverOptions.BatchSize;
+            this.WebServerBinder.Options.BatchDirectory = serverOptions.BatchDirectory;
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
@@ -755,10 +755,10 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerOrchestrator.Setup = this.FilterSetup;
-            this.WebServerOrchestrator.Options.SnapshotsDirectory = directory;
-            this.WebServerOrchestrator.Options.BatchSize = 200;
-            this.WebServerOrchestrator.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
+            this.WebServerBinder.Setup = this.FilterSetup;
+            this.WebServerBinder.Options.SnapshotsDirectory = directory;
+            this.WebServerBinder.Options.BatchSize = 200;
+            this.WebServerBinder.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)

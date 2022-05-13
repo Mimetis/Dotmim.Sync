@@ -21,26 +21,26 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator
     {
 
-        public virtual async Task<ScopeInfo> UpgradeAsync(ScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ClientScopeInfo> UpgradeAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                Guard.Against.Null(scopeInfo);
+                Guard.Against.Null(clientScopeInfo);
 
-                await using var runner = await this.GetConnectionAsync(scopeInfo.Name, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(clientScopeInfo.Name, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                scopeInfo = await this.InternalUpgradeAsync(scopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                clientScopeInfo = await this.InternalUpgradeAsync(clientScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return scopeInfo;
+                return clientScopeInfo;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeInfo.Name, ex);
+                throw GetSyncError(clientScopeInfo.Name, ex);
             }
         }
-        public virtual async Task<ScopeInfo> UpgradeAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ClientScopeInfo> UpgradeAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -48,7 +48,7 @@ namespace Dotmim.Sync
 
                 await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var scopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                var scopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ClientScopeInfo;
 
                 if (scopeInfo == null || scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return null;
@@ -94,64 +94,64 @@ namespace Dotmim.Sync
             return version < SyncVersion.Current;
         }
 
-        internal virtual async Task<ScopeInfo> InternalUpgradeAsync(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
+        internal virtual async Task<ClientScopeInfo> InternalUpgradeAsync(ClientScopeInfo clientScopeInfo, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var version = SyncVersion.EnsureVersion(scopeInfo.Version);
+            var version = SyncVersion.EnsureVersion(clientScopeInfo.Version);
             var oldVersion = version.Clone() as Version;
             // beta version
             if (version.Major == 0)
             {
                 if (version.Minor <= 5)
-                    version = await AutoUpgdrateToNewVersionAsync(scopeInfo, new Version(0, 6, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, new Version(0, 6, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 6 && version.Build == 0)
-                    version = await UpgdrateTo601Async(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo601Async(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 6 && version.Build == 1)
-                    version = await UpgdrateTo602Async(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo602Async(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 6 && version.Build >= 2)
-                    version = await UpgdrateTo700Async(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo700Async(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 7 && version.Build == 0)
-                    version = await AutoUpgdrateToNewVersionAsync(scopeInfo, new Version(0, 7, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, new Version(0, 7, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 7 && version.Build == 1)
-                    version = await AutoUpgdrateToNewVersionAsync(scopeInfo, new Version(0, 7, 2), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, new Version(0, 7, 2), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 7 && version.Build == 2)
-                    version = await AutoUpgdrateToNewVersionAsync(scopeInfo, new Version(0, 7, 3), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, new Version(0, 7, 3), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 7 && version.Build >= 3)
-                    version = await AutoUpgdrateToNewVersionAsync(scopeInfo, new Version(0, 8, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, new Version(0, 8, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 8 && version.Build == 0)
-                    version = await UpgdrateTo801Async(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo801Async(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 8 && version.Build == 1)
-                    version = await AutoUpgdrateToNewVersionAsync(scopeInfo, new Version(0, 9, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, new Version(0, 9, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 9 && version.Build == 0)
-                    version = await AutoUpgdrateToNewVersionAsync(scopeInfo, new Version(0, 9, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, new Version(0, 9, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 9 && version.Build == 1)
-                    version = await UpgdrateTo093Async(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo093Async(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 9 && version.Build == 2)
-                    version = await UpgdrateTo093Async(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo093Async(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (version.Minor == 9 && version.Build == 3)
-                    version = await UpgdrateTo094Async(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    version = await UpgdrateTo094Async(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             if (oldVersion != version)
             {
-                scopeInfo.Version = version.ToString();
-                scopeInfo = await this.InternalSaveClientScopeInfoAsync(scopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false) as ScopeInfo;
+                clientScopeInfo.Version = version.ToString();
+                clientScopeInfo = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false) as ClientScopeInfo;
             }
-            return scopeInfo;
+            return clientScopeInfo;
 
         }
 
@@ -310,14 +310,14 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo093Async(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo093Async(ClientScopeInfo clientScopeInfo, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var context = this.GetContext(scopeInfo.Name);
+            var context = this.GetContext(clientScopeInfo.Name);
             var newVersion = new Version(0, 9, 3);
             // Sorting tables based on dependencies between them
 
-            var schemaTables = scopeInfo.Schema.Tables
+            var schemaTables = clientScopeInfo.Schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
 
@@ -326,19 +326,19 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(scopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            await this.ProvisionAsync(scopeInfo, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(clientScopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.ProvisionAsync(clientScopeInfo, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return newVersion;
         }
-        private async Task<Version> UpgdrateTo094Async(ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo094Async(ClientScopeInfo clientScopeInfo, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var context = this.GetContext(scopeInfo.Name);
+            var context = this.GetContext(clientScopeInfo.Name);
             var newVersion = new Version(0, 9, 4);
             // Sorting tables based on dependencies between them
 
-            var schemaTables = scopeInfo.Schema.Tables
+            var schemaTables = clientScopeInfo.Schema.Tables
                 .SortByDependencies(tab => tab.GetRelations()
                     .Select(r => r.GetParentTable()));
 
@@ -347,8 +347,8 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(scopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            await this.ProvisionAsync(scopeInfo, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(clientScopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.ProvisionAsync(clientScopeInfo, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return newVersion;
         }

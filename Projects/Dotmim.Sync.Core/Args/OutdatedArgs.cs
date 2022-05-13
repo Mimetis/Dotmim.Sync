@@ -11,7 +11,7 @@ namespace Dotmim.Sync
     
     public class OutdatedArgs : ProgressArgs
     {
-        public OutdatedArgs(SyncContext context, ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, DbConnection connection= null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public OutdatedArgs(SyncContext context, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, DbConnection connection= null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
             this.ClientScopeInfo = clientScopeInfo;
             this.ServerScopeInfo = serverScopeInfo;
@@ -29,7 +29,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the client scope info used to check if the client is outdated
         /// </summary>
-        public ScopeInfo ClientScopeInfo { get; }
+        public ClientScopeInfo ClientScopeInfo { get; }
 
         /// <summary>
         /// Gets the server scope info to check if client is outdated

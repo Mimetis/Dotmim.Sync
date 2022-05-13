@@ -33,3 +33,5 @@ Maybe, we should log something here ?
 - New test : Launch SynchronizeAsync(Tables) twice with different tables
 
 - Check all behaviors from Sql Change Tracking are same now that Triggers are agnostic to columns. Check tests 
+
+- Make tests on serializing / deserializing, especially with http (OnWritingRow, OnReadingRow)

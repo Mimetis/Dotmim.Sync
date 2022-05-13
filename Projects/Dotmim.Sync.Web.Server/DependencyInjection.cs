@@ -41,17 +41,17 @@ namespace Microsoft.Extensions.DependencyInjection
             provider.ConnectionString = connectionString;
             
             // Create orchestrator
-            var webServerOrchestrator = new WebServerOrchestrator(provider, options, setup, webServerOptions, scopeName);
-            serviceCollection.AddSingleton(webServerOrchestrator);
+            var webServerBinder = new WebServerBinder(provider, options, setup, webServerOptions, scopeName);
+            serviceCollection.AddSingleton(webServerBinder);
 
             return serviceCollection;
 
         }
 
 
-        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, WebServerOrchestrator webServerOrchestrator)
+        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, WebServerBinder webServerBinder)
         {
-            serviceCollection.AddSingleton(webServerOrchestrator);
+            serviceCollection.AddSingleton(webServerBinder);
             return serviceCollection;
         }
 

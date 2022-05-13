@@ -10,12 +10,12 @@ namespace Dotmim.Sync
     /// Mapping sur la table ScopeInfo
     /// </summary>
     [DataContract(Name = "scope"), Serializable]
-    public class ScopeInfo : IScopeInfo
+    public class ClientScopeInfo : IScopeInfo
     {
         /// <summary>
         /// For serialization purpose
         /// </summary>
-        public ScopeInfo()
+        public ClientScopeInfo()
         {
 
         }

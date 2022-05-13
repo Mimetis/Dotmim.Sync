@@ -84,19 +84,89 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            foreach (var bpi in changes.ClientBatchInfo.GetBatchPartsInfo("Product", "SalesLT"))
+            var productTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "Product", "SalesLT");
+            var productRowName = productTable.Rows[0]["Name"];
+            Assert.Equal(productName, productRowName);
+
+            var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
+            Assert.Equal(productCategoryName, productCategoryRowName);
+
+        }
+
+
+        /// <summary>
+        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
+        /// </summary>
+        [Fact]
+        public async Task LocalOrchestrator_GetChanges__WithSerialize_Deserialize_ShouldReturnNewRowsInserted()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider);
+
+            // Making a first sync, will initialize everything we need
+            await agent.SynchronizeAsync(this.Tables, scopeName);
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            // Server side : Create a product category and a product
+            // Create a productcategory item
+            // Create a new product on server
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
             {
-                var productTable = await changes.ClientBatchInfo.LoadBatchPartInfoAsync(bpi);
-                var productRowName = productTable.Rows[0]["Name"];
-                Assert.Equal(productName, productRowName);
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
             }
 
-            foreach (var bpi in changes.ClientBatchInfo.GetBatchPartsInfo("ProductCategory", "SalesLT"))
-            {
-                var productCategoryTable = await changes.ClientBatchInfo.LoadBatchPartInfoAsync(bpi);
-                var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
-                Assert.Equal(productCategoryName, productCategoryRowName);
-            }
+
+            // Get changes to be populated to the server
+            var changes = await localOrchestrator.GetChangesAsync(scopeName);
+
+            Assert.NotNull(changes.ClientBatchInfo);
+            Assert.NotNull(changes.ClientChangesSelected);
+            Assert.Equal(2, changes.ClientChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("Product", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("ProductCategory", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+
+            var productTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "Product", "SalesLT");
+            var productRowName = productTable.Rows[0]["Name"];
+            Assert.Equal(productName, productRowName);
+
+            var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
+            Assert.Equal(productCategoryName, productCategoryRowName);
+
         }
 
     }
