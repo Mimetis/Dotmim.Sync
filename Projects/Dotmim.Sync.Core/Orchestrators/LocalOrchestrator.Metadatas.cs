@@ -23,7 +23,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from scope info table
         /// </summary>
-        public async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)> DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
@@ -40,12 +40,12 @@ namespace Dotmim.Sync
             (context, clientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (clientScopeInfos == null || clientScopeInfos.Count == 0)
-                return (context, new DatabaseMetadatasCleaned());
+                return new DatabaseMetadatasCleaned();
 
             var minTimestamp = clientScopeInfos.Min(scope => scope.LastSyncTimestamp);
 
             if (!minTimestamp.HasValue || minTimestamp.Value == 0)
-                return (context, new DatabaseMetadatasCleaned());
+                return new DatabaseMetadatasCleaned();
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned;
             (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(context, minTimestamp, runner.Connection, runner.Transaction,
@@ -53,17 +53,18 @@ namespace Dotmim.Sync
 
             await runner.CommitAsync().ConfigureAwait(false);
 
-            return (context, databaseMetadatasCleaned);
+            return databaseMetadatasCleaned;
 
         }
 
 
-        public virtual Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
+        public virtual async Task<DatabaseMetadatasCleaned>
             DeleteMetadatasAsync(long? timeStampStart = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
-
-            return InternalDeleteMetadatasAsync(context, timeStampStart, connection, transaction, cancellationToken, progress);
+            DatabaseMetadatasCleaned databaseMetadatasCleaned;
+            (_, databaseMetadatasCleaned) = await InternalDeleteMetadatasAsync(context, timeStampStart, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            return databaseMetadatasCleaned;
         }
 
 

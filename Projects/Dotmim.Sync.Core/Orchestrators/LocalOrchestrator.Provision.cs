@@ -130,12 +130,14 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
         /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual Task<(SyncContext context, bool deprovisioned)> DeprovisionAsync(ClientScopeInfo clientScopeInfo, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> DeprovisionAsync(ClientScopeInfo clientScopeInfo, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
             try
             {
-                return InternalDeprovisionClientAsync(clientScopeInfo, context, provision, connection, transaction, cancellationToken, progress);
+                bool deprovisioned;
+                (_ , deprovisioned) = await InternalDeprovisionClientAsync(clientScopeInfo, context, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                return deprovisioned;
             }
             catch (Exception ex)
             {
@@ -166,7 +168,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision the orchestrator database based on the setup argument, and the provision enumeration
         /// </summary>
-        public virtual async Task<(SyncContext context, bool deprovisioned)> DeprovisionAsync(string scopeName = SyncOptions.DefaultScopeName, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> DeprovisionAsync(string scopeName = SyncOptions.DefaultScopeName, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -182,14 +184,14 @@ namespace Dotmim.Sync
                 (context, clientScopeInfo) = await this.InternalLoadClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (clientScopeInfo == null || clientScopeInfo.Schema == null || !clientScopeInfo.Schema.HasTables || !clientScopeInfo.Schema.HasColumns)
-                    return (context, false);
+                    return false;
 
                 bool isDeprovisioned;
                 (context, isDeprovisioned) = await InternalDeprovisionAsync(clientScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, isDeprovisioned);
+                return isDeprovisioned;
             }
             catch (Exception ex)
             {

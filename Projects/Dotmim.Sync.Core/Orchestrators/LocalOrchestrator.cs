@@ -30,7 +30,7 @@ namespace Dotmim.Sync
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public virtual Task<SyncContext> BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Create a new context
             var ctx = new SyncContext(Guid.NewGuid(), scopeName);
@@ -54,7 +54,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public Task<SyncContext> EndSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task EndSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Create a new context
             var ctx = new SyncContext(Guid.NewGuid(), scopeName);
@@ -82,7 +82,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get changes from local database from a specific scope name
         /// </summary>
-        public async Task<(SyncContext context, ClientSyncChanges clientSyncChanges)>
+        public async Task<ClientSyncChanges>
             GetChangesAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -108,7 +108,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, clientChanges);
+                return clientChanges;
 
             }
             catch (Exception ex)
@@ -181,7 +181,7 @@ namespace Dotmim.Sync
         /// Get estimated changes from local database to be sent to the server
         /// </summary>
         /// <returns></returns>
-        public async Task<(SyncContext context, ClientSyncChanges changes)>
+        public async Task<ClientSyncChanges>
             GetEstimatedChangesCountAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -236,7 +236,7 @@ namespace Dotmim.Sync
 
                 var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected);
 
-                return (context, changes);
+                return changes;
 
             }
             catch (Exception ex)

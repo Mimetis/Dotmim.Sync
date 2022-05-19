@@ -28,7 +28,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public virtual async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
+        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
             GetSnapshotAsync(ServerScopeInfo serverScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
@@ -46,7 +46,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected);
+                return (remoteClientTimestamp, serverBatchInfo, databaseChangesSelected);
 
             }
             catch (Exception ex)
@@ -153,7 +153,7 @@ namespace Dotmim.Sync
         }
 
 
-        public virtual Task<(SyncContext context, BatchInfo batchInfo)> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null,
+        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null,
             DbConnection connection = default, DbTransaction transaction = default,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters, connection, transaction, cancellationToken, progress);
@@ -163,7 +163,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual async Task<(SyncContext context, BatchInfo batchInfo)> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null,
+        public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null,
             DbConnection connection = default, DbTransaction transaction = default,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -210,7 +210,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, batchInfo);
+                return batchInfo;
             }
             catch (Exception ex)
             {

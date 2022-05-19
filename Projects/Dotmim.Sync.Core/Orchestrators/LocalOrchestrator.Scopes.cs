@@ -33,13 +33,11 @@ namespace Dotmim.Sync
             GetClientScopeInfoAsync(string scopeName, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
-            ClientScopeInfo clientScopeInfo;
-            (_, clientScopeInfo) = await GetClientScopeInfoAsync(context, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
+            var clientScopeInfo = await GetClientScopeInfoAsync(context, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             return clientScopeInfo;
         }
 
-        public virtual async Task<(SyncContext context, ClientScopeInfo clientScopeInfo)>
+        public virtual async Task<ClientScopeInfo>
             GetClientScopeInfoAsync(SyncContext context, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
@@ -52,7 +50,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, localScope);
+                return localScope;
             }
             catch (Exception ex)
             {
@@ -149,12 +147,10 @@ namespace Dotmim.Sync
             return (context, localScopeInfo);
         }
 
-
-
         /// <summary>
         /// Get all scopes. scopeName arg is just here for logging purpose and is not used
         /// </summary>
-        public virtual async Task<(SyncContext context, List<ClientScopeInfo> clientScopeInfos)>
+        public virtual async Task<List<ClientScopeInfo>>
             GetAllClientScopesInfoAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -169,7 +165,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, localScopes);
+                return localScopes;
             }
             catch (Exception ex)
             {
@@ -178,9 +174,9 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Write a server scope 
+        /// Write a Client Scope Info in a client database
         /// </summary> 
-        public virtual async Task<(SyncContext context, ClientScopeInfo clientScopeInfo)>
+        public virtual async Task<ClientScopeInfo>
             SaveClientScopeInfoAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
@@ -199,7 +195,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, clientScopeInfo);
+                return clientScopeInfo;
             }
             catch (Exception ex)
             {

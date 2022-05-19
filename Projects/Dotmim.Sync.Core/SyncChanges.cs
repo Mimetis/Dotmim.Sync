@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         public long Timestamp { get; }
 
         /// <summary>
-        /// Gets the batches serialized locally with all changes
+        /// Gets the batches serialized locally with all changes. Is Null if called from GetEstimatedChanges
         /// </summary>
         public BatchInfo BatchInfo { get; }
 

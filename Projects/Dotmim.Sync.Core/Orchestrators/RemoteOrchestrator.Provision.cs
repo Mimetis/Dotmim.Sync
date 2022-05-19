@@ -21,14 +21,14 @@ namespace Dotmim.Sync
     {
 
 
-        public virtual Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> ProvisionAsync(SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> ProvisionAsync(SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => ProvisionAsync(SyncOptions.DefaultScopeName, provision, overwrite, connection, transaction, cancellationToken, progress);
 
         /// <summary>
         /// Provision the remote database 
         /// </summary>
         /// <param name="overwrite">Overwrite existing objects</param>
-        public virtual Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> ProvisionAsync(string scopeName, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (provision == SyncProvision.None)
                 provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
@@ -37,7 +37,7 @@ namespace Dotmim.Sync
         }
 
 
-        public virtual Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> ProvisionAsync(SyncSetup setup, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> ProvisionAsync(SyncSetup setup, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => ProvisionAsync(SyncOptions.DefaultScopeName, setup, provision, overwrite, connection, transaction, cancellationToken, progress);
 
 
@@ -47,8 +47,7 @@ namespace Dotmim.Sync
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
         /// <param name="serverScopeInfo">server scope. Will be saved once provision is done</param>
         /// <returns>Full schema with table and columns properties</returns>
-        public virtual async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)>
-            ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -70,7 +69,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, serverScopeInfo);
+                return serverScopeInfo;
             }
             catch (Exception ex)
             {
@@ -78,13 +77,13 @@ namespace Dotmim.Sync
             }
         }
 
-        public virtual Task<(SyncContext context, ServerScopeInfo serverScopeInfo)>
-            ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task< ServerScopeInfo> ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
             try
             {
-                return InternalProvisionServerAsync(serverScopeInfo, context, provision, overwrite, connection, transaction, cancellationToken, progress);
+                (_, serverScopeInfo) = await InternalProvisionServerAsync(serverScopeInfo, context, provision, overwrite, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                return serverScopeInfo;
             }
             catch (Exception ex)
             {
@@ -132,14 +131,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision the remote database. Schema tables are retrieved through the default scope.
         /// </summary>
-        public virtual Task<(SyncContext context, bool deprovisioned)> 
+        public virtual Task<bool> 
                DeprovisionAsync(SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction, cancellationToken, progress);
 
         /// <summary>
         /// Deprovision the remote database. Schema tables are retrieved through scope name.
         /// </summary>
-        public virtual async Task<(SyncContext context, bool deprovisioned)> 
+        public virtual async Task<bool> 
             DeprovisionAsync(string scopeName, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -161,7 +160,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, isDeprovisioned);
+                return isDeprovisioned;
             }
             catch (Exception ex)
             {
@@ -170,13 +169,13 @@ namespace Dotmim.Sync
 
         }
 
-        public virtual Task<(SyncContext context, bool deprovisioned)> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision, connection, transaction, cancellationToken, progress);
 
         /// <summary>
         /// Deprovision the remote database. Schema tables are retrieved through setup in parameter.
         /// </summary>
-        public virtual async Task<(SyncContext context, bool deprovisioned)> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -195,7 +194,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, isDeprovisioned);
+                return isDeprovisioned;
             }
             catch (Exception ex)
             {

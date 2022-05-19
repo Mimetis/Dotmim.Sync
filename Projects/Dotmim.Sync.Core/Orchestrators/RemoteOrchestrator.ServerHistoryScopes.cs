@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the server scope histories
         /// </summary>
-        public virtual async Task<(SyncContext context, ServerHistoryScopeInfo serverHistoryScopeInfo)>
+        public virtual async Task<ServerHistoryScopeInfo>
             GetServerHistoryScopeInfoAsync(string scopeId, string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -41,8 +41,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, serverHistoryScope);
-
+                return serverHistoryScope;
             }
             catch (Exception ex)
             {
@@ -53,7 +52,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update or Insert a server scope row
         /// </summary>
-        public virtual async Task<(SyncContext context, ServerHistoryScopeInfo serverHistoryScopeInfo)>
+        public virtual async Task<ServerHistoryScopeInfo>
             SaveServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), serverHistoryScopeInfo.Name);
@@ -71,7 +70,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, serverHistoryScopeInfo);
+                return serverHistoryScopeInfo;
             }
             catch (Exception ex)
             {

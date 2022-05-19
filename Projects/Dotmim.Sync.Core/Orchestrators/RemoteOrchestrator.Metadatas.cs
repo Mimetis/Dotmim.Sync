@@ -24,14 +24,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from history client table
         /// </summary>
-        public virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
+        public virtual async Task<DatabaseMetadatasCleaned>
             DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 bool exists;
@@ -45,12 +44,12 @@ namespace Dotmim.Sync
                 (context, histories) = await this.InternalLoadAllServerHistoriesScopesAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (histories == null || histories.Count == 0)
-                    return (context, new DatabaseMetadatasCleaned());
+                    return new DatabaseMetadatasCleaned();
 
                 var minTimestamp = histories.Min(shsi => shsi.LastSyncTimestamp);
 
                 if (minTimestamp == 0)
-                    return (context, new DatabaseMetadatasCleaned());
+                    return new DatabaseMetadatasCleaned();
 
                 DatabaseMetadatasCleaned databaseMetadatasCleaned;
                 (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(minTimestamp, context, runner.Connection, runner.Transaction,
@@ -58,7 +57,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, databaseMetadatasCleaned);
+                return databaseMetadatasCleaned;
             }
             catch (Exception ex)
             {
@@ -71,7 +70,7 @@ namespace Dotmim.Sync
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
+        public virtual async Task<DatabaseMetadatasCleaned>
             DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -86,7 +85,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, databaseMetadatasCleaned);
+                return databaseMetadatasCleaned;
 
             }
             catch (Exception ex)

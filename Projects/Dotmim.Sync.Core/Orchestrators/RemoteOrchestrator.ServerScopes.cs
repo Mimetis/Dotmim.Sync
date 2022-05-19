@@ -20,10 +20,10 @@ namespace Dotmim.Sync
     {
 
  
-        public virtual Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> GetServerScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> GetServerScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, null, connection, transaction, cancellationToken, progress);
 
-        public virtual Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> GetServerScopeInfoAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> GetServerScopeInfoAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, setup, connection, transaction, cancellationToken, progress);
 
         /// <summary>
@@ -31,7 +31,7 @@ namespace Dotmim.Sync
         /// Provision is setup is defined (and scope does not exists in the database yet)
         /// </summary>
         /// <returns>Server scope info, containing scope name, version, setup and related schema infos</returns>
-        public virtual async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> GetServerScopeInfoAsync(string scopeName, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> GetServerScopeInfoAsync(string scopeName, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -43,7 +43,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, serverScopeInfo);
+                return serverScopeInfo;
             }
             catch (Exception ex)
             {
@@ -55,7 +55,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update or Insert a server scope row
         /// </summary>
-        public virtual async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> SaveServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> SaveServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
             try
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, serverScopeInfo);
+                return serverScopeInfo;
             } 
             catch (Exception ex)
             {

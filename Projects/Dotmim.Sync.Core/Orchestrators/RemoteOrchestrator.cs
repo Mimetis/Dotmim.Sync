@@ -255,7 +255,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get changes from remote database
         /// </summary>
-        public virtual async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
+        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
             GetChangesAsync(ClientScopeInfo clientScope, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -297,7 +297,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
+                return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
             }
             catch (Exception ex)
             {

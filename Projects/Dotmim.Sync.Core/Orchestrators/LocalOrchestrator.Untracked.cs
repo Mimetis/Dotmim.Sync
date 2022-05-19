@@ -23,7 +23,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual async Task<(SyncContext context, long updates)> UpdateUntrackedRowsAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<long> UpdateUntrackedRowsAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
@@ -49,7 +49,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, totalUpdates);
+                return totalUpdates;
             }
             catch (Exception ex)
             {
@@ -60,7 +60,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual Task<(SyncContext context, long updates)> UpdateUntrackedRowsAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<long> UpdateUntrackedRowsAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => this.UpdateUntrackedRowsAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken);
 
 

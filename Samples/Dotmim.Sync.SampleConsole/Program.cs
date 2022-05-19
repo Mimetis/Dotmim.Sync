@@ -128,9 +128,6 @@ internal class Program
         var agent1 = new SyncAgent(clientProvider1, serverProvider, options);
         Console.WriteLine(await agent1.SynchronizeAsync(progress));
 
-        //var agent2 = new SyncAgent(clientProvider2, serverProvider, options, setup);
-        //Console.WriteLine(await agent2.SynchronizeAsync(progress));
-
         // --------------------------
         // Step2 : Adding a new column "CreatedDate datetime NULL" on the server
         //         Then create the corresponding scope (called "v1")
@@ -158,17 +155,17 @@ internal class Program
 
         // Provision the "v1" scope on the client with the new setup
         var clientOrchestrator = new LocalOrchestrator(clientProvider1, options);
-        var scopeInfo = await clientOrchestrator.ProvisionAsync("v1", setupV1);
+        await clientOrchestrator.ProvisionAsync("v1", setupV1);
 
-        var oldClientOrchestrator = new LocalOrchestrator(clientProvider1, options);
-        var clientScopeInfo = await oldClientOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
+        var defaultClientScopeInfo = await clientOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
+        var v1ClientScopeInfo = await clientOrchestrator.GetClientScopeInfoAsync("v1"); // scope name is SyncOptions.DefaultScopeName, which is default value
 
-        clientScopeInfo.LastServerSyncTimestamp = defaultScopeInfo.LastServerSyncTimestamp;
-        clientScopeInfo.LastSyncTimestamp = defaultScopeInfo.LastSyncTimestamp;
-        clientScopeInfo.LastSync = defaultScopeInfo.LastSync;
-        clientScopeInfo.LastSyncDuration = defaultScopeInfo.LastSyncDuration;
+        v1ClientScopeInfo.LastServerSyncTimestamp = defaultClientScopeInfo.LastServerSyncTimestamp;
+        v1ClientScopeInfo.LastSyncTimestamp = defaultClientScopeInfo.LastSyncTimestamp;
+        v1ClientScopeInfo.LastSync = defaultClientScopeInfo.LastSync;
+        v1ClientScopeInfo.LastSyncDuration = defaultClientScopeInfo.LastSyncDuration;
 
-        await clientOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
+        await clientOrchestrator.SaveClientScopeInfoAsync(v1ClientScopeInfo);
 
         // create a new agent and make a sync on the "v1" scope
         // don't need to pass setup and options anymore
