@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangesAsync(
-                             IScopeInfo scopeInfo, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
+                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets, string batchRootDirectory, string batchDirectoryName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -36,8 +36,6 @@ namespace Dotmim.Sync
 
             // Statistics about changes that are selected
             DatabaseChangesSelected changesSelected;
-
-            var context = this.GetContext(scopeInfo.Name);
 
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
             {
@@ -81,8 +79,10 @@ namespace Dotmim.Sync
                     // tmp count of table for report progress pct
                     cptSyncTable++;
 
-                    var (syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
-                            scopeInfo, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    List<BatchPartInfo> syncTableBatchPartInfos;
+                    TableChangesSelected tableChangesSelected;
+                    (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
+                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (syncTableBatchPartInfos == null)
                         return;
@@ -108,8 +108,10 @@ namespace Dotmim.Sync
                     // tmp count of table for report progress pct
                     cptSyncTable++;
 
-                    var (syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
-                            scopeInfo, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp,  connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    List<BatchPartInfo> syncTableBatchPartInfos;
+                    TableChangesSelected tableChangesSelected;
+                    (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
+                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (syncTableBatchPartInfos == null)
                         continue;
@@ -174,9 +176,9 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(List<BatchPartInfo> batchPartInfos, TableChangesSelected tableChangesSelected)>
+        internal virtual async Task<(SyncContext context, List<BatchPartInfo> batchPartInfos, TableChangesSelected tableChangesSelected)>
             InternalReadSyncTableChangesAsync(
-            IScopeInfo scopeInfo, Guid? excludintScopeId, SyncTable syncTable,
+            IScopeInfo scopeInfo, SyncContext context, Guid? excludintScopeId, SyncTable syncTable,
             BatchInfo batchInfo, bool isNew, long? lastTimestamp,
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -193,8 +195,6 @@ namespace Dotmim.Sync
             // Only table schema is replicated, no datas are applied
             if (setupTable.SyncDirection == SyncDirection.None)
                 return default;
-
-            var context = this.GetContext(scopeInfo.Name);
 
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
@@ -323,26 +323,23 @@ namespace Dotmim.Sync
             var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, syncTableBatchPartInfos, syncTable, tableChangesSelected, connection, transaction);
             await this.InterceptAsync(tableChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
-            return (syncTableBatchPartInfos, tableChangesSelected);
+            return (context, syncTableBatchPartInfos, tableChangesSelected);
         }
 
         /// <summary>
         /// Gets changes rows count estimation, 
         /// </summary>
         internal virtual async Task<(SyncContext, DatabaseChangesSelected)> InternalGetEstimatedChangesCountAsync(
-                             IScopeInfo scopeInfo, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
+                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var context = this.GetContext(scopeInfo.Name);
-
             // Call interceptor
             await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, this.Options.BatchDirectory, this.Options.BatchSize, isNew, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
-
 
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
                 return (context, changes);
@@ -428,8 +425,6 @@ namespace Dotmim.Sync
 
             return (context, changes);
         }
-
-
 
         private static BatchPartInfo GetNewBatchPartInfo(string batchPartFileName, string tableName, string schemaName, int rowsCount, int batchIndex)
         {

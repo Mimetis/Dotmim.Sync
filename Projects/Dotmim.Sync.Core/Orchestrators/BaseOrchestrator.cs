@@ -22,19 +22,6 @@ namespace Dotmim.Sync
     {
         // Collection of Interceptors
         internal Interceptors interceptors = new Interceptors();
-        internal Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
-
-        //// Internal table builder cache
-        //private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
-        //    = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
-
-        //// Internal scope builder cache
-        //private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
-        //    = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
-
-        // Internal sync adapter cache
-        //private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
-        //    = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -50,11 +37,6 @@ namespace Dotmim.Sync
         /// Gets the options used by this local orchestrator
         /// </summary>
         public virtual SyncOptions Options { get; internal set; }
-
-        /// <summary>
-        /// Gets or Sets the start time for this orchestrator
-        /// </summary>
-        public virtual DateTime? StartTime { get; set; }
 
         /// <summary>
         /// Gets or Sets the end time for this orchestrator
@@ -183,11 +165,11 @@ namespace Dotmim.Sync
         /// Open a connection
         /// </summary>
         //[DebuggerStepThrough]
-        internal async Task OpenConnectionAsync(string scopeName, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task OpenConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                this.InterceptAsync(new ReConnectArgs(this.GetContext(scopeName), connection, ex, cpt, ts), progress, cancellationToken));
+                this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
 
             // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
@@ -202,13 +184,13 @@ namespace Dotmim.Sync
             // Let provider knows a connection is opened
             this.Provider.OnConnectionOpened(connection);
 
-            await this.InterceptAsync(new ConnectionOpenedArgs(this.GetContext(scopeName), connection), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ConnectionOpenedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Close a connection
         /// </summary>
-        internal async Task CloseConnectionAsync(string scopeName, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task CloseConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
@@ -222,7 +204,7 @@ namespace Dotmim.Sync
             }
 
             if (!cancellationToken.IsCancellationRequested)
-                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(scopeName), connection), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ConnectionClosedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
             this.Provider.OnConnectionClosed(connection);
@@ -233,9 +215,9 @@ namespace Dotmim.Sync
 
 
         [DebuggerStepThrough]
-        internal SyncException GetSyncError(string scopeName, Exception exception)
+        internal SyncException GetSyncError(SyncContext context, Exception exception)
         {
-            var syncStage = this.GetContext(scopeName).SyncStage;
+            var syncStage = context.SyncStage;
             var syncException = new SyncException(exception, syncStage);
 
             // try to let the provider enrich the exception
@@ -323,33 +305,7 @@ namespace Dotmim.Sync
 
             return this.Provider.GetScopeBuilder(scopeInfoTableName);
         }
-        /// <summary>
-        /// Sets the current context
-        /// </summary>
-        internal virtual void SetContext(SyncContext context)
-        {
-            if (!this.syncContexts.ContainsKey(context.ScopeName))
-                this.syncContexts.Add(context.ScopeName, context);
-            else
-                this.syncContexts[context.ScopeName] = context;
-        }
-
-        /// <summary>
-        /// Gets the current context
-        /// </summary>
-        //[DebuggerStepThrough]
-        public virtual SyncContext GetContext(string scopeName)
-        {
-            if (this.syncContexts.ContainsKey(scopeName))
-                return this.syncContexts[scopeName];
-
-            var syncContext = new SyncContext(Guid.NewGuid(), scopeName);
-
-            this.syncContexts.Add(scopeName, syncContext);
-
-            return syncContext;
-        }
-
+  
 
         //private long? GetLastSyncTimestamp(SyncContext ctx, ClientScopeInfo  clientScopeInfo)
         //{
@@ -367,20 +323,14 @@ namespace Dotmim.Sync
         /// Check if the orchestrator database is outdated
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<bool> IsOutDatedAsync(ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext, bool)> IsOutDatedAsync(SyncContext context, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
             bool isOutdated = false;
-
-            // Get context or create a new one
-            var ctx = this.GetContext(clientScopeInfo.Name);
 
             // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
             // so far we return directly false
             if (clientScopeInfo.IsNewScope)
-                return false;
+                return (context, false);
 
             if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
                 isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
@@ -388,41 +338,53 @@ namespace Dotmim.Sync
             // Get a chance to make the sync even if it's outdated
             if (isOutdated)
             {
-                var outdatedArgs = new OutdatedArgs(ctx, clientScopeInfo, serverScopeInfo);
+                var outdatedArgs = new OutdatedArgs(context, clientScopeInfo, serverScopeInfo);
 
                 // Interceptor
                 await this.InterceptAsync(outdatedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (outdatedArgs.Action != OutdatedAction.Rollback)
                 {
-                    ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
-                    this.SetContext(ctx);
+                    context.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
                 }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
                     throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);
             }
 
-            return isOutdated;
+            return (context, isOutdated);
         }
+
+
+
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+            => GetHelloAsync(SyncOptions.DefaultScopeName, connection, transaction,  cancellationToken, progress);
+
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            return InternalGetHelloAsync(context, connection, transaction, cancellationToken, progress);
+        }
+
 
         /// <summary>
         /// Get hello from database
         /// </summary>
-        public virtual async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        public virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
+            SyncContext context,  DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             try
             {
                 // TODO : get all scopes for Hello all of them
-                await using var runner = await this.GetConnectionAsync(SyncOptions.DefaultScopeName, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
                 var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
                 await runner.CommitAsync().ConfigureAwait(false);
-                return (hello.DatabaseName, hello.Version);
+                return (context, hello.DatabaseName, hello.Version);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(SyncOptions.DefaultScopeName, ex);
+                throw GetSyncError(context, ex);
             }
         }
 

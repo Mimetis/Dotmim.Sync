@@ -22,107 +22,112 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the server scope histories
         /// </summary>
-        public virtual async Task<ServerHistoryScopeInfo> GetServerHistoryScopeInfoAsync(string scopeId, string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext context, ServerHistoryScopeInfo serverHistoryScopeInfo)>
+            GetServerHistoryScopeInfoAsync(string scopeId, string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                var exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(scopeName, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Get scope if exists
-                var serverHistoryScope = await this.InternalLoadServerHistoryScopeAsync(scopeId, scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                ServerHistoryScopeInfo serverHistoryScope;
+                (context, serverHistoryScope) = await this.InternalLoadServerHistoryScopeAsync(scopeId, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return serverHistoryScope;
+                return (context, serverHistoryScope);
 
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(context, ex);
             }
         }
 
         /// <summary>
         /// Update or Insert a server scope row
         /// </summary>
-        public virtual async Task<ServerHistoryScopeInfo> SaveServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext context, ServerHistoryScopeInfo serverHistoryScopeInfo)>
+            SaveServerHistoryScopeInfoAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), serverHistoryScopeInfo.Name);
             try
             {
-                await using var runner = await this.GetConnectionAsync(serverHistoryScopeInfo.Name, SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(serverHistoryScopeInfo.Name, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(serverHistoryScopeInfo.Name, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Write scopes locally
-                var scopeInfoUpdated = await this.InternalSaveServerHistoryScopeAsync(serverHistoryScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverHistoryScopeInfo) = await this.InternalSaveServerHistoryScopeAsync(serverHistoryScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return scopeInfoUpdated as ServerHistoryScopeInfo;
+                return (context, serverHistoryScopeInfo);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(serverHistoryScopeInfo.Name, ex);
+                throw GetSyncError(context, ex);
             }
         }
 
         /// <summary>
         /// Internal exists server history scope
         /// </summary>
-        internal async Task<bool> InternalExistsServerHistoryScopeInfoAsync(string scopeId, string scopeName, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool exists)> 
+            InternalExistsServerHistoryScopeInfoAsync(string scopeId, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistServerHistoryScopeInfo, connection, transaction);
 
-            if (existsCommand == null) return false;
+            if (existsCommand == null) return (context, false);
 
-            var ctx = this.GetContext(scopeName);
 
-            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", scopeName);
+            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
             DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_Id", scopeId);
 
             if (existsCommand == null)
-                return false;
+                return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(ctx, existsCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, existsCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;
-            return exists;
+            return (context, exists);
         }
 
         /// <summary>
         /// Internal load a server history scope by scope name
         /// </summary>
-        internal async Task<ServerHistoryScopeInfo> InternalLoadServerHistoryScopeAsync(string scopeId, string scopeName, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, ServerHistoryScopeInfo serverHistoryScopeInfo)> 
+            InternalLoadServerHistoryScopeAsync(string scopeId, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetServerHistoryScopeInfo, connection, transaction);
 
-            if (command == null) return null;
-
-            var ctx = this.GetContext(scopeName);
+            if (command == null) return (context, null);
 
             DbSyncAdapter.SetParameterValue(command, "sync_scope_id", scopeId);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", scopeName);
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", context.ScopeName);
 
-            var action = new ScopeLoadingArgs(ctx, scopeName, DbScopeType.ServerHistory, command, connection, transaction);
+            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.ServerHistory, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
-                return null;
+                return (context, null);
 
-            await this.InterceptAsync(new DbCommandArgs(ctx, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -136,34 +141,33 @@ namespace Dotmim.Sync
             if (serverHistoryScopeInfo.Schema != null)
                 serverHistoryScopeInfo.Schema.EnsureSchema();
 
-            var scopeLoadedArgs = new ScopeLoadedArgs(ctx, scopeName, DbScopeType.ServerHistory, serverHistoryScopeInfo, connection, transaction);
+            var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.ServerHistory, serverHistoryScopeInfo, connection, transaction);
             await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
-            return serverHistoryScopeInfo;
+            return (context, serverHistoryScopeInfo);
         }
 
         /// <summary>
         /// Internal load all server histories scopes. scopeName arg is just here for getting context
         /// </summary>
-        internal async Task<List<ServerHistoryScopeInfo>> InternalLoadAllServerHistoriesScopesAsync(string scopeName, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, List<ServerHistoryScopeInfo> serverHistoryScopeInfos)> 
+            InternalLoadAllServerHistoriesScopesAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllServerHistoryScopesInfo, connection, transaction);
 
-            if (command == null) return null;
+            if (command == null) return (context, null);
 
-            var ctx = this.GetContext(scopeName);
-
-            var action = new ScopeLoadingArgs(ctx, scopeName, DbScopeType.ServerHistory, command, connection, transaction);
+            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.ServerHistory, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
-                return null;
+                return (context, null);
 
             var serverHistoriesScopes = new List<ServerHistoryScopeInfo>();
 
-            await this.InterceptAsync(new DbCommandArgs(ctx, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -181,12 +185,12 @@ namespace Dotmim.Sync
 
             foreach (var scopeInfo in serverHistoriesScopes)
             {
-                var scopeLoadedArgs = new ScopeLoadedArgs(ctx, scopeName, DbScopeType.ServerHistory, scopeInfo, connection, transaction);
+                var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.ServerHistory, scopeInfo, connection, transaction);
                 await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             }
 
-            return serverHistoriesScopes;
+            return (context, serverHistoriesScopes);
         }
 
         private ServerHistoryScopeInfo InternalReadServerHistoryScopeInfo(DbDataReader reader)
@@ -206,11 +210,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal upsert server scope info in a server scope table
         /// </summary>
-        internal async Task<ServerHistoryScopeInfo> InternalSaveServerHistoryScopeAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, ServerHistoryScopeInfo serverHistoryScopeInfo)> 
+            InternalSaveServerHistoryScopeAsync(ServerHistoryScopeInfo serverHistoryScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var scopeExists = await InternalExistsServerHistoryScopeInfoAsync(serverHistoryScopeInfo.Id.ToString(), serverHistoryScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            bool scopeExists;
+            (context, scopeExists) = await InternalExistsServerHistoryScopeInfoAsync(serverHistoryScopeInfo.Id.ToString(), context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             DbCommand command;
             if (scopeExists)
@@ -218,19 +224,17 @@ namespace Dotmim.Sync
             else
                 command = scopeBuilder.GetCommandAsync(DbScopeCommandType.InsertServerHistoryScopeInfo, connection, transaction);
 
-            if (command == null) return null;
+            if (command == null) return (context, null);
 
             command = InternalSetSaveServerHistoryScopeParameters(serverHistoryScopeInfo, command);
 
-            var ctx = this.GetContext(serverHistoryScopeInfo.Name);
-
-            var action = new ScopeSavingArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.ServerHistory, serverHistoryScopeInfo, command, connection, transaction);
+            var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.ServerHistory, serverHistoryScopeInfo, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
                 return default;
 
-            await this.InterceptAsync(new DbCommandArgs(ctx, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -240,9 +244,9 @@ namespace Dotmim.Sync
 
             reader.Close();
 
-            await this.InterceptAsync(new ScopeSavedArgs(ctx, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.ServerHistory, newServerHistoryScopeInfo, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ScopeSavedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.ServerHistory, newServerHistoryScopeInfo, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return newServerHistoryScopeInfo;
+            return (context, newServerHistoryScopeInfo);
         }
 
         private DbCommand InternalSetSaveServerHistoryScopeParameters(ServerHistoryScopeInfo serverHistoryScopeInfo, DbCommand command)

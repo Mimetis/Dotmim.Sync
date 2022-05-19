@@ -161,12 +161,12 @@ internal class Program
         var scopeInfo = await clientOrchestrator.ProvisionAsync("v1", setupV1);
 
         var oldClientOrchestrator = new LocalOrchestrator(clientProvider1, options);
-        var defaultScopeInfo = await oldClientOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
+        var clientScopeInfo = await oldClientOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
 
-        scopeInfo.LastServerSyncTimestamp = defaultScopeInfo.LastServerSyncTimestamp;
-        scopeInfo.LastSyncTimestamp = defaultScopeInfo.LastSyncTimestamp;
-        scopeInfo.LastSync = defaultScopeInfo.LastSync;
-        scopeInfo.LastSyncDuration = defaultScopeInfo.LastSyncDuration;
+        clientScopeInfo.LastServerSyncTimestamp = defaultScopeInfo.LastServerSyncTimestamp;
+        clientScopeInfo.LastSyncTimestamp = defaultScopeInfo.LastSyncTimestamp;
+        clientScopeInfo.LastSync = defaultScopeInfo.LastSync;
+        clientScopeInfo.LastSyncDuration = defaultScopeInfo.LastSyncDuration;
 
         await clientOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 

@@ -156,159 +156,152 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes on remote provider
         /// </summary>
-        internal virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, ConflictResolutionPolicy ServerPolicy, DatabaseChangesApplied ClientChangesApplied, DatabaseChangesSelected ServerChangesSelected)>
-            ApplyThenGetChangesAsync(ClientScopeInfo clientScope, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext context, ServerSyncChanges serverSyncChanges)>
+            InternalApplyThenGetChangesAsync(ClientScopeInfo clientScope, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            try
+            long remoteClientTimestamp = 0L;
+            DatabaseChangesSelected serverChangesSelected = null;
+            DatabaseChangesApplied clientChangesApplied = null;
+            BatchInfo serverBatchInfo = null;
+
+            //Direction set to Upload
+            context.SyncWay = SyncWay.Upload;
+
+            // Create two transactions
+            // First one to commit changes
+            // Second one to get changes now that everything is commited
+            await using (var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
             {
-                if (!this.StartTime.HasValue)
-                    this.StartTime = DateTime.UtcNow;
 
-                // Get context or create a new one
-                var ctx = this.GetContext(clientScope.Name);
+                IScopeInfo serverClientScopeInfo;
+                // Getting server scope assumes we have already created the schema on server
+                // Scope name is the scope name coming from client
+                // Since server can have multiples scopes
+                (context, serverClientScopeInfo) = await this.InternalLoadServerScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                long remoteClientTimestamp = 0L;
-                DatabaseChangesSelected serverChangesSelected = null;
-                DatabaseChangesApplied clientChangesApplied = null;
-                BatchInfo serverBatchInfo = null;
-                SyncSet schema = null;
+                // Should we ?
+                if (serverClientScopeInfo == null || serverClientScopeInfo.Schema == null)
+                    throw new MissingRemoteOrchestratorSchemaException();
 
+                // Deserialiaze schema
+                var schema = serverClientScopeInfo.Schema;
 
-                //Direction set to Upload
-                ctx.SyncWay = SyncWay.Upload;
+                // Create message containing everything we need to apply on server side
+                var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
+                                this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo);
 
-                IScopeInfo serverClientScopeInfo = null;
-                // Create two transactions
-                // First one to commit changes
-                // Second one to get changes now that everything is commited
-                await using (var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
-                {
-                    // Getting server scope assumes we have already created the schema on server
-                    // Scope name is the scope name coming from client
-                    // Since server can have multiples scopes
-                    serverClientScopeInfo = await this.InternalLoadServerScopeInfoAsync(clientScope.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                // Call provider to apply changes
+                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(serverClientScopeInfo, context, applyChanges, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    // Should we ?
-                    if (serverClientScopeInfo == null || serverClientScopeInfo.Schema == null)
-                        throw new MissingRemoteOrchestratorSchemaException();
+                await this.InterceptAsync(new TransactionCommitArgs(context, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                    // Deserialiaze schema
-                    schema = serverClientScopeInfo.Schema;
-
-                    // Create message containing everything we need to apply on server side
-                    var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
-                                    this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo);
-
-                    // Call provider to apply changes
-                    (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(serverClientScopeInfo, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                    // commit first transaction
-                    await runner.CommitAsync().ConfigureAwait(false);
-                }
-
-                await using (var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
-                {
-                    ctx.ProgressPercentage = 0.55;
-
-                    //Direction set to Download
-                    ctx.SyncWay = SyncWay.Download;
-
-                    // JUST Before get changes, get the timestamp, to be sure to 
-                    // get rows inserted / updated elsewhere since the sync is not over
-                    remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(serverClientScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress);
-
-                    // Get if we need to get all rows from the datasource
-                    var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
-
-                    // When we get the chnages from server, we create the batches if it's requested by the client
-                    // the batch decision comes from batchsize from client
-                    (ctx, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangesAsync(clientScope, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id,
-                        this.Provider.SupportsMultipleActiveResultSets,
-                        this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    if (cancellationToken.IsCancellationRequested)
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                    // generate the new scope item
-                    this.CompleteTime = DateTime.UtcNow;
-
-                    var scopeHistory = new ServerHistoryScopeInfo
-                    {
-                        Id = clientScope.Id,
-                        Name = clientScope.Name,
-                        LastSyncTimestamp = remoteClientTimestamp,
-                        LastSync = this.CompleteTime,
-                        LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks,
-                    };
-
-                    // Write scopes locally
-                    await this.InternalSaveServerHistoryScopeAsync(scopeHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    // Commit second transaction for getting changes
-                    await this.InterceptAsync(new TransactionCommitArgs(ctx, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                    await runner.CommitAsync().ConfigureAwait(false);
-                }
-                return (remoteClientTimestamp, serverBatchInfo, this.Options.ConflictResolutionPolicy, clientChangesApplied, serverChangesSelected);
+                // commit first transaction
+                await runner.CommitAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
+
+            await using (var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
             {
-                throw GetSyncError(clientScope.Name, ex);
+                context.ProgressPercentage = 0.55;
+
+                //Direction set to Download
+                context.SyncWay = SyncWay.Download;
+
+                // JUST Before get changes, get the timestamp, to be sure to 
+                // get rows inserted / updated elsewhere since the sync is not over
+                (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+
+                // Get if we need to get all rows from the datasource
+                var fromScratch = clientScope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
+
+                // When we get the chnages from server, we create the batches if it's requested by the client
+                // the batch decision comes from batchsize from client
+                (context, serverBatchInfo, serverChangesSelected) =
+                    await this.InternalGetChangesAsync(clientScope, context, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id,
+                    this.Provider.SupportsMultipleActiveResultSets,
+                    this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (runner.CancellationToken.IsCancellationRequested)
+                    runner.CancellationToken.ThrowIfCancellationRequested();
+
+                // generate the new scope item
+                this.CompleteTime = DateTime.UtcNow;
+
+                var scopeHistory = new ServerHistoryScopeInfo
+                {
+                    Id = clientScope.Id,
+                    Name = clientScope.Name,
+                    LastSyncTimestamp = remoteClientTimestamp,
+                    LastSync = this.CompleteTime,
+                    LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
+                };
+
+                // Write scopes locally
+                await this.InternalSaveServerHistoryScopeAsync(scopeHistory, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                // Commit second transaction for getting changes
+                await this.InterceptAsync(new TransactionCommitArgs(context, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
             }
+
+            var serverSyncChanges = new ServerSyncChanges(
+                remoteClientTimestamp, serverBatchInfo, serverChangesSelected, clientChangesApplied, this.Options.ConflictResolutionPolicy);
+                
+
+            return (context, serverSyncChanges);
+
         }
 
         /// <summary>
         /// Get changes from remote database
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
+        public virtual async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
             GetChangesAsync(ClientScopeInfo clientScope, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+
+            var context = new SyncContext(Guid.NewGuid(), clientScope.Name);
             try
             {
-                // Get context or create a new one
-                var ctx = this.GetContext(clientScope.Name);
 
-                await using var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Before getting changes, be sure we have a remote schema available
-                var serverScope = await this.GetServerScopeInfoAsync(clientScope.Name, clientScope.Setup, runner.Connection, runner.Transaction, cancellationToken, progress);
+                ServerScopeInfo serverScopeInfo;
+                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, runner.Connection, runner.Transaction, cancellationToken, progress);
                 // TODO : if serverScope.Schema is null, should we Provision here ?
 
                 // Should we ?
-                if (serverScope.Schema == null)
+                if (serverScopeInfo.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-
                 //Direction set to Download
-                ctx.SyncWay = SyncWay.Download;
+                context.SyncWay = SyncWay.Download;
 
                 // Output
                 // JUST Before get changes, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(clientScope.Name, runner.Connection, runner.Transaction, cancellationToken, progress);
+                long remoteClientTimestamp;
+                (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress);
 
                 // Get if we need to get all rows from the datasource
-                var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
+                var fromScratch = clientScope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
 
                 BatchInfo serverBatchInfo;
                 DatabaseChangesSelected serverChangesSelected;
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                (ctx, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(clientScope, fromScratch, clientScope.LastServerSyncTimestamp, 
+                (context, serverBatchInfo, serverChangesSelected) =
+                    await this.InternalGetChangesAsync(clientScope, context, fromScratch, clientScope.LastServerSyncTimestamp,
                     clientScope.Id, this.Provider.SupportsMultipleActiveResultSets,
                     this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
+                return (context, remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(clientScope.Name, ex);
+                throw GetSyncError(context, ex);
             }
 
         }
@@ -319,40 +312,47 @@ namespace Dotmim.Sync
         public virtual async Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)>
                     GetEstimatedChangesCountAsync(ClientScopeInfo clientScope, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), clientScope.Name);
+
             try
             {
 
-                var serverScope = await this.GetServerScopeInfoAsync(clientScope.Name, clientScope.Setup, connection, transaction, cancellationToken, progress); ;
+                await using var runner0 = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                ServerScopeInfo serverScopeInfo;
+                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, runner0.Connection, runner0.Transaction, runner0.CancellationToken, runner0.Progress).ConfigureAwait(false);
+
+                await runner0.CommitAsync().ConfigureAwait(false);
 
                 // Should we ?
-                if (serverScope.Schema == null)
+                if (serverScopeInfo.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(clientScope.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var ctx = this.GetContext(clientScope.Name);
-                ctx.SyncStage = SyncStage.ChangesSelecting;
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 //Direction set to Download
-                ctx.SyncWay = SyncWay.Download;
+                context.SyncWay = SyncWay.Download;
 
                 // Output
                 // JUST Before get changes, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(clientScope.Name, runner.Connection, runner.Transaction, cancellationToken, progress);
+                long remoteClientTimestamp;
+                (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress);
 
                 // Get if we need to get all rows from the datasource
-                var fromScratch = clientScope.IsNewScope || ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload;
+                var fromScratch = clientScope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
 
                 DatabaseChangesSelected serverChangesSelected;
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                (ctx, serverChangesSelected) =
-                    await this.InternalGetEstimatedChangesCountAsync(serverScope, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverChangesSelected) =
+                    await this.InternalGetEstimatedChangesCountAsync(serverScopeInfo, context, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return (remoteClientTimestamp, serverChangesSelected);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(clientScope.Name, ex);
+                throw GetSyncError(context, ex);
             }
         }
     }

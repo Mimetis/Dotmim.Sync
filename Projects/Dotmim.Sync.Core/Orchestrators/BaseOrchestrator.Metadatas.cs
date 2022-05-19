@@ -21,15 +21,14 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        internal virtual async Task<DatabaseMetadatasCleaned> InternalDeleteMetadatasAsync(
-                    IEnumerable<IScopeInfo> scopeInfos, long timestampLimit,
+        internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)> 
+            InternalDeleteMetadatasAsync(
+                    IEnumerable<IScopeInfo> scopeInfos, SyncContext context, long timestampLimit,
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var context = this.GetContext(SyncOptions.DefaultScopeName);
-
-            DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
+            var databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
             await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfos, timestampLimit, 
                                         connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -89,7 +88,7 @@ namespace Dotmim.Sync
             }
 
             await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection), progress, cancellationToken).ConfigureAwait(false);
-            return databaseMetadatasCleaned;
+            return (context, databaseMetadatasCleaned);
         }
 
 
@@ -97,19 +96,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update a metadata row
         /// </summary>
-        internal async Task<bool> InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        internal async Task<(SyncContext context, bool metadataUpdated)> InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
-            if (command == null) return false;
+            if (command == null) return (context, false);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
-
-            var context = this.GetContext(scopeInfo.Name);
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
@@ -121,7 +118,7 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
 
-            return metadataUpdatedRowsCount > 0;
+            return (context, metadataUpdatedRowsCount > 0);
         }
 
 

@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Net.Mime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,86 +30,106 @@ namespace Dotmim.Sync
         /// Called by the  to indicate that a 
         /// synchronization session has started.
         /// </summary>
-        public async Task BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<SyncContext> BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
+            // Create a new context
+            var ctx = new SyncContext(Guid.NewGuid(), scopeName);
 
-            // Get context or create a new one
-            var ctx = this.GetContext(scopeName);
+            return InternalBeginSessionAsync(ctx, cancellationToken, progress);
+        }
 
-            ctx.SyncStage = SyncStage.BeginSession;
+        internal async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+            context.SyncStage = SyncStage.BeginSession;
 
             var connection = this.Provider.CreateConnection();
 
             // Progress & interceptor
-            await this.InterceptAsync(new SessionBeginArgs(ctx, connection), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SessionBeginArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
+
+            return context;
+
         }
 
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public async Task EndSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task<SyncContext> EndSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
+            // Create a new context
+            var ctx = new SyncContext(Guid.NewGuid(), scopeName);
 
-            // Get context or create a new one
-            var ctx = this.GetContext(scopeName);
+            return InternalEndSessionAsync(ctx, cancellationToken, progress);
+        }
 
-            ctx.SyncStage = SyncStage.EndSession;
+        /// <summary>
+        /// Called when the sync is over
+        /// </summary>
+        public async Task<SyncContext> InternalEndSessionAsync(SyncContext context, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            context.SyncStage = SyncStage.EndSession;
+
             var connection = this.Provider.CreateConnection();
 
             // Progress & interceptor
-            await this.InterceptAsync(new SessionEndArgs(ctx, connection), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SessionEndArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
+
+            return context;
         }
+
 
 
         /// <summary>
         /// Get changes from local database from a specific scope name
         /// </summary>
-        public async Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)>
+        public async Task<(SyncContext context, ClientSyncChanges clientSyncChanges)>
             GetChangesAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ClientScopeInfo;
+                ClientScopeInfo localScopeInfo;
+                (context, localScopeInfo) = await this.InternalLoadClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (localScopeInfo == null)
                     return default;
 
-                var (clientTimestamp, clientBatchInfo, clientChangesSelected)
-                    = await this.GetChangesAsync(localScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                ClientSyncChanges clientChanges = null;
+                (context, clientChanges) = await this.InternalGetChangesAsync(localScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (clientTimestamp, clientBatchInfo, clientChangesSelected);
+                return (context, clientChanges);
 
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(context, ex);
             }
 
         }
+       
+        
+        
         /// <summary>
         /// Get changes from local database from a specific scope you already fetched from local database
         /// </summary>
         /// <returns></returns>
-        public async Task<(long ClientTimestamp, BatchInfo ClientBatchInfo, DatabaseChangesSelected ClientChangesSelected)>
-            GetChangesAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext context, ClientSyncChanges syncChanges)>
+            InternalGetChangesAsync(ClientScopeInfo clientScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             try
             {
-                await using var runner = await this.GetConnectionAsync(clientScopeInfo.Name, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Output
                 long clientTimestamp = 0L;
                 BatchInfo clientBatchInfo = null;
@@ -126,32 +147,32 @@ namespace Dotmim.Sync
                 // isNew : If isNew, lasttimestamp is not correct, so grab all
                 var isNew = clientScopeInfo.IsNewScope;
 
-                var ctx = this.GetContext(clientScopeInfo.Name);
-
-
                 //Direction set to Upload
-                ctx.SyncWay = SyncWay.Upload;
+                context.SyncWay = SyncWay.Upload;
 
                 // JUST before the whole process, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                clientTimestamp = await this.InternalGetLocalTimestampAsync(clientScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
+                (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Locally, if we are new, no need to get changes
                 if (isNew)
                     (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(clientScopeInfo, this.Options.BatchDirectory).ConfigureAwait(false);
                 else
-                    (ctx, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(clientScopeInfo, isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
-                        this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(clientScopeInfo, context, isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
+                        this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (clientTimestamp, clientBatchInfo, clientChangesSelected);
+                var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return (context, changes);
 
             }
             catch (Exception ex)
             {
-                throw GetSyncError(clientScopeInfo.Name, ex);
+                throw GetSyncError(context, ex);
             }
         }
 
@@ -160,19 +181,23 @@ namespace Dotmim.Sync
         /// Get estimated changes from local database to be sent to the server
         /// </summary>
         /// <returns></returns>
-        public async Task<(long ClientTimestamp, DatabaseChangesSelected ClientChangesSelected)>
+        public async Task<(SyncContext context, ClientSyncChanges changes)>
             GetEstimatedChangesCountAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Reading, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var exists = await this.InternalExistsScopeInfoTableAsync(scopeName, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
                     return default;
 
-                var localScopeInfo = await this.InternalLoadClientScopeInfoAsync(scopeName, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false) as ClientScopeInfo;
+                ClientScopeInfo localScopeInfo;
+                (context, localScopeInfo) = await this.InternalLoadClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (localScopeInfo == null)
                     return default;
@@ -186,15 +211,15 @@ namespace Dotmim.Sync
                 Guid? remoteScopeId = null;
                 var lastTimestamp = localScopeInfo.LastSyncTimestamp;
                 var isNew = localScopeInfo.IsNewScope;
-                //Direction set to Upload
-                var ctx = this.GetContext(scopeName);
 
-                ctx.SyncWay = SyncWay.Upload;
+                //Direction set to Upload
+                context.SyncWay = SyncWay.Upload;
 
                 // Output
                 // JUST before the whole process, get the timestamp, to be sure to 
                 // get rows inserted / updated elsewhere since the sync is not over
-                var clientTimestamp = await this.InternalGetLocalTimestampAsync(localScopeInfo.Name, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                long clientTimestamp;
+                (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 DatabaseChangesSelected clientChangesSelected;
 
@@ -202,26 +227,29 @@ namespace Dotmim.Sync
                 if (isNew)
                     clientChangesSelected = new DatabaseChangesSelected();
                 else
-                    (ctx, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(localScopeInfo,
+                    (context, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(
+                        localScopeInfo, context,
                         isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                         runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (clientTimestamp, clientChangesSelected);
+                var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected);
+
+                return (context, changes);
 
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(context, ex);
             }
         }
 
         /// <summary>
         /// Apply changes locally
         /// </summary>
-        internal async Task<(DatabaseChangesApplied ChangesApplied, ClientScopeInfo ClientScopeInfo)>
-            ApplyChangesAsync(ClientScopeInfo clientScopeInfo, BatchInfo serverBatchInfo,
+        internal async Task<(SyncContext context, DatabaseChangesApplied ChangesApplied, ClientScopeInfo ClientScopeInfo)>
+            InternalApplyChangesAsync(ClientScopeInfo clientScopeInfo, SyncContext context, BatchInfo serverBatchInfo,
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, bool snapshotApplied, DatabaseChangesSelected allChangesSelected,
                               DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -241,13 +269,12 @@ namespace Dotmim.Sync
 
                 DatabaseChangesApplied clientChangesApplied;
 
-                await using var runner = await this.GetConnectionAsync(clientScopeInfo.Name, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var ctx = this.GetContext(clientScopeInfo.Name);
-                ctx.SyncWay = SyncWay.Download;
+                context.SyncWay = SyncWay.Download;
 
                 // Call apply changes on provider
-                (ctx, clientChangesApplied) = await this.InternalApplyChangesAsync(clientScopeInfo, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(clientScopeInfo, context, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -255,7 +282,8 @@ namespace Dotmim.Sync
                 // check if we need to delete metadatas
                 if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastTimestamp.HasValue)
                 {
-                    var allScopes = await this.InternalLoadAllClientScopesInfoAsync(clientScopeInfo.Name, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    List<ClientScopeInfo> allScopes;
+                    (context, allScopes) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (allScopes.Count > 0)
                     {
@@ -263,7 +291,7 @@ namespace Dotmim.Sync
                         var minLastTimeStamp = allScopes.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
                         minLastTimeStamp = minLastTimeStamp > lastTimestamp.Value ? lastTimestamp.Value : minLastTimeStamp;
 
-                        await this.InternalDeleteMetadatasAsync(allScopes, minLastTimeStamp, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await this.InternalDeleteMetadatasAsync(allScopes, context, minLastTimeStamp, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
 
@@ -275,18 +303,18 @@ namespace Dotmim.Sync
                 clientScopeInfo.LastSync = this.CompleteTime;
                 clientScopeInfo.LastSyncTimestamp = clientTimestamp;
                 clientScopeInfo.LastServerSyncTimestamp = remoteClientTimestamp;
-                clientScopeInfo.LastSyncDuration = this.CompleteTime.Value.Subtract(this.StartTime.Value).Ticks;
+                clientScopeInfo.LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks;
 
                 // Write scopes locally
-                clientScopeInfo = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (clientChangesApplied, clientScopeInfo);
+                return (context, clientChangesApplied, clientScopeInfo);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(clientScopeInfo.Name, ex);
+                throw GetSyncError(context, ex);
             }
 
         }
@@ -295,34 +323,32 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a snapshot locally
         /// </summary>
-        internal async Task<(DatabaseChangesApplied snapshotChangesApplied, ClientScopeInfo clientScopeInfo)>
-            ApplySnapshotAsync(ClientScopeInfo clientScopeInfo, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
+        internal async Task<(SyncContext context, DatabaseChangesApplied snapshotChangesApplied, ClientScopeInfo clientScopeInfo)>
+            InternalApplySnapshotAsync(ClientScopeInfo clientScopeInfo, SyncContext context, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (serverBatchInfo == null)
-                return (new DatabaseChangesApplied(), clientScopeInfo);
+                return (context, new DatabaseChangesApplied(), clientScopeInfo);
 
             // Get context or create a new one
-            var ctx = this.GetContext(clientScopeInfo.Name);
-
-            ctx.SyncStage = SyncStage.SnapshotApplying;
-            await this.InterceptAsync(new SnapshotApplyingArgs(ctx, this.Provider.CreateConnection()), progress, cancellationToken).ConfigureAwait(false);
+            context.SyncStage = SyncStage.SnapshotApplying;
+            await this.InterceptAsync(new SnapshotApplyingArgs(context, this.Provider.CreateConnection()), progress, cancellationToken).ConfigureAwait(false);
 
             if (clientScopeInfo.Schema == null)
                 throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
 
             // Applying changes and getting the new client scope info
-            var (changesApplied, newClientScopeInfo) = await this.ApplyChangesAsync(clientScopeInfo, serverBatchInfo,
+            var (syncContext, changesApplied, newClientScopeInfo) = await this.InternalApplyChangesAsync(clientScopeInfo, context, serverBatchInfo,
                     clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, databaseChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            await this.InterceptAsync(new SnapshotAppliedArgs(ctx, changesApplied), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SnapshotAppliedArgs(context, changesApplied), progress, cancellationToken).ConfigureAwait(false);
 
             // re-apply scope is new flag
             // to be sure we are calling the Initialize method, even for the delta
             // in that particular case, we want the delta rows coming from the current scope
             newClientScopeInfo.IsNewScope = true;
 
-            return (changesApplied, newClientScopeInfo);
+            return (context, changesApplied, newClientScopeInfo);
 
         }
 

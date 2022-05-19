@@ -21,6 +21,7 @@ namespace Dotmim.Sync
     public class SyncAgent : IDisposable
     {
         private bool syncInProgress;
+        internal Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
 
 
         /// <summary>
@@ -99,6 +100,34 @@ namespace Dotmim.Sync
             {
                 syncInProgress = false;
             }
+        }
+
+
+        /// <summary>
+        /// Sets the current context
+        /// </summary>
+        internal virtual void SetContext(SyncContext context)
+        {
+            if (!this.syncContexts.ContainsKey(context.ScopeName))
+                this.syncContexts.Add(context.ScopeName, context);
+            else
+                this.syncContexts[context.ScopeName] = context;
+        }
+
+        /// <summary>
+        /// Gets the current context
+        /// </summary>
+        //[DebuggerStepThrough]
+        public virtual SyncContext GetContext(string scopeName)
+        {
+            if (this.syncContexts.ContainsKey(scopeName))
+                return this.syncContexts[scopeName];
+
+            var syncContext = new SyncContext(Guid.NewGuid(), scopeName);
+
+            this.syncContexts.Add(scopeName, syncContext);
+
+            return syncContext;
         }
 
         private SyncAgent() { }
@@ -283,35 +312,29 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // Internal set the good reference
-                this.LocalOrchestrator.StartTime = startTime;
-                this.RemoteOrchestrator.StartTime = startTime;
-
-                this.LocalOrchestrator.SetContext(context);
-                this.RemoteOrchestrator.SetContext(context);
-
                 // Begin session
-                await this.LocalOrchestrator.BeginSessionAsync(scopeName, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.LocalOrchestrator.InternalBeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // on remote orchestrator, get Server scope
-                var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup, default, default, cancellationToken, progress).ConfigureAwait(false);
-
+                ServerScopeInfo serverScopeInfo;
+                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 // If we just have create the server scope, we need to provision it
-                // the WebServerOrchestrator will do this setp on the GetServrScopeInfoAsync task, just before
+                // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
                 // So far, on Http mode, this if() will not be called
                 if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
                 {
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    serverScopeInfo = await this.RemoteOrchestrator.ProvisionAsync(serverScopeInfo, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // On local orchestrator, get scope info.
-                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeInfoAsync(scopeName, default, default, default, cancellationToken, progress).ConfigureAwait(false);
+                ClientScopeInfo clientScopeInfo;
+                (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (setup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(setup))
                     throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your scope");
@@ -328,11 +351,11 @@ namespace Dotmim.Sync
 
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    clientScopeInfo = await this.LocalOrchestrator.ProvisionAsync(clientScopeInfo, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
                 else if (this.LocalOrchestrator.InternalNeedsToUpgrade(clientScopeInfo))
                 {
-                    clientScopeInfo = await this.LocalOrchestrator.UpgradeAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    (context, clientScopeInfo) = await this.LocalOrchestrator.InternalUpgradeAsync(clientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (setup == null)
@@ -344,7 +367,8 @@ namespace Dotmim.Sync
                 // Before call the changes from localorchestrator, check if we are outdated
                 if (serverScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
                 {
-                    var isOutDated = await this.LocalOrchestrator.IsOutDatedAsync(clientScopeInfo, serverScopeInfo).ConfigureAwait(false);
+                    bool isOutDated = false;
+                    (context, isOutDated) = await this.LocalOrchestrator.IsOutDatedAsync(context, clientScopeInfo, serverScopeInfo).ConfigureAwait(false);
 
                     // if client does not change SyncType to Reinitialize / ReinitializeWithUpload on SyncInterceptor, we raise an error
                     // otherwise, we are outdated, but we can continue, because we have a new mode.
@@ -355,7 +379,8 @@ namespace Dotmim.Sync
                 context.ProgressPercentage = 0.1;
 
                 // On local orchestrator, get local changes
-                var clientChanges = await this.LocalOrchestrator.GetChangesAsync(clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                ClientSyncChanges clientChanges;
+                (context, clientChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(clientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -371,13 +396,18 @@ namespace Dotmim.Sync
                 if (fromScratch)
                 {
                     // Get snapshot files
-                    var serverSnapshotChanges = await this.RemoteOrchestrator.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    long snapRemoteClientTimestamp;
+                    BatchInfo snapServerBatchInfo;
+                    DatabaseChangesSelected snapDatabaseChangesSelected;
+
+                    (context, snapRemoteClientTimestamp, snapServerBatchInfo, snapDatabaseChangesSelected)
+                        = await this.RemoteOrchestrator.InternalGetSnapshotAsync(serverScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     // Apply snapshot
-                    if (serverSnapshotChanges.ServerBatchInfo != null)
+                    if (snapServerBatchInfo != null)
                     {
-                        (result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.ApplySnapshotAsync(
-                            clientScopeInfo, serverSnapshotChanges.ServerBatchInfo, clientChanges.ClientTimestamp, serverSnapshotChanges.RemoteClientTimestamp, serverSnapshotChanges.DatabaseChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.InternalApplySnapshotAsync(
+                            clientScopeInfo, context, snapServerBatchInfo, clientChanges.Timestamp, snapRemoteClientTimestamp, snapDatabaseChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
 
@@ -385,21 +415,23 @@ namespace Dotmim.Sync
                 var snapshotApplied = result.SnapshotChangesAppliedOnClient != null;
 
                 context.ProgressPercentage = 0.3;
-                // apply is 25%, get changes is 20%
-                var serverChanges = await this.RemoteOrchestrator.ApplyThenGetChangesAsync(clientScopeInfo, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                ServerSyncChanges serverSyncChanges;
+
+                (context, serverSyncChanges) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.BatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Policy is always Server policy, so reverse this policy to get the client policy
-                var reverseConflictResolutionPolicy = serverChanges.ServerPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
+                var reverseConflictResolutionPolicy = serverSyncChanges.ServerResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
                 // apply is 25%
                 context.ProgressPercentage = 0.75;
-                var clientChangesApplied = await this.LocalOrchestrator.ApplyChangesAsync(
-                    clientScopeInfo, serverChanges.ServerBatchInfo,
-                    clientChanges.ClientTimestamp, serverChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
-                    serverChanges.ServerChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
+                var clientChangesApplied = await this.LocalOrchestrator.InternalApplyChangesAsync(
+                    clientScopeInfo, context, serverSyncChanges.BatchInfo,
+                    clientChanges.Timestamp, serverSyncChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
+                    serverSyncChanges.ServerChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 completeTime = DateTime.UtcNow;
                 this.LocalOrchestrator.CompleteTime = completeTime;
@@ -409,13 +441,13 @@ namespace Dotmim.Sync
 
                 // All clients changes selected
                 result.ClientChangesSelected = clientChanges.ClientChangesSelected;
-                result.ServerChangesSelected = serverChanges.ServerChangesSelected;
+                result.ServerChangesSelected = serverSyncChanges.ServerChangesSelected;
                 result.ChangesAppliedOnClient = clientChangesApplied.ChangesApplied;
-                result.ChangesAppliedOnServer = serverChanges.ClientChangesApplied;
+                result.ChangesAppliedOnServer = serverSyncChanges.ClientChangesApplied;
 
                 // Begin session
                 context.ProgressPercentage = 1;
-                await this.LocalOrchestrator.EndSessionAsync(scopeName, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.LocalOrchestrator.InternalEndSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

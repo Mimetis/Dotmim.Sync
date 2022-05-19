@@ -86,28 +86,28 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this WebServerBinder binder,
+        public static void OnHttpSendingChanges(this WebServerAgent webServerAgent,
             Action<HttpSendingServerChangesArgs> action)
-            => binder.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this WebServerBinder binder,
+        public static void OnHttpSendingChanges(this WebServerAgent webServerAgent,
             Func<HttpSendingServerChangesArgs, Task> action)
-            => binder.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this WebServerBinder binder,
+        public static void OnHttpGettingChanges(this WebServerAgent webServerAgent,
             Action<HttpGettingClientChangesArgs> action)
-            => binder.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this WebServerBinder binder,
+        public static void OnHttpGettingChanges(this WebServerAgent webServerAgent,
             Func<HttpGettingClientChangesArgs, Task> action)
-            => binder.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
 
     }
 }

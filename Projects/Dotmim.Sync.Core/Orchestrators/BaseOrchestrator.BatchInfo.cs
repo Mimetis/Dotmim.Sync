@@ -18,23 +18,35 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        public Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
+        public Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
             => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName);
+
+        public Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+
+                return InternalLoadTableFromBatchInfoAsync(context, batchInfo, tableName, schemaName);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
 
 
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        public Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
+        public Task<(SyncContext context, SyncTable syncTable)> InternalLoadTableFromBatchInfoAsync(SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
-                return Task.FromResult<SyncTable>(null);
+                return Task.FromResult<(SyncContext, SyncTable)>((context, null));
 
             // get the sanitazed table (without any readonly / non updatable columns) from batchinfo
             var schemaTable = batchInfo.SanitizedSchema.Tables[tableName, schemaName];
             var table = schemaTable.Clone();
-
-            var context = this.GetContext(scopeName);
 
             var localSerializer = new LocalJsonSerializer();
 
@@ -58,24 +70,41 @@ namespace Dotmim.Sync
                     continue;
 
                 if (bpi.Tables == null || bpi.Tables.Count() < 1)
-                    return Task.FromResult<SyncTable>(null);
+                    return Task.FromResult<(SyncContext, SyncTable)>((context, null));
 
                 foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
                     table.Rows.Add(syncRow);
             }
 
 
-            return Task.FromResult(table);
+            return Task.FromResult((context, table));
         }
+
+
 
 
         public Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo)
             => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo);
 
+
+        public Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+
+                return InternalLoadTableFromBatchPartInfoAsync(context, batchInfo, batchPartInfo);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        public Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
+        public Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
                 return Task.FromResult<SyncTable>(null);
@@ -95,8 +124,6 @@ namespace Dotmim.Sync
 
             var table = schemaTable.Clone();
 
-            var context = this.GetContext(scopeName);
-
             var interceptorReading = this.interceptors.GetInterceptor<DeserializingRowArgs>();
             if (!interceptorReading.IsEmpty)
             {
@@ -115,18 +142,31 @@ namespace Dotmim.Sync
         }
 
 
-
-        public Task SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
-            => SaveTableToBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncTable);
-
         /// <summary>
         /// Save a batch part info containing all rows from a sync table
         /// </summary>
         /// <param name="batchInfo">Represents the directory containing all batch parts and the schema associated</param>
         /// <param name="batchPartInfo">Represents the table to serialize in a batch part</param>
         /// <param name="syncTable">The table to serialize</param>
-        /// <returns></returns>
-        public async Task SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        public Task<SyncContext> SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+            => SaveTableToBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncTable);
+
+        public Task<SyncContext> SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+
+                return InternalSaveTableToBatchPartInfoAsync(context, batchInfo, batchPartInfo, syncTable);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
+        public async Task<SyncContext> InternalSaveTableToBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
             var localSerializer = new LocalJsonSerializer();
 
@@ -135,8 +175,6 @@ namespace Dotmim.Sync
 
             if (File.Exists(fullPath))
                 File.Delete(fullPath);
-
-            var context = this.GetContext(scopeName);
 
             var interceptorWriting = this.interceptors.GetInterceptor<SerializingRowArgs>();
             if (!interceptorWriting.IsEmpty)
@@ -157,6 +195,7 @@ namespace Dotmim.Sync
             // Close file
             await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
 
+            return context;
         }
 
     }

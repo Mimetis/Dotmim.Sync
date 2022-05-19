@@ -17,12 +17,12 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Server
 {
-    public class WebServerBinder
+    public class WebServerAgent
     {
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
-        public WebServerBinder(CoreProvider provider, SyncOptions options, SyncSetup setup, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
+        public WebServerAgent(CoreProvider provider, SyncOptions options, SyncSetup setup, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
         {
             this.Setup = setup;
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
@@ -35,17 +35,17 @@ namespace Dotmim.Sync.Web.Server
         private IConverter clientConverter;
 
         /// <summary>
-        /// Gets or Sets the setup used in this binder
+        /// Gets or Sets the setup used in this webServerAgent
         /// </summary>
         public SyncSetup Setup { get; set; }
 
         /// <summary>
-        /// Gets or Sets the options used in this binder
+        /// Gets or Sets the options used in this webServerAgent
         /// </summary>
         public SyncOptions Options { get; set; }
 
         /// <summary>
-        /// Gets or Sets the options used in this binder
+        /// Gets or Sets the options used in this webServerAgent
         /// </summary>
         public CoreProvider Provider { get; }
 
@@ -55,12 +55,12 @@ namespace Dotmim.Sync.Web.Server
         public WebServerOptions WebServerOptions { get; set; }
 
         /// <summary>
-        /// Gets or Sets the scope name used in this binder
+        /// Gets or Sets the scope name used in this webServerAgent
         /// </summary>
         public string ScopeName { get; set; }
 
         /// <summary>
-        /// Gets or sets the RemoteOrchestrator used in this binder
+        /// Gets or sets the RemoteOrchestrator used in this webServerAgent
         /// </summary>
         public RemoteOrchestrator RemoteOrchestrator { get; set; }
 
@@ -166,7 +166,7 @@ namespace Dotmim.Sync.Web.Server
                 {
                     case HttpStep.EnsureScopes:
                         var m1 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m1.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m1.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s1 = await this.EnsureScopesAsync(httpContext, m1, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
                         break;
@@ -174,57 +174,57 @@ namespace Dotmim.Sync.Web.Server
                     // version >= 0.8    
                     case HttpStep.SendChangesInProgress:
                         var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        //await this.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
                         var s22 = await this.ApplyThenGetChangesAsync2(httpContext, m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
-                        //await this.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s22);
                         break;
 
                     case HttpStep.GetMoreChanges:
                         var m4 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m4.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m4.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s4 = await this.GetMoreChangesAsync(httpContext, m4, sessionCache, cancellationToken, progress);
-                        //await this.InterceptAsync(new HttpSendingServerChangesArgs(s4, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s4, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s4);
                         break;
 
                     case HttpStep.GetSnapshot:
                         var m5 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m5.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m5.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s5 = await this.GetSnapshotAsync(httpContext, m5, sessionCache, cancellationToken, progress);
-                        //await this.InterceptAsync(new HttpSendingServerChangesArgs(s5, httpContext.Request.Host.Host, sessionCache, true), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s5, httpContext.Request.Host.Host, sessionCache, true), progress, cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s5);
                         break;
 
                     // version >= 0.8    
                     case HttpStep.GetSummary:
                         var m55 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m55.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m55.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s55 = await this.GetSnapshotSummaryAsync(httpContext, m55, sessionCache, cancellationToken, progress);
                         // todo : remove this one ?
-                        //await this.InterceptAsync(new HttpSendingServerChangesArgs(s5.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, true), cancellationToken).ConfigureAwait(false);
+                        //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s5.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, true), cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s55);
 
                         break;
                     case HttpStep.SendEndDownloadChanges:
                         var m56 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m56.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m56.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s56 = await this.SendEndDownloadChangesAsync(httpContext, m56, sessionCache, cancellationToken, progress);
-                        //await this.InterceptAsync(new HttpSendingServerChangesArgs(s56, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s56, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s56);
                         break;
 
                     case HttpStep.GetEstimatedChangesCount:
                         var m6 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m6.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m6.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s6 = await this.GetEstimatedChangesCountAsync(httpContext, m6, cancellationToken, progress);
-                        //await this.InterceptAsync(new HttpSendingServerChangesArgs(s6, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s6, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s6);
                         break;
                     case HttpStep.GetRemoteClientTimestamp:
                         var m7 = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampRequest>().DeserializeAsync(readableStream);
-                        //await this.InterceptAsync(new HttpGettingRequestArgs(httpContext, m7.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m7.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s7 = await this.GetRemoteClientTimestampAsync(httpContext, m7, cancellationToken, progress);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampResponse>().SerializeAsync(s7);
                         break;
@@ -380,6 +380,8 @@ namespace Dotmim.Sync.Web.Server
             if (this.Setup == null)
                 throw new ArgumentException("You need to set the tables to sync on server side");
 
+            this.RemoteOrchestrator.SetContext(httpMessage.SyncContext);
+
             var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(httpMessage.SyncContext.ScopeName, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
@@ -465,6 +467,8 @@ namespace Dotmim.Sync.Web.Server
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
+            this.RemoteOrchestrator.SetContext(httpMessage.SyncContext);
+
             var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ClientScopeInfo, default, default, cancellationToken, progress);
 
             var changesResponse = new HttpMessageSendChangesResponse(httpMessage.SyncContext)
@@ -483,13 +487,12 @@ namespace Dotmim.Sync.Web.Server
         internal protected virtual async Task<HttpMessageRemoteTimestampResponse> GetRemoteClientTimestampAsync(HttpContext httpContext, HttpMessageRemoteTimestampRequest httpMessage,
                 CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            this.RemoteOrchestrator.SetContext(httpMessage.SyncContext);
+
             var ts = await this.RemoteOrchestrator.GetLocalTimestampAsync(httpMessage.SyncContext.ScopeName, default, default, cancellationToken, progress);
 
             return new HttpMessageRemoteTimestampResponse(httpMessage.SyncContext, ts);
         }
-
-
-
 
         internal protected virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -497,14 +500,14 @@ namespace Dotmim.Sync.Web.Server
             // Get context from request message
             var ctx = httpMessage.SyncContext;
 
-            var remoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
+            this.RemoteOrchestrator.SetContext(httpMessage.SyncContext);
 
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(ctx.ScopeName, this.Setup);
+            var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(ctx.ScopeName, this.Setup);
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
 
             // get changes
-            var snap = await remoteOrchestrator.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.RemoteOrchestrator.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(ctx)
             {
@@ -529,6 +532,9 @@ namespace Dotmim.Sync.Web.Server
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(httpMessage.SyncContext.ScopeName, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+            this.RemoteOrchestrator.SetContext(httpMessage.SyncContext);
+
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
             // Set setup & schema since it's not sent by client
@@ -581,6 +587,8 @@ namespace Dotmim.Sync.Web.Server
             // Set setup & schema since it's not sent by client
             httpMessage.ClientScopeInfo.Schema = serverScopeInfo.Schema;
             httpMessage.ClientScopeInfo.Setup = serverScopeInfo.Setup;
+
+            this.RemoteOrchestrator.SetContext(httpMessage.SyncContext);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
@@ -667,7 +675,7 @@ namespace Dotmim.Sync.Web.Server
 
             // get changes
             var (remoteClientTimestamp, serverBatchInfo, _, clientChangesApplied, serverChangesSelected) =
-                   await this.RemoteOrchestrator.ApplyThenGetChangesAsync(httpMessage.ClientScopeInfo, sessionCache.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                   await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(httpMessage.ClientScopeInfo, sessionCache.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Set session cache infos
             sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
@@ -747,6 +755,7 @@ namespace Dotmim.Sync.Web.Server
 
             var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(syncContext.ScopeName, this.Setup).ConfigureAwait(false);
 
+            this.RemoteOrchestrator.SetContext(syncContext);
 
             // TODO : Is it used ?
             httpContext.Session.Set(syncContext.ScopeName, serverScopeInfo.Schema);
@@ -810,6 +819,8 @@ namespace Dotmim.Sync.Web.Server
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessage.BatchIndexRequested);
+
+            this.RemoteOrchestrator.SetContext(httpMessage.SyncContext);
 
             // If we have only one bpi, we can safely delete it
             if (batchPartInfo.IsLastBatch)
@@ -924,10 +935,10 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-        public static Task WriteHelloAsync(HttpContext context, WebServerBinder binder, CancellationToken cancellationToken = default)
-                    => WriteHelloAsync(context, new[] { binder }, cancellationToken);
+        public static Task WriteHelloAsync(HttpContext context, WebServerAgent webServerAgent, CancellationToken cancellationToken = default)
+                    => WriteHelloAsync(context, new[] { webServerAgent }, cancellationToken);
 
-        public static async Task WriteHelloAsync(HttpContext context, IEnumerable<WebServerBinder> binders, CancellationToken cancellationToken = default)
+        public static async Task WriteHelloAsync(HttpContext context, IEnumerable<WebServerAgent> webServerAgents, CancellationToken cancellationToken = default)
         {
             var httpResponse = context.Response;
             var stringBuilder = new StringBuilder();
@@ -948,7 +959,7 @@ namespace Dotmim.Sync.Web.Server
             stringBuilder.AppendLine("<div class='container'>");
             stringBuilder.AppendLine("<h2>Web Server properties</h2>");
 
-            foreach (var binder in binders)
+            foreach (var webServerAgent in webServerAgents)
             {
 
                 string dbName = null;
@@ -957,7 +968,7 @@ namespace Dotmim.Sync.Web.Server
                 bool hasException = false;
                 try
                 {
-                    (dbName, version) = await binder.RemoteOrchestrator.GetHelloAsync();
+                    (dbName, version) = await webServerAgent.RemoteOrchestrator.GetHelloAsync();
                 }
                 catch (Exception ex)
                 {
@@ -996,10 +1007,10 @@ namespace Dotmim.Sync.Web.Server
                 }
 
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
-                stringBuilder.AppendLine($"<li class='list-group-item active'>ScopeName: {binder.ScopeName}</li>");
+                stringBuilder.AppendLine($"<li class='list-group-item active'>ScopeName: {webServerAgent.ScopeName}</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                var s = JsonConvert.SerializeObject(binder.Setup, Formatting.Indented);
+                var s = JsonConvert.SerializeObject(webServerAgent.Setup, Formatting.Indented);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Setup</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1009,7 +1020,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                s = JsonConvert.SerializeObject(binder.Provider, Formatting.Indented);
+                s = JsonConvert.SerializeObject(webServerAgent.Provider, Formatting.Indented);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Provider</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1019,7 +1030,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                s = JsonConvert.SerializeObject(binder.Options, Formatting.Indented);
+                s = JsonConvert.SerializeObject(webServerAgent.Options, Formatting.Indented);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1029,7 +1040,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                s = JsonConvert.SerializeObject(binder.WebServerOptions, Formatting.Indented);
+                s = JsonConvert.SerializeObject(webServerAgent.WebServerOptions, Formatting.Indented);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Web Server Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");

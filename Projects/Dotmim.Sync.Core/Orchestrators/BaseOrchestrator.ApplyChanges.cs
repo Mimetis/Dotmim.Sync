@@ -25,12 +25,11 @@ namespace Dotmim.Sync
         /// the fromScope is server scope when this method is called from client
         /// </summary>
         internal virtual async Task<(SyncContext, DatabaseChangesApplied)>
-            InternalApplyChangesAsync(IScopeInfo scopeInfo, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
+            InternalApplyChangesAsync(IScopeInfo scopeInfo, SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             // call interceptor
-            var context = this.GetContext(scopeInfo.Name);
             var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, message, connection, transaction);
             await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
@@ -54,7 +53,7 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables)
                     {
-                        await this.InternalDisableConstraintsAsync(scopeInfo, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
+                        context = await this.InternalDisableConstraintsAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
                     }
                 }
 
@@ -65,7 +64,7 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables.Reverse())
                     {
-                        await this.InternalResetTableAsync(scopeInfo, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
+                        context = await this.InternalResetTableAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
                     }
                 }
 
@@ -79,7 +78,7 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables)
                     {
-                        await this.InternalApplyTableChangesAsync(scopeInfo, table, message, connection, transaction,
+                        context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, connection, transaction,
                             DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
@@ -91,7 +90,7 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables.Reverse())
                     {
-                        await this.InternalApplyTableChangesAsync(scopeInfo, table, message, connection, transaction,
+                        context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, connection, transaction,
                             DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
@@ -99,7 +98,7 @@ namespace Dotmim.Sync
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
                     foreach (var table in schemaTables)
-                        await this.InternalEnableConstraintsAsync(scopeInfo, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
+                        context = await this.InternalEnableConstraintsAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
 
                 // Dispose data
                 message.BatchInfo.Clear(false);
@@ -124,7 +123,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
         /// </summary>
-        private async Task InternalApplyTableChangesAsync(IScopeInfo scopeInfo, SyncTable schemaTable, MessageApplyChanges message,
+        private async Task<SyncContext> InternalApplyTableChangesAsync(IScopeInfo scopeInfo, SyncContext context, SyncTable schemaTable, MessageApplyChanges message,
             DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -132,27 +131,25 @@ namespace Dotmim.Sync
             var setupTable = scopeInfo.Setup.Tables[schemaTable.TableName, schemaTable.SchemaName];
 
             if (setupTable == null)
-                return;
+                return context;
 
             // Only table schema is replicated, no datas are applied
             if (setupTable.SyncDirection == SyncDirection.None)
-                return;
-
-            var context = this.GetContext(scopeInfo.Name);
+                return context;
 
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
-                return;
+                return context;
 
             // if we are in download stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
-                return;
+                return context;
 
             var hasChanges = message.BatchInfo.HasData(schemaTable.TableName, schemaTable.SchemaName);
 
             // Each table in the messages contains scope columns. Don't forget it
             if (!hasChanges)
-                return;
+                return context;
 
             // what kind of command to execute
             var init = message.IsNew || context.SyncType != SyncType.Normal;
@@ -169,7 +166,7 @@ namespace Dotmim.Sync
             // Get command
             var (command, isBatch) = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
 
-            if (command == null) return;
+            if (command == null) return context;
 
             var bpiTables = message.BatchInfo.GetBatchPartsInfo(schemaTable);
 
@@ -178,7 +175,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             if (args.Cancel || args.Command == null)
-                return;
+                return context;
 
             command = args.Command;
             var cmdText = command.CommandText;
@@ -312,8 +309,11 @@ namespace Dotmim.Sync
 
                     foreach (var conflictRow in conflictRows)
                     {
-                        var (conflictResolvedCount, resolvedRow, rowAppliedCount) =
-                            await this.HandleConflictAsync(scopeInfo, message.LocalScopeId, message.SenderScopeId, syncAdapter, context, conflictRow, schemaChangesTable,
+                        int conflictResolvedCount;
+                        SyncRow resolvedRow;
+                        int rowAppliedCount;
+                        (context, conflictResolvedCount, resolvedRow, rowAppliedCount) =
+                            await this.HandleConflictAsync(scopeInfo, context, message.LocalScopeId, message.SenderScopeId, syncAdapter, conflictRow, schemaChangesTable,
                                                            message.Policy, message.LastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         conflictsResolvedCount += conflictResolvedCount;
@@ -393,14 +393,17 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
             }
 
+
+            return context;
         }
 
         /// <summary>
         /// Handle a conflict
         /// The int returned is the conflict count I need 
         /// </summary>
-        private async Task<(int conflictResolvedCount, SyncRow resolvedRow, int rowAppliedCount)> HandleConflictAsync(IScopeInfo scopeInfo,
-                                Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, SyncContext context, SyncRow conflictRow, SyncTable schemaChangesTable,
+        private async Task<(SyncContext context, int conflictResolvedCount, SyncRow resolvedRow, int rowAppliedCount)>
+            HandleConflictAsync(IScopeInfo scopeInfo, SyncContext context,
+                                Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, SyncRow conflictRow, SyncTable schemaChangesTable,
                                 ConflictResolutionPolicy policy, long? lastTimestamp, DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -412,8 +415,8 @@ namespace Dotmim.Sync
             int rowAppliedCount = 0;
             Guid? nullableSenderScopeId;
 
-            (conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) =
-                await this.GetConflictActionAsync(scopeInfo, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
+            (context, conflictApplyAction, conflictType, localRow, finalRow, nullableSenderScopeId) =
+                 await this.GetConflictActionAsync(scopeInfo, context, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
                 policy, senderScopeId, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Conflict rollbacked by user
@@ -428,13 +431,14 @@ namespace Dotmim.Sync
 
                 // Conflict on a line that is not present on the datasource
                 if (row == null)
-                    return (conflictResolvedCount: 1, finalRow, rowAppliedCount: 0);
+                    return (context, conflictResolvedCount: 1, finalRow, rowAppliedCount: 0);
 
                 // if we have a merge action, we apply the row on the server
                 if (isMergeAction)
                 {
+                    bool isUpdated;
                     // if merge, we update locally the row and let the sync_update_scope_id set to null
-                    var isUpdated = await this.InternalApplyConflictUpdateAsync(scopeInfo, syncAdapter, row, lastTimestamp, null, true, connection, transaction).ConfigureAwait(false);
+                    (context, isUpdated) = await this.InternalApplyConflictUpdateAsync(scopeInfo, context, syncAdapter, row, lastTimestamp, null, true, connection, transaction).ConfigureAwait(false);
                     // We don't update metadatas so the row is updated (on server side) 
                     // and is mark as updated locally.
                     // and will be returned back to sender, since it's a merge, and we need it on the client
@@ -446,7 +450,7 @@ namespace Dotmim.Sync
                 finalRow = isMergeAction ? row : localRow;
 
                 // We don't do anything, since we let the original row. so we resolved one conflict but applied no rows
-                return (conflictResolvedCount: 1, finalRow, rowAppliedCount: 0);
+                return (context, conflictResolvedCount: 1, finalRow, rowAppliedCount: 0);
 
             }
 
@@ -455,7 +459,7 @@ namespace Dotmim.Sync
             {
                 // TODO : Should Raise an error ?
                 if (conflictRow == null)
-                    return (0, finalRow, 0);
+                    return (context, 0, finalRow, 0);
 
                 bool operationComplete = false;
 
@@ -463,20 +467,20 @@ namespace Dotmim.Sync
                 {
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteExistsLocalExists:
-                        operationComplete = await this.InternalApplyConflictUpdateAsync(scopeInfo, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
+                        (context, operationComplete) = await this.InternalApplyConflictUpdateAsync(scopeInfo, context, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
                         rowAppliedCount = 1;
                         break;
 
                     case ConflictType.RemoteExistsLocalNotExists:
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
-                        operationComplete = await this.InternalApplyConflictUpdateAsync(scopeInfo, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
+                        (context, operationComplete) = await this.InternalApplyConflictUpdateAsync(scopeInfo, context, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
                         rowAppliedCount = 1;
                         break;
 
                     // Conflict, but both have delete the row, so just update the metadata to the right winner
                     case ConflictType.RemoteIsDeletedLocalIsDeleted:
-                        operationComplete = await this.InternalUpdateMetadatasAsync(scopeInfo, syncAdapter, conflictRow, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
+                        (context, operationComplete) = await this.InternalUpdateMetadatasAsync(scopeInfo, context, syncAdapter, conflictRow, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
                         rowAppliedCount = 0;
                         break;
 
@@ -489,12 +493,12 @@ namespace Dotmim.Sync
                     // The remote has delete the row, and local has insert or update it
                     // So delete the local row
                     case ConflictType.RemoteIsDeletedLocalExists:
-                        operationComplete = await this.InternalApplyConflictDeleteAsync(scopeInfo, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
+                        (context, operationComplete) = await this.InternalApplyConflictDeleteAsync(scopeInfo, context, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
 
                         // Conflict, but both have delete the row, so just update the metadata to the right winner
                         if (!operationComplete)
                         {
-                            operationComplete = await this.InternalUpdateMetadatasAsync(scopeInfo, syncAdapter, conflictRow, nullableSenderScopeId, true, connection, transaction);
+                            (context, operationComplete) = await this.InternalUpdateMetadatasAsync(scopeInfo, context, syncAdapter, conflictRow, nullableSenderScopeId, true, connection, transaction);
                             rowAppliedCount = 0;
 
                         }
@@ -506,7 +510,7 @@ namespace Dotmim.Sync
                         break;
 
                     case ConflictType.ErrorsOccurred:
-                        return (0, finalRow, 0);
+                        return (context, 0, finalRow, 0);
                 }
 
                 finalRow = conflictRow;
@@ -518,16 +522,17 @@ namespace Dotmim.Sync
                     this.Logger.LogError("Force update should always work..");
                 }
 
-                return (1, finalRow, rowAppliedCount);
+                return (context, 1, finalRow, rowAppliedCount);
             }
 
-            return (0, finalRow, 0);
+            return (context, 0, finalRow, 0);
         }
 
         /// <summary>
         /// A conflict has occured, we try to ask for the solution to the user
         /// </summary>
-        private async Task<(ApplyAction, ConflictType, SyncRow, SyncRow, Guid?)> GetConflictActionAsync(IScopeInfo scopeInfo, Guid localScopeId, DbSyncAdapter syncAdapter, SyncRow conflictRow,
+        private async Task<(SyncContext context, ApplyAction applyAction, ConflictType conflictType, SyncRow localRow, SyncRow finalRow, Guid? finalSenderScopeId)>
+            GetConflictActionAsync(IScopeInfo scopeInfo, SyncContext context, Guid localScopeId, DbSyncAdapter syncAdapter, SyncRow conflictRow,
             SyncTable schemaChangesTable, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -547,8 +552,6 @@ namespace Dotmim.Sync
 
             // default conflict type
             ConflictType conflictType = conflictRow.RowState == DataRowState.Deleted ? ConflictType.RemoteIsDeletedLocalExists : ConflictType.RemoteExistsLocalExists;
-            
-            var context = this.GetContext(scopeInfo.Name);
 
             // if is not empty, get the conflict and intercept
             // We don't get the conflict on automatic conflict resolution
@@ -557,7 +560,7 @@ namespace Dotmim.Sync
             if (!interceptor.IsEmpty)
             {
                 // Get the localRow
-                localRow = await this.InternalGetConflictRowAsync(scopeInfo, syncAdapter, localScopeId, conflictRow, schemaChangesTable, connection, transaction).ConfigureAwait(false);
+                (context, localRow) = await this.InternalGetConflictRowAsync(scopeInfo, context, syncAdapter, localScopeId, conflictRow, schemaChangesTable, connection, transaction).ConfigureAwait(false);
                 // Get the conflict
                 var conflict = this.GetConflict(conflictRow, localRow);
 
@@ -588,7 +591,7 @@ namespace Dotmim.Sync
                 action = ApplyAction.Rollback;
 
             // returning the action to take, and actually the finalRow if action is set to Merge
-            return (action, conflictType, localRow, finalRow, finalSenderScopeId);
+            return (context, action, conflictType, localRow, finalRow, finalSenderScopeId);
         }
 
         /// <summary>
@@ -637,12 +640,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to get a source row
         /// </summary>
-        private async Task<SyncRow> InternalGetConflictRowAsync(IScopeInfo scopeInfo, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
+        private async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
 
-            if (command == null) return null;
+            if (command == null) return (context, null);
 
             // set the primary keys columns as parameters
             syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
@@ -651,7 +654,6 @@ namespace Dotmim.Sync
             var changesSet = schema.Schema.Clone(false);
             var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
 
-            var context = this.GetContext(scopeInfo.Name);
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
@@ -659,7 +661,7 @@ namespace Dotmim.Sync
             if (!dataReader.Read())
             {
                 dataReader.Close();
-                return null;
+                return (context, null);
             }
 
             // Create a new empty row
@@ -689,20 +691,20 @@ namespace Dotmim.Sync
 
             dataReader.Close();
 
-            return syncRow;
+            return (context, syncRow);
         }
 
         /// <summary>
         /// Apply a delete on a row
         /// </summary>
-        private async Task<bool> InternalApplyConflictDeleteAsync(IScopeInfo scopeInfo, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        private async Task<(SyncContext, bool)> InternalApplyConflictDeleteAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             if (row.SchemaTable == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
 
-            if (command == null) return false;
+            if (command == null) return (context, false);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
@@ -710,7 +712,6 @@ namespace Dotmim.Sync
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
 
-            var context = this.GetContext(scopeInfo.Name);
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -721,28 +722,26 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 rowDeletedCount = (int)syncRowCountParam.Value;
 
-            return rowDeletedCount > 0;
+            return (context, rowDeletedCount > 0);
         }
 
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, override conflict situation and force the update
         /// </summary>
-        private async Task<bool> InternalApplyConflictUpdateAsync(IScopeInfo scopeInfo, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        private async Task<(SyncContext, bool)> InternalApplyConflictUpdateAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             if (row.SchemaTable == null)
                 throw new ArgumentException("Schema table is not present in the row");
 
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
 
-            if (command == null) return false;
+            if (command == null) return (context, false);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
-
-            var context = this.GetContext(scopeInfo.Name);
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
@@ -754,7 +753,7 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 rowUpdatedCount = (int)syncRowCountParam.Value;
 
-            return rowUpdatedCount > 0;
+            return (context, rowUpdatedCount > 0);
         }
 
 

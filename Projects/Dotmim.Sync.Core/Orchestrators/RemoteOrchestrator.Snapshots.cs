@@ -24,109 +24,136 @@ namespace Dotmim.Sync
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
 
+
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
-            GetSnapshotAsync(IScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
+            GetSnapshotAsync(ServerScopeInfo serverScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
 
             try
             {
-                // Get context or create a new one
-                var ctx = this.GetContext(scopeInfo.Name);
-                var changesSelected = new DatabaseChangesSelected();
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                BatchInfo serverBatchInfo = null;
-                if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                    return (0, null, changesSelected);
+                long remoteClientTimestamp;
+                BatchInfo serverBatchInfo;
+                DatabaseChangesSelected databaseChangesSelected;
 
-                //Direction set to Download
-                ctx.SyncWay = SyncWay.Download;
+                (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected) =
+                    await this.InternalGetSnapshotAsync(serverScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
+                await runner.CommitAsync().ConfigureAwait(false);
 
-                // Get Schema from remote provider if no schema passed from args
-                if (scopeInfo.Schema == null)
-                {
-                    scopeInfo = await this.GetServerScopeInfoAsync(scopeInfo.Name, scopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
+                return (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected);
 
-                // When we get the changes from server, we create the batches if it's requested by the client
-                // the batch decision comes from batchsize from client
-                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(scopeInfo.Name, default, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!string.IsNullOrEmpty(rootDirectory))
-                {
-                    var directoryFullPath = Path.Combine(rootDirectory, nameDirectory);
-
-                    // if no snapshot present, just return null value.
-                    if (Directory.Exists(directoryFullPath))
-                    {
-                        // Serialize on disk.
-                        var jsonConverter = new Serialization.JsonConverter<BatchInfo>();
-
-                        var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
-
-                        using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
-                        {
-                            serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
-                        }
-
-                        // Create the schema changeset
-                        var changesSet = new SyncSet();
-
-                        // Create a Schema set without readonly columns, attached to memory changes
-                        foreach (var table in scopeInfo.Schema.Tables)
-                        {
-                            DbSyncAdapter.CreateChangesTable(scopeInfo.Schema.Tables[table.TableName, table.SchemaName], changesSet);
-
-                            // Get all stats about this table
-                            var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>
-                            {
-                                var sc = SyncGlobalization.DataSourceStringComparison;
-
-                                var sn = t.SchemaName == null ? string.Empty : t.SchemaName;
-                                var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
-
-                                return table.TableName.Equals(t.TableName, sc) && sn.Equals(otherSn, sc);
-
-                            }));
-
-                            if (bptis != null)
-                            {
-                                // Statistics
-                                var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName)
-                                {
-                                    // we are applying a snapshot where it can't have any deletes, obviously
-                                    Upserts = bptis.Sum(bpti => bpti.RowsCount)
-                                };
-
-                                if (tableChangesSelected.Upserts > 0)
-                                    changesSelected.TableChangesSelected.Add(tableChangesSelected);
-                            }
-
-
-                        }
-                        serverBatchInfo.SanitizedSchema = changesSet;
-                    }
-                }
-                if (serverBatchInfo == null)
-                    return (0, null, changesSelected);
-
-                return (serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeInfo.Name, ex);
+                throw GetSyncError(context, ex);
             }
         }
 
 
+        /// <summary>
+        /// Get a snapshot
+        /// </summary>
+        public virtual async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
+            InternalGetSnapshotAsync(ServerScopeInfo serverScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            // Get context or create a new one
+            var changesSelected = new DatabaseChangesSelected();
+
+            BatchInfo serverBatchInfo = null;
+            if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
+                return (context, 0, null, changesSelected);
+
+            //Direction set to Download
+            context.SyncWay = SyncWay.Download;
+
+            if (cancellationToken.IsCancellationRequested)
+                cancellationToken.ThrowIfCancellationRequested();
+
+            // Get Schema from remote provider if no schema passed from args
+            if (serverScopeInfo.Schema == null)
+            {
+                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, serverScopeInfo.Setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            }
+
+            // When we get the changes from server, we create the batches if it's requested by the client
+            // the batch decision comes from batchsize from client
+            var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(serverScopeInfo.Name, default, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            if (!string.IsNullOrEmpty(rootDirectory))
+            {
+                var directoryFullPath = Path.Combine(rootDirectory, nameDirectory);
+
+                // if no snapshot present, just return null value.
+                if (Directory.Exists(directoryFullPath))
+                {
+                    // Serialize on disk.
+                    var jsonConverter = new Serialization.JsonConverter<BatchInfo>();
+
+                    var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
+
+                    using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
+                    {
+                        serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                    }
+
+                    // Create the schema changeset
+                    var changesSet = new SyncSet();
+
+                    // Create a Schema set without readonly columns, attached to memory changes
+                    foreach (var table in serverScopeInfo.Schema.Tables)
+                    {
+                        DbSyncAdapter.CreateChangesTable(serverScopeInfo.Schema.Tables[table.TableName, table.SchemaName], changesSet);
+
+                        // Get all stats about this table
+                        var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>
+                        {
+                            var sc = SyncGlobalization.DataSourceStringComparison;
+
+                            var sn = t.SchemaName == null ? string.Empty : t.SchemaName;
+                            var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
+
+                            return table.TableName.Equals(t.TableName, sc) && sn.Equals(otherSn, sc);
+
+                        }));
+
+                        if (bptis != null)
+                        {
+                            // Statistics
+                            var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName)
+                            {
+                                // we are applying a snapshot where it can't have any deletes, obviously
+                                Upserts = bptis.Sum(bpti => bpti.RowsCount)
+                            };
+
+                            if (tableChangesSelected.Upserts > 0)
+                                changesSelected.TableChangesSelected.Add(tableChangesSelected);
+                        }
 
 
-        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null,
+                    }
+                    serverBatchInfo.SanitizedSchema = changesSet;
+                }
+            }
+            if (serverBatchInfo == null)
+                return (context, 0, null, changesSelected);
+
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
+            return (context, serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
+
+        }
+
+
+        public virtual Task<(SyncContext context, BatchInfo batchInfo)> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null,
             DbConnection connection = default, DbTransaction transaction = default,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters, connection, transaction, cancellationToken, progress);
@@ -136,17 +163,18 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null,
+        public virtual async Task<(SyncContext context, BatchInfo batchInfo)> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null,
             DbConnection connection = default, DbTransaction transaction = default,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+
             try
             {
-                await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.SnapshotCreating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
                     throw new SnapshotMissingMandatariesOptionsException();
 
-                var context = this.GetContext(scopeName);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.SnapshotCreating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // check parameters
                 // If context has no parameters specified, and user specifies a parameter collection we switch them
@@ -154,7 +182,8 @@ namespace Dotmim.Sync
                     context.Parameters = syncParameters;
 
                 // 1) Get Schema from remote provider
-                var serverScopeInfo = await this.InternalGetServerScopeInfoAsync(scopeName, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                ServerScopeInfo serverScopeInfo;
+                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // If we just have create the server scope, we need to provision it
                 if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
@@ -162,37 +191,39 @@ namespace Dotmim.Sync
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                    await this.InternalProvisionAsync(serverScopeInfo, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalProvisionAsync(serverScopeInfo, context, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Write scopes locally
-                    serverScopeInfo = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, serverScopeInfo) = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // 4) Getting the most accurate timestamp
-                var remoteClientTimestamp = await this.InternalGetLocalTimestampAsync(serverScopeInfo.Name, 
+                long remoteClientTimestamp;
+                (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // 5) Create the snapshot with
-                var batchInfo = await this.InternalCreateSnapshotAsync(serverScopeInfo, remoteClientTimestamp,
+                BatchInfo batchInfo;
+
+                (context, batchInfo) = await this.InternalCreateSnapshotAsync(serverScopeInfo, context, remoteClientTimestamp,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return batchInfo;
+                return (context, batchInfo);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(scopeName, ex);
+                throw GetSyncError(context, ex);
             }
 
         }
 
-        internal virtual async Task<BatchInfo> InternalCreateSnapshotAsync(ServerScopeInfo serverScopeInfo,
+        internal virtual async Task<(SyncContext context, BatchInfo batchInfo)>
+            InternalCreateSnapshotAsync(ServerScopeInfo serverScopeInfo, SyncContext context,
               long remoteClientTimestamp, DbConnection connection, DbTransaction transaction,
               CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            var context = this.GetContext(serverScopeInfo.Name);
-
             await this.InterceptAsync(new SnapshotCreatingArgs(context, serverScopeInfo.Schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, this.Provider.CreateConnection(), null), progress, cancellationToken).ConfigureAwait(false);
 
             if (!Directory.Exists(this.Options.SnapshotsDirectory))
@@ -213,8 +244,8 @@ namespace Dotmim.Sync
 
             BatchInfo serverBatchInfo;
 
-            (_, serverBatchInfo, _) =
-                    await this.InternalGetChangesAsync(serverScopeInfo, true, null, Guid.Empty, 
+            (context, serverBatchInfo, _) =
+                    await this.InternalGetChangesAsync(serverScopeInfo, context, true, null, Guid.Empty,
                     this.Provider.SupportsMultipleActiveResultSets,
                     rootDirectory, nameDirectory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -234,7 +265,7 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new SnapshotCreatedArgs(context, serverBatchInfo, this.Provider.CreateConnection(), null), progress, cancellationToken).ConfigureAwait(false);
 
-            return serverBatchInfo;
+            return (context, serverBatchInfo);
         }
 
 

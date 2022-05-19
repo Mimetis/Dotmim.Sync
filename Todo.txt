@@ -35,3 +35,9 @@ Maybe, we should log something here ?
 - Check all behaviors from Sql Change Tracking are same now that Triggers are agnostic to columns. Check tests 
 
 - Make tests on serializing / deserializing, especially with http (OnWritingRow, OnReadingRow)
+
+- Check all InternalMethods have no default for connection, transaction, cancellationtoken, progress in arguments list
+
+- Check All InternalMethods call are affecting the context instance (and no call are just " await Internal..." and more "(context, _) = await Internal...."   )
+
+- Check all Internal methods are not public and are internal
