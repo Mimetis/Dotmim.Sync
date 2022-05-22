@@ -72,4 +72,8 @@
 			<PackagePath></PackagePath>
 		</None>
 	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Orchestrators\" />
+	</ItemGroup>
 </Project>

@@ -18,10 +18,10 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        public Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
+        public virtual Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
             => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName);
 
-        public Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
+        public virtual Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -39,7 +39,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        public Task<(SyncContext context, SyncTable syncTable)> InternalLoadTableFromBatchInfoAsync(SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default)
+        internal virtual Task<(SyncContext context, SyncTable syncTable)> InternalLoadTableFromBatchInfoAsync(SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
                 return Task.FromResult<(SyncContext, SyncTable)>((context, null));
@@ -83,11 +83,11 @@ namespace Dotmim.Sync
 
 
 
-        public Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo)
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo)
             => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo);
 
 
-        public Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -104,7 +104,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        public Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
+        internal Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
                 return Task.FromResult<SyncTable>(null);
@@ -148,10 +148,10 @@ namespace Dotmim.Sync
         /// <param name="batchInfo">Represents the directory containing all batch parts and the schema associated</param>
         /// <param name="batchPartInfo">Represents the table to serialize in a batch part</param>
         /// <param name="syncTable">The table to serialize</param>
-        public Task<SyncContext> SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        public virtual Task<SyncContext> SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
             => SaveTableToBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncTable);
 
-        public Task<SyncContext> SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        public virtual Task<SyncContext> SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -165,8 +165,7 @@ namespace Dotmim.Sync
             }
         }
 
-
-        public async Task<SyncContext> InternalSaveTableToBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        internal async Task<SyncContext> InternalSaveTableToBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
             var localSerializer = new LocalJsonSerializer();
 

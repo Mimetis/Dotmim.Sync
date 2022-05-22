@@ -18,8 +18,6 @@ namespace Dotmim.Sync
 {
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
-
- 
         public virtual Task<ServerScopeInfo> GetServerScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, null, connection, transaction, cancellationToken, progress);
 
@@ -80,7 +78,6 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Internal exists scope
         /// </summary>
@@ -107,7 +104,7 @@ namespace Dotmim.Sync
         }
 
 
-        internal async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> 
+        internal virtual async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> 
             InternalGetServerScopeInfoAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -190,7 +187,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load a server scope by scope name
         /// </summary>
-        internal async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> InternalLoadServerScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)> 
+            InternalLoadServerScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -229,8 +227,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load all server scopes. scopeName arg is just here for getting context
         /// </summary>
-        internal async Task<(SyncContext context, List<ServerScopeInfo> serverScopeInfos)> InternalLoadAllServerScopesInfosAsync(
-            SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, List<ServerScopeInfo> serverScopeInfos)> 
+            InternalLoadAllServerScopesInfosAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 

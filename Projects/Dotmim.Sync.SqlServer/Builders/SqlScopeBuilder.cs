@@ -40,7 +40,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0"; ;
+            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
             return command;
         }
         public override DbCommand GetExistsServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
@@ -48,7 +48,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0"; ;
+            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
             return command;
         }
         public override DbCommand GetExistsServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
@@ -56,7 +56,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0"; ;
+            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
             return command;
         }
         // ------------------------------

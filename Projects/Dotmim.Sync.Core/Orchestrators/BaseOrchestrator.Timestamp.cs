@@ -42,7 +42,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Read a scope info
         /// </summary>
-        internal async Task<(SyncContext context, long timestamp)> InternalGetLocalTimestampAsync(SyncContext context,
+        internal virtual async Task<(SyncContext context, long timestamp)> InternalGetLocalTimestampAsync(SyncContext context,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {

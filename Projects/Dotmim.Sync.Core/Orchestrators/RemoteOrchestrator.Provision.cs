@@ -92,7 +92,8 @@ namespace Dotmim.Sync
 
         }
 
-        public virtual async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)>
+
+        internal virtual async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)>
           InternalProvisionServerAsync(ServerScopeInfo serverScopeInfo, SyncContext context, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try

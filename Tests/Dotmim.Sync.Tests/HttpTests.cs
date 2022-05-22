@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Tests
             await this.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
 
             // Create the table on the server
-            await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript); ;
+            await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript);
 
             // create empty client databases
             foreach (var client in this.Clients)

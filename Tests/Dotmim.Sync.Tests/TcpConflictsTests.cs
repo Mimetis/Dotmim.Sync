@@ -1652,7 +1652,7 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                await Generate_DC_DS_Conflict(client, options); ;
+                await Generate_DC_DS_Conflict(client, options);
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 

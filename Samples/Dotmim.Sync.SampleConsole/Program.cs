@@ -114,7 +114,7 @@ internal class Program
         // Client 1 provider. Will migrate to the new schema (with one more column)
         var clientProvider1 = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         // Client 2 provider: Will stay with old schema
-        var clientProvider2 = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client2"));
+        //var clientProvider2 = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client2"));
 
         // --------------------------
         // Step 1: Create a default scope and Sync clients
@@ -125,8 +125,11 @@ internal class Program
         var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Debug };
 
         // Sync 2 clients
-        var agent1 = new SyncAgent(clientProvider1, serverProvider, options);
-        Console.WriteLine(await agent1.SynchronizeAsync(progress));
+        var agent = new SyncAgent(clientProvider1, serverProvider, options);
+        Console.WriteLine(await agent.SynchronizeAsync(setup, progress: progress));
+        var localOrchestrator = agent.LocalOrchestrator;
+        var remoteOrchestrator = agent.RemoteOrchestrator;
+
 
         // --------------------------
         // Step2 : Adding a new column "CreatedDate datetime NULL" on the server
@@ -139,8 +142,7 @@ internal class Program
         setupV1.Tables["ProductCategory"].Columns.AddRange(
             new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name", "rowguid", "ModifiedDate", "CreatedDate" });
 
-        var serverOrchestrator = new RemoteOrchestrator(serverProvider, options);
-        var serverScope = await serverOrchestrator.ProvisionAsync("v1", setupV1);
+        var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
 
         // Add a product category row on server (just to check we are still able to get this row on clients)
         await AddProductCategoryRowWithOneMoreColumnAsync(serverProvider);
@@ -153,25 +155,29 @@ internal class Program
         // Step 3 : Add the column to client 1, add the new scope "v1" and sync
         await AddColumnsToProductCategoryAsync(clientProvider1);
 
-        // Provision the "v1" scope on the client with the new setup
-        var clientOrchestrator = new LocalOrchestrator(clientProvider1, options);
-        await clientOrchestrator.ProvisionAsync("v1", setupV1);
+        // Step 4 Add product table
+        await localOrchestrator.CreateTableAsync(serverScope, "Product");
 
-        var defaultClientScopeInfo = await clientOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
-        var v1ClientScopeInfo = await clientOrchestrator.GetClientScopeInfoAsync("v1"); // scope name is SyncOptions.DefaultScopeName, which is default value
+
+        // Provision the "v1" scope on the client with the new setup
+        await localOrchestrator.ProvisionAsync("v1", setupV1);
+
+        var defaultClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
+        var v1ClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync("v1"); // scope name is SyncOptions.DefaultScopeName, which is default value
 
         v1ClientScopeInfo.LastServerSyncTimestamp = defaultClientScopeInfo.LastServerSyncTimestamp;
         v1ClientScopeInfo.LastSyncTimestamp = defaultClientScopeInfo.LastSyncTimestamp;
         v1ClientScopeInfo.LastSync = defaultClientScopeInfo.LastSync;
         v1ClientScopeInfo.LastSyncDuration = defaultClientScopeInfo.LastSyncDuration;
 
-        await clientOrchestrator.SaveClientScopeInfoAsync(v1ClientScopeInfo);
+        await localOrchestrator.SaveClientScopeInfoAsync(v1ClientScopeInfo);
 
-        // create a new agent and make a sync on the "v1" scope
-        // don't need to pass setup and options anymore
-        var agent1v1 = new SyncAgent(clientProvider1, serverProvider, options);
+        Console.WriteLine(await agent.SynchronizeAsync("v1", progress: progress));
 
-        Console.WriteLine(await agent1v1.SynchronizeAsync(SyncType.ReinitializeWithUpload, setupV1, "v1", default, progress)); ;
+        var deprovision = SyncProvision.StoredProcedures;
+        await localOrchestrator.DeprovisionAsync(defaultClientScopeInfo, deprovision);
+
+
 
         // --------------------------
         // Step 4 : Do nothing on client 2 and see if we can still sync
@@ -183,13 +189,13 @@ internal class Program
 
     //private static async Task ScenarioMigrationRemovingColumnsAsync()
     //{
-        //var progress = new SynchronousProgress<ProgressArgs>(s =>
-        //{
-        //    Console.ForegroundColor = ConsoleColor.Green;
-        //    Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
-        //    Console.ResetColor();
+    //var progress = new SynchronousProgress<ProgressArgs>(s =>
+    //{
+    //    Console.ForegroundColor = ConsoleColor.Green;
+    //    Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+    //    Console.ResetColor();
 
-        //});
+    //});
 
     //    // Server provider
     //    var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));

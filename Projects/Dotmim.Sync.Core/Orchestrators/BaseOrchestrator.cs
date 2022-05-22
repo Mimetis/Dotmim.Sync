@@ -135,7 +135,7 @@ namespace Dotmim.Sync
             // Check logger, because we make some reflection here
             if (this.Logger.IsEnabled(LogLevel.Information))
             {
-                var argsTypeName = args.GetType().Name.Replace("Args", ""); ;
+                var argsTypeName = args.GetType().Name.Replace("Args", "");
                 if (this.Logger.IsEnabled(LogLevel.Debug))
                     this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
                 else
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
         /// Open a connection
         /// </summary>
         //[DebuggerStepThrough]
-        internal async Task OpenConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task OpenConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
@@ -190,7 +190,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Close a connection
         /// </summary>
-        internal async Task CloseConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task CloseConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
@@ -306,18 +306,6 @@ namespace Dotmim.Sync
             return this.Provider.GetScopeBuilder(scopeInfoTableName);
         }
   
-
-        //private long? GetLastSyncTimestamp(SyncContext ctx, ClientScopeInfo  clientScopeInfo)
-        //{
-        //    // Reinitialize timestamp is in Reinit Mode
-        //    if (ctx.SyncType == SyncType.Reinitialize || ctx.SyncType == SyncType.ReinitializeWithUpload)
-        //        return null;
-
-        //    return this.Side == SyncSide.ClientSide ? clientScopeInfo.LastSyncTimestamp : clientScopeInfo.LastServerSyncTimestamp;
-        //}
-
-
-
 
         /// <summary>
         /// Check if the orchestrator database is outdated

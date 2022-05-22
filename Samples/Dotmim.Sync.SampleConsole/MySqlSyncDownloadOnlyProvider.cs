@@ -123,11 +123,11 @@ namespace Dotmim.Sync.SampleConsole
             {
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
-                    return Task.CompletedTask; ;
+                    return Task.CompletedTask;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InsertRow:
                     this.SetUpdateRowParameters(command);
-                    return Task.CompletedTask; ;
+                    return Task.CompletedTask;
                 default:
                     break;
             }

@@ -175,7 +175,7 @@ namespace Dotmim.Sync
             {
                 // First of all validate if the column is currently supported
                 if (!this.Provider.GetMetadata().IsValid(column))
-                    throw new UnsupportedColumnTypeException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName()); ;
+                    throw new UnsupportedColumnTypeException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
                 if (columnNameLower == "sync_scope_id"
@@ -188,7 +188,7 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_timestamp"
                     || columnNameLower == "sync_row_is_tombstone"
                     )
-                    throw new UnsupportedColumnNameException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName()); ;
+                    throw new UnsupportedColumnNameException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
                 // Gets the max length
                 column.MaxLength = this.Provider.GetMetadata().GetMaxLength(column);

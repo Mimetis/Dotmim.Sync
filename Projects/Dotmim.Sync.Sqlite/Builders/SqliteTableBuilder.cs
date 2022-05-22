@@ -653,7 +653,7 @@ namespace Dotmim.Sync.Sqlite
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"SELECT count(*) FROM pragma_table_info('{this.TableName.Unquoted().ToString()}') WHERE name=@columnName;"; ;
+            command.CommandText = $"SELECT count(*) FROM pragma_table_info('{this.TableName.Unquoted().ToString()}') WHERE name=@columnName;";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@columnName";

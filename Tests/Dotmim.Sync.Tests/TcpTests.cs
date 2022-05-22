@@ -372,7 +372,7 @@ namespace Dotmim.Sync.Tests
             await this.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
 
             // Create the table on the server
-            await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript); ;
+            await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript);
 
             // create empty client databases
             foreach (var client in this.Clients)
@@ -2532,7 +2532,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions()); ;
+                var agent = new SyncAgent(client.Provider, Server.Provider, new SyncOptions());
 
                 var s = await agent.SynchronizeAsync(setup);
 
