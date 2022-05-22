@@ -21,12 +21,19 @@ namespace Dotmim.Sync
     {
 
         public virtual async Task<ClientScopeInfo>
-            ProvisionAsync(ClientScopeInfo clientScopeInfo, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
+            var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
             try
             {
-                (context, clientScopeInfo) = await InternalProvisionClientAsync(clientScopeInfo, context, provision, overwrite, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                ClientScopeInfo clientScopeInfo;
+                (context, clientScopeInfo) = await InternalGetClientScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, clientScopeInfo) = await InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, overwrite, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
                 return clientScopeInfo;
             }
             catch (Exception ex)
@@ -41,13 +48,13 @@ namespace Dotmim.Sync
         /// Scope info parameter should contains Schema and Setup properties
         /// </summary>
         public virtual async Task<(SyncContext context, ClientScopeInfo clientScopeInfo)>
-                    InternalProvisionClientAsync(ClientScopeInfo clientScopeInfo, SyncContext context, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                    InternalProvisionClientAsync(ServerScopeInfo serverScopeInfo, ClientScopeInfo clientScopeInfo, SyncContext context, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (clientScopeInfo.Schema == null)
-                throw new Exception($"No Schema in your scopeInfo {clientScopeInfo.Name}");
+            if (serverScopeInfo.Schema == null)
+                throw new Exception($"No Schema in your server scope info {serverScopeInfo.Name}");
 
-            if (clientScopeInfo.Schema == null)
-                throw new Exception($"No Setup in your scopeInfo {clientScopeInfo.Name}");
+            if (serverScopeInfo.Schema == null)
+                throw new Exception($"No Setup in your server scope info {serverScopeInfo.Name}");
 
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -59,7 +66,11 @@ namespace Dotmim.Sync
             if (provision == SyncProvision.None)
                 provision = SyncProvision.Table | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
 
-            (context, _) = await this.InternalProvisionAsync(clientScopeInfo, context, overwrite, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, _) = await this.InternalProvisionAsync(serverScopeInfo, context, overwrite, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            // set client scope setup and schema
+            clientScopeInfo.Setup = serverScopeInfo.Setup;
+            clientScopeInfo.Schema = serverScopeInfo.Schema;
 
             // Write scopes locally
             (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -71,20 +82,17 @@ namespace Dotmim.Sync
         }
 
 
-        public virtual Task<ClientScopeInfo> ProvisionAsync(SyncSetup setup = null, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => ProvisionAsync(SyncOptions.DefaultScopeName, setup, provision, overwrite, connection, transaction, cancellationToken, progress);
-
         /// <summary>
         /// Provision the local database based on the setup in parameter
         /// The schema should exists in your local database
         /// </summary>
-        public virtual async Task<ClientScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ClientScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
                 ClientScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await InternalProvisionClientAsync(scopeName, context, setup, provision, overwrite, connection, transaction, cancellationToken, progress);
+                (context, clientScopeInfo) = await InternalProvisionClientAsync(scopeName, context, provision, overwrite, connection, transaction, cancellationToken, progress);
                 return clientScopeInfo;
             }
             catch (Exception ex)
@@ -94,7 +102,7 @@ namespace Dotmim.Sync
         }
 
         internal virtual async Task<(SyncContext context, ClientScopeInfo clientScopeInfo)>
-            InternalProvisionClientAsync(string scopeName, SyncContext context, SyncSetup setup = null, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalProvisionClientAsync(string scopeName, SyncContext context, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -104,7 +112,7 @@ namespace Dotmim.Sync
 
             // get client scope and create tables / row if needed
             ClientScopeInfo clientScopeInfo;
-            (context, clientScopeInfo) = await this.InternalGetClientScopeInfoAsync(context, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, clientScopeInfo) = await this.InternalGetClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (clientScopeInfo.Schema == null || !clientScopeInfo.Schema.HasTables || !clientScopeInfo.Schema.HasColumns)
                 throw new MissingTablesException(scopeName);

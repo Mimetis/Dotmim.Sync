@@ -87,7 +87,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoaded++;
             });
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
 
             Assert.Equal(1, scopeTableCreating);

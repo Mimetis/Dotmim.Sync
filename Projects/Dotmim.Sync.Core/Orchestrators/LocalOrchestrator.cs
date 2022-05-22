@@ -25,6 +25,12 @@ namespace Dotmim.Sync
         public LocalOrchestrator(CoreProvider provider, SyncOptions options) : base(provider, options)
         {
         }
+        /// <summary>
+        /// Create a local orchestrator, used to orchestrates the whole sync on the client side
+        /// </summary>
+        public LocalOrchestrator(CoreProvider provider) : base(provider, new SyncOptions())
+        {
+        }
 
         /// <summary>
         /// Called by the  to indicate that a 
@@ -33,9 +39,9 @@ namespace Dotmim.Sync
         public virtual Task BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Create a new context
-            var ctx = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
 
-            return InternalBeginSessionAsync(ctx, cancellationToken, progress);
+            return InternalBeginSessionAsync(context, cancellationToken, progress);
         }
 
         internal async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)

@@ -158,9 +158,8 @@ internal class Program
         // Step 4 Add product table
         await localOrchestrator.CreateTableAsync(serverScope, "Product");
 
-
         // Provision the "v1" scope on the client with the new setup
-        await localOrchestrator.ProvisionAsync("v1", setupV1);
+        await localOrchestrator.ProvisionAsync(serverScope);
 
         var defaultClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
         var v1ClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync("v1"); // scope name is SyncOptions.DefaultScopeName, which is default value

@@ -19,13 +19,13 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Http Client is not able to load batches from server
         /// </summary>
-        public override Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
+        public override Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
               => throw new NotImplementedException();
 
         /// <summary>
         /// Http Client is not able to load batches from server
         /// </summary>
-        public override Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
+        public override Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
                => throw new NotImplementedException();
 
         /// <summary>

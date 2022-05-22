@@ -21,7 +21,7 @@ namespace Dotmim.Sync
     public class SyncAgent : IDisposable
     {
         private bool syncInProgress;
-        internal Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
+        private Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
 
 
         /// <summary>
@@ -334,7 +334,7 @@ namespace Dotmim.Sync
 
                 // On local orchestrator, get scope info.
                 ClientScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (setup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(setup))
                     throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your scope");
@@ -346,12 +346,9 @@ namespace Dotmim.Sync
                 // We need to get the scope from server
                 if (clientScopeInfo.IsNewScope || clientScopeInfo.Schema == null)
                 {
-                    clientScopeInfo.Setup = serverScopeInfo.Setup;
-                    clientScopeInfo.Schema = serverScopeInfo.Schema;
-
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
                 else if (this.LocalOrchestrator.InternalNeedsToUpgrade(clientScopeInfo))
                 {
@@ -407,7 +404,7 @@ namespace Dotmim.Sync
                     if (snapServerBatchInfo != null)
                     {
                         (context, result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.InternalApplySnapshotAsync(
-                            clientScopeInfo, context, snapServerBatchInfo, clientChanges.Timestamp, snapRemoteClientTimestamp, snapDatabaseChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
+                            clientScopeInfo, context, snapServerBatchInfo, clientChanges.ClientTimestamp, snapRemoteClientTimestamp, snapDatabaseChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
 
@@ -418,7 +415,7 @@ namespace Dotmim.Sync
 
                 ServerSyncChanges serverSyncChanges;
 
-                (context, serverSyncChanges) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.BatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverSyncChanges) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -429,8 +426,8 @@ namespace Dotmim.Sync
                 // apply is 25%
                 context.ProgressPercentage = 0.75;
                 var clientChangesApplied = await this.LocalOrchestrator.InternalApplyChangesAsync(
-                    clientScopeInfo, context, serverSyncChanges.BatchInfo,
-                    clientChanges.Timestamp, serverSyncChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
+                    clientScopeInfo, context, serverSyncChanges.ServerBatchInfo,
+                    clientChanges.ClientTimestamp, serverSyncChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
                     serverSyncChanges.ServerChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 completeTime = DateTime.UtcNow;

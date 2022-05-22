@@ -1446,11 +1446,21 @@ namespace Dotmim.Sync.Tests
                 var onTableCreatedCount = 0;
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
-                // Read client schema
-                var clientScope = await localOrchestrator.GetClientScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
+                // Read client scope
+                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
+
+                var schema = await localOrchestrator.GetSchemaAsync(setup);
+
+                var serverScope = new ServerScopeInfo
+                {
+                    Name = clientScope.Name,
+                    Schema = schema,
+                    Setup = setup,
+                    Version = clientScope.Version
+                };
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                clientScope = await localOrchestrator.ProvisionAsync(clientScope, provision);
+                clientScope = await localOrchestrator.ProvisionAsync(serverScope, provision);
 
                 //--------------------------
                 // ASSERTION
@@ -4051,6 +4061,7 @@ namespace Dotmim.Sync.Tests
                 }
             }
         }
+
 
     }
 }

@@ -189,25 +189,25 @@ namespace Dotmim.Sync
             var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
 
             if (setupTable == null)
-                return default;
+                return (context, default, default);
 
 
             // Only table schema is replicated, no datas are applied
             if (setupTable.SyncDirection == SyncDirection.None)
-                return default;
+                return (context, default, default);
 
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
-                return default;
+                return (context, default, default);
 
             // if we are in download stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
-                return default;
+                return (context, default, default);
 
             var selectIncrementalChangesCommand = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
 
             if (selectIncrementalChangesCommand == null)
-                return default;
+                return (context, default, default);
 
             this.InternalSetSelectChangesCommonParameters(context, syncTable, excludintScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
 

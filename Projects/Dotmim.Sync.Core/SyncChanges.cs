@@ -12,10 +12,10 @@ namespace Dotmim.Sync
     public class ClientSyncChanges
     {
 
-        public ClientSyncChanges(long timestamp, BatchInfo batchInfo, DatabaseChangesSelected clientChangesSelected)
+        public ClientSyncChanges(long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected)
         {
-            this.Timestamp = timestamp;
-            this.BatchInfo = batchInfo;
+            this.ClientTimestamp = clientTimestamp;
+            this.ClientBatchInfo = clientBatchInfo;
             this.ClientChangesSelected = clientChangesSelected;
         }
 
@@ -23,12 +23,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the timestamp limit used to get the changes
         /// </summary>
-        public long Timestamp { get; }
+        public long ClientTimestamp { get; }
 
         /// <summary>
         /// Gets the batches serialized locally with all changes. Is Null if called from GetEstimatedChanges
         /// </summary>
-        public BatchInfo BatchInfo { get; }
+        public BatchInfo ClientBatchInfo { get; }
 
         /// <summary>
         /// Gets statistics about changes selected
@@ -42,12 +42,12 @@ namespace Dotmim.Sync
     public class ServerSyncChanges
     {
 
-        public ServerSyncChanges(long remoteClientTimestamp, BatchInfo batchInfo, 
+        public ServerSyncChanges(long remoteClientTimestamp, BatchInfo serverBatchInfo, 
             DatabaseChangesSelected serverChangesSelected, DatabaseChangesApplied clientChangesApplied,
             ConflictResolutionPolicy serverResolutionPolicy)
         {
             this.RemoteClientTimestamp = remoteClientTimestamp;
-            this.BatchInfo = batchInfo;
+            this.ServerBatchInfo = serverBatchInfo;
             this.ClientChangesApplied = clientChangesApplied;
             this.ServerResolutionPolicy = serverResolutionPolicy;
             this.ServerChangesSelected = serverChangesSelected;
@@ -62,7 +62,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the batches serialized locally with all changes
         /// </summary>
-        public BatchInfo BatchInfo { get; }
+        public BatchInfo ServerBatchInfo { get; }
         public DatabaseChangesApplied ClientChangesApplied { get; }
         public ConflictResolutionPolicy ServerResolutionPolicy { get; }
 

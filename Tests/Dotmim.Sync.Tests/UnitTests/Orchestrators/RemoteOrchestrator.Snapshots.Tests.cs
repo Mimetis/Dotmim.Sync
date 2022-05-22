@@ -124,8 +124,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var bi = await remoteOrchestrator.CreateSnapshotAsync(scopeName, setup);
 
-            Assert.Equal(SyncStage.SnapshotCreating, remoteOrchestrator.GetContext(scopeName).SyncStage);
-
             Assert.True(onSnapshotCreating);
             Assert.True(onSnapshotCreated);
 

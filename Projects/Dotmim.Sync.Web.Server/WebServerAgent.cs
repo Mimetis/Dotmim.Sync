@@ -673,7 +673,7 @@ namespace Dotmim.Sync.Web.Server
 
             // Set session cache infos
             sessionCache.RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
-            sessionCache.ServerBatchInfo = serverSyncChanges.BatchInfo;
+            sessionCache.ServerBatchInfo = serverSyncChanges.ServerBatchInfo;
             sessionCache.ServerChangesSelected = serverSyncChanges.ServerChangesSelected;
             sessionCache.ClientChangesApplied = serverSyncChanges.ClientChangesApplied;
 
@@ -690,13 +690,13 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ClientBatchInfo = null;
 
             // Retro compatiblité to version < 0.9.3
-            if (serverSyncChanges.BatchInfo.BatchPartsInfo == null)
-                serverSyncChanges.BatchInfo.BatchPartsInfo = new List<BatchPartInfo>();
+            if (serverSyncChanges.ServerBatchInfo.BatchPartsInfo == null)
+                serverSyncChanges.ServerBatchInfo.BatchPartsInfo = new List<BatchPartInfo>();
 
 
             var summaryResponse = new HttpMessageSummaryResponse(httpMessage.SyncContext)
             {
-                BatchInfo = serverSyncChanges.BatchInfo,
+                BatchInfo = serverSyncChanges.ServerBatchInfo,
                 Step = HttpStep.GetSummary,
                 RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp,
                 ClientChangesApplied = serverSyncChanges.ClientChangesApplied,
@@ -709,12 +709,12 @@ namespace Dotmim.Sync.Web.Server
             if (clientBatchSize <= 0)
             {
                 var containerSet = new ContainerSet();
-                foreach (var table in serverSyncChanges.BatchInfo.SanitizedSchema.Tables)
+                foreach (var table in serverSyncChanges.ServerBatchInfo.SanitizedSchema.Tables)
                 {
                     var containerTable = new ContainerTable(table);
-                    foreach (var part in serverSyncChanges.BatchInfo.GetBatchPartsInfo(table))
+                    foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
                     {
-                        var paths = serverSyncChanges.BatchInfo.GetBatchPartInfoPath(part);
+                        var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
                         var localSerializer = new LocalJsonSerializer();
                         foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
                         {

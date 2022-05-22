@@ -35,6 +35,15 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Create a remote orchestrator, used to orchestrates the whole sync on the server side
+        /// </summary>
+        public RemoteOrchestrator(CoreProvider provider) : base(provider, new SyncOptions())
+        {
+            if (!this.Provider.CanBeServerProvider)
+                throw new UnsupportedServerProviderException(this.Provider.GetProviderTypeName());
+        }
+
+        /// <summary>
         /// Ensure the schema is readed from the server, based on the Setup instance.
         /// Creates all required tables (server_scope tables) and provision all tables (tracking, stored proc, triggers and so on...)
         /// Then return the schema readed
@@ -246,7 +255,7 @@ namespace Dotmim.Sync
 
             var serverSyncChanges = new ServerSyncChanges(
                 remoteClientTimestamp, serverBatchInfo, serverChangesSelected, clientChangesApplied, this.Options.ConflictResolutionPolicy);
-                
+
 
             return (context, serverSyncChanges);
 

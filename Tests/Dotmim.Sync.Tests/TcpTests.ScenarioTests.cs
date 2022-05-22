@@ -35,86 +35,132 @@ namespace Dotmim.Sync.Tests
     public abstract partial class TcpTests : IClassFixture<HelperProvider>, IDisposable
     {
 
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
-        public virtual async Task Scenario_MigrationAddingColumnsAndTableAsync(SyncOptions options)
-        {
 
-            // create a server db and seed it
+        [Fact]
+        public virtual async Task Scenario_Adding_OneColumn_OneTable_With_TwoScopes()
+        {
+            // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
             // create empty client databases
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            var customerRowsCount = 0;
-            // Get count of customer's rows
-            using (var serverDbCtx = new AdventureWorksContext(this.Server))
-                customerRowsCount += serverDbCtx.Customer.Count();
+            // --------------------------
+            // Step 1: Create a default scope and Sync clients
+            // Note we are not including the [Attribute With Space] column
+            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory" });
+            setup.Tables["SalesLT.ProductCategory"].Columns.AddRange(
+                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
-            // Execute a sync on all clients and check results
+            int productCategoryRowsCount = 0;
+            using (var readCtx = new AdventureWorksContext(Server, this.UseFallbackSchema))
+            {
+                productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
+            }
+
+            // First sync to initialiaze client database, create table and fill product categories
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                var r = await agent.SynchronizeAsync(setup);
 
-                // --------------------------
-                // Step 1: Create a default scope and Sync clients
-                var setup = new SyncSetup(new string[] { "Customer" });
-                setup.Tables["Customer"].Columns.AddRange(
-                    new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+            }
 
-                var s = await agent.SynchronizeAsync(setup);
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
 
-                Assert.Equal(customerRowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+            // Adding a new scope on the server with this new column and a new table
+            // Creating a new scope called "V1" on server
+            var setupV1 = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.Product" });
 
-                // --------------------------
-                // Step 2 : Add a new scope to server with this new columns
-                //          Creating a new scope called "V1" on server
-                var setupV1 = new SyncSetup(new string[] { "Customer" });
+            setupV1.Tables["SalesLT.ProductCategory"].Columns.AddRange(
+            new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
 
-                setupV1.Tables["Customer"].Columns.AddRange(
-                    new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName",
-                    "ModifiedDate"});
+            var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
 
-                // Provision this new scope
-                var serverOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-                await serverOrchestrator.ProvisionAsync("v1", setupV1);
 
-                // add column to client
-                await AddColumnsToCustomerAsync(client.Provider);
+            // Create a server new ProductCategory with the new column value filled
+            // and a Product related
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
-                // Provision the "v1" scope on the client with the new setup
-                // 
-                await agent.LocalOrchestrator.ProvisionAsync("v1", setupV1);
+            var newAttributeWithSpaceValue = HelperDatabase.GetRandomName();
 
-                // make a reinit sync
+            using (var ctx = new AdventureWorksContext(Server, this.UseFallbackSchema))
+            {
+                var pc = new ProductCategory
+                {
+                    ProductCategoryId = productCategoryId,
+                    Name = productCategoryName,
+                    AttributeWithSpace = newAttributeWithSpaceValue
+                };
+                ctx.ProductCategory.Add(pc);
 
-                var resultV1 = await agent.SynchronizeAsync("v1", SyncType.Reinitialize);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Product.Add(product);
 
-                Assert.Equal(customerRowsCount, resultV1.TotalChangesDownloaded);
-                Assert.Equal(0, resultV1.TotalChangesUploaded);
+                await ctx.SaveChangesAsync();
+            }
+
+            // Add this new column on the client, with default value as null
+
+            foreach (var client in this.Clients)
+            {
+                var commandText = client.ProviderType switch
+                {
+                    ProviderType.Sql => @"ALTER TABLE SalesLT.ProductCategory ADD [Attribute With Space] nvarchar(250) NULL;",
+                    ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
+                    ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    _ => throw new NotImplementedException()
+                };
+
+                var connection = client.Provider.CreateConnection();
+
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+                await command.ExecuteNonQueryAsync();
+
+                connection.Close();
+
+                // Creating a new table is quite easier since DMS can do it for us
+                // Get scope from server (v1 because it contains the new table schema)
+                // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
+                // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+
+                var localOrchestrator = new LocalOrchestrator(client.Provider);
+                await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
+
+                // Once created we can provision a new scope
+                var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
+
+                // IF we launch synchronize on this new scope, it will get all the rows from the server
+                // We are making a shadow copy of previous scope to get the last synchronization metadata
+                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+                clientScopeV1.ShadowScope(oldClientScopeInfo);
+                await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
+
+                // We are ready to sync this new scope !
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                var r = await agent.SynchronizeAsync("v1");
+
+                Assert.Equal(2, r.TotalChangesDownloaded);
+
+
 
             }
 
 
-        }
 
-        private static async Task AddColumnsToCustomerAsync(CoreProvider provider)
-        {
-            var commandText = @"ALTER TABLE Customer ADD ModifiedDate datetime NULL";
 
-            var connection = provider.CreateConnection();
 
-            connection.Open();
-
-            var command = connection.CreateCommand();
-            command.CommandText = commandText;
-            command.Connection = connection;
-
-            await command.ExecuteNonQueryAsync();
-
-            connection.Close();
         }
 
 

@@ -219,9 +219,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(setup);
+            var clientScope = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             // new empty db
             dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -230,24 +230,24 @@ namespace Dotmim.Sync.Tests.UnitTests
             cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
             sqlProvider = new SqlSyncProvider(cs);
 
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTableCreating(ttca => onCreating++);
-            localOrchestrator.OnTableCreated(ttca => onCreated++);
-            localOrchestrator.OnTableDropping(ttca => onDropping++);
-            localOrchestrator.OnTableDropped(ttca => onDropped++);
+            remoteOrchestrator.OnTableCreating(ttca => onCreating++);
+            remoteOrchestrator.OnTableCreated(ttca => onCreated++);
+            remoteOrchestrator.OnTableDropping(ttca => onDropping++);
+            remoteOrchestrator.OnTableDropped(ttca => onDropped++);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync();
             scopeInfo.Setup = clientScope.Setup;
             scopeInfo.Schema = clientScope.Schema;
-            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
+            await remoteOrchestrator.SaveServerScopeInfoAsync(scopeInfo);
 
-            await localOrchestrator.CreateTablesAsync(scopeInfo);
+            await remoteOrchestrator.CreateTablesAsync(scopeInfo);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);
@@ -259,14 +259,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            await localOrchestrator.CreateTablesAsync(scopeInfo);
+            await remoteOrchestrator.CreateTablesAsync(scopeInfo);
 
             Assert.Equal(0, onCreating);
             Assert.Equal(0, onCreated);
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 
-            await localOrchestrator.CreateTablesAsync(scopeInfo, true);
+            await remoteOrchestrator.CreateTablesAsync(scopeInfo, true);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);
@@ -436,17 +436,17 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onDropping = 0;
             var onDropped = 0;
 
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
-            localOrchestrator.OnTableDropping(ttca => onDropping++);
-            localOrchestrator.OnTableDropped(ttca => onDropped++);
+            remoteOrchestrator.OnTableDropping(ttca => onDropping++);
+            remoteOrchestrator.OnTableDropped(ttca => onDropped++);
 
-            await localOrchestrator.DropTablesAsync(scopeInfo);
+            await remoteOrchestrator.DropTablesAsync(scopeInfo);
 
             Assert.Equal(this.Tables.Length, onDropping);
             Assert.Equal(this.Tables.Length, onDropped);

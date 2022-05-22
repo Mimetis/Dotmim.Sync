@@ -43,24 +43,24 @@ namespace Dotmim.Sync.Tests.UnitTests
                 StoredProceduresSuffix = "_sp"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
 
             // Adding a filter to check if stored procedures "with filters" are also generated
             setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
 
             // Create a new scope with this filter
             var scopeName2 = "scope2";
-            var scopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync(scopeName2, setup);
+            var scopeInfo2 = await remoteOrchestrator.GetClientScopeInfoAsync(scopeName2, setup);
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
 
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

@@ -24,20 +24,17 @@ namespace Dotmim.Sync.Tests.UnitTests
             var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
 
             var options = new SyncOptions();
-            var setup = new SyncSetup();
             var provider = new SqlSyncProvider(cs);
 
             var localOrchestrator = new LocalOrchestrator(provider, options);
 
-            var scope = await localOrchestrator.GetClientScopeInfoAsync(setup);
+            var scope = await localOrchestrator.GetClientScopeInfoAsync();
 
             Assert.NotNull(scope);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
         }
-
-
 
 
         [Fact]
@@ -56,7 +53,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
@@ -66,19 +63,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Null(localScopeInfo.LastSync);
             Assert.Equal(0, localScopeInfo.LastSyncDuration);
             Assert.Null(localScopeInfo.LastSyncTimestamp);
-            Assert.NotNull(localScopeInfo.Schema);
-            Assert.NotNull(localScopeInfo.Setup);
+            Assert.Null(localScopeInfo.Schema);
+            Assert.Null(localScopeInfo.Setup);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
-
-            // Check context
-            SyncContext syncContext = localOrchestrator.GetContext(scopeName);
-            Assert.Equal(scopeName, syncContext.ScopeName);
-            Assert.NotEqual(Guid.Empty, syncContext.SessionId);
-            Assert.Null(syncContext.Parameters);
-            Assert.Equal(SyncStage.ScopeLoading, syncContext.SyncStage);
-            Assert.Equal(SyncType.Normal, syncContext.SyncType);
-            Assert.Equal(SyncWay.None, syncContext.SyncWay);
-
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -152,45 +139,6 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task LocalOrchestrator_MultipleScopes_Check_Schema_Setup_AreNotEmpty()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
-            var setup = new SyncSetup(this.Tables);
-
-            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync(setup);
-            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A", setup);
-
-            Assert.NotNull(localScopeInfo1);
-            Assert.NotNull(localScopeInfo2);
-
-            Assert.Equal(SyncOptions.DefaultScopeName, localScopeInfo1.Name);
-            Assert.Equal("A", localScopeInfo2.Name);
-
-            Assert.True(localScopeInfo1.IsNewScope);
-            Assert.True(localScopeInfo2.IsNewScope);
-
-            Assert.NotNull(localScopeInfo1.Schema);
-            Assert.NotNull(localScopeInfo2.Schema);
-
-            Assert.NotNull(localScopeInfo1.Setup);
-            Assert.NotNull(localScopeInfo2.Setup);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-        [Fact]
         public async Task LocalOrchestrator_MultipleScopes_Check_Metadatas_Are_Created()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -211,11 +159,31 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup2 = new SyncSetup(this.Tables);
             setup2.Filters.Add("Customer", "EmployeeID");
 
-            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync(setup);
-            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A", setup2);
 
-            await localOrchestrator.ProvisionAsync(setup);
-            await localOrchestrator.ProvisionAsync("A", setup2);
+            var schema = await localOrchestrator.GetSchemaAsync(setup);
+
+            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync();
+            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A");
+
+            var serverScope1 = new ServerScopeInfo
+            {
+                Name = localScopeInfo1.Name,
+                Schema = schema,
+                Setup = setup,
+                Version = localScopeInfo1.Version
+            };
+
+            var serverScope2 = new ServerScopeInfo
+            {
+                Name = localScopeInfo2.Name,
+                Schema = schema,
+                Setup = setup2,
+                Version = localScopeInfo2.Version
+            };
+
+
+            await localOrchestrator.ProvisionAsync(serverScope1);
+            await localOrchestrator.ProvisionAsync(serverScope2);
 
             foreach (var table in localScopeInfo1.Setup.Tables)
             {
@@ -302,8 +270,28 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup2 = new SyncSetup(this.Tables);
             setup2.Filters.Add("Customer", "EmployeeID");
 
-            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync(setup);
-            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A", setup2);
+            var schema = await localOrchestrator.GetSchemaAsync(setup);
+
+            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync();
+            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A");
+
+            var serverScope1 = new ServerScopeInfo
+            {
+                Name = localScopeInfo1.Name,
+                Schema = schema,
+                Setup = setup,
+                Version = localScopeInfo1.Version
+            };
+
+            var serverScope2 = new ServerScopeInfo
+            {
+                Name = localScopeInfo2.Name,
+                Schema = schema,
+                Setup = setup2,
+                Version = localScopeInfo2.Version
+            };
+
+
 
             Assert.NotNull(localScopeInfo1.Setup);
             Assert.NotNull(localScopeInfo1.Schema);
@@ -312,8 +300,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(localScopeInfo2.Schema);
 
             // Provision two scopes (already tested in previous test)
-            localScopeInfo1 = await localOrchestrator.ProvisionAsync(setup);
-            localScopeInfo2 = await localOrchestrator.ProvisionAsync("A", setup2);
+            localScopeInfo1 = await localOrchestrator.ProvisionAsync(serverScope1);
+            localScopeInfo2 = await localOrchestrator.ProvisionAsync(serverScope2);
 
             // Deprovision
             await localOrchestrator.DeprovisionAsync("A");
@@ -416,7 +404,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
             var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await localOrchestrator.GetClientScopeInfoAsync(setup, default, default, cts.Token));
+                async () => await localOrchestrator.GetClientScopeInfoAsync(cancellationToken: cts.Token));
 
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);

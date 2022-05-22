@@ -23,46 +23,32 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator : BaseOrchestrator
     {
 
-        public virtual Task<ClientScopeInfo> GetClientScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) 
-            => GetClientScopeInfoAsync(SyncOptions.DefaultScopeName, default, connection, transaction, cancellationToken, progress);
-
-        public virtual Task<ClientScopeInfo> GetClientScopeInfoAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) 
-            => GetClientScopeInfoAsync(SyncOptions.DefaultScopeName, setup, connection, transaction, cancellationToken, progress);
+        public virtual Task<ClientScopeInfo> GetClientScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetClientScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken, progress);
 
         public virtual async Task<ClientScopeInfo>
-            GetClientScopeInfoAsync(string scopeName, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetClientScopeInfoAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
-            var clientScopeInfo = await GetClientScopeInfoAsync(context, setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            return clientScopeInfo;
+
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            ClientScopeInfo localScope;
+            (context, localScope) = await InternalGetClientScopeInfoAsync(context,
+                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
+            return localScope;
         }
 
-        public virtual async Task<ClientScopeInfo>
-            GetClientScopeInfoAsync(SyncContext context, SyncSetup setup = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                ClientScopeInfo localScope;
-                (context, localScope) = await InternalGetClientScopeInfoAsync(context, setup,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return localScope;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
 
         /// <summary>
         /// Internal load a ScopeInfo by scope name
         /// </summary>
         internal async Task<(SyncContext context, ClientScopeInfo clientScopeInfo)> InternalGetClientScopeInfoAsync(
-            SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -88,49 +74,23 @@ namespace Dotmim.Sync
 
                 // Checking if we have already some scopes
                 // Then gets the first scope to get the id
+                // This ID is identifying the client database
                 List<ClientScopeInfo> allClientScopeInfos;
                 (context, allClientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (allClientScopeInfos.Count > 0)
-                {
-                    if (setup != null)
-                    {
-                        // Get the first scope with an existing setup
-                        var firstScope = allClientScopeInfos.FirstOrDefault(sc => sc.Setup != null);
-
-                        if (firstScope != null)
-                        {
-                            localScopeInfo.Id = firstScope.Id;
-
-                            if (setup.TrackingTablesPrefix != firstScope.Setup.TrackingTablesPrefix)
-                                throw new Exception($"Can't add a new setup with different tracking table prefix. Please use same tracking table prefix as your first setup ([\"{firstScope.Setup.TrackingTablesPrefix}\"])");
-
-                            if (setup.TrackingTablesSuffix != firstScope.Setup.TrackingTablesSuffix)
-                                throw new Exception($"Can't add a new setup with different tracking table suffix. Please use same tracking table suffix as your first setup ([\"{firstScope.Setup.TrackingTablesSuffix}\"])");
-
-                            if (setup.TriggersPrefix != firstScope.Setup.TriggersPrefix)
-                                throw new Exception($"Can't add a new setup with different trigger prefix. Please use same trigger prefix as your first setup ([\"{firstScope.Setup.TriggersPrefix}\"])");
-
-                            if (setup.TriggersSuffix != firstScope.Setup.TriggersSuffix)
-                                throw new Exception($"Can't add a new setup with different trigger suffix. Please use same trigger suffix as your first setup ([\"{firstScope.Setup.TriggersSuffix}\"])");
-                        }
-                    }
-                    else
-                    {
-                        localScopeInfo.Id = allClientScopeInfos[0].Id;
-                    }
-                }
+                    localScopeInfo.Id = allClientScopeInfos[0].Id;
             }
 
-            // if localScope is empty, grab the schema locally from setup 
-            if (localScopeInfo.Setup == null && localScopeInfo.Schema == null && setup != null && setup.Tables.Count > 0)
-            {
-                SyncSet schema;
-                (context, schema) = await this.InternalGetSchemaAsync(context, setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                localScopeInfo.Setup = setup;
-                localScopeInfo.Schema = schema;
-                shouldSave = true;
-            }
+            //// if localScope is empty, grab the schema locally from setup 
+            //if (localScopeInfo.Setup == null && localScopeInfo.Schema == null && setup != null && setup.Tables.Count > 0)
+            //{
+            //    SyncSet schema;
+            //    (context, schema) = await this.InternalGetSchemaAsync(context, setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            //    localScopeInfo.Setup = setup;
+            //    localScopeInfo.Schema = schema;
+            //    shouldSave = true;
+            //}
 
             if (shouldSave)
             {

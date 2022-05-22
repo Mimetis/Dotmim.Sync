@@ -18,16 +18,19 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        public virtual Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
+        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
             => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName);
 
-        public virtual Task<(SyncContext context, SyncTable syncTable)> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
+        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
+                SyncTable syncTable = null;
 
-                return InternalLoadTableFromBatchInfoAsync(context, batchInfo, tableName, schemaName);
+                (_, syncTable) = await InternalLoadTableFromBatchInfoAsync(context, batchInfo, tableName, schemaName).ConfigureAwait(false);
+
+                return syncTable;
             }
             catch (Exception ex)
             {
@@ -92,7 +95,6 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-
                 return InternalLoadTableFromBatchPartInfoAsync(context, batchInfo, batchPartInfo);
             }
             catch (Exception ex)

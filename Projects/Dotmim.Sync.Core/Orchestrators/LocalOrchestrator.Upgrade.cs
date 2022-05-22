@@ -345,7 +345,7 @@ namespace Dotmim.Sync
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
             await this.DeprovisionAsync(clientScopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            (context, _) = await this.InternalProvisionClientAsync(clientScopeInfo, context, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, _) = await this.InternalProvisionClientAsync(context.ScopeName, context, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return newVersion;
         }
@@ -365,7 +365,7 @@ namespace Dotmim.Sync
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
             await this.DeprovisionAsync(clientScopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            (context, _) = await this.InternalProvisionClientAsync(clientScopeInfo, context, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, _) = await this.InternalProvisionClientAsync(context.ScopeName, context, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return newVersion;
         }
