@@ -265,6 +265,9 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool crated)> InternalCreateTrackingTableAsync(
             IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (Provider == null)
+                throw new MissingProviderException(nameof(InternalCreateTrackingTableAsync));
+
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (tableBuilder.TableDescription.Columns.Count <= 0)

@@ -18,15 +18,13 @@ namespace Dotmim.Sync.SqlServer
 
         public SqlSyncChangeTrackingProvider() : base(){}
 
-        public SqlSyncChangeTrackingProvider(string connectionString) : base() 
-            => this.ConnectionString = connectionString;
-
-        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder) : base()
+        public SqlSyncChangeTrackingProvider(string connectionString) : base(connectionString)
         {
-            if (String.IsNullOrEmpty(builder.ConnectionString))
-                throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
-            this.ConnectionString = builder.ConnectionString;
+        }
+
+        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder) : base(builder)
+        {
         }
 
         public static new string ProviderType

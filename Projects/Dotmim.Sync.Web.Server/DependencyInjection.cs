@@ -41,7 +41,7 @@ namespace Microsoft.Extensions.DependencyInjection
             provider.ConnectionString = connectionString;
             
             // Create orchestrator
-            var webServerAgent = new WebServerAgent(provider, options, setup, webServerOptions, scopeName);
+            var webServerAgent = new WebServerAgent(provider, setup, options, webServerOptions, scopeName);
             serviceCollection.AddSingleton(webServerAgent);
 
             return serviceCollection;
@@ -54,7 +54,6 @@ namespace Microsoft.Extensions.DependencyInjection
             serviceCollection.AddSingleton(webServerAgent);
             return serviceCollection;
         }
-
 
         public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null) where TProvider : CoreProvider, new()
         => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, scopeName, setup, options, webServerOptions);

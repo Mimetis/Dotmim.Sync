@@ -81,19 +81,19 @@ namespace Dotmim.Sync.Tests.UnitTests
             var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
             // Get changes to be populated to the server
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope);
+            var serverSyncChanges = await remoteOrchestrator.GetChangesAsync(clientScope);
 
-            Assert.NotNull(changes.ServerBatchInfo);
-            Assert.NotNull(changes.ServerChangesSelected);
-            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
-            Assert.Contains("Product", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
-            Assert.Contains("ProductCategory", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.NotNull(serverSyncChanges.ServerBatchInfo);
+            Assert.NotNull(serverSyncChanges.ServerChangesSelected);
+            Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("Product", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("ProductCategory", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "Product", "SalesLT");
+            var productTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(serverSyncChanges.ServerBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(productName, productRowName);
 
-            var productCategoryTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(serverSyncChanges.ServerBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategoryName, productCategoryRowName);
 

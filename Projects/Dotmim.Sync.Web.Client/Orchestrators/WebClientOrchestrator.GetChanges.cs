@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
-        public override async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected ServerChangesSelected)>
+        public override async Task<ServerSyncChanges>
                                 GetChangesAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -147,7 +147,7 @@ namespace Dotmim.Sync.Web.Client
             // Reaffect context
             context = summaryResponseContent.SyncContext;
 
-            return (summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected);
+            return new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected);
         }
 
 

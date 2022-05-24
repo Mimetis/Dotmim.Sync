@@ -41,15 +41,11 @@ namespace Dotmim.Sync
     /// </summary>
     public class ServerSyncChanges
     {
-
-        public ServerSyncChanges(long remoteClientTimestamp, BatchInfo serverBatchInfo, 
-            DatabaseChangesSelected serverChangesSelected, DatabaseChangesApplied clientChangesApplied,
-            ConflictResolutionPolicy serverResolutionPolicy)
+        public ServerSyncChanges(long remoteClientTimestamp, BatchInfo serverBatchInfo,
+            DatabaseChangesSelected serverChangesSelected)
         {
             this.RemoteClientTimestamp = remoteClientTimestamp;
             this.ServerBatchInfo = serverBatchInfo;
-            this.ClientChangesApplied = clientChangesApplied;
-            this.ServerResolutionPolicy = serverResolutionPolicy;
             this.ServerChangesSelected = serverChangesSelected;
         }
 
@@ -63,13 +59,11 @@ namespace Dotmim.Sync
         /// Gets the batches serialized locally with all changes
         /// </summary>
         public BatchInfo ServerBatchInfo { get; }
-        public DatabaseChangesApplied ClientChangesApplied { get; }
-        public ConflictResolutionPolicy ServerResolutionPolicy { get; }
 
         /// <summary>
         /// Gets statistics about changes selected
         /// </summary>
         public DatabaseChangesSelected ServerChangesSelected { get; }
     }
-
+   
 }

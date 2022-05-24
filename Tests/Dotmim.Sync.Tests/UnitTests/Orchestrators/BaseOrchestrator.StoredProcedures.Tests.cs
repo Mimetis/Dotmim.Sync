@@ -56,7 +56,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Create a new scope with this filter
             var scopeName2 = "scope2";
-            var scopeInfo2 = await remoteOrchestrator.GetClientScopeInfoAsync(scopeName2, setup);
+            var scopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName2, setup);
 
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
 
@@ -88,22 +88,22 @@ namespace Dotmim.Sync.Tests.UnitTests
                 StoredProceduresSuffix = "_sp"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
             var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
             var assertOverWritten = false;
 
-            localOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
+            remoteOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
             {
                 assertOverWritten = true;
             }));
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, true);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, true);
 
             Assert.True(assertOverWritten);
 
@@ -133,22 +133,22 @@ namespace Dotmim.Sync.Tests.UnitTests
                 StoredProceduresSuffix = "_sp"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
             var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
             var assertOverWritten = false;
 
-            localOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
+            remoteOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
             {
                 assertOverWritten = true;
             }));
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
             Assert.False(assertOverWritten);
 
@@ -177,14 +177,14 @@ namespace Dotmim.Sync.Tests.UnitTests
                 StoredProceduresSuffix = "_sp"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
-            await localOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
-            Assert.False(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.UpdateRow));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
+            Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.UpdateRow));
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -213,24 +213,24 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Adding a filter to check if stored procedures "with filters" are also generated
             setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
-            await localOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
+            await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkDeleteRows));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkTableType));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkUpdateRows));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.DeleteMetadata));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.DeleteRow));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.Reset));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChanges));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectRow));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.UpdateRow));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
-            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChangesWithFilters));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkDeleteRows));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkTableType));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkUpdateRows));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.DeleteMetadata));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.DeleteRow));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.Reset));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChanges));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectRow));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.UpdateRow));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
+            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChangesWithFilters));
 
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);

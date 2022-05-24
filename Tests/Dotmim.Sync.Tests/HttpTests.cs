@@ -36,7 +36,7 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace Dotmim.Sync.Tests
 {
-    public abstract class HttpTests : HttpTestsBase
+    public abstract partial class HttpTests : HttpTestsBase
     {
         protected HttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
@@ -53,12 +53,14 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri));
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri));
 
                 var s = await agent.SynchronizeAsync();
 
@@ -82,12 +84,14 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -111,20 +115,20 @@ namespace Dotmim.Sync.Tests
                  Console.WriteLine($"Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
-            // change the remote orchestrator connection string
-            this.WebServerAgent.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+            this.Server.Provider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            webServerAgent.RemoteOrchestrator.OnReConnect(onReconnect);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
-            this.WebServerAgent.RemoteOrchestrator.OnReConnect(onReconnect);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 webClientOrchestrator.SyncPolicy.RetryCount = 0;
 
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator);
-
 
                 agent.LocalOrchestrator.OnReConnect(onReconnect);
 
@@ -152,12 +156,14 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.Add("TableTest");
+            var webServerAgent = new WebServerAgent(this.Server.Provider, new string[] { "TableTest" });
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 webClientOrchestrator.SyncPolicy.RetryCount = 0;
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator);
 
@@ -183,15 +189,18 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
+
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
             // Add a malformatted column name
-            this.WebServerAgent.Setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
+            webServerAgent.Setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 webClientOrchestrator.SyncPolicy.RetryCount = 0;
 
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator);
@@ -217,14 +226,16 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
             // Add a fake table to setup tables
-            this.WebServerAgent.Setup.Tables.Add("WeirdTable");
+            webServerAgent.Setup.Tables.Add("WeirdTable");
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 webClientOrchestrator.SyncPolicy.RetryCount = 0;
 
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator);
@@ -254,12 +265,14 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -283,7 +296,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -308,12 +321,14 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -342,7 +357,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(download++, s.TotalChangesDownloaded);
@@ -370,7 +385,9 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // part of the filter
             var employeeId = 1;
@@ -419,7 +436,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -455,7 +472,7 @@ namespace Dotmim.Sync.Tests
             // Sync and check we have delete these lines on each server
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -487,12 +504,14 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
                 await agent.SynchronizeAsync();
             }
 
@@ -519,7 +538,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(download * 2000, s.TotalChangesDownloaded);
@@ -546,7 +565,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -554,7 +575,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -584,7 +605,7 @@ namespace Dotmim.Sync.Tests
             // inserted rows will be deleted 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
@@ -610,7 +631,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -618,7 +641,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -649,7 +672,7 @@ namespace Dotmim.Sync.Tests
             int download = 2;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
                 Assert.Equal(rowsCount + download, s.TotalChangesDownloaded);
@@ -679,14 +702,16 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
                 // Add a converter on the client.
                 // But this converter is not register on the server side converters list.
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new DateConverter());
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new DateConverter());
                 webClientOrchestrator.SyncPolicy.RetryCount = 0;
 
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
@@ -719,25 +744,28 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
-
-            this.WebServerAgent.OnHttpGettingRequest(r =>
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            webServerAgent.OnHttpGettingRequest(r =>
             {
                 Assert.NotNull(r.HttpContext);
                 Assert.NotNull(r.Context);
             });
 
-            this.WebServerAgent.OnHttpSendingResponse(r =>
+            webServerAgent.OnHttpSendingResponse(r =>
             {
                 Assert.NotNull(r.HttpContext);
                 Assert.NotNull(r.Context);
             });
+
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
+
 
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -745,8 +773,8 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
 
-            this.WebServerAgent.OnHttpGettingRequest(null);
-            this.WebServerAgent.OnHttpSendingResponse(null);
+            webServerAgent.OnHttpGettingRequest(null);
+            webServerAgent.OnHttpSendingResponse(null);
         }
 
         /// <summary>
@@ -764,11 +792,13 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             foreach (var client in Clients)
             {
-                var wenClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var wenClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, wenClientOrchestrator, options);
 
                 // Interceptor on sending scopes
@@ -807,7 +837,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Just before sending changes, get changes sent
@@ -847,14 +877,16 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Register converter on the server side
-            this.WebServerAgent.WebServerOptions.Converters.Add(new DateConverter());
+            webServerAgent.WebServerOptions.Converters.Add(new DateConverter());
 
             // Get response just before response sent back from server
             // Assert if datetime are correctly converted to long
-            this.WebServerAgent.OnHttpSendingChanges(sra =>
+            webServerAgent.OnHttpSendingChanges(sra =>
             {
                 if (sra.Response.Changes == null)
                     return;
@@ -882,7 +914,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri, new DateConverter());
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new DateConverter());
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 var s = await agent.SynchronizeAsync();
@@ -891,7 +923,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
             }
 
-            this.WebServerAgent.OnHttpSendingChanges(null);
+            webServerAgent.OnHttpSendingChanges(null);
         }
 
 
@@ -914,14 +946,19 @@ namespace Dotmim.Sync.Tests
             var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
-            this.WebServerAgent.Options.SnapshotsDirectory = snapshotDirectory;
-            this.WebServerAgent.Options.BatchSize = 2000;
+            // configure server orchestrator
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            webServerAgent.Options.SnapshotsDirectory = snapshotDirectory;
+            webServerAgent.Options.BatchSize = 2000;
+
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
+
 
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await this.WebServerAgent.RemoteOrchestrator.CreateSnapshotAsync();
+            await webServerAgent.RemoteOrchestrator.CreateSnapshotAsync();
 
             // ----------------------------------
             // Add rows on server AFTER snapshot
@@ -950,7 +987,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -975,13 +1012,14 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
-
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -991,7 +1029,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
-            var dmc = await this.WebServerAgent.RemoteOrchestrator.DeleteMetadatasAsync();
+            var dmc = await webServerAgent.RemoteOrchestrator.DeleteMetadatasAsync();
 
             // Insert one line on each client
             foreach (var client in Clients)
@@ -1019,7 +1057,7 @@ namespace Dotmim.Sync.Tests
                                     $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
 
                 // create a new agent
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 //// Making a first sync, will initialize everything we need
                 //var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
@@ -1055,13 +1093,15 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
-            this.WebServerAgent.ScopeName = "customScope1";
+            // configure server orchestrator
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables, default, default, "customScope1");
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync("customScope1");
 
@@ -1085,7 +1125,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1096,16 +1138,16 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
                 var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webClientOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webClientOrchestrator.GetChangesAsync(clientScope);
 
-                Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
+                Assert.Equal(rowsCount, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
             }
         }
 
@@ -1124,7 +1166,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1132,7 +1176,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1169,16 +1213,16 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
                 var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webClientOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webClientOrchestrator.GetChangesAsync(clientScope);
 
-                Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
+                Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
 
             }
         }
@@ -1199,7 +1243,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1210,7 +1256,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
@@ -1238,7 +1284,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1246,7 +1294,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1283,7 +1331,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
                 // Ensure scope is created locally
@@ -1311,7 +1359,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1319,7 +1369,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1348,10 +1398,10 @@ namespace Dotmim.Sync.Tests
             {
                 int batchIndex = 0;
 
-                var orch = new WebClientOrchestrator(this.ServiceUri);
+                var orch = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
-                this.WebServerAgent.OnHttpSendingResponse(async args =>
+                webServerAgent.OnHttpSendingResponse(async args =>
                 {
                     // SendChangesInProgress is occuring when server is receiving data from client
                     // We are droping session on the second batch
@@ -1367,14 +1417,14 @@ namespace Dotmim.Sync.Tests
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
 
-                this.WebServerAgent.OnHttpSendingResponse(null);
+                webServerAgent.OnHttpSendingResponse(null);
 
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
                 // Act 2: Ensure client can recover
-                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s2 = await agent2.SynchronizeAsync();
 
@@ -1406,7 +1456,9 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -1414,7 +1466,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1443,11 +1495,11 @@ namespace Dotmim.Sync.Tests
 
                 // restreint parallelism degrees to be sure the batch index is not downloaded at the end
                 // (This will not raise the error if the batchindex 1 is downloaded as the last part)
-                var orch = new WebClientOrchestrator(this.ServiceUri, maxDownladingDegreeOfParallelism: 1);
+                var orch = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 1);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
                 // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-                this.WebServerAgent.OnHttpSendingResponse(async args =>
+                webServerAgent.OnHttpSendingResponse(async args =>
                 {
                     // GetMoreChanges is occuring when server is sending back data to client
                     // We are droping session on the second batch
@@ -1470,10 +1522,10 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(ex); //"exception required!"
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
-                this.WebServerAgent.OnHttpSendingResponse(null);
+                webServerAgent.OnHttpSendingResponse(null);
 
                 // Act 2: Ensure client can recover
-                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
 
                 var s2 = await agent2.SynchronizeAsync();
 
@@ -1507,11 +1559,12 @@ namespace Dotmim.Sync.Tests
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
             var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            // TODO : if serverScope.Schema is null, should we Provision here ?
+            await remoteOrchestrator.ProvisionAsync(serverScopeInfo);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
-
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();
             var createdDatabases = new List<(ProviderType ProviderType, string DatabaseName)>();
@@ -1538,7 +1591,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and add the task to a list of tasks
             foreach (var clientProvider in clientProviders)
             {
-                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
                 allTasks.Add(agent.SynchronizeAsync(setup));
             }
 
@@ -1570,7 +1623,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to get the new server row
             foreach (var clientProvider in clientProviders)
             {
-                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
                 allTasks.Add(agent.SynchronizeAsync(setup));
             }
 
@@ -1615,12 +1668,14 @@ namespace Dotmim.Sync.Tests
 
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             var interrupted = new Dictionary<HttpStep, bool>();
 
             // When Server Orchestrator send back the response, we will make an interruption
-            this.WebServerAgent.OnHttpGettingRequest(args =>
+            webServerAgent.OnHttpGettingRequest(args =>
             {
                 if (!interrupted.ContainsKey(args.HttpStep))
                     interrupted.Add(args.HttpStep, false);
@@ -1639,7 +1694,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
 
                 var policyRetries = 0;
                 webClientOrchestrator.OnHttpPolicyRetrying(args =>
@@ -1669,7 +1724,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
 
 
-            this.WebServerAgent.OnHttpGettingRequest(null);
+            webServerAgent.OnHttpGettingRequest(null);
 
         }
 
@@ -1689,14 +1744,15 @@ namespace Dotmim.Sync.Tests
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
-
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             var interrupted = new Dictionary<HttpStep, bool>();
 
             // When Server Orchestrator send back the response, we will make an interruption
-            this.WebServerAgent.OnHttpSendingResponse(args =>
+            webServerAgent.OnHttpSendingResponse(args =>
             {
                 if (!interrupted.ContainsKey(args.HttpStep))
                     interrupted.Add(args.HttpStep, false);
@@ -1715,7 +1771,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
 
                 var policyRetries = 0;
                 webClientOrchestrator.OnHttpPolicyRetrying(args =>
@@ -1734,7 +1790,7 @@ namespace Dotmim.Sync.Tests
                 interrupted.Clear();
             }
 
-            this.WebServerAgent.OnHttpSendingResponse(null);
+            webServerAgent.OnHttpSendingResponse(null);
         }
 
 
@@ -1756,14 +1812,16 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             SyncOptions options = new SyncOptions { BatchSize = 100 };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
 
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
 
@@ -1801,7 +1859,7 @@ namespace Dotmim.Sync.Tests
             {
                 var interruptedBatch = false;
                 // When Server Orchestrator send back the response, we will make an interruption
-                this.WebServerAgent.OnHttpSendingResponse(args =>
+                webServerAgent.OnHttpSendingResponse(args =>
                 {
                     // Throw error when sending changes to server
                     if (args.HttpStep == HttpStep.SendChangesInProgress && !interruptedBatch)
@@ -1812,10 +1870,10 @@ namespace Dotmim.Sync.Tests
 
                 });
 
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
-                this.WebServerAgent.OnHttpSendingResponse(null);
+                webServerAgent.OnHttpSendingResponse(null);
 
                 Assert.Equal(download, s.TotalChangesDownloaded);
                 Assert.Equal(1000, s.TotalChangesUploaded);
@@ -1850,12 +1908,14 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            this.WebServerAgent.Setup.Tables.AddRange(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize schemas
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator);
                 var s = await agent.SynchronizeAsync();
             }
@@ -1901,13 +1961,13 @@ namespace Dotmim.Sync.Tests
             // Two sync to be sure all clients have all rows from all
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator);
                 var s = await agent.SynchronizeAsync();
             }
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(this.ServiceUri);
+                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, webClientOrchestrator);
                 var s = await agent.SynchronizeAsync();
             }

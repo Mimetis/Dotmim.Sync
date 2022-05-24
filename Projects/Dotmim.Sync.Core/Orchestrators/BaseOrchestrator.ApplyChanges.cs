@@ -127,6 +127,8 @@ namespace Dotmim.Sync
             DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (this.Provider == null)
+                return context;
 
             var setupTable = scopeInfo.Setup.Tables[schemaTable.TableName, schemaTable.SchemaName];
 
@@ -423,7 +425,7 @@ namespace Dotmim.Sync
             if (conflictApplyAction == ApplyAction.Rollback)
                 throw new RollbackException("Rollback action taken on conflict");
 
-            // Local provider wins, update metadata
+            // Local wins, update metadata
             if (conflictApplyAction == ApplyAction.Continue)
             {
                 var isMergeAction = finalRow != null;

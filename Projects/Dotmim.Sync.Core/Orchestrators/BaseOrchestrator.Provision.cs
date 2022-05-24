@@ -18,6 +18,9 @@ namespace Dotmim.Sync
     {
         internal async Task<(SyncContext context, bool provisioned)> InternalProvisionAsync(IScopeInfo scopeInfo, SyncContext context, bool overwrite, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (Provider == null)
+                throw new MissingProviderException(nameof(InternalProvisionAsync));
+
             // If schema does not have any table, raise an exception
             if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
                 throw new MissingTablesException(scopeInfo.Name);
@@ -114,6 +117,9 @@ namespace Dotmim.Sync
 
         internal async Task<(SyncContext context, bool deprovisioned)> InternalDeprovisionAsync(IScopeInfo scopeInfo, SyncContext context, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (Provider == null)
+                throw new MissingProviderException(nameof(InternalDeprovisionAsync));
+
             // If schema does not have any table, raise an exception
             if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
                 throw new MissingTablesException(scopeInfo.Name);

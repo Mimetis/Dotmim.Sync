@@ -75,7 +75,7 @@ namespace Dotmim.Sync.Web.Client
             HttpClient client = null,
             SyncPolicy syncPolicy = null,
             int maxDownladingDegreeOfParallelism = 4)
-            : base(new FancyCoreProvider(), new SyncOptions())
+            : base(null, new SyncOptions())
         {
 
             this.httpRequestHandler = new HttpRequestHandler(this);

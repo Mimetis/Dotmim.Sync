@@ -230,8 +230,6 @@ namespace Dotmim.Sync
             if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var scopeBuilder = this.GetScopeBuilder(scopeInfo.Name);
-
             var command = await tableBuilder.GetCreateTriggerCommandAsync(triggerType, connection, transaction).ConfigureAwait(false);
 
             if (command == null)

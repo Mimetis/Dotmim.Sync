@@ -23,15 +23,29 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
-        public WebServerAgent(CoreProvider provider, SyncOptions options, SyncSetup setup, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
+        public WebServerAgent(CoreProvider provider, SyncSetup setup, SyncOptions options = null,  WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
         {
             this.Setup = setup;
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
             this.ScopeName = scopeName;
-            this.Options = options;
+            this.Options = options ?? new SyncOptions();
             this.Provider = provider;
             this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
         }
+
+        /// <summary>
+        /// Default ctor. Using default options and schema
+        /// </summary>
+        public WebServerAgent(CoreProvider provider, string[] tables, SyncOptions options = null, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
+        {
+            this.Setup = new SyncSetup(tables);
+            this.WebServerOptions = webServerOptions ?? new WebServerOptions();
+            this.ScopeName = scopeName;
+            this.Options = options ?? new SyncOptions();
+            this.Provider = provider;
+            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
+        }
+
         /// Client Converter
         private IConverter clientConverter;
 
@@ -572,8 +586,8 @@ namespace Dotmim.Sync.Web.Server
 
             (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(
                 context, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
-            
-            
+
+
             // TODO : Is it used ?
             httpContext.Session.Set(context.ScopeName, serverScopeInfo.Schema);
 
@@ -646,7 +660,7 @@ namespace Dotmim.Sync.Web.Server
                 bpi.RowsCount = tableInfo.RowsCount;
                 bpi.IsLastBatch = httpMessage.IsLastBatch;
                 bpi.Index = httpMessage.BatchIndex;
-                
+
                 sessionCache.ClientBatchInfo.RowsCount += bpi.RowsCount;
                 sessionCache.ClientBatchInfo.BatchPartsInfo.Add(bpi);
             }
@@ -664,24 +678,26 @@ namespace Dotmim.Sync.Web.Server
             // ------------------------------------------------------------
             ServerSyncChanges serverSyncChanges;
             context = httpMessage.SyncContext;
+            DatabaseChangesApplied serverChangesApplied;
+            ConflictResolutionPolicy serverResolutionPolicy;
 
             // get changes
-            (context, serverSyncChanges) =
+            (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) =
                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
-                       httpMessage.ClientScopeInfo, httpMessage.SyncContext, sessionCache.ClientBatchInfo, 
+                       httpMessage.ClientScopeInfo, httpMessage.SyncContext, sessionCache.ClientBatchInfo,
                        default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Set session cache infos
             sessionCache.RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = serverSyncChanges.ServerBatchInfo;
             sessionCache.ServerChangesSelected = serverSyncChanges.ServerChangesSelected;
-            sessionCache.ClientChangesApplied = serverSyncChanges.ClientChangesApplied;
+            sessionCache.ClientChangesApplied = serverChangesApplied;
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
             var cleanFolder = this.Options.CleanFolder;
 
             if (cleanFolder)
-                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(ScopeName, 
+                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(ScopeName,
                     context.Parameters, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
 
             sessionCache.ClientBatchInfo.Clear(cleanFolder);
@@ -699,7 +715,7 @@ namespace Dotmim.Sync.Web.Server
                 BatchInfo = serverSyncChanges.ServerBatchInfo,
                 Step = HttpStep.GetSummary,
                 RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp,
-                ClientChangesApplied = serverSyncChanges.ClientChangesApplied,
+                ClientChangesApplied = serverChangesApplied,
                 ServerChangesSelected = serverSyncChanges.ServerChangesSelected,
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
             };

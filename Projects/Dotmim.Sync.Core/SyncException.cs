@@ -280,7 +280,15 @@ namespace Dotmim.Sync
         public MissingPrimaryKeyColumnException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
     }
 
+    /// <summary>
+    /// Setup table exception. Used when a your setup does not contains any table
+    /// </summary>
+    public class MissingProviderException : Exception
+    {
+        const string message = "You need a provider for {0}.";
 
+        public MissingProviderException(string methodName) : base(string.Format(message, methodName)) { }
+    }
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any table
     /// </summary>

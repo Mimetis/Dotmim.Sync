@@ -71,7 +71,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool dropped)> InternalDropScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var scopeBuilder = this.GetScopeBuilder(context.ScopeName);
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             var scopeCommandType = scopeType switch
             {

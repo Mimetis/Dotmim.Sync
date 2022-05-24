@@ -54,10 +54,14 @@ namespace Dotmim.Sync
         /// </summary>
         public BaseOrchestrator(CoreProvider provider, SyncOptions options)
         {
-            this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
             this.Options = options ?? throw new ArgumentNullException(nameof(options));
 
-            this.Provider.Orchestrator = this;
+            if (provider != null)
+            {
+                this.Provider = provider;
+                this.Provider.Orchestrator = this;
+            }
+
             this.Logger = options.Logger;
         }
 
@@ -167,6 +171,9 @@ namespace Dotmim.Sync
         //[DebuggerStepThrough]
         internal virtual async Task OpenConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (this.Provider == null)
+                return;
+
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
                 this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
@@ -192,6 +199,9 @@ namespace Dotmim.Sync
         /// </summary>
         internal virtual async Task CloseConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (this.Provider == null)
+                return;
+
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
 
@@ -217,11 +227,16 @@ namespace Dotmim.Sync
         [DebuggerStepThrough]
         internal SyncException GetSyncError(SyncContext context, Exception exception)
         {
+            if (exception is SyncException)
+                return exception as SyncException;
+
             var syncStage = context.SyncStage;
             var syncException = new SyncException(exception, syncStage);
 
             // try to let the provider enrich the exception
-            this.Provider.EnsureSyncException(syncException);
+            if (this.Provider != null)
+                this.Provider.EnsureSyncException(syncException);
+
             syncException.Side = this.Side;
 
             this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
@@ -252,6 +267,8 @@ namespace Dotmim.Sync
             //var syncAdapter = lazySyncAdapter.Value;
 
             //return syncAdapter;
+            if (this.Provider == null)
+                return null;
 
             var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
             return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
@@ -281,6 +298,9 @@ namespace Dotmim.Sync
 
             //return tableBuilder;
 
+            if (this.Provider == null)
+                return null;
+
             var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
             return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
         }
@@ -302,10 +322,12 @@ namespace Dotmim.Sync
             //var scopeBuilder = lazyScopeBuilder.Value;
 
             //return scopeBuilder;
+            if (this.Provider == null)
+                return null;
 
             return this.Provider.GetScopeBuilder(scopeInfoTableName);
         }
-  
+
 
         /// <summary>
         /// Check if the orchestrator database is outdated
@@ -346,7 +368,7 @@ namespace Dotmim.Sync
 
 
         public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
-            => GetHelloAsync(SyncOptions.DefaultScopeName, connection, transaction,  cancellationToken, progress);
+            => GetHelloAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken, progress);
 
         public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
@@ -359,8 +381,11 @@ namespace Dotmim.Sync
         /// Get hello from database
         /// </summary>
         public virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
-            SyncContext context,  DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+            SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
+            if (this.Provider == null)
+                return (context, default, default);
+
             try
             {
                 // TODO : get all scopes for Hello all of them
@@ -396,7 +421,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
         /// </summary>
-        internal virtual async Task<bool> InternalCanCleanFolderAsync(string scopeName, SyncParameters parameters,  BatchInfo batchInfo,
+        internal virtual async Task<bool> InternalCanCleanFolderAsync(string scopeName, SyncParameters parameters, BatchInfo batchInfo,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
@@ -419,8 +444,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal routine to get the snapshot root directory and batch directory name
         /// </summary>
-        internal virtual Task<(string DirectoryRoot, string DirectoryName)> 
-            InternalGetSnapshotDirectoryAsync(string scopeName, SyncParameters parameters=null,
+        internal virtual Task<(string DirectoryRoot, string DirectoryName)>
+            InternalGetSnapshotDirectoryAsync(string scopeName, SyncParameters parameters = null,
                              CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 

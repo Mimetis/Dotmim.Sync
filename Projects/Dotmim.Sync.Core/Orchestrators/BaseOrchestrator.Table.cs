@@ -267,6 +267,9 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext contet, bool added)> InternalAddColumnAsync(IScopeInfo scopeInfo, SyncContext context, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (Provider == null)
+                throw new MissingProviderException(nameof(InternalAddColumnAsync));
+
             if (tableBuilder.TableDescription.Columns.Count <= 0)
                 throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
 

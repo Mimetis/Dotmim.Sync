@@ -156,6 +156,7 @@ namespace Dotmim.Sync.Tests
                     HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
             }
             catch (Exception) { }
+            finally { }
 
             this.stopwatch.Stop();
 
@@ -1423,6 +1424,9 @@ namespace Dotmim.Sync.Tests
         [Fact]
         public async Task Using_ExistingClientDatabase_ProvisionDeprovision()
         {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
             // create empty client databases
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
@@ -1446,10 +1450,11 @@ namespace Dotmim.Sync.Tests
                 var onTableCreatedCount = 0;
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
+                var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider);
+                var schema = await remoteOrchestrator.GetSchemaAsync(setup);
+
                 // Read client scope
                 var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
-
-                var schema = await localOrchestrator.GetSchemaAsync(setup);
 
                 var serverScope = new ServerScopeInfo
                 {

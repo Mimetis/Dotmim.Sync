@@ -93,6 +93,8 @@ namespace Dotmim.Sync
             (SyncContext context, SetupTable setupTable, DbConnection connection, DbTransaction transaction,
                                                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (Provider == null)
+                throw new MissingProviderException(nameof(InternalGetTableSchemaAsync));
 
             // ensure table is compliante with name / schema with provider
             var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction);

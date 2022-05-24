@@ -413,15 +413,19 @@ namespace Dotmim.Sync
 
                 context.ProgressPercentage = 0.3;
 
+                // server changes selected
                 ServerSyncChanges serverSyncChanges;
+                // client changes applied on server
+                DatabaseChangesApplied serverChangesApplied;
+                ConflictResolutionPolicy serverResolutionPolicy;
 
-                (context, serverSyncChanges) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Policy is always Server policy, so reverse this policy to get the client policy
-                var reverseConflictResolutionPolicy = serverSyncChanges.ServerResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
+                var reverseConflictResolutionPolicy = serverResolutionPolicy == ConflictResolutionPolicy.ServerWins ? ConflictResolutionPolicy.ClientWins : ConflictResolutionPolicy.ServerWins;
 
                 // apply is 25%
                 context.ProgressPercentage = 0.75;
@@ -440,7 +444,7 @@ namespace Dotmim.Sync
                 result.ClientChangesSelected = clientChanges.ClientChangesSelected;
                 result.ServerChangesSelected = serverSyncChanges.ServerChangesSelected;
                 result.ChangesAppliedOnClient = clientChangesApplied.ChangesApplied;
-                result.ChangesAppliedOnServer = serverSyncChanges.ClientChangesApplied;
+                result.ChangesAppliedOnServer = serverChangesApplied;
 
                 // Begin session
                 context.ProgressPercentage = 1;

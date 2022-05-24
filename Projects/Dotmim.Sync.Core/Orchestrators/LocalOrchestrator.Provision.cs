@@ -50,35 +50,41 @@ namespace Dotmim.Sync
         public virtual async Task<(SyncContext context, ClientScopeInfo clientScopeInfo)>
                     InternalProvisionClientAsync(ServerScopeInfo serverScopeInfo, ClientScopeInfo clientScopeInfo, SyncContext context, SyncProvision provision = default, bool overwrite = true, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (serverScopeInfo.Schema == null)
-                throw new Exception($"No Schema in your server scope info {serverScopeInfo.Name}");
+            try
+            {
+                if (serverScopeInfo.Schema == null)
+                    throw new Exception($"No Schema in your server scope info {serverScopeInfo.Name}");
 
-            if (serverScopeInfo.Schema == null)
-                throw new Exception($"No Setup in your server scope info {serverScopeInfo.Name}");
+                if (serverScopeInfo.Schema == null)
+                    throw new Exception($"No Setup in your server scope info {serverScopeInfo.Name}");
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            // Check incompatibility with the flags
-            if (provision.HasFlag(SyncProvision.ServerHistoryScope) || provision.HasFlag(SyncProvision.ServerScope))
-                throw new InvalidProvisionForLocalOrchestratorException();
+                // Check incompatibility with the flags
+                if (provision.HasFlag(SyncProvision.ServerHistoryScope) || provision.HasFlag(SyncProvision.ServerScope))
+                    throw new InvalidProvisionForLocalOrchestratorException();
 
-            // 2) Provision
-            if (provision == SyncProvision.None)
-                provision = SyncProvision.Table | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+                // 2) Provision
+                if (provision == SyncProvision.None)
+                    provision = SyncProvision.Table | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
 
-            (context, _) = await this.InternalProvisionAsync(serverScopeInfo, context, overwrite, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, _) = await this.InternalProvisionAsync(serverScopeInfo, context, overwrite, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            // set client scope setup and schema
-            clientScopeInfo.Setup = serverScopeInfo.Setup;
-            clientScopeInfo.Schema = serverScopeInfo.Schema;
+                // set client scope setup and schema
+                clientScopeInfo.Setup = serverScopeInfo.Setup;
+                clientScopeInfo.Schema = serverScopeInfo.Schema;
 
-            // Write scopes locally
-            (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                // Write scopes locally
+                (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            await runner.CommitAsync().ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
 
-            return (context, clientScopeInfo);
-
+                return (context, clientScopeInfo);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
         }
 
 
@@ -144,7 +150,7 @@ namespace Dotmim.Sync
             try
             {
                 bool deprovisioned;
-                (_ , deprovisioned) = await InternalDeprovisionClientAsync(clientScopeInfo, context, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (_, deprovisioned) = await InternalDeprovisionClientAsync(clientScopeInfo, context, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 return deprovisioned;
             }
             catch (Exception ex)

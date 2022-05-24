@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Apply changes
         /// </summary>
-        internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges)>
+        internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, DatabaseChangesApplied serverChangesApplied, ConflictResolutionPolicy serverResolutionPolicy)>
             InternalApplyThenGetChangesAsync(ClientScopeInfo clientScopeInfo, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -297,13 +297,11 @@ namespace Dotmim.Sync.Web.Client
             var serverSyncChanges = new ServerSyncChanges(
                 summaryResponseContent.RemoteClientTimestamp,
                 serverBatchInfo,
-                summaryResponseContent.ServerChangesSelected,
-                summaryResponseContent.ClientChangesApplied,
-                summaryResponseContent.ConflictResolutionPolicy
+                summaryResponseContent.ServerChangesSelected
                 );
 
 
-            return (context, serverSyncChanges);
+            return (context, serverSyncChanges, summaryResponseContent.ClientChangesApplied, summaryResponseContent.ConflictResolutionPolicy);
         }
 
 

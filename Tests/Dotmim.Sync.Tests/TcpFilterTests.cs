@@ -764,12 +764,24 @@ namespace Dotmim.Sync.Tests
 
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options);
 
+                var schema = await localOrchestrator.GetSchemaAsync(this.FilterSetup);
+
+                var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync();
+
+                var serverScope1 = new ServerScopeInfo
+                {
+                    Name = localScopeInfo1.Name,
+                    Schema = schema,
+                    Setup = this.FilterSetup,
+                    Version = localScopeInfo1.Version
+                };
+
                 // just check interceptor
                 var onTableCreatedCount = 0;
                 localOrchestrator.OnTableCreated(args => onTableCreatedCount++);
 
                 // Provision the database with all tracking tables, stored procedures, triggers and scope
-                var clientScope = await localOrchestrator.ProvisionAsync(this.FilterSetup);
+                var clientScope = await localOrchestrator.ProvisionAsync(serverScope1);
 
                 //--------------------------
                 // ASSERTION

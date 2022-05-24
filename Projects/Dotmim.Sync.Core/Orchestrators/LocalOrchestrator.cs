@@ -24,12 +24,17 @@ namespace Dotmim.Sync
         /// </summary>
         public LocalOrchestrator(CoreProvider provider, SyncOptions options) : base(provider, options)
         {
+            if (provider == null)
+                throw new MissingProviderException(nameof(LocalOrchestrator));
+
         }
         /// <summary>
         /// Create a local orchestrator, used to orchestrates the whole sync on the client side
         /// </summary>
         public LocalOrchestrator(CoreProvider provider) : base(provider, new SyncOptions())
         {
+            if (provider == null)
+                throw new MissingProviderException(nameof(LocalOrchestrator));
         }
 
         /// <summary>
@@ -123,9 +128,9 @@ namespace Dotmim.Sync
             }
 
         }
-       
-        
-        
+
+
+
         /// <summary>
         /// Get changes from local database from a specific scope you already fetched from local database
         /// </summary>
@@ -333,29 +338,35 @@ namespace Dotmim.Sync
             InternalApplySnapshotAsync(ClientScopeInfo clientScopeInfo, SyncContext context, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (serverBatchInfo == null)
-                return (context, new DatabaseChangesApplied(), clientScopeInfo);
+            try
+            {
+                if (serverBatchInfo == null)
+                    return (context, new DatabaseChangesApplied(), clientScopeInfo);
 
-            // Get context or create a new one
-            context.SyncStage = SyncStage.SnapshotApplying;
-            await this.InterceptAsync(new SnapshotApplyingArgs(context, this.Provider.CreateConnection()), progress, cancellationToken).ConfigureAwait(false);
+                // Get context or create a new one
+                context.SyncStage = SyncStage.SnapshotApplying;
+                await this.InterceptAsync(new SnapshotApplyingArgs(context, this.Provider.CreateConnection()), progress, cancellationToken).ConfigureAwait(false);
 
-            if (clientScopeInfo.Schema == null)
-                throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
+                if (clientScopeInfo.Schema == null)
+                    throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
 
-            // Applying changes and getting the new client scope info
-            var (syncContext, changesApplied, newClientScopeInfo) = await this.InternalApplyChangesAsync(clientScopeInfo, context, serverBatchInfo,
-                    clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, databaseChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // Applying changes and getting the new client scope info
+                var (syncContext, changesApplied, newClientScopeInfo) = await this.InternalApplyChangesAsync(clientScopeInfo, context, serverBatchInfo,
+                        clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, databaseChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            await this.InterceptAsync(new SnapshotAppliedArgs(context, changesApplied), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new SnapshotAppliedArgs(context, changesApplied), progress, cancellationToken).ConfigureAwait(false);
 
-            // re-apply scope is new flag
-            // to be sure we are calling the Initialize method, even for the delta
-            // in that particular case, we want the delta rows coming from the current scope
-            newClientScopeInfo.IsNewScope = true;
+                // re-apply scope is new flag
+                // to be sure we are calling the Initialize method, even for the delta
+                // in that particular case, we want the delta rows coming from the current scope
+                newClientScopeInfo.IsNewScope = true;
 
-            return (context, changesApplied, newClientScopeInfo);
-
+                return (context, changesApplied, newClientScopeInfo);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
         }
 
 

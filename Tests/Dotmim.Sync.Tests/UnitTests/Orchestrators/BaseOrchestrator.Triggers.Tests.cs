@@ -47,13 +47,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
             // Needs the tracking table to be able to create triggers
             var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
 
-            await localOrchestrator.ProvisionAsync(scopeInfo, provision);
+            await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
 
             using (var c = new SqlConnection(cs))
             {
@@ -96,11 +96,11 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TriggersSuffix = "_trg"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
             using (var c = new SqlConnection(cs))
             {
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
-            await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update, false);
 
             using (var c = new SqlConnection(cs))
             {
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             var triggerDelete = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_delete_trigger";
-            await localOrchestrator.CreateTriggerAsync(scopeInfo,"Product", "SalesLT", DbTriggerType.Delete, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo,"Product", "SalesLT", DbTriggerType.Delete, false);
 
             using (var c = new SqlConnection(cs))
             {
@@ -163,19 +163,19 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TriggersSuffix = "_trg"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
             var assertOverWritten = false;
-            localOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
+            remoteOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
             {
                assertOverWritten = true;
             }));
 
-            await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, true);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, true);
 
             Assert.True(assertOverWritten);
 
@@ -204,21 +204,21 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TriggersSuffix = "_trg"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            await localOrchestrator.CreateTriggerAsync(scopeInfo,"Product", "SalesLT", DbTriggerType.Insert, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo,"Product", "SalesLT", DbTriggerType.Insert, false);
 
 
             var assertOverWritten = false;
-            localOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
+            remoteOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
             {
                 assertOverWritten = true;
             }));
 
-            await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
             Assert.False(assertOverWritten);
 
@@ -247,13 +247,13 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TriggersSuffix = "_trg"
             };
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
-            await localOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
-            var insertExists = await localOrchestrator.ExistTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
-            var updateExists = await localOrchestrator.ExistTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update);
+            var insertExists = await remoteOrchestrator.ExistTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
+            var updateExists = await remoteOrchestrator.ExistTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update);
 
             Assert.True(insertExists);
             Assert.False(updateExists);
@@ -282,14 +282,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TriggersPrefix = "trg_";
             setup.TriggersSuffix = "_trg";
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
             var triggerDelete = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_delete_trigger";
 
-            await localOrchestrator.CreateTriggersAsync(scopeInfo, "Product", "SalesLT");
+            await remoteOrchestrator.CreateTriggersAsync(scopeInfo, "Product", "SalesLT");
 
             using (var c = new SqlConnection(cs))
             {

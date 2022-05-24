@@ -33,7 +33,7 @@ using Xunit.Abstractions;
 namespace Dotmim.Sync.Tests
 {
     //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public abstract partial class TcpTests : IClassFixture<HelperProvider>, IDisposable
+    public abstract partial class HttpTests : IClassFixture<HelperProvider>, IDisposable
     {
 
 
@@ -47,12 +47,19 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
+
             // --------------------------
             // Step 1: Create a default scope and Sync clients
             // Note we are not including the [Attribute With Space] column
             var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory" });
             setup.Tables["SalesLT.ProductCategory"].Columns.AddRange(
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+
+            // Create Server agent
+            // create web remote orchestrator
+            var webServerAgent = new WebServerAgent(this.Server.Provider, setup);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = this.Kestrell.Run();
 
             int productCategoryRowsCount = 0;
             using (var readCtx = new AdventureWorksContext(Server, this.UseFallbackSchema))
@@ -63,12 +70,19 @@ namespace Dotmim.Sync.Tests
             // First sync to initialiaze client database, create table and fill product categories
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, Server.Provider);
+                var webServerProxyOrchestrator = new WebClientOrchestrator(serviceUri);
+
+                var agent = new SyncAgent(client.Provider, webServerProxyOrchestrator);
+
                 var r = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
             }
 
+            await this.Kestrell.StopAsync();
+
+
+            // On server side, playing around with a direct RemoteOrchestrator
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
 
             // Adding a new scope on the server with this new column and a new table
@@ -79,7 +93,6 @@ namespace Dotmim.Sync.Tests
             new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
-
 
             // Create a server new ProductCategory with the new column value filled
             // and a Product related
@@ -107,7 +120,11 @@ namespace Dotmim.Sync.Tests
                 await ctx.SaveChangesAsync();
             }
 
-            // Add this new column on the client, with default value as null
+            var webServerAgentV1 = new WebServerAgent(this.Server.Provider, setupV1);
+            this.Kestrell.AddSyncServer(webServerAgent);
+            this.Kestrell.AddSyncServer(webServerAgentV1);
+            serviceUri = this.Kestrell.Run();
+
 
             foreach (var client in this.Clients)
             {
@@ -131,11 +148,11 @@ namespace Dotmim.Sync.Tests
 
                 connection.Close();
 
-                // Creating a new table is quite easier since DMS can do it for us
                 // Get scope from server (v1 because it contains the new table schema)
-                // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
-                // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+                var webServerProxyOrchestrator = new WebClientOrchestrator(serviceUri);
+                serverScope = await webServerProxyOrchestrator.GetServerScopeInfoAsync("v1");
 
+                // Creating a new table is quite easier since DMS can do it for us
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
                 await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
 

@@ -478,7 +478,7 @@ namespace Dotmim.Sync
             // Check if we have parameters specified
 
             // Sqlite does not have any filter, since he can't be server side
-            if (this.Provider.CanBeServerProvider)
+            if (this.Provider != null && this.Provider.CanBeServerProvider)
                 tableFilter = syncTable.GetFilter();
 
             var hasFilters = tableFilter != null;
@@ -512,7 +512,7 @@ namespace Dotmim.Sync
             SyncFilter tableFilter = null;
 
             // Sqlite does not have any filter, since he can't be server side
-            if (this.Provider.CanBeServerProvider)
+            if (this.Provider != null && this.Provider.CanBeServerProvider)
                 tableFilter = syncTable.GetFilter();
 
             var hasFilters = tableFilter != null;
