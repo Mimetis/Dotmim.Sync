@@ -2,6 +2,8 @@
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
+using Dotmim.Sync.Web.Client;
+using Dotmim.Sync.Web.Server;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -21,6 +23,312 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public partial class RemoteOrchestratorTests : IDisposable
     {
+
+        public SyncSetup GetFilterSetup()
+        {
+            var setup = new SyncSetup(new string[] {
+                            "SalesLT.ProductModel", "SalesLT.ProductCategory","SalesLT.Product",
+                            "Customer","Address", "CustomerAddress", "Employee",
+                            "SalesLT.SalesOrderHeader","SalesLT.SalesOrderDetail" });
+
+            // Vertical Filter on columns
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+            setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
+
+            // Horizontal Filters on where clause
+
+            // 1) EASY Way:
+            setup.Filters.Add("CustomerAddress", "CustomerID");
+            setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
+
+
+            // 2) Same, but decomposed in 3 Steps
+
+            var customerFilter = new SetupFilter("Customer");
+            customerFilter.AddParameter("CustomerID", "Customer", true);
+            customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
+            setup.Filters.Add(customerFilter);
+
+            // 3) Create your own filter
+
+            // Create a filter on table Address
+            var addressFilter = new SetupFilter("Address");
+            addressFilter.AddParameter("CustomerID", "Customer");
+            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+            addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
+            setup.Filters.Add(addressFilter);
+            // ----------------------------------------------------
+
+            // Create a filter on table SalesLT.SalesOrderDetail
+            var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", "SalesLT");
+            salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
+            salesOrderDetailFilter.AddJoin(Join.Left, "SalesLT.SalesOrderHeader").On("SalesLT.SalesOrderHeader", "SalesOrderId", "SalesLT.SalesOrderDetail", "SalesOrderId");
+            salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", "SalesLT.SalesOrderHeader", "CustomerID");
+            salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
+            setup.Filters.Add(salesOrderDetailFilter);
+            // ----------------------------------------------------
+
+            // 4) Custom Wheres on Product.
+            var productFilter = new SetupFilter("Product", "SalesLT");
+            productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL OR side.sync_row_is_tombstone = 1");
+            setup.Filters.Add(productFilter);
+
+
+            return setup;
+
+        }
+
+        public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
+        {
+            int totalCountRows = 0;
+
+            using (var serverDbCtx = new AdventureWorksContext(t))
+            {
+
+                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
+                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                var employeesCount = serverDbCtx.Employee.Count();
+                var productsCount = serverDbCtx.Product.Count();
+                var productsCategoryCount = serverDbCtx.ProductCategory.Count();
+                var productsModelCount = serverDbCtx.ProductModel.Count();
+
+                totalCountRows = addressesCount + customersCount + customerAddressesCount + salesOrdersDetailsCount + salesOrdersHeadersCount +
+                                 productsCount + productsCategoryCount + productsModelCount + employeesCount;
+            }
+
+            return totalCountRows;
+        }
+
+
+        /// <summary>
+        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
+        /// </summary>
+        [Fact]
+        public async Task RemoteOrchestrator_GetChanges_WithFilters_ShouldReturnNewRowsInserted()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var setup = GetFilterSetup();
+            var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider);
+            agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+
+            // Making a first sync, will initialize everything we need
+            var r = await agent.SynchronizeAsync(setup, scopeName);
+            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            Guid otherCustomerId;
+
+            // Server side : Create a sales order header + 3 sales order details linked to the filter
+            // and create 1 sales order header not linked to filter
+            using var ctxServer = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true);
+
+            // get another customer than the filter one
+            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerIdForFilter).CustomerId;
+
+            var soh = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var soh2 = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = otherCustomerId,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+
+            var productId = ctxServer.Product.First().ProductId;
+
+            var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+            var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+            var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+            soh.SalesOrderDetail.Add(sod1);
+            soh.SalesOrderDetail.Add(sod2);
+            soh.SalesOrderDetail.Add(sod3);
+
+            ctxServer.SalesOrderHeader.Add(soh);
+            ctxServer.SalesOrderHeader.Add(soh2);
+            await ctxServer.SaveChangesAsync();
+
+
+            // Get changes from server
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, agent.Parameters);
+
+            Assert.NotNull(changes.ServerBatchInfo);
+            Assert.NotNull(changes.ServerChangesSelected);
+            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+
+            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
+            Assert.Equal(3, sodTable.Rows.Count);
+
+            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
+            Assert.Single(sohTable.Rows);
+
+        }
+
+
+        /// <summary>
+        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
+        /// </summary>
+        [Fact]
+        public async Task RemoteOrchestrator_GetEstimatedChanges_WithFilters_ShouldReturnNewRowsCount()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var setup = GetFilterSetup();
+            var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider);
+            agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+
+            // Making a first sync, will initialize everything we need
+            var r = await agent.SynchronizeAsync(setup, scopeName);
+            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            Guid otherCustomerId;
+
+            // Server side : Create a sales order header + 3 sales order details linked to the filter
+            // and create 1 sales order header not linked to filter
+            using var ctxServer = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true);
+
+            // get another customer than the filter one
+            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerIdForFilter).CustomerId;
+
+            var soh = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var soh2 = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = otherCustomerId,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var productId = ctxServer.Product.First().ProductId;
+
+            var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+            var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+            var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+            soh.SalesOrderDetail.Add(sod1);
+            soh.SalesOrderDetail.Add(sod2);
+            soh.SalesOrderDetail.Add(sod3);
+
+            ctxServer.SalesOrderHeader.Add(soh);
+            ctxServer.SalesOrderHeader.Add(soh2);
+            await ctxServer.SaveChangesAsync();
+
+            // Get changes from server
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, agent.Parameters);
+
+            Assert.Null(changes.ServerBatchInfo);
+            Assert.NotNull(changes.ServerChangesSelected);
+            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+
+        }
+
+
         /// <summary>
         /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
         /// </summary>
@@ -223,6 +531,246 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
         }
+
+
+        /// <summary>
+        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
+        /// </summary>
+        [Fact]
+        public async Task RemoteOrchestrator_HttpGetChanges_WithFilters_ShouldReturnNewRows()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var setup = GetFilterSetup();
+
+            // Create a kestrell server
+            var kestrell = new KestrellTestServer(false);
+
+            // configure server orchestrator
+            var webServerAgent = new WebServerAgent(serverProvider, setup, default, default, scopeName);
+            kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = kestrell.Run();
+
+            var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
+
+            var remoteOrchestrator = new WebClientOrchestrator(serviceUri);
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, remoteOrchestrator);
+            agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+
+            // Making a first sync, will initialize everything we need
+            var r = await agent.SynchronizeAsync(setup, scopeName);
+            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+
+            Guid otherCustomerId;
+
+            // Server side : Create a sales order header + 3 sales order details linked to the filter
+            // and create 1 sales order header not linked to filter
+            using var ctxServer = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true);
+
+            // get another customer than the filter one
+            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerIdForFilter).CustomerId;
+
+            var soh = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var soh2 = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = otherCustomerId,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var productId = ctxServer.Product.First().ProductId;
+
+            var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+            var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+            var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+            soh.SalesOrderDetail.Add(sod1);
+            soh.SalesOrderDetail.Add(sod2);
+            soh.SalesOrderDetail.Add(sod3);
+
+            ctxServer.SalesOrderHeader.Add(soh);
+            ctxServer.SalesOrderHeader.Add(soh2);
+            await ctxServer.SaveChangesAsync();
+
+            // Get changes from server
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, agent.Parameters);
+
+            Assert.NotNull(changes.ServerBatchInfo);
+            Assert.NotNull(changes.ServerChangesSelected);
+            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+
+            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
+            Assert.Equal(3, sodTable.Rows.Count);
+
+            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
+            Assert.Single(sohTable.Rows);
+        }
+
+        [Fact]
+        public async Task RemoteOrchestrator_HttpGetEstimatedChanges_WithFilters_ShouldReturnNewRowsCount()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var setup = GetFilterSetup();
+
+            // Create a kestrell server
+            var kestrell = new KestrellTestServer(false);
+
+            // configure server orchestrator
+            var webServerAgent = new WebServerAgent(serverProvider, setup, default, default, scopeName);
+            kestrell.AddSyncServer(webServerAgent);
+            var serviceUri = kestrell.Run();
+
+            var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
+
+            var remoteOrchestrator = new WebClientOrchestrator(serviceUri);
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, remoteOrchestrator);
+            agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+
+            // Making a first sync, will initialize everything we need
+            var r = await agent.SynchronizeAsync(setup, scopeName);
+            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+
+            Guid otherCustomerId;
+
+            // Server side : Create a sales order header + 3 sales order details linked to the filter
+            // and create 1 sales order header not linked to filter
+            using var ctxServer = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true);
+
+            // get another customer than the filter one
+            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerIdForFilter).CustomerId;
+
+            var soh = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var soh2 = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = otherCustomerId,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var productId = ctxServer.Product.First().ProductId;
+
+            var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+            var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+            var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+            soh.SalesOrderDetail.Add(sod1);
+            soh.SalesOrderDetail.Add(sod2);
+            soh.SalesOrderDetail.Add(sod3);
+
+            ctxServer.SalesOrderHeader.Add(soh);
+            ctxServer.SalesOrderHeader.Add(soh2);
+            await ctxServer.SaveChangesAsync();
+
+            // Get changes from server
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, agent.Parameters);
+
+            Assert.Null(changes.ServerBatchInfo);
+            Assert.NotNull(changes.ServerChangesSelected);
+            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+
+        }
+
 
     }
 }

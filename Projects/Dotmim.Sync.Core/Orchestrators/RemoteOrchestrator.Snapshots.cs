@@ -87,7 +87,7 @@ namespace Dotmim.Sync
 
                 // When we get the changes from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(serverScopeInfo.Name, context.Parameters, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryPathAsync(serverScopeInfo.Name, context.Parameters, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (!string.IsNullOrEmpty(rootDirectory))
                 {
@@ -177,10 +177,10 @@ namespace Dotmim.Sync
 
             try
             {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.SnapshotCreating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
                     throw new SnapshotMissingMandatariesOptionsException();
-
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.SnapshotCreating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // check parameters
                 // If context has no parameters specified, and user specifies a parameter collection we switch them
@@ -197,7 +197,7 @@ namespace Dotmim.Sync
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                    await this.InternalProvisionAsync(serverScopeInfo, context, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalProvisionAsync(serverScopeInfo, context, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Write scopes locally
                     (context, serverScopeInfo) = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -233,12 +233,14 @@ namespace Dotmim.Sync
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalCreateSnapshotAsync));
 
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.SnapshotCreating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
             await this.InterceptAsync(new SnapshotCreatingArgs(context, serverScopeInfo.Schema, this.Options.SnapshotsDirectory, this.Options.BatchSize, remoteClientTimestamp, this.Provider.CreateConnection(), null), progress, cancellationToken).ConfigureAwait(false);
 
             if (!Directory.Exists(this.Options.SnapshotsDirectory))
                 Directory.CreateDirectory(this.Options.SnapshotsDirectory);
 
-            var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(serverScopeInfo.Name, context.Parameters, cancellationToken, progress).ConfigureAwait(false);
+            var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryPathAsync(serverScopeInfo.Name, context.Parameters, cancellationToken, progress).ConfigureAwait(false);
 
             // create local directory with scope inside
             if (!Directory.Exists(rootDirectory))
@@ -273,6 +275,8 @@ namespace Dotmim.Sync
             }
 
             await this.InterceptAsync(new SnapshotCreatedArgs(context, serverBatchInfo, this.Provider.CreateConnection(), null), progress, cancellationToken).ConfigureAwait(false);
+
+            await runner.CommitAsync().ConfigureAwait(false);
 
             return (context, serverBatchInfo);
         }

@@ -428,70 +428,14 @@ namespace Dotmim.Sync.Web.Server
             return httpResponse;
         }
 
-        //internal protected virtual async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
-        //    CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        //{
-
-        //    if (httpMessage == null)
-        //        throw new ArgumentException("EnsureScopesAsync message could not be null");
-
-        //    if (this.Setup == null)
-        //        throw new ArgumentException("You need to set the tables to sync on server side");
-
-        //    // Get context from request message
-        //    var ctx = httpMessage.SyncContext;
-
-        //    // Set the context coming from the client
-        //    this.SetContext(ctx);
-
-        //    // Get schema
-        //    var serverScopeInfo = await base.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
-        //    var schema = serverScopeInfo.Schema;
-        //    schema.EnsureSchema();
-        //    httpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
-
-        //    var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
-
-        //    return httpResponse;
-
-
-        //}
-
-        //internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
-        //                int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        //{
-
-        //    // Overriding batch size options value, coming from client
-        //    // having changes from server in batch size or not is decided by the client.
-        //    // Basically this options is not used on the server, since it's always overriden by the client
-        //    this.Options.BatchSize = clientBatchSize;
-
-        //    // Get context from request message
-        //    var ctx = httpMessage.SyncContext;
-
-        //    // Set the context coming from the client
-        //    this.SetContext(ctx);
-
-        //    var changes = await base.GetChangesAsync(httpMessage.Scope, default, default, cancellationToken, progress);
-
-        //    // no changes applied to server
-        //    var clientChangesApplied = new DatabaseChangesApplied();
-
-        //    // Save the server batch info object to cache if not working in memory
-        //    sessionCache.RemoteClientTimestamp = changes.RemoteClientTimestamp;
-        //    sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
-        //    sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
-        //    sessionCache.ClientChangesApplied = clientChangesApplied;
-
-        //    // Get the firt response to send back to client
-        //    return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
-        //}
 
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ClientScopeInfo, default, default, cancellationToken, progress);
+            // Get context from request message
+            var context = httpMessage.SyncContext;
+
+            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ClientScopeInfo, context.Parameters, default, default, cancellationToken, progress);
 
             var changesResponse = new HttpMessageSendChangesResponse(httpMessage.SyncContext)
             {
@@ -1095,5 +1039,64 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
+        //internal protected virtual async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
+        //    CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        //{
+
+        //    if (httpMessage == null)
+        //        throw new ArgumentException("EnsureScopesAsync message could not be null");
+
+        //    if (this.Setup == null)
+        //        throw new ArgumentException("You need to set the tables to sync on server side");
+
+        //    // Get context from request message
+        //    var ctx = httpMessage.SyncContext;
+
+        //    // Set the context coming from the client
+        //    this.SetContext(ctx);
+
+        //    // Get schema
+        //    var serverScopeInfo = await base.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+        //    var schema = serverScopeInfo.Schema;
+        //    schema.EnsureSchema();
+        //    httpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
+
+        //    var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
+
+        //    return httpResponse;
+
+
+        //}
+
+        //internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+        //                int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        //{
+
+        //    // Overriding batch size options value, coming from client
+        //    // having changes from server in batch size or not is decided by the client.
+        //    // Basically this options is not used on the server, since it's always overriden by the client
+        //    this.Options.BatchSize = clientBatchSize;
+
+        //    // Get context from request message
+        //    var ctx = httpMessage.SyncContext;
+
+        //    // Set the context coming from the client
+        //    this.SetContext(ctx);
+
+        //    var changes = await base.GetChangesAsync(httpMessage.Scope, default, default, cancellationToken, progress);
+
+        //    // no changes applied to server
+        //    var clientChangesApplied = new DatabaseChangesApplied();
+
+        //    // Save the server batch info object to cache if not working in memory
+        //    sessionCache.RemoteClientTimestamp = changes.RemoteClientTimestamp;
+        //    sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
+        //    sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
+        //    sessionCache.ClientChangesApplied = clientChangesApplied;
+
+        //    // Get the firt response to send back to client
+        //    return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
+        //}
     }
 }

@@ -29,7 +29,6 @@ namespace Dotmim.Sync.Enumerations
         ChangesApplying,
 
         Migrating,
-
         MetadataCleaning,
     }
 }

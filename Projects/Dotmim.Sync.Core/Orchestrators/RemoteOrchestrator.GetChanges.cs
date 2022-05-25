@@ -25,10 +25,14 @@ namespace Dotmim.Sync
         /// Get changes from remote database
         /// </summary>
         public virtual async Task<ServerSyncChanges>
-            GetChangesAsync(ClientScopeInfo clientScope, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetChangesAsync(ClientScopeInfo clientScope, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), clientScope.Name);
+
+            if (parameters != null)
+                context.Parameters = parameters;
+
             try
             {
 
@@ -78,10 +82,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get estimated changes from remote database to be applied on client
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)>
-                    GetEstimatedChangesCountAsync(ClientScopeInfo clientScope, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerSyncChanges>
+            GetEstimatedChangesCountAsync(ClientScopeInfo clientScope, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), clientScope.Name);
+
+            if (parameters != null)
+                context.Parameters = parameters;
 
             try
             {
@@ -117,7 +124,9 @@ namespace Dotmim.Sync
                 (context, serverChangesSelected) =
                     await this.InternalGetEstimatedChangesCountAsync(serverScopeInfo, context, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                return (remoteClientTimestamp, serverChangesSelected);
+                var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected);
+
+                return serverSyncChanges;
             }
             catch (Exception ex)
             {

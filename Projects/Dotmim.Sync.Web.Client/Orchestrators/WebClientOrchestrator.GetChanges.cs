@@ -20,10 +20,12 @@ namespace Dotmim.Sync.Web.Client
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
         public override async Task<ServerSyncChanges>
-                                GetChangesAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                GetChangesAsync(ClientScopeInfo clientScopeInfo, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
+
+            if (parameters != null)
+                context.Parameters = parameters;
 
             SyncSet schema;
             ServerScopeInfo serverScopeInfo;
@@ -54,7 +56,7 @@ namespace Dotmim.Sync.Web.Client
             var binaryData = await serializer.SerializeAsync(changesToSend);
 
             var response = await this.httpRequestHandler.ProcessRequestAsync
-                (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress, 
+                (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
                  this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
 
@@ -125,7 +127,7 @@ namespace Dotmim.Sync.Web.Client
                 context.ProgressPercentage = initialPctProgress + ((bpi.Index + 1) * 0.2d / serverBatchInfo.BatchPartsInfo.Count);
 
                 var response = await this.httpRequestHandler.ProcessRequestAsync(
-                this.HttpClient, context, this.ServiceUri, binaryData3, step3, 
+                this.HttpClient, context, this.ServiceUri, binaryData3, step3,
                 this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
                 // Serialize
@@ -155,11 +157,14 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
-        public override async Task<(long RemoteClientTimestamp, DatabaseChangesSelected ServerChangesSelected)>
-                                GetEstimatedChangesCountAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override async Task<ServerSyncChanges>
+                GetEstimatedChangesCountAsync(ClientScopeInfo clientScopeInfo, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
+
+            if (parameters != null)
+                context.Parameters = parameters;
 
             SyncSet schema;
             ServerScopeInfo serverScopeInfo;
@@ -191,7 +196,7 @@ namespace Dotmim.Sync.Web.Client
 
             // response
             var response = await this.httpRequestHandler.ProcessRequestAsync
-                    (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetEstimatedChangesCount, 
+                    (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetEstimatedChangesCount,
                      this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
             HttpMessageSendChangesResponse summaryResponseContent = null;
@@ -211,10 +216,7 @@ namespace Dotmim.Sync.Web.Client
             // generate the new scope item
             this.CompleteTime = DateTime.UtcNow;
 
-            // Reaffect context
-            context = summaryResponseContent.SyncContext;
-
-            return (summaryResponseContent.RemoteClientTimestamp, summaryResponseContent.ServerChangesSelected);
+            return new (summaryResponseContent.RemoteClientTimestamp, null, summaryResponseContent.ServerChangesSelected);
         }
 
 

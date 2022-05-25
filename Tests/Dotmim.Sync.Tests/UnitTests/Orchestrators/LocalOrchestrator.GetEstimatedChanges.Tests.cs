@@ -2,6 +2,8 @@
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
+using Dotmim.Sync.Web.Client;
+using Dotmim.Sync.Web.Server;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -205,6 +207,89 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal("MissingLocalOrchestratorSchemaException", ex.TypeName);
         }
+
+
+        /// <summary>
+        /// LocalOrchestrator.GetEstimatedChanges should return estimated rows to send back to the server
+        /// </summary>
+        [Fact]
+        public async Task LocalOrchestrator_GetEstimatedChanges_WithFilters_ShouldReturnNewRowsInserted()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var setup = GetFilterSetup();
+            var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider);
+            agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+
+            // Making a first sync, will initialize everything we need
+            var r = await agent.SynchronizeAsync(setup, scopeName);
+            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            // Client side : Create a sales order header + 3 sales order details linked to the filter
+            using var ctxClient = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true);
+
+            var soh = new SalesOrderHeader
+            {
+                SalesOrderNumber = $"SO-99999",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                AccountNumber = "10-4020-000609",
+                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                ShipToAddressId = 4,
+                BillToAddressId = 5,
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+            var productId = ctxClient.Product.First().ProductId;
+
+            var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+            var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+            var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+            soh.SalesOrderDetail.Add(sod1);
+            soh.SalesOrderDetail.Add(sod2);
+            soh.SalesOrderDetail.Add(sod3);
+
+            ctxClient.SalesOrderHeader.Add(soh);
+            await ctxClient.SaveChangesAsync();
+
+            // Get changes to be populated to the server
+            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName, agent.Parameters);
+
+            Assert.Null(changes.ClientBatchInfo);
+            Assert.NotNull(changes.ClientChangesSelected);
+            Assert.Equal(2, changes.ClientChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("SalesOrderDetail", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("SalesOrderHeader", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+        }
+
 
     }
 }

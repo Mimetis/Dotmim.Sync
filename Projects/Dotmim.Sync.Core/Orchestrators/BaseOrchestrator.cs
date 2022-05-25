@@ -415,7 +415,7 @@ namespace Dotmim.Sync
             //if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
             //    ctx.Parameters = syncParameters;
 
-            return this.InternalGetSnapshotDirectoryAsync(scopeName, syncParameters, cancellationToken, progress);
+            return this.InternalGetSnapshotDirectoryPathAsync(scopeName, syncParameters, cancellationToken, progress);
         }
 
         /// <summary>
@@ -445,7 +445,7 @@ namespace Dotmim.Sync
         /// Internal routine to get the snapshot root directory and batch directory name
         /// </summary>
         internal virtual Task<(string DirectoryRoot, string DirectoryName)>
-            InternalGetSnapshotDirectoryAsync(string scopeName, SyncParameters parameters = null,
+            InternalGetSnapshotDirectoryPathAsync(string scopeName, SyncParameters parameters = null,
                              CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
