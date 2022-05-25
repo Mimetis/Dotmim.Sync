@@ -53,6 +53,9 @@ namespace Dotmim.Sync.Web.Client
             if (ensureScopesResponse.ServerScopeInfo == null)
                 throw new ArgumentException("Server scope from EnsureScopesAsync can't be null and may contains a server scope");
 
+            // Re build schema relationships with all tables
+            ensureScopesResponse.ServerScopeInfo.Schema?.EnsureSchema();
+
             // Report Progress
             await this.InterceptAsync(new HttpGettingScopeResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 

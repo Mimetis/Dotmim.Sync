@@ -947,7 +947,8 @@ namespace Dotmim.Sync.Tests
 
             // configure server orchestrator
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, Tables);
+            var setup = new SyncSetup(Tables);
+            var webServerAgent = new WebServerAgent(this.Server.Provider, setup);
             webServerAgent.Options.SnapshotsDirectory = snapshotDirectory;
             webServerAgent.Options.BatchSize = 2000;
 
@@ -958,7 +959,7 @@ namespace Dotmim.Sync.Tests
             // ----------------------------------
             // Create a snapshot
             // ----------------------------------
-            await webServerAgent.RemoteOrchestrator.CreateSnapshotAsync();
+            await webServerAgent.RemoteOrchestrator.CreateSnapshotAsync(setup);
 
             // ----------------------------------
             // Add rows on server AFTER snapshot

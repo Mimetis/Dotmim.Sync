@@ -41,3 +41,6 @@ Maybe, we should log something here ?
 - Check All InternalMethods call are affecting the context instance (and no call are just " await Internal..." and more "(context, _) = await Internal...."   )
 
 - Check all Internal methods are not public and are internal
+
+- BUG : GetChanges and GetEstimatedChanges must take SyncParameters as arguments, for filtered setup 
+- Make GetChanges and GetEstimatedChanges in HttpFiltersTests and TcpFiltersTests

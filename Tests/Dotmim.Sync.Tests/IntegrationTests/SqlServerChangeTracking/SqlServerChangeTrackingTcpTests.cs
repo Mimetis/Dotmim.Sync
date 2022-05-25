@@ -18,6 +18,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class SqlServerChangeTrackingTcpTests : TcpTests
     {
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            {  ProviderType.Sql};
+
         public SqlServerChangeTrackingTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -29,8 +32,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            {  ProviderType.Sql};
 
         public override ProviderType ServerType =>
             ProviderType.Sql;
@@ -52,41 +53,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        //public T CreateOrchestrator<T>(ProviderType providerType, string dbName, bool useChangeTracking = false) where T : IOrchestrator
-        //{
-        //    // Get connection string
-        //    var cs = HelperDatabase.GetConnectionString(providerType, dbName);
-
-        //    CoreProvider provider = null;
-        //    IOrchestrator orchestrator = null;
-
-        //    switch (providerType)
-        //    {
-        //        case ProviderType.Sql:
-        //            provider = useChangeTracking ? new SqlSyncChangeTrackingProvider(cs) : new SqlSyncProvider(cs);
-        //            break;
-        //        case ProviderType.MySql:
-        //            provider = new MySqlSyncProvider(cs);
-        //            break;
-        //        case ProviderType.Sqlite:
-        //            provider = new SqliteSyncProvider(cs);
-        //            break;
-        //    }
-
-        //    if (typeof(T) == typeof(RemoteOrchestrator))
-        //        orchestrator = new RemoteOrchestrator(provider);
-        //    else if (typeof(T) == typeof(LocalOrchestrator))
-        //        orchestrator = new LocalOrchestrator(provider);
-        //    else if (typeof(T) == typeof(WebServerOrchestrator))
-        //        orchestrator = new WebServerOrchestrator(provider);
-
-        //    if (orchestrator == null)
-        //        throw new Exception("Orchestrator does not exists");
-
-        //    return (T)orchestrator;
-        //}
-
-
+  
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t
             , bool useSeeding = false, bool useFallbackSchema = false)
         {
@@ -174,6 +141,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             return totalCountRows;
         }
+
+
+        /// <summary>
+        /// Testing an insert / update on a table where a column is not part of the sync setup, and should stay alive after a sync
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+#pragma warning disable xUnit1026 // Theory methods should use all of their parameters
+        public override Task OneColumn_NotInSetup_AfterCleanMetadata_IsTracked_ButNotUpdated(SyncOptions options)
+#pragma warning restore xUnit1026 // Theory methods should use all of their parameters
+            => Task.CompletedTask;
 
         ///// <summary>
         ///// Since we do not have control on the change tracking mechanism, any row updated will be marked as updated

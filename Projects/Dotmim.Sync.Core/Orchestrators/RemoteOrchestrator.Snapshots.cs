@@ -87,7 +87,7 @@ namespace Dotmim.Sync
 
                 // When we get the changes from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(serverScopeInfo.Name, default, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                var (rootDirectory, nameDirectory) = await this.InternalGetSnapshotDirectoryAsync(serverScopeInfo.Name, context.Parameters, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (!string.IsNullOrEmpty(rootDirectory))
                 {
