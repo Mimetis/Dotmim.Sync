@@ -30,16 +30,24 @@ namespace Dotmim.Sync
             GetClientScopeInfoAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
+            
+            try
+            {
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            ClientScopeInfo localScope;
-            (context, localScope) = await InternalGetClientScopeInfoAsync(context,
-                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                ClientScopeInfo localScope;
+                (context, localScope) = await InternalGetClientScopeInfoAsync(context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-            await runner.CommitAsync().ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
 
-            return localScope;
+                return localScope;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
         }
 
 

@@ -24,90 +24,12 @@ namespace Dotmim.Sync.Tests.UnitTests
     public partial class RemoteOrchestratorTests : IDisposable
     {
 
-        public SyncSetup GetFilterSetup()
-        {
-            var setup = new SyncSetup(new string[] {
-                            "SalesLT.ProductModel", "SalesLT.ProductCategory","SalesLT.Product",
-                            "Customer","Address", "CustomerAddress", "Employee",
-                            "SalesLT.SalesOrderHeader","SalesLT.SalesOrderDetail" });
-
-            // Vertical Filter on columns
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-            setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
-
-            // Horizontal Filters on where clause
-
-            // 1) EASY Way:
-            setup.Filters.Add("CustomerAddress", "CustomerID");
-            setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
-
-
-            // 2) Same, but decomposed in 3 Steps
-
-            var customerFilter = new SetupFilter("Customer");
-            customerFilter.AddParameter("CustomerID", "Customer", true);
-            customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
-            setup.Filters.Add(customerFilter);
-
-            // 3) Create your own filter
-
-            // Create a filter on table Address
-            var addressFilter = new SetupFilter("Address");
-            addressFilter.AddParameter("CustomerID", "Customer");
-            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-            addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
-            setup.Filters.Add(addressFilter);
-            // ----------------------------------------------------
-
-            // Create a filter on table SalesLT.SalesOrderDetail
-            var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", "SalesLT");
-            salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
-            salesOrderDetailFilter.AddJoin(Join.Left, "SalesLT.SalesOrderHeader").On("SalesLT.SalesOrderHeader", "SalesOrderId", "SalesLT.SalesOrderDetail", "SalesOrderId");
-            salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", "SalesLT.SalesOrderHeader", "CustomerID");
-            salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
-            setup.Filters.Add(salesOrderDetailFilter);
-            // ----------------------------------------------------
-
-            // 4) Custom Wheres on Product.
-            var productFilter = new SetupFilter("Product", "SalesLT");
-            productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL OR side.sync_row_is_tombstone = 1");
-            setup.Filters.Add(productFilter);
-
-
-            return setup;
-
-        }
-
-        public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
-        {
-            int totalCountRows = 0;
-
-            using (var serverDbCtx = new AdventureWorksContext(t))
-            {
-
-                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
-                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var employeesCount = serverDbCtx.Employee.Count();
-                var productsCount = serverDbCtx.Product.Count();
-                var productsCategoryCount = serverDbCtx.ProductCategory.Count();
-                var productsModelCount = serverDbCtx.ProductModel.Count();
-
-                totalCountRows = addressesCount + customersCount + customerAddressesCount + salesOrdersDetailsCount + salesOrdersHeadersCount +
-                                 productsCount + productsCategoryCount + productsModelCount + employeesCount;
-            }
-
-            return totalCountRows;
-        }
-
 
         /// <summary>
         /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
         /// </summary>
         [Fact]
-        public async Task RemoteOrchestrator_GetChanges_WithFilters_ShouldReturnNewRowsInserted()
+        public async Task RemoteOrchestrator_GetEstimatedChanges_WithFilters_ShouldReturnNewRowsCount()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
@@ -185,7 +107,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TotalDue = 6530.35M + 70.4279M + 22.0087M
             };
 
-
             var productId = ctxServer.Product.First().ProductId;
 
             var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
@@ -200,33 +121,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             ctxServer.SalesOrderHeader.Add(soh2);
             await ctxServer.SaveChangesAsync();
 
-
             // Get changes from server
             var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, agent.Parameters);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, agent.Parameters);
 
-            Assert.NotNull(changes.ServerBatchInfo);
+            Assert.Null(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
             Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
             Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
-            Assert.Equal(3, sodTable.Rows.Count);
-
-            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
-            Assert.Single(sohTable.Rows);
-
         }
 
 
-
-
-        /// <summary>
-        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
-        /// </summary>
         [Fact]
-        public async Task RemoteOrchestrator_GetChanges_ShouldReturnNewRowsInserted()
+        public async Task RemoteOrchestrator_GetEstimatedChanges_AfterInitialize_ShouldReturnRowsCount()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
@@ -244,8 +153,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
 
             var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions();
-            var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
@@ -281,32 +188,78 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Get client scope
             var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
-            // Get changes to be populated to the server
-            var serverSyncChanges = await remoteOrchestrator.GetChangesAsync(clientScope);
+            // Get the estimated changes count to be applied to the client
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
 
-            Assert.NotNull(serverSyncChanges.ServerBatchInfo);
-            Assert.NotNull(serverSyncChanges.ServerChangesSelected);
-            Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TableChangesSelected.Count);
-            Assert.Contains("Product", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
-            Assert.Contains("ProductCategory", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
-
-            var productTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(serverSyncChanges.ServerBatchInfo, "Product", "SalesLT");
-            var productRowName = productTable.Rows[0]["Name"];
-            Assert.Equal(productName, productRowName);
-
-            var productCategoryTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(serverSyncChanges.ServerBatchInfo, "ProductCategory", "SalesLT");
-            var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
-            Assert.Equal(productCategoryName, productCategoryRowName);
-
+            Assert.NotNull(changes.ServerChangesSelected);
+            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("Product", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("ProductCategory", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
         }
 
-
-  
-        /// <summary>
-        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
-        /// </summary>
         [Fact]
-        public async Task RemoteOrchestrator_HttpGetChanges_WithFilters_ShouldReturnNewRows()
+
+        public async Task RemoteOrchestrator_GetEstimatedChanges_BeforeInitialize_ShouldReturnRowsCount()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
+
+            var scopeName = "scopesnap1";
+            var setup = new SyncSetup(this.Tables);
+
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, new SyncOptions());
+
+            // Server side : Create a product category and a product
+            // Create a productcategory item
+            // Create a new product on server
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider)))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
+                ctx.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+
+            await remoteOrchestrator.ProvisionAsync(serverScope);
+
+            // fake client scope
+            var clientScopeInfo = new ClientScopeInfo()
+            {
+                Name = scopeName,
+                IsNewScope = true,
+                Setup = serverScope.Setup,
+                Schema = serverScope.Schema
+            };
+
+
+            // Get estimated changes count to be sent to the client
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScopeInfo);
+
+            Assert.NotNull(changes.ServerChangesSelected);
+            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Contains("Product", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+            Assert.Contains("ProductCategory", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
+        }
+
+        [Fact]
+        public async Task RemoteOrchestrator_HttpGetEstimatedChanges_WithFilters_ShouldReturnNewRowsCount()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
@@ -410,24 +363,18 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Get changes from server
             var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, agent.Parameters);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, agent.Parameters);
 
-            Assert.NotNull(changes.ServerBatchInfo);
+            Assert.Null(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
             Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
             Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
-            Assert.Equal(3, sodTable.Rows.Count);
-
-            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
-            Assert.Single(sohTable.Rows);
         }
 
-
         [Fact]
-        public async Task RemoteOrchestrator_HttpGetChanges_WithFilters_ShouldReturnDeletedRowsCount()
+        public async Task RemoteOrchestrator_HttpGetEstimatedChanges_WithFilters_ShouldReturnDeletedRowsCount()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
@@ -543,26 +490,15 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Get changes from server
             var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, agent.Parameters);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, agent.Parameters);
 
-            Assert.NotNull(changes.ServerBatchInfo);
+            Assert.Null(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
             Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
             Assert.Equal(4, changes.ServerChangesSelected.TableChangesSelected.Sum(tcs => tcs.Deletes));
             Assert.Equal(0, changes.ServerChangesSelected.TableChangesSelected.Sum(tcs => tcs.Upserts));
             Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
-
-
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
-            Assert.Equal(3, sodTable.Rows.Count);
-            foreach (var row in sodTable.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
-
-            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
-            Assert.Single(sohTable.Rows);
-            foreach (var row in sohTable.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
 
         }
 

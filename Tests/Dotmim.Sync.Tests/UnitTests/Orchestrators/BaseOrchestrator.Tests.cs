@@ -294,7 +294,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+                var scopeInfo = await localOrchestrator.GetSchemaAsync(setup);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
@@ -325,7 +325,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await localOrchestrator.GetClientScopeInfoAsync();
+                await localOrchestrator.GetSchemaAsync(setup);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
@@ -361,7 +361,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await localOrchestrator.GetClientScopeInfoAsync();
+                await localOrchestrator.GetSchemaAsync(setup);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
