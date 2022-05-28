@@ -31,7 +31,7 @@ namespace Dotmim.Sync
         public RemoteOrchestrator(CoreProvider provider, SyncOptions options) : base(provider, options)
         {
             if (this.Provider != null && !this.Provider.CanBeServerProvider)
-                throw new UnsupportedServerProviderException(this.Provider.GetProviderTypeName());
+                throw GetSyncError(null, new UnsupportedServerProviderException(this.Provider.GetProviderTypeName()));
         }
 
         /// <summary>
@@ -40,7 +40,7 @@ namespace Dotmim.Sync
         public RemoteOrchestrator(CoreProvider provider) : base(provider, new SyncOptions())
         {
             if (this.Provider != null && !this.Provider.CanBeServerProvider)
-                throw new UnsupportedServerProviderException(this.Provider.GetProviderTypeName());
+                throw GetSyncError(null, new UnsupportedServerProviderException(this.Provider.GetProviderTypeName()));
         }
 
         /// <summary>
@@ -161,5 +161,5 @@ namespace Dotmim.Sync
         //    }
         //}
 
-  }
+    }
 }

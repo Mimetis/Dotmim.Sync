@@ -27,6 +27,7 @@ namespace Dotmim.Sync
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            context.SyncStage = SyncStage.ChangesApplying;
 
             var databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
@@ -98,6 +99,8 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool metadataUpdated)> InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
+            context.SyncStage = SyncStage.ChangesApplying;
+
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
             if (command == null) return (context, false);

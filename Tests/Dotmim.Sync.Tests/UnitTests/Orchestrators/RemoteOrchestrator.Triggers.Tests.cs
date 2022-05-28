@@ -18,10 +18,10 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public partial class BaseOrchestratorTests
+    public partial class RemoteOrchestratorTests
     {
         [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldCreate_Triggers()
+        public async Task RemoteOrchestrator_Provision_ShouldCreate_Triggers()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -75,7 +75,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_Trigger_ShouldCreate()
+        public async Task RemoteOrchestrator_Trigger_ShouldCreate()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_Trigger_ShouldOverwrite()
+        public async Task RemoteOrchestrator_Trigger_ShouldOverwrite()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -183,7 +183,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_Trigger_ShouldNotOverwrite()
+        public async Task RemoteOrchestrator_Trigger_ShouldNotOverwrite()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -226,7 +226,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_Trigger_Exists()
+        public async Task RemoteOrchestrator_Trigger_Exists()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -262,7 +262,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_Triggers_ShouldCreate()
+        public async Task RemoteOrchestrator_Triggers_ShouldCreate()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);

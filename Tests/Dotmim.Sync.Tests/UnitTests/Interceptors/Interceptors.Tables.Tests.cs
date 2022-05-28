@@ -219,9 +219,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
 
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var clientScope = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             // new empty db
             dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -230,24 +231,24 @@ namespace Dotmim.Sync.Tests.UnitTests
             cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
             sqlProvider = new SqlSyncProvider(cs);
 
-            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            remoteOrchestrator.OnTableCreating(ttca => onCreating++);
-            remoteOrchestrator.OnTableCreated(ttca => onCreated++);
-            remoteOrchestrator.OnTableDropping(ttca => onDropping++);
-            remoteOrchestrator.OnTableDropped(ttca => onDropped++);
+            localOrchestrator.OnTableCreating(ttca => onCreating++);
+            localOrchestrator.OnTableCreated(ttca => onCreated++);
+            localOrchestrator.OnTableDropping(ttca => onDropping++);
+            localOrchestrator.OnTableDropped(ttca => onDropped++);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync();
-            scopeInfo.Setup = clientScope.Setup;
-            scopeInfo.Schema = clientScope.Schema;
-            await remoteOrchestrator.SaveServerScopeInfoAsync(scopeInfo);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            scopeInfo.Setup = serverScope.Setup;
+            scopeInfo.Schema = serverScope.Schema;
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
-            await remoteOrchestrator.CreateTablesAsync(scopeInfo);
+            await localOrchestrator.CreateTablesAsync(scopeInfo);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);
@@ -259,14 +260,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            await remoteOrchestrator.CreateTablesAsync(scopeInfo);
+            await localOrchestrator.CreateTablesAsync(scopeInfo);
 
             Assert.Equal(0, onCreating);
             Assert.Equal(0, onCreated);
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 
-            await remoteOrchestrator.CreateTablesAsync(scopeInfo, true);
+            await localOrchestrator.CreateTablesAsync(scopeInfo, true);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);

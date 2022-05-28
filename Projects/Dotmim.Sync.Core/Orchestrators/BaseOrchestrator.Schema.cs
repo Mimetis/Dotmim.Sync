@@ -16,13 +16,16 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
+        public virtual Task<SyncSet> GetSchemaAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetSchemaAsync(SyncOptions.DefaultScopeName, setup, connection, transaction, cancellationToken, progress);
+
         /// <summary>
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual async Task<SyncSet> GetSchemaAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<SyncSet> GetSchemaAsync(string scopeName, SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
                 if (setup == null || setup.Tables.Count <= 0)
@@ -50,7 +53,7 @@ namespace Dotmim.Sync
             if (setup == null || setup.Tables.Count <= 0)
                 throw new MissingTablesException(context.ScopeName);
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             await this.InterceptAsync(new SchemaLoadingArgs(context, setup, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 

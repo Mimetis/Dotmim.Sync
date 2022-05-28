@@ -23,10 +23,10 @@ namespace Filter
             var clientProvider = new SqlSyncProvider(clientConnectionString);
             //var clientProvider = new SqliteSyncProvider("advfiltered.db");
 
-            var setup = new SyncSetup(new string[] {"ProductCategory",
+            var setup = new SyncSetup("ProductCategory",
                 "ProductModel", "Product",
                 "Address", "Customer", "CustomerAddress",
-                "SalesOrderHeader", "SalesOrderDetail" });
+                "SalesOrderHeader", "SalesOrderDetail");
 
             // ----------------------------------------------------
             // Horizontal Filter: On rows. Removing rows from source
@@ -109,7 +109,7 @@ namespace Filter
             setup.Filters.Add(orderDetailsFilter);
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, setup);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             if (!agent.Parameters.Contains("City"))
                 agent.Parameters.Add("City", "Toronto");
@@ -122,7 +122,7 @@ namespace Filter
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync();
+                var s1 = await agent.SynchronizeAsync(setup);
                 // Write results
                 Console.WriteLine(s1);
 

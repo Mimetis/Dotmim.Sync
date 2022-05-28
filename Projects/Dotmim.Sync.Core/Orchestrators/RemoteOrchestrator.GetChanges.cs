@@ -93,7 +93,7 @@ namespace Dotmim.Sync
             try
             {
 
-                await using var runner0 = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner0 = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ServerScopeInfo serverScopeInfo;
                 (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, runner0.Connection, runner0.Transaction, runner0.CancellationToken, runner0.Progress).ConfigureAwait(false);

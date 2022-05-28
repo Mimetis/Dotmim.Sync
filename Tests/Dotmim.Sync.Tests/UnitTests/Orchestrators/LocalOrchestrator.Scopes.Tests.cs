@@ -159,8 +159,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup2 = new SyncSetup(this.Tables);
             setup2.Filters.Add("Customer", "EmployeeID");
 
-
             var schema = await localOrchestrator.GetSchemaAsync(setup);
+            var schema2 = await localOrchestrator.GetSchemaAsync(setup2);
 
             var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync();
             var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A");
@@ -176,14 +176,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             var serverScope2 = new ServerScopeInfo
             {
                 Name = localScopeInfo2.Name,
-                Schema = schema,
+                Schema = schema2,
                 Setup = setup2,
                 Version = localScopeInfo2.Version
             };
 
-
-            await localOrchestrator.ProvisionAsync(serverScope1);
-            await localOrchestrator.ProvisionAsync(serverScope2);
+            localScopeInfo1 = await localOrchestrator.ProvisionAsync(serverScope1);
+            localScopeInfo2 = await localOrchestrator.ProvisionAsync(serverScope2);
 
             foreach (var table in localScopeInfo1.Setup.Tables)
             {
@@ -291,7 +290,9 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Version = localScopeInfo2.Version
             };
 
-
+            // Provision two scopes (already tested in previous test)
+            localScopeInfo1 = await localOrchestrator.ProvisionAsync(serverScope1);
+            localScopeInfo2 = await localOrchestrator.ProvisionAsync(serverScope2);
 
             Assert.NotNull(localScopeInfo1.Setup);
             Assert.NotNull(localScopeInfo1.Schema);
@@ -299,9 +300,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(localScopeInfo2.Setup);
             Assert.NotNull(localScopeInfo2.Schema);
 
-            // Provision two scopes (already tested in previous test)
-            localScopeInfo1 = await localOrchestrator.ProvisionAsync(serverScope1);
-            localScopeInfo2 = await localOrchestrator.ProvisionAsync(serverScope2);
 
             // Deprovision
             await localOrchestrator.DeprovisionAsync("A");
@@ -351,8 +349,9 @@ namespace Dotmim.Sync.Tests.UnitTests
                 var trackTableExists1 = await localOrchestrator.ExistTrackingTableAsync(localScopeInfo1, tableName, schemaName);
                 var trackTableExists2 = await localOrchestrator.ExistTrackingTableAsync(localScopeInfo2, tableName, schemaName);
 
-                Assert.False(trackTableExists1);
-                Assert.False(trackTableExists2);
+                // Tracking table are still existing for others scopes
+                Assert.True(trackTableExists1);
+                Assert.True(trackTableExists2);
 
             }
 

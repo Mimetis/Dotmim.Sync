@@ -22,7 +22,7 @@ namespace Filter
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-            var setup = new SyncSetup(new string[] { "ProductCategory", "Product" });
+            var setup = new SyncSetup("ProductCategory", "Product" );
 
             // Shortcut to create a filter directly from your SyncSetup instance
             // We are filtering all the product categories, by the ID (a GUID)
@@ -41,7 +41,7 @@ namespace Filter
     
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, setup);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             if (!agent.Parameters.Contains("ProductCategoryID"))
                 agent.Parameters.Add("ProductCategoryID", new Guid("10A7C342-CA82-48D4-8A38-46A2EB089B74"));
@@ -49,7 +49,7 @@ namespace Filter
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync();
+                var s1 = await agent.SynchronizeAsync(setup);
                 // Write results
                 Console.WriteLine(s1);
 

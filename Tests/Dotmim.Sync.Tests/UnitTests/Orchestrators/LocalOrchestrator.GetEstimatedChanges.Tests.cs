@@ -110,8 +110,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
 
             var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions();
-            var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
@@ -144,8 +142,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Since we are new and not yet initialized, no rows are marked to be sent
             var estimated = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName);
 
-            Assert.Equal(0, estimated.ClientTimestamp);
-            Assert.Null(estimated.ClientChangesSelected);
+            Assert.Null(estimated);
         }
 
         /// <summary>

@@ -18,11 +18,11 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public partial class BaseOrchestratorTests
+    public partial class RemoteOrchestratorTests
     {
 
         [Fact]
-        public async Task BaseOrchestrator_StoredProcedure_ShouldCreate()
+        public async Task RemoteOrchestrator_StoredProcedure_ShouldCreate()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -67,7 +67,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task BaseOrchestrator_StoredProcedure_ShouldOverwrite()
+        public async Task RemoteOrchestrator_StoredProcedure_ShouldOverwrite()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -112,7 +112,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task BaseOrchestrator_StoredProcedure_ShouldNotOverwrite()
+        public async Task RemoteOrchestrator_StoredProcedure_ShouldNotOverwrite()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_StoredProcedure_Exists()
+        public async Task RemoteOrchestrator_StoredProcedure_Exists()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -190,7 +190,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_StoredProcedures_ShouldCreate()
+        public async Task RemoteOrchestrator_StoredProcedures_ShouldCreate()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);

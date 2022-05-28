@@ -17,7 +17,7 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public partial class BaseOrchestratorTests : IDisposable
+    public partial class RemoteOrchestratorTests : IDisposable
     {
         public string[] Tables => new string[]
         {
@@ -32,7 +32,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public ITestOutputHelper Output { get; }
 
 
-        public BaseOrchestratorTests(ITestOutputHelper output)
+        public RemoteOrchestratorTests(ITestOutputHelper output)
         {
 
             // Getting the test running
@@ -54,7 +54,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
         [Fact]
-        public void BaseOrchestrator_Constructor()
+        public void RemoteOrchestrator_Constructor()
         {
             var provider = new SqlSyncProvider();
             var options = new SyncOptions();
@@ -72,20 +72,30 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public void BaseOrchestrator_ShouldFail_When_Args_AreNull()
+        public void RemoteOrchestrator_ShouldFail_When_Args_AreNull()
         {
             var provider = new SqlSyncProvider();
             var options = new SyncOptions();
             var setup = new SyncSetup();
 
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, null));
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(provider, null));
-            Assert.Throws<ArgumentNullException>(() => new LocalOrchestrator(null, options));
+            var ex1 = Assert.Throws<SyncException>(() => 
+                new RemoteOrchestrator(null, null));
+            Assert.Equal("ArgumentNullException", ex1.TypeName);
+
+            var ex2 = Assert.Throws<SyncException>(() => 
+            new RemoteOrchestrator(provider, null));
+
+            Assert.Equal("ArgumentNullException", ex2.TypeName);
+
+            var orc = new RemoteOrchestrator(null, options);
+            Assert.NotNull(orc);
+            Assert.Null(orc.Provider);
+            Assert.NotNull(orc.Options);
         }
 
 
         [Fact]
-        public async Task BaseOrchestrator_GetServerScope_ShouldFail_If_SetupIsEmpty()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_ShouldFail_If_SetupIsEmpty()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -108,12 +118,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
 
-        internal static void AssertConnectionAndTransaction(BaseOrchestrator orchestrator, string scopeName, SyncStage stage)
+        internal static void AssertConnectionAndTransaction(BaseOrchestrator orchestrator, string scopeName)
         {
             orchestrator.OnConnectionOpen(args =>
             {
                 Assert.IsType<ConnectionOpenedArgs>(args);
-                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -122,7 +131,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             orchestrator.OnTransactionOpen(args =>
             {
                 Assert.IsType<TransactionOpenedArgs>(args);
-                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.NotNull(args.Transaction);
@@ -132,7 +140,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             orchestrator.OnTransactionCommit(args =>
             {
                 Assert.IsType<TransactionCommitArgs>(args);
-                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.NotNull(args.Transaction);
@@ -142,7 +149,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             orchestrator.OnConnectionClose(args =>
             {
                 Assert.IsType<ConnectionClosedArgs>(args);
-                Assert.Equal(stage, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -152,7 +158,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_GetSchema_ShouldReturnSchema()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_ShouldReturnSchema()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -179,7 +185,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             remoteOrchestrator.OnSchemaLoaded(args =>
             {
                 Assert.IsType<SchemaLoadedArgs>(args);
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
+                Assert.Equal(SyncStage.Provisioning, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -189,7 +195,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             });
 
-            AssertConnectionAndTransaction(remoteOrchestrator, scopeName, SyncStage.ScopeLoading);
+            AssertConnectionAndTransaction(remoteOrchestrator, scopeName);
 
             var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
 
@@ -199,13 +205,19 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(onSchemaRead);
             Assert.True(onSchemaReading);
 
+            var schema = await remoteOrchestrator.GetSchemaAsync(scopeName, setup);
+
+            Assert.NotNull(schema);
+            Assert.Equal(16, schema.Tables.Count);
+
+
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
-        public async Task BaseOrchestrator_GetSchema_CancellationToken_ShouldInterrupt()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_CancellationToken_ShouldInterrupt()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            var dbName = HelperDatabase.GetRandomName("tcp_ro_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
             var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
             var sqlProvider = new SqlSyncProvider(cs);
@@ -215,10 +227,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
             using var cts = new CancellationTokenSource();
 
-            localOrchestrator.OnConnectionOpen(args =>
+            remoteOrchestrator.OnConnectionOpen(args =>
             {
                 Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.IsType<ConnectionOpenedArgs>(args);
@@ -230,11 +242,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync(cancellationToken: cts.Token);
+                var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(cancellationToken: cts.Token);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);
 
 
@@ -242,7 +254,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_GetSchema_SetupColumnsDefined_ShouldReturn_SchemaWithSetupColumnsOnly()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_SetupColumnsDefined_ShouldReturn_SchemaWithSetupColumnsOnly()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -274,7 +286,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_GetSchema_NoPrimaryKeysColumn_ShouldFail()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_NoPrimaryKeysColumn_ShouldFail()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -290,22 +302,22 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(tables);
             setup.Tables["Customer"].Columns.AddRange(new string[] { "FirstName", "LastName", "CompanyName" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var scopeInfo = await localOrchestrator.GetSchemaAsync(setup);
+                var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
             });
 
-            Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncStage.Provisioning, se.SyncStage);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingPrimaryKeyColumnException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
-        public async Task BaseOrchestrator_GetSchema_NonExistingColumns_ShouldFail()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_NonExistingColumns_ShouldFail()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -321,15 +333,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(tables);
             setup.Tables["Customer"].Columns.AddRange(new string[] { "FirstName", "LastName", "CompanyName", "BADCOLUMN" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await localOrchestrator.GetSchemaAsync(setup);
+                await remoteOrchestrator.GetServerScopeInfoAsync(setup);
             });
 
-            Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncStage.Provisioning, se.SyncStage);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingColumnException", se.TypeName);
 
 
@@ -337,7 +349,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
-        public async Task BaseOrchestrator_GetSchema_NonExistingTables_ShouldFail()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_NonExistingTables_ShouldFail()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -357,15 +369,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
             var setup = new SyncSetup(tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await localOrchestrator.GetSchemaAsync(setup);
+                await remoteOrchestrator.GetServerScopeInfoAsync(setup);
             });
 
-            Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncStage.Provisioning, se.SyncStage);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingTableException", se.TypeName);
 
 
@@ -374,7 +386,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldFail_If_SetupIsEmpty()
+        public async Task RemoteOrchestrator_Provision_ShouldFail_If_SetupIsEmpty()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -394,15 +406,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             var se = await Assert.ThrowsAsync<SyncException>(
                 async () => await orchestrator.ProvisionAsync(scopeName, setup, provision));
 
-            Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingTablesException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
-        public async Task BaseOrchestrator_Provision_SchemaCreated_If_SetupHasTables()
+        public async Task RemoteOrchestrator_Provision_SchemaCreated_If_SetupHasTables()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -430,7 +442,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task BaseOrchestrator_Provision_SchemaNotCreated_If_SetupHasTables_AndDbIsEmpty()
+        public async Task RemoteOrchestrator_Provision_SchemaNotCreated_If_SetupHasTables_AndDbIsEmpty()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -450,129 +462,16 @@ namespace Dotmim.Sync.Tests.UnitTests
                 async () => await remoteOrchestrator.ProvisionAsync(scopeName, setup, provision));
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingTableException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-        [Fact]
-        public async Task BaseOrchestrator_Provision_SchemaCreated_If_SchemaHasColumnsDefinition()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var scopeName = "scope";
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var schema = new SyncSet();
-            var table = new SyncTable("Product", "SalesLT");
-            var colID = new SyncColumn("ID", typeof(Guid));
-            var colName = new SyncColumn("Name", typeof(string));
-
-            table.Columns.Add(colID);
-            table.Columns.Add(colName);
-            table.Columns.Add("Number", typeof(int));
-            table.PrimaryKeys.Add("ID");
-
-            schema.Tables.Add(table);
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName);
-            scopeInfo.Schema = schema;
-            scopeInfo.Setup = setup;
-
-            var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-            await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
-
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-
-                var tbl = await SqlManagementUtils.GetTableAsync(c, null, "Product", "SalesLT");
-
-                var tblName = tbl.Rows[0]["TableName"].ToString();
-                var schName = tbl.Rows[0]["SchemaName"].ToString();
-
-                Assert.Equal(table.TableName, tblName);
-                Assert.Equal(table.SchemaName, schName);
-
-                var cols = await SqlManagementUtils.GetColumnsForTableAsync(c, null, "Product", "SalesLT");
-
-                Assert.Equal(3, cols.Rows.Count);
-
-                c.Close();
-            }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
+   
 
         [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldCreate_TrackingTable()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var scopeName = "scope";
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
-            { TrackingTablesSuffix = "sync", TrackingTablesPrefix = "trck" };
-
-            var schema = new SyncSet();
-            var table = new SyncTable("Product", "SalesLT");
-            var colID = new SyncColumn("ID", typeof(Guid));
-            var colName = new SyncColumn("Name", typeof(string));
-
-            table.Columns.Add(colID);
-            table.Columns.Add(colName);
-            table.Columns.Add("Number", typeof(int));
-            table.PrimaryKeys.Add("ID");
-
-            schema.Tables.Add(table);
-
-            // trackign table name is composed with prefix and suffix from setup
-            var trackingTableName = $"{setup.TrackingTablesPrefix}{table.TableName}{setup.TrackingTablesSuffix}";
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName);
-            scopeInfo.Setup = setup;
-            scopeInfo.Schema = schema;
-
-            var provision = SyncProvision.TrackingTable;
-
-            await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
-
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-
-                var tbl = await SqlManagementUtils.GetTableAsync(c, null, trackingTableName, "SalesLT");
-
-                var tblName = tbl.Rows[0]["TableName"].ToString();
-                var schName = tbl.Rows[0]["SchemaName"].ToString();
-
-                Assert.Equal(trackingTableName, tblName);
-                Assert.Equal(table.SchemaName, schName);
-
-                c.Close();
-            }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-
-        [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldCreate_StoredProcedures_WithSpecificScopeName()
+        public async Task RemoteOrchestrator_Provision_ShouldCreate_StoredProcedures_WithSpecificScopeName()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -631,7 +530,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
         [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldCreate_StoredProcedures_WithDefaultScopeName()
+        public async Task RemoteOrchestrator_Provision_ShouldCreate_StoredProcedures_WithDefaultScopeName()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -688,69 +587,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-
         [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldCreate_Table()
+        public async Task RemoteOrchestrator_Provision_SchemaFail_If_SchemaHasColumnsDefinitionButNoPrimaryKey()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            var dbName = HelperDatabase.GetRandomName("tcp_ro_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
             var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
             var sqlProvider = new SqlSyncProvider(cs);
-
-            var scopeName = "scope";
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var schema = new SyncSet();
-            var table = new SyncTable("Product", "SalesLT");
-            var colID = new SyncColumn("ID", typeof(Guid));
-            var colName = new SyncColumn("Name", typeof(string));
-
-            table.Columns.Add(colID);
-            table.Columns.Add(colName);
-            table.Columns.Add("Number", typeof(int));
-            table.PrimaryKeys.Add("ID");
-
-            schema.Tables.Add(table);
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName);
-            scopeInfo.Schema = schema;
-            scopeInfo.Setup = setup;
-
-            var provision = SyncProvision.Table;
-
-            await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
-
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-
-                var tbl = await SqlManagementUtils.GetTableAsync(c, null, "Product", "SalesLT");
-
-                var tblName = tbl.Rows[0]["TableName"].ToString();
-                var schName = tbl.Rows[0]["SchemaName"].ToString();
-
-                Assert.Equal(table.TableName, tblName);
-                Assert.Equal(table.SchemaName, schName);
-
-                c.Close();
-            }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-
-
-        [Fact]
-        public async Task BaseOrchestrator_Provision_SchemaFail_If_SchemaHasColumnsDefinitionButNoPrimaryKey()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
+            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
+            await ctx.Database.EnsureCreatedAsync();
 
             var scopeName = "scope";
 
@@ -770,7 +615,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+
+            // Overriding scope info to introduce a bad table with no primary key
             scopeInfo.Schema = schema;
             scopeInfo.Setup = setup;
 
@@ -780,7 +627,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 async () => await remoteOrchestrator.ProvisionAsync(scopeInfo, provision));
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingPrimaryKeyException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -788,7 +635,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task BaseOrchestrator_Provision_ShouldFails_If_SetupTable_DoesNotExist()
+        public async Task RemoteOrchestrator_Provision_ShouldFails_If_SetupTable_DoesNotExist()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -806,8 +653,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
                 await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup));
 
-            Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ClientSide, se.Side);
+            Assert.Equal(SyncStage.Provisioning, se.SyncStage);
+            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingTableException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);

@@ -71,7 +71,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.Equal(scopeName, args.ScopeName);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
                 scopeLoading++;
             });
@@ -80,10 +80,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.ScopeInfo);
-                Assert.Equal(scopeName, args.ScopeInfo.Name);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 scopeLoaded++;
             });
 
@@ -92,8 +90,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(1, scopeTableCreating);
             Assert.Equal(1, scopeTableCreated);
-            Assert.Equal(1, scopeLoading);
-            Assert.Equal(1, scopeLoaded);
+            Assert.Equal(2, scopeLoading);
+            Assert.Equal(2, scopeLoaded);
             Assert.Equal(1, scopeSaving);
             Assert.Equal(1, scopeSaved);
 
@@ -162,7 +160,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             remoteOrchestrator.OnServerScopeLoading(args =>
             {
                 Assert.NotNull(args.Command);
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.Equal(scopeName, args.ScopeName);
                 Assert.NotNull(args.Connection);
@@ -173,10 +170,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             remoteOrchestrator.OnServerScopeLoaded(args =>
             {
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.ScopeInfo);
-                Assert.Equal(scopeName, args.ScopeInfo.Name);
                 Assert.NotNull(args.Connection);
                 Assert.NotNull(args.Transaction);
                 scopeLoaded++;
@@ -191,8 +185,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(2, scopeTableCreating);
             Assert.Equal(2, scopeTableCreated);
-            Assert.Equal(1, scopeLoading);
-            Assert.Equal(1, scopeLoaded);
+            Assert.Equal(2, scopeLoading);
+            Assert.Equal(3, scopeLoaded);
             Assert.Equal(3, scopeSaving);
             Assert.Equal(3, scopeSaved);
 

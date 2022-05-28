@@ -57,7 +57,7 @@ namespace Dotmim.Sync
                 if (scopeInfo == null || scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
                     return null;
 
-                (context, scopeInfo )= await this.InternalUpgradeAsync(scopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, scopeInfo) = await this.InternalUpgradeAsync(scopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -344,8 +344,17 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(clientScopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            (context, _) = await this.InternalProvisionClientAsync(context.ScopeName, context, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(clientScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            var clientScope = await this.GetClientScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var serverScope = new ServerScopeInfo
+            {
+                Schema = clientScope.Schema,
+                Setup = clientScope.Setup,
+                Version = clientScope.Version
+            };
+
+            clientScope = await this.ProvisionAsync(serverScope, provision, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return newVersion;
         }
@@ -364,8 +373,17 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(clientScopeInfo, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            (context, _) = await this.InternalProvisionClientAsync(context.ScopeName, context, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(clientScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            var clientScope = await this.GetClientScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var serverScope = new ServerScopeInfo
+            {
+                Schema = clientScope.Schema,
+                Setup = clientScope.Setup,
+                Version = clientScope.Version
+            };
+
+            clientScope = await this.ProvisionAsync(serverScope, provision, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             return newVersion;
         }

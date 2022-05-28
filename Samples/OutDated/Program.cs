@@ -34,11 +34,11 @@ namespace OutDated
 
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             Console.WriteLine("- Initialize the databases with initial data");
             // Make a first sync to have everything in place
-            Console.WriteLine(await agent.SynchronizeAsync(SyncType.Reinitialize));
+            Console.WriteLine(await agent.SynchronizeAsync(tables));
 
             // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
             var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync();

@@ -54,7 +54,7 @@ namespace Dotmim.Sync
         /// </summary>
         public BaseOrchestrator(CoreProvider provider, SyncOptions options)
         {
-            this.Options = options ?? throw new ArgumentNullException(nameof(options));
+            this.Options = options ?? throw GetSyncError(null, new ArgumentNullException(nameof(options)));
 
             if (provider != null)
             {
@@ -230,7 +230,7 @@ namespace Dotmim.Sync
             if (exception is SyncException)
                 return exception as SyncException;
 
-            var syncStage = context.SyncStage;
+            var syncStage = context == null ? SyncStage.None : context.SyncStage;
             var syncException = new SyncException(exception, syncStage);
 
             // try to let the provider enrich the exception
@@ -239,7 +239,8 @@ namespace Dotmim.Sync
 
             syncException.Side = this.Side;
 
-            this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
+            if (this.Logger != null)
+                this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 
             return syncException;
         }

@@ -104,5 +104,40 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(onSessionEnd);
         }
 
+        [Fact]
+        public void LocalOrchestrator_Constructor()
+        {
+            var provider = new SqlSyncProvider();
+            var options = new SyncOptions();
+            var orchestrator = new LocalOrchestrator(provider, options);
+
+            Assert.NotNull(orchestrator.Options);
+            Assert.Same(options, orchestrator.Options);
+
+            Assert.NotNull(orchestrator.Provider);
+            Assert.Same(provider, orchestrator.Provider);
+
+            Assert.NotNull(provider.Orchestrator);
+            Assert.Same(provider.Orchestrator, orchestrator);
+
+        }
+
+        [Fact]
+        public void LocalOrchestrator_ShouldFail_When_Args_AreNull()
+        {
+            var provider = new SqlSyncProvider();
+            var options = new SyncOptions();
+            var setup = new SyncSetup();
+
+            var ex1 = Assert.Throws<SyncException>(() => new LocalOrchestrator(null, null));
+            Assert.Equal("MissingProviderException", ex1.TypeName);
+
+            var ex2 = Assert.Throws<SyncException>(() => new LocalOrchestrator(provider, null));
+            Assert.Equal("MissingProviderException", ex2.TypeName);
+
+            var ex3 = Assert.Throws<SyncException>(() => new LocalOrchestrator(null, options));
+            Assert.Equal("MissingProviderException", ex3.TypeName);
+        }
+
     }
 }

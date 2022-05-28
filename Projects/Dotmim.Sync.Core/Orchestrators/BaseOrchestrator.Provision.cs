@@ -21,6 +21,8 @@ namespace Dotmim.Sync
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalProvisionAsync));
 
+            context.SyncStage = SyncStage.Provisioning;
+
             // If schema does not have any table, raise an exception
             if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
                 throw new MissingTablesException(scopeInfo.Name);
@@ -119,6 +121,8 @@ namespace Dotmim.Sync
         {
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalDeprovisionAsync));
+
+            context.SyncStage = SyncStage.Deprovisioning;
 
             // If schema does not have any table, raise an exception
             if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)

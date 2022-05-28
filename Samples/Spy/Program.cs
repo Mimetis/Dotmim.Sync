@@ -31,17 +31,17 @@ namespace Spy
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // First sync to initialize everything
-            var s1 = await agent.SynchronizeAsync();
+            var s1 = await agent.SynchronizeAsync(tables);
             // Write results
             Console.WriteLine(s1);
 
             // Make some changes on the server side
             var sc = serverProvider.CreateConnection();
             await Helper.InsertOneCustomerAsync(sc, "John", "Doe");
-            await Helper.InsertOneProductCategoryAsync(sc, "Shoes 2020");
+            await Helper.InsertOneProductCategoryAsync(sc, Guid.NewGuid(), "Shoes 2020");
             await Helper.DeleteOneSalesDetailOrderAsync(sc, 113141);
             await Helper.DeleteOneSalesDetailOrderAsync(sc, 113142);
             await Helper.DeleteOneSalesDetailOrderAsync(sc, 113143);
@@ -61,28 +61,16 @@ namespace Spy
                 Console.WriteLine($"Last timestamp used to compare local rows : {args.ApplyChanges.LastTimestamp}");
                 Console.WriteLine("List of ALL rows to be sync locally:");
 
-                foreach (var table in args.ApplyChanges.Setup.Tables)
+
+                foreach (var table in args.ApplyChanges.Schema.Tables)
                 {
-                    // Get all batch part
-                    var bpiTables = args.ApplyChanges.BatchInfo.GetBatchPartsInfo(table.TableName, table.SchemaName);
+                    var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.BatchInfo, table.TableName, table.SchemaName);
 
-                    foreach(var bpiTable in bpiTables)
-                    {
-                        // Get path to the bpiTable
-                        var path = args.ApplyChanges.BatchInfo.GetBatchPartInfoPath(bpiTable).FullPath;
-                        // Get the schema table
-                        var schemaTable = args.ApplyChanges.BatchInfo.SanitizedSchema.Tables[table.TableName, table.SchemaName];
-
-                        Console.ForegroundColor = ConsoleColor.White;
-                        Console.WriteLine($"Changes for table {table.TableName}. Rows:{bpiTable.RowsCount}");
-                        Console.ResetColor();
-                        foreach (var row in agent.Options.LocalSerializerFactory.GetLocalSerializer().ReadRowsFromFile(path, schemaTable))
-                        {
-                            Console.WriteLine(row);
-                        }
-
-                    }
-
+                    Console.ForegroundColor = ConsoleColor.White;
+                    Console.WriteLine($"Changes for table {table.TableName}. Rows:{syncTable.Rows.Count}");
+                    Console.ResetColor();
+                    foreach (var row in syncTable.Rows)
+                        Console.WriteLine(row);
                 }
             });
 

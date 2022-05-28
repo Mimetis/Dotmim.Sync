@@ -26,14 +26,14 @@ namespace Dotmim.Sync
                 DatabaseChangesApplied clientChangesApplied = null;
                 BatchInfo serverBatchInfo = null;
 
-                //Direction set to Upload
-                context.SyncWay = SyncWay.Upload;
-
                 // Create two transactions
                 // First one to commit changes
                 // Second one to get changes now that everything is commited
                 await using (var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
+                    //Direction set to Upload
+                    context.SyncWay = SyncWay.Upload;
+
                     IScopeInfo serverClientScopeInfo;
                     // Getting server scope assumes we have already created the schema on server
                     // Scope name is the scope name coming from client
@@ -63,6 +63,7 @@ namespace Dotmim.Sync
                 await using (var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
                     context.ProgressPercentage = 0.55;
+
 
                     //Direction set to Download
                     context.SyncWay = SyncWay.Download;

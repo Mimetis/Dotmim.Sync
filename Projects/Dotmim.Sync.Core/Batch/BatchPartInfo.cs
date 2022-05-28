@@ -59,6 +59,25 @@ namespace Dotmim.Sync.Batch
             else
                 return table.TableName;
         }
+
+        public static BatchPartInfo NewBatchPartInfo(string batchPartFileName, string tableName, string schemaName, int rowsCount, int batchIndex)
+        {
+            var bpi = new BatchPartInfo { FileName = batchPartFileName };
+
+            // Create the info on the batch part
+            BatchPartTableInfo tableInfo = new BatchPartTableInfo
+            {
+                TableName = tableName,
+                SchemaName = schemaName,
+                RowsCount = rowsCount
+
+            };
+            bpi.Tables = new BatchPartTableInfo[] { tableInfo };
+            bpi.RowsCount = rowsCount;
+            bpi.IsLastBatch = false;
+            bpi.Index = batchIndex;
+            return bpi;
+        }
     }
 
 }

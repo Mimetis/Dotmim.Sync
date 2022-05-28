@@ -21,37 +21,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public partial class RemoteOrchestratorTests : IDisposable
     {
-        public string[] Tables => new string[]
-        {
-            "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
-            "PricesList", "PricesListCategory", "PricesListDetail"
-        };
-
-        // Current test running
-        private ITest test;
-        private Stopwatch stopwatch;
-        public ITestOutputHelper Output { get; }
-
-        public RemoteOrchestratorTests(ITestOutputHelper output)
-        {
-
-            // Getting the test running
-            this.Output = output;
-            var type = output.GetType();
-            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.test = (ITest)testMember.GetValue(output);
-            this.stopwatch = Stopwatch.StartNew();
-        }
-
-        public void Dispose()
-        {
-            this.stopwatch.Stop();
-
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-            Debug.WriteLine(str);
-        }
+ 
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_CheckInterceptors()
@@ -82,8 +52,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            // Assert on connection and transaction interceptors
-            BaseOrchestratorTests.AssertConnectionAndTransaction(remoteOrchestrator, scopeName, SyncStage.SnapshotCreating);
 
             remoteOrchestrator.OnSnapshotCreating(args =>
             {
@@ -102,7 +70,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             remoteOrchestrator.OnSnapshotCreated(args =>
             {
                 Assert.IsType<SnapshotCreatedArgs>(args);
-                Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
+                Assert.Equal(SyncStage.ChangesSelecting, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);

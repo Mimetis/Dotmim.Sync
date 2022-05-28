@@ -56,7 +56,7 @@ namespace Dotmim.Sync
                 if (provision.HasFlag(SyncProvision.ClientScope))
                     throw new InvalidProvisionForRemoteOrchestratorException();
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ServerScopeInfo serverScopeInfo;
                 (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
@@ -104,7 +104,7 @@ namespace Dotmim.Sync
                 if (serverScopeInfo.Schema == null)
                     throw new Exception($"No Setup in your server scopeInfo {serverScopeInfo.Name}");
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Check incompatibility with the flags
                 if (provision.HasFlag(SyncProvision.ClientScope))

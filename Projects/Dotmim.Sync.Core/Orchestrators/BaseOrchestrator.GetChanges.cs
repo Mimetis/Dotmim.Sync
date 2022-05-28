@@ -37,6 +37,8 @@ namespace Dotmim.Sync
             // Statistics about changes that are selected
             DatabaseChangesSelected changesSelected;
 
+            context.SyncStage = SyncStage.ChangesSelecting;
+
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
             {
                 (batchInfo, changesSelected) = await this.InternalGetEmptyChangesAsync(scopeInfo, batchRootDirectory).ConfigureAwait(false);
@@ -191,7 +193,6 @@ namespace Dotmim.Sync
             if (setupTable == null)
                 return (context, default, default);
 
-
             // Only table schema is replicated, no datas are applied
             if (setupTable.SyncDirection == SyncDirection.None)
                 return (context, default, default);
@@ -279,7 +280,7 @@ namespace Dotmim.Sync
                     if (currentBatchSize <= this.Options.BatchSize)
                         continue;
 
-                    var bpi = GetNewBatchPartInfo(batchPartFileName, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatch, batchIndex);
+                    var bpi = BatchPartInfo.NewBatchPartInfo(batchPartFileName, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatch, batchIndex);
 
                     syncTableBatchPartInfos.Add(bpi);
 
@@ -313,7 +314,7 @@ namespace Dotmim.Sync
             }
             else
             {
-                var bpi2 = GetNewBatchPartInfo(batchPartFileName, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatch, batchIndex);
+                var bpi2 = BatchPartInfo.NewBatchPartInfo(batchPartFileName, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatch, batchIndex);
                 bpi2.IsLastBatch = true;
                 syncTableBatchPartInfos.Add(bpi2);
             }
@@ -335,6 +336,9 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+
+            context.SyncStage = SyncStage.ChangesSelecting;
+
             // Call interceptor
             await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, this.Options.BatchDirectory, this.Options.BatchSize, isNew, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -426,24 +430,7 @@ namespace Dotmim.Sync
             return (context, changes);
         }
 
-        private static BatchPartInfo GetNewBatchPartInfo(string batchPartFileName, string tableName, string schemaName, int rowsCount, int batchIndex)
-        {
-            var bpi = new BatchPartInfo { FileName = batchPartFileName };
-
-            // Create the info on the batch part
-            BatchPartTableInfo tableInfo = new BatchPartTableInfo
-            {
-                TableName = tableName,
-                SchemaName = schemaName,
-                RowsCount = rowsCount
-
-            };
-            bpi.Tables = new BatchPartTableInfo[] { tableInfo };
-            bpi.RowsCount = rowsCount;
-            bpi.IsLastBatch = false;
-            bpi.Index = batchIndex;
-            return bpi;
-        }
+       
 
         /// <summary>
         /// Generate an empty BatchInfo

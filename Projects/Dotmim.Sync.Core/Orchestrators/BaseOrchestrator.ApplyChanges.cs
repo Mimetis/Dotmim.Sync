@@ -29,6 +29,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
+            context.SyncStage = SyncStage.ChangesApplying;
             // call interceptor
             var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, message, connection, transaction);
             await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
@@ -130,6 +131,8 @@ namespace Dotmim.Sync
             if (this.Provider == null)
                 return context;
 
+            context.SyncStage = SyncStage.ChangesApplying;
+            
             var setupTable = scopeInfo.Setup.Tables[schemaTable.TableName, schemaTable.SchemaName];
 
             if (setupTable == null)

@@ -32,12 +32,12 @@ namespace HelloSync
                         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync();
+                var s1 = await agent.SynchronizeAsync(tables);
                 // Write results
                 Console.WriteLine(s1);
 

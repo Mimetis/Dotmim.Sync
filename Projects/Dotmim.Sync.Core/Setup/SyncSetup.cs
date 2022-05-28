@@ -64,6 +64,11 @@ namespace Dotmim.Sync
         public SyncSetup(IEnumerable<string> tables) : this() => this.Tables.AddRange(tables);
 
         /// <summary>
+        /// Create a list of tables to be added to the sync process
+        /// </summary>
+        public SyncSetup(params string[] tables) : this() => this.Tables.AddRange(tables);
+
+        /// <summary>
         /// ctor
         /// </summary>
         public SyncSetup()
