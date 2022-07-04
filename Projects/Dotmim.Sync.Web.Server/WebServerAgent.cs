@@ -912,8 +912,8 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-        public static Task WriteHelloAsync(HttpContext context, WebServerAgent webServerAgent, CancellationToken cancellationToken = default)
-                    => WriteHelloAsync(context, new[] { webServerAgent }, cancellationToken);
+        public Task WriteHelloAsync(HttpContext context, CancellationToken cancellationToken = default)
+            => WriteHelloAsync(context, new[] { this }, cancellationToken);
 
         public static async Task WriteHelloAsync(HttpContext httpContext, IEnumerable<WebServerAgent> webServerAgents, CancellationToken cancellationToken = default)
         {

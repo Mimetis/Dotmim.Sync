@@ -87,7 +87,7 @@ namespace Dotmim.Sync
             // Get exists command
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistServerHistoryScopeInfo, connection, transaction);
+            using var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistServerHistoryScopeInfo, connection, transaction);
 
             if (existsCommand == null) return (context, false);
 
@@ -113,7 +113,7 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetServerHistoryScopeInfo, connection, transaction);
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetServerHistoryScopeInfo, connection, transaction);
 
             if (command == null) return (context, null);
 
@@ -142,6 +142,7 @@ namespace Dotmim.Sync
 
             var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.ServerHistory, serverHistoryScopeInfo, connection, transaction);
             await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+            action.Command.Dispose();
 
             return (context, serverHistoryScopeInfo);
         }
@@ -154,7 +155,7 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllServerHistoryScopesInfo, connection, transaction);
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllServerHistoryScopesInfo, connection, transaction);
 
             if (command == null) return (context, null);
 
@@ -188,6 +189,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             }
+            action.Command.Dispose();
 
             return (context, serverHistoriesScopes);
         }
@@ -244,6 +246,7 @@ namespace Dotmim.Sync
             reader.Close();
 
             await this.InterceptAsync(new ScopeSavedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.ServerHistory, newServerHistoryScopeInfo, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            action.Command.Dispose();
 
             return (context, newServerHistoryScopeInfo);
         }

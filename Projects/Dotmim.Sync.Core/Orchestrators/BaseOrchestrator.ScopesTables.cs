@@ -54,7 +54,7 @@ namespace Dotmim.Sync
 
 
             // Get exists command
-            var existsCommand = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
+            using var existsCommand = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
 
             if (existsCommand == null)
                 return (context, false);
@@ -81,7 +81,7 @@ namespace Dotmim.Sync
                 _ => throw new NotImplementedException()
             };
 
-            var command = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
+            using var command = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
 
             if (command == null) return (context, false);
 
@@ -96,6 +96,8 @@ namespace Dotmim.Sync
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             await this.InterceptAsync(new ScopeTableDroppedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            action.Command.Dispose();
 
             return (context, true);
         }
@@ -115,7 +117,7 @@ namespace Dotmim.Sync
                 _ => throw new NotImplementedException()
             };
 
-            var command = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
+            using var command = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
 
             if (command == null)
                 return (context, false);
@@ -131,6 +133,8 @@ namespace Dotmim.Sync
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             await this.InterceptAsync(new ScopeTableCreatedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            action.Command.Dispose();
 
             return (context, true);
         }

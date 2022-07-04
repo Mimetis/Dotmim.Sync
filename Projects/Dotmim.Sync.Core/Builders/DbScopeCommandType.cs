@@ -35,6 +35,10 @@ namespace Dotmim.Sync.Builders
         UpdateServerScopeInfo,
         UpdateServerHistoryScopeInfo,
 
+        DeleteClientScopeInfo,
+        DeleteServerScopeInfo,
+        DeleteServerHistoryScopeInfo,
+
         ExistClientScopeInfo,
         ExistServerScopeInfo,
         ExistServerHistoryScopeInfo,

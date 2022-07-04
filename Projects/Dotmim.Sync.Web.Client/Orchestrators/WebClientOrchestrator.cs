@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Web.Client
                 return policy;
 
             // Defining my retry policy
-            policy = SyncPolicy.WaitAndRetry(10,
+            policy = SyncPolicy.WaitAndRetry(2,
             (retryNumber) =>
             {
                 return TimeSpan.FromMilliseconds(500 * retryNumber);

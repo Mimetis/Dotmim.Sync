@@ -19,13 +19,13 @@ namespace HelloWebSyncServer.Controllers
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerOrchestrator orchestrator;
+        private WebServerAgent webServerAgent;
         private readonly IWebHostEnvironment env;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerOrchestrator webServerOrchestrator, IWebHostEnvironment env)
+        public SyncController(WebServerAgent webServerAgent, IWebHostEnvironment env)
         {
-            this.orchestrator = webServerOrchestrator;
+            this.webServerAgent = webServerAgent;
             this.env = env;
         }
 
@@ -35,18 +35,17 @@ namespace HelloWebSyncServer.Controllers
         /// <returns></returns>
         [HttpPost]
         public Task Post() 
-            => orchestrator.HandleRequestAsync(this.HttpContext);
+            => webServerAgent.HandleRequestAsync(this.HttpContext);
 
         /// <summary>
         /// This GET handler is optional. It allows you to see the configuration hosted on the server
-        /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
         public async Task Get()
         {
             if (env.IsDevelopment())
             {
-                WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
+                await this.HttpContext.WriteHelloAsync(webServerAgent);
             }
             else
             {
@@ -58,7 +57,7 @@ namespace HelloWebSyncServer.Controllers
                 stringBuilder.AppendLine("<body>");
                 stringBuilder.AppendLine(" PRODUCTION. Write Whatever You Want Here ");
                 stringBuilder.AppendLine("</body>");
-                await this.HttpContext.WriteAsync(stringBuilder.ToString());
+                await this.HttpContext.Response.WriteAsync(stringBuilder.ToString());
             }
         }
 

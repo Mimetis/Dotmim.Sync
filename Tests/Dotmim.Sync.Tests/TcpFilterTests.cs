@@ -823,7 +823,7 @@ namespace Dotmim.Sync.Tests
                 //localOrchestrator.OnTableProvisioned(null);
 
                 //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
-                await localOrchestrator.DeprovisionAsync(clientScope);
+                await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ClientScope | SyncProvision.TrackingTable);
 
                 // check if scope table is correctly created
                 scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.Client);
@@ -919,7 +919,6 @@ namespace Dotmim.Sync.Tests
         [ClassData(typeof(SyncOptionsData))]
         public async Task Migration_Adding_Table(SyncOptions options)
         {
-
             var setup = new SyncSetup(new string[] { "Customer" });
 
             // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
@@ -946,17 +945,37 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 
-            // Adding a new table
-            setup.Tables.Add("Employee");
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
+
+            // Adding a new scope on the server with a new table
+            var setupv2 = new SyncSetup(new string[] { "Customer", "Employee" });
+            setupv2.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+            setupv2.Filters.Add("Customer", "EmployeeID");
+
+            var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
+                // Create the table on local database
+                var localOrchestrator = new LocalOrchestrator(client.Provider);
+                await localOrchestrator.CreateTableAsync(serverScope, "Employee");
+
+                // Once created we can provision the new scope, thanks to the serverScope instance we already have
+                var clientScopeV2 = await localOrchestrator.ProvisionAsync(serverScope);
+
+                // IF we launch synchronize on this new scope, it will get all the rows from the server
+                // We are making a shadow copy of previous scope to get the last synchronization metadata
+                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+                clientScopeV2.ShadowScope(oldClientScopeInfo);
+                await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV2);
+
+
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup, SyncOptions.DefaultScopeName, default);
+                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -996,15 +1015,41 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 
+
+            // Adding a new scope on the server with a the same table plus one column
+            var setupv2 = new SyncSetup(new string[] { "Customer" });
             // Adding a new column to Customer
-            setup.Tables["Customer"].Columns.Add("EmailAddress");
+            setupv2.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName", "EmailAddress" });
+            setupv2.Filters.Add("Customer", "EmployeeID");
 
-
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
+            var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                // Adding the column on client side
+                var commandText = client.ProviderType switch
+                {
+                    ProviderType.Sql => @"ALTER TABLE Customer ADD EmailAddress nvarchar(250) NULL;",
+                    ProviderType.Sqlite => @"ALTER TABLE Customer ADD EmailAddress text NULL;",
+                    ProviderType.MySql => @"ALTER TABLE `Customer` ADD `EmailAddress` nvarchar(250) NULL;",
+                    ProviderType.MariaDB => @"ALTER TABLE `Customer` ADD `EmailAddress` nvarchar(250) NULL;",
+                    _ => throw new NotImplementedException()
+                };
+
+                var connection = client.Provider.CreateConnection();
+                connection.Open();
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+                await command.ExecuteNonQueryAsync();
+                connection.Close();
+
+                // Once created we can provision the new scope, thanks to the serverScope instance we already have
+                var clientScopeV2 = await agent.LocalOrchestrator.ProvisionAsync(serverScope);
 
                 if (Server.ProviderType == ProviderType.MySql || Server.ProviderType == ProviderType.MariaDB)
                 {
@@ -1027,7 +1072,7 @@ namespace Dotmim.Sync.Tests
                 // create agent with filtered tables and parameter
                 agent.Parameters.Add("EmployeeID", 1);
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup, SyncOptions.DefaultScopeName, default);
+                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1067,9 +1112,11 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 
-            // Adding a new column to Customer
-            setup.Tables.Remove(setup.Tables["Customer"]);
-            setup.Filters.Clear();
+
+            // Adding a new scope on the server with a the same table plus one column
+            var setupv2 = new SyncSetup(new string[] { "Employee" });
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
+            var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -1077,7 +1124,19 @@ namespace Dotmim.Sync.Tests
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync(setup);
+                // Once created we can provision the new scope, thanks to the serverScope instance we already have
+                var clientScopeV2 = await agent.LocalOrchestrator.ProvisionAsync(serverScope);
+
+                // IF we launch synchronize on this new scope, it will get all the rows from the server
+                // We are making a shadow copy of previous scope to get the last synchronization metadata
+                var oldClientScopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                clientScopeV2.ShadowScope(oldClientScopeInfo);
+                await agent.LocalOrchestrator.SaveClientScopeInfoAsync(clientScopeV2);
+
+                // Deprovision first scope
+                await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures);
+
+                var s = await agent.SynchronizeAsync("v2");
 
                 Assert.Equal(0, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1118,7 +1177,7 @@ namespace Dotmim.Sync.Tests
 
                 var scopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
-                await agent.LocalOrchestrator.DeprovisionAsync(scopeInfo);
+                await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ClientScope | SyncProvision.TrackingTable);
 
                 foreach (var setupTable in setup.Tables)
                 {
@@ -1145,182 +1204,6 @@ namespace Dotmim.Sync.Tests
 
             }
         }
-
-
-
-        /// <summary>
-        /// </summary>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
-        public async Task Migration_Rename_TrackingTable(SyncOptions options)
-        {
-
-            var setup = new SyncSetup(new string[] { "Customer" });
-
-            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-
-            // create a server schema and seed
-            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-            // create empty client databases
-            foreach (var client in this.Clients)
-                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            setup.Filters.Add("Customer", "EmployeeID");
-
-            // Execute a sync on all clients to initialize client and server schema 
-            foreach (var client in Clients)
-            {
-                // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
-
-                var s = await agent.SynchronizeAsync(setup);
-
-                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-            }
-
-            // Modifying pref and sufix
-            setup.StoredProceduresPrefix = "sp__";
-
-            // Execute a sync on all clients to initialize client and server schema 
-            foreach (var client in Clients)
-            {
-                // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
-
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup);
-
-                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-            }
-
-        }
-
-
-        /// <summary>
-        /// </summary>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
-        public async Task Migration_Adding_Table_AndReinitialize_TableOnly(SyncOptions options)
-        {
-            var setup = new SyncSetup(new string[] { "[Customer]" });
-
-            // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-
-            // create a server schema and seed
-            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-            // create empty client databases
-            foreach (var client in this.Clients)
-                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            setup.Filters.Add("Customer", "EmployeeID");
-
-            // Execute a sync on all clients to initialize client and server schema 
-            foreach (var client in Clients)
-            {
-                // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
-
-                var s = await agent.SynchronizeAsync(setup);
-
-                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-            }
-
-            // Adding a new table
-            setup.Tables.Add("Employee");
-
-            // Trying to Hack the Reinitialize Thing
-            foreach (var client in Clients)
-            {
-                // create an agent 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                // ON SERVER : When trying to get changes from the server, just replace the command with the Initialize command
-                // and get ALL the rows for the migrated new table
-                agent.RemoteOrchestrator.OnTableChangesSelecting(async tcs =>
-                {
-                    if (tcs.Context.AdditionalProperties == null || tcs.Context.AdditionalProperties.Count <= 0)
-                        return;
-
-                    if (tcs.Context.AdditionalProperties.ContainsKey(tcs.SchemaTable.GetFullName()))
-                    {
-                        var addProp = tcs.Context.AdditionalProperties[tcs.SchemaTable.GetFullName()];
-                        if (addProp == "Reinitialize")
-                        {
-                            var scopeInfo = await agent.RemoteOrchestrator.GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, default, tcs.Connection, tcs.Transaction);
-                            var adapter = agent.RemoteOrchestrator.GetSyncAdapter(tcs.SchemaTable, scopeInfo);
-                            var (command, isBatch) = await adapter.GetCommandAsync(DbCommandType.SelectInitializedChanges, tcs.Connection, tcs.Transaction, tcs.SchemaTable.GetFilter());
-                            tcs.Command = command;
-                        }
-                    }
-                });
-
-                // On client
-                agent.LocalOrchestrator.OnMigrated(ma =>
-                {
-                    // migrateTables are empty if not migration tables has been done.
-                    var migratedTables = ma.Migration.Tables;
-
-                    foreach (var migratedTable in migratedTables)
-                    {
-                        var tableName = migratedTable.SetupTable.GetFullName();
-
-                        if (migratedTable.Table == MigrationAction.Create)
-                        {
-                            if (ma.Context.AdditionalProperties == null)
-                                ma.Context.AdditionalProperties = new Dictionary<string, string>();
-
-                            ma.Context.AdditionalProperties.Add(tableName, "Reinitialize");
-                        }
-                    }
-                });
-
-                // ON CLIENT : Forcing Reset of the table to be sure no conflicts will be raised
-                // And all rows will be re-applied 
-                agent.LocalOrchestrator.OnTableChangesApplying(async tca =>
-                {
-                    if (tca.Context.AdditionalProperties == null || tca.Context.AdditionalProperties.Count <= 0)
-                        return;
-
-                    if (tca.State != DataRowState.Modified)
-                        return;
-
-                    if (tca.Context.AdditionalProperties.ContainsKey(tca.SchemaTable.GetFullName()))
-                    {
-                        var addProp = tca.Context.AdditionalProperties[tca.SchemaTable.GetFullName()];
-                        if (addProp == "Reinitialize")
-                        {
-                            var scopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync(tca.Connection, tca.Transaction);
-
-                            await agent.LocalOrchestrator.ResetTableAsync(scopeInfo, tca.SchemaTable.TableName, tca.SchemaTable.SchemaName, tca.Connection, tca.Transaction);
-                        }
-                    }
-                });
-
-
-                agent.Parameters.Add("EmployeeID", 1);
-
-                var s = await agent.SynchronizeAsync();
-
-                Assert.Equal(3, s.ChangesAppliedOnClient.TotalAppliedChanges);
-
-
-                s = await agent.SynchronizeAsync();
-
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-
-            }
-
-
-
-        }
-
 
         /// <summary>
         /// Insert one row in two tables on server, should be correctly sync on all clients
@@ -1351,13 +1234,13 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
 
             // getting snapshot directory names
-            var (rootDirectory, nameDirectory) 
+            var (rootDirectory, nameDirectory)
                 = await remoteOrchestrator.GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, this.FilterParameters).ConfigureAwait(false);
 
             Assert.False(Directory.Exists(rootDirectory));
             Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
 
-            var setup = new SyncSetup(new string[] { "[Customer]" });
+            var setup = new SyncSetup(new string[] { "Customer" });
 
             await remoteOrchestrator.CreateSnapshotAsync(setup, this.FilterParameters);
 
@@ -1397,7 +1280,7 @@ namespace Dotmim.Sync.Tests
 
                 agent.Parameters.AddRange(this.FilterParameters);
 
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, "v2");
 
                 Assert.True(Directory.Exists(rootDirectory));
                 Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
@@ -1586,9 +1469,24 @@ namespace Dotmim.Sync.Tests
             {
                 // Deprovision everything
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options);
-                await localOrchestrator.DeprovisionAsync();
+                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
 
+                await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+                    | SyncProvision.Triggers
+                    | SyncProvision.TrackingTable);
+
+                await localOrchestrator.DeleteClientScopeInfoAsync(clientScope);
             }
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
+            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+
+            await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+                | SyncProvision.Triggers
+                | SyncProvision.TrackingTable);
+
+            await remoteOrchestrator.DeleteServerScopeInfoAsync(serverScope);
+
 
             // Adding a new table
             setup.Tables.Add("Employee");
@@ -1605,6 +1503,7 @@ namespace Dotmim.Sync.Tests
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 agent.Parameters.Add("EmployeeID", 1);
+
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup);
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);

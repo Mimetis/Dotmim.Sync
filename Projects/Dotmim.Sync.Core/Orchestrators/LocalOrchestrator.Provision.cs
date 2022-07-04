@@ -93,6 +93,7 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Deprovision the orchestrator database based the provision enumeration
+        /// Default Deprovision objects are StoredProcedures & Triggers
         /// </summary>
         public virtual Task<bool> DeprovisionAsync(SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction, cancellationToken);

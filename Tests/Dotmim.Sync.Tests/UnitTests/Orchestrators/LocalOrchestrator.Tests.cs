@@ -129,14 +129,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup();
 
-            var ex1 = Assert.Throws<SyncException>(() => new LocalOrchestrator(null, null));
+            var ex1 = Assert.Throws<SyncException>(() => new LocalOrchestrator(null, options));
             Assert.Equal("MissingProviderException", ex1.TypeName);
 
-            var ex2 = Assert.Throws<SyncException>(() => new LocalOrchestrator(provider, null));
-            Assert.Equal("MissingProviderException", ex2.TypeName);
-
-            var ex3 = Assert.Throws<SyncException>(() => new LocalOrchestrator(null, options));
-            Assert.Equal("MissingProviderException", ex3.TypeName);
+            var ex3 = Assert.Throws<SyncException>(() => new LocalOrchestrator(provider, null));
+            Assert.Equal("ArgumentNullException", ex3.TypeName);
         }
 
     }

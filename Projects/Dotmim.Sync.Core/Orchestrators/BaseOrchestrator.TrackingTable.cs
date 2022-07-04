@@ -276,7 +276,7 @@ namespace Dotmim.Sync
             if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var command = await tableBuilder.GetCreateTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetCreateTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -296,6 +296,8 @@ namespace Dotmim.Sync
 
             await runner.CommitAsync().ConfigureAwait(false);
 
+            action.Command.Dispose();
+
             return (context, true);
         }
 
@@ -313,7 +315,7 @@ namespace Dotmim.Sync
             if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var command = await tableBuilder.GetRenameTrackingTableCommandAsync(oldTrackingTableName, connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetRenameTrackingTableCommandAsync(oldTrackingTableName, connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -333,6 +335,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new TrackingTableRenamedArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await runner.CommitAsync().ConfigureAwait(false);
+            action.Command.Dispose();
 
             return (context, true);
         }
@@ -345,7 +348,7 @@ namespace Dotmim.Sync
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var command = await tableBuilder.GetDropTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetDropTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -363,6 +366,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new TrackingTableDroppedArgs(context, tableBuilder.TableDescription, trackingTableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await runner.CommitAsync().ConfigureAwait(false);
+            action.Command.Dispose();
             return (context, true);
         }
 
@@ -373,7 +377,7 @@ namespace Dotmim.Sync
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             // Get exists command
-            var existsCommand = await tableBuilder.GetExistsTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var existsCommand = await tableBuilder.GetExistsTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (existsCommand == null)
                 return (context, false);

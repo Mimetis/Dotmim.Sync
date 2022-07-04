@@ -49,7 +49,7 @@ namespace Dotmim.Sync
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
-            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, connection, transaction);
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, connection, transaction);
 
             if (command == null)
                 return (context, 0L);
@@ -64,6 +64,8 @@ namespace Dotmim.Sync
             long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
 
             var loadedArgs = await this.InterceptAsync(new LocalTimestampLoadedArgs(context, result, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            action.Command.Dispose();
 
             return (context, loadedArgs.LocalTimestamp);
         }

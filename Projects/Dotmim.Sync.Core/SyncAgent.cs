@@ -312,6 +312,14 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                if (setup != null)
+                {
+                    var remoteOrchestratorType = this.RemoteOrchestrator.GetType();
+                    var providerType = remoteOrchestratorType.Name;
+                    if (providerType.ToLowerInvariant() == "webclientorchestrator")
+                        throw new Exception("Do not set Tables (or SyncSetup) from your client. Please use SyncAgent, without any Tables or SyncSetup. The tables will come from the server side");
+                }
+
                 // Begin session
                 context = await this.LocalOrchestrator.InternalBeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 

@@ -8,6 +8,9 @@ using System.Linq;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using System.Threading;
 
 [assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
 
@@ -39,7 +42,7 @@ namespace Microsoft.Extensions.DependencyInjection
             // Create provider
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
-            
+
             // Create orchestrator
             var webServerAgent = new WebServerAgent(provider, setup, options, webServerOptions, scopeName);
             serviceCollection.AddSingleton(webServerAgent);
@@ -66,6 +69,14 @@ namespace Microsoft.Extensions.DependencyInjection
 
         public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables = default, SyncOptions options = null, WebServerOptions webServerOptions = null) where TProvider : CoreProvider, new()
             => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, SyncOptions.DefaultScopeName, new SyncSetup(tables), options, webServerOptions);
+
+    }
+}
+namespace Dotmim.Sync
+{
+    public static class DependencyInjection
+    {
+        public static Task WriteHelloAsync(this HttpContext context, WebServerAgent webServerAgent, CancellationToken cancellationToken = default) => webServerAgent.WriteHelloAsync(context, cancellationToken);
 
     }
 }

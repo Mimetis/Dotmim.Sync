@@ -230,7 +230,7 @@ namespace Dotmim.Sync
             if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var command = await tableBuilder.GetCreateTriggerCommandAsync(triggerType, connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetCreateTriggerCommandAsync(triggerType, connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -244,6 +244,7 @@ namespace Dotmim.Sync
 
             await action.Command.ExecuteNonQueryAsync();
             await this.InterceptAsync(new TriggerCreatedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            action.Command.Dispose();
 
             return (context, true);
         }
@@ -288,7 +289,7 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool dropped)> InternalDropTriggerAsync(
             IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var command = await tableBuilder.GetDropTriggerCommandAsync(triggerType, connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetDropTriggerCommandAsync(triggerType, connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -302,6 +303,7 @@ namespace Dotmim.Sync
 
             await action.Command.ExecuteNonQueryAsync();
             await this.InterceptAsync(new TriggerDroppedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            action.Command.Dispose();
 
             return (context, true);
         }
@@ -341,7 +343,7 @@ namespace Dotmim.Sync
             IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
-            var existsCommand = await tableBuilder.GetExistsTriggerCommandAsync(triggerType, connection, transaction).ConfigureAwait(false);
+            using var existsCommand = await tableBuilder.GetExistsTriggerCommandAsync(triggerType, connection, transaction).ConfigureAwait(false);
 
             if (existsCommand == null)
                 return (context, false);

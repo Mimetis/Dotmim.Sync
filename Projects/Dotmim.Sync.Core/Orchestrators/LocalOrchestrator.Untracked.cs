@@ -95,6 +95,7 @@ namespace Dotmim.Sync
 
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;
+            command.Dispose();
 
             return (context, rowAffected);
         }

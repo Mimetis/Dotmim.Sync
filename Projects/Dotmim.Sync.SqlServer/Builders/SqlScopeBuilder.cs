@@ -514,6 +514,75 @@ namespace Dotmim.Sync.SqlServer.Scope
 
         }
 
+
+
+        // Delete scope
+        // ------------------------------
+        public override DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var commandText =
+                    $@"DELETE FROM  {this.ScopeInfoTableName.Quoted().ToString()} WHERE [sync_scope_name] = @sync_scope_name";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+
+            command.CommandText = commandText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        public override DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var commandText =
+                $@"DELETE FROM  [{tableName}] WHERE [sync_scope_name] = @sync_scope_name";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        public override DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+            var commandText =
+                $@"DELETE FROM  [{tableName}]
+                   WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id";
+
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+
+            command.CommandText = commandText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            var p0 = command.CreateParameter();
+            p0.ParameterName = "@sync_scope_id";
+            p0.DbType = DbType.String;
+            p0.Size = -1;
+            command.Parameters.Add(p0);
+
+            return command;
+        }
+        // ------------------------------
+
         // ------------------------------
 
         // Drop Scope table

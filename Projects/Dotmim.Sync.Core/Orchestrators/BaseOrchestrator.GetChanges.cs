@@ -205,7 +205,7 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                 return (context, default, default);
 
-            var selectIncrementalChangesCommand = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
+            using var selectIncrementalChangesCommand = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
 
             if (selectIncrementalChangesCommand == null)
                 return (context, default, default);
@@ -373,7 +373,7 @@ namespace Dotmim.Sync
                     return;
 
                 // Get Command
-                var command = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
+                using var command = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
 
                 if (command == null) return;
 

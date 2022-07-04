@@ -189,7 +189,7 @@ namespace Dotmim.Sync
             await policy.ExecuteAsync(ct => connection.OpenAsync(ct), cancellationToken);
 
             // Let provider knows a connection is opened
-            this.Provider.OnConnectionOpened(connection);
+            this.Provider.onConnectionOpened(connection);
 
             await this.InterceptAsync(new ConnectionOpenedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
         }
@@ -217,7 +217,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new ConnectionClosedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
-            this.Provider.OnConnectionClosed(connection);
+            this.Provider.onConnectionClosed(connection);
 
             if (isClosedHere && connection != null)
                 connection.Dispose();

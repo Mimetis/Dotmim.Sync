@@ -399,6 +399,9 @@ namespace Dotmim.Sync
             }
 
 
+            if (command != null)
+                command.Dispose();
+
             return context;
         }
 
@@ -666,6 +669,7 @@ namespace Dotmim.Sync
             if (!dataReader.Read())
             {
                 dataReader.Close();
+                command.Dispose();
                 return (context, null);
             }
 
@@ -695,6 +699,7 @@ namespace Dotmim.Sync
                 syncRow.RowState = DataRowState.Modified;
 
             dataReader.Close();
+            command.Dispose();
 
             return (context, syncRow);
         }
@@ -727,6 +732,8 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 rowDeletedCount = (int)syncRowCountParam.Value;
 
+            command.Dispose();
+
             return (context, rowDeletedCount > 0);
         }
 
@@ -757,6 +764,8 @@ namespace Dotmim.Sync
 
             if (syncRowCountParam != null)
                 rowUpdatedCount = (int)syncRowCountParam.Value;
+
+            command.Dispose();
 
             return (context, rowUpdatedCount > 0);
         }

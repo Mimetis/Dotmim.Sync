@@ -113,6 +113,27 @@ namespace Dotmim.Sync.Sqlite
         public override DbCommand GetAllServerHistoriesScopesInfoCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
+        // Delete scope
+        // ------------------------------
+        public override DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var commandText = $@"DELETE FROM  {ScopeInfoTableName.Unquoted().ToString()}
+                               WHERE [sync_scope_name] = @sync_scope_name";
+
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            var p0 = command.CreateParameter();
+            p0.ParameterName = "@sync_scope_name";
+            p0.DbType = DbType.String;
+            p0.Size = 100;
+            command.Parameters.Add(p0);
+            return command;
+        }
+        public override DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         // Get scope

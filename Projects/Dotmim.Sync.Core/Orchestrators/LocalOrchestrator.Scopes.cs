@@ -51,7 +51,6 @@ namespace Dotmim.Sync
         }
 
 
-
         /// <summary>
         /// Internal load a ScopeInfo by scope name
         /// </summary>
@@ -167,6 +166,40 @@ namespace Dotmim.Sync
             }
         }
 
+
+        /// <summary>
+        /// Delete a Client Scope Info from a client database
+        /// </summary> 
+        public virtual async Task<bool>
+            DeleteClientScopeInfoAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                bool isDeleted;
+                // Write scopes locally
+                (context, isDeleted) = await this.InternalDeleteClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return isDeleted;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
+
         /// <summary>
         /// Internal exists scope
         /// </summary>
@@ -175,7 +208,7 @@ namespace Dotmim.Sync
             // Get exists command
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistClientScopeInfo, connection, transaction);
+            using var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistClientScopeInfo, connection, transaction);
 
             if (existsCommand == null) return (context, false);
 
@@ -199,7 +232,7 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetClientScopeInfo, connection, transaction);
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetClientScopeInfo, connection, transaction);
 
             if (command == null) return (context, null);
 
@@ -227,6 +260,7 @@ namespace Dotmim.Sync
 
             var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.Client, clientScopeInfo, connection, transaction);
             await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+            action.Command.Dispose();
 
             return (context, clientScopeInfo);
         }
@@ -239,7 +273,7 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllClientScopesInfo, connection, transaction);
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllClientScopesInfo, connection, transaction);
 
             if (command == null) return (context, null);
 
@@ -273,6 +307,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             }
+            action.Command.Dispose();
 
             return (context, clientScopes);
         }
@@ -315,9 +350,45 @@ namespace Dotmim.Sync
             reader.Close();
 
             await this.InterceptAsync(new ScopeSavedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.Client, clientScopeInfo, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            action.Command.Dispose();
 
             return (context, clientScopeInfo);
         }
+
+        /// <summary>
+        /// Internal delete scope info in a scope table
+        /// </summary>
+        internal async Task<(SyncContext context, bool deleted)>
+            InternalDeleteClientScopeInfoAsync(ClientScopeInfo clientScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+
+            bool scopeExists;
+            (context, scopeExists) = await InternalExistsClientScopeInfoAsync(clientScopeInfo.Name, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (!scopeExists)
+                return (context, true);
+
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.DeleteClientScopeInfo, connection, transaction);
+
+            InternalSetDeleteClientScopeInfoParameters(clientScopeInfo, command);
+
+            var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.Client, clientScopeInfo, command, connection, transaction);
+            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
+
+            if (action.Cancel || action.Command == null)
+                return (context, false);
+
+            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            await this.InterceptAsync(new ScopeSavedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.Client, clientScopeInfo, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            action.Command.Dispose();
+
+            return (context, true);
+        }
+
 
         private DbCommand InternalSetSaveClientScopeInfoParameters(ClientScopeInfo clientScopeInfo, DbCommand command)
         {
@@ -330,6 +401,14 @@ namespace Dotmim.Sync
             DbSyncAdapter.SetParameterValue(command, "scope_last_sync_timestamp", clientScopeInfo.LastSyncTimestamp);
             DbSyncAdapter.SetParameterValue(command, "scope_last_server_sync_timestamp", clientScopeInfo.LastServerSyncTimestamp);
             DbSyncAdapter.SetParameterValue(command, "scope_last_sync_duration", clientScopeInfo.LastSyncDuration);
+
+            return command;
+        }
+
+        private DbCommand InternalSetDeleteClientScopeInfoParameters(ClientScopeInfo clientScopeInfo, DbCommand command)
+        {
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", clientScopeInfo.Id.ToString());
+            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", clientScopeInfo.Name);
 
             return command;
         }

@@ -67,6 +67,8 @@ namespace HelloWebSyncClient
         {
             var claims = new List<Claim>
             {
+                new Claim(JwtRegisteredClaimNames.Iss, "Dotmim.Sync.Bearer"),
+                new Claim(JwtRegisteredClaimNames.Aud, "Dotmim.Sync.Bearer"),
                 new Claim(JwtRegisteredClaimNames.Sub, "Dotmim.Sync"),
                 new Claim(JwtRegisteredClaimNames.Email, email),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),

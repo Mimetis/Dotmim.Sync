@@ -29,6 +29,9 @@ namespace Dotmim.Sync.Builders
         public abstract DbCommand GetInsertClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
         public abstract DbCommand GetInsertServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
         public abstract DbCommand GetInsertServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
         public abstract DbCommand GetUpdateClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
         public abstract DbCommand GetUpdateServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
         public abstract DbCommand GetUpdateServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
@@ -84,6 +87,10 @@ namespace Dotmim.Sync.Builders
                 DbScopeCommandType.UpdateClientScopeInfo => GetUpdateClientScopeInfoCommand(connection, transaction),
                 DbScopeCommandType.UpdateServerScopeInfo => GetUpdateServerScopeInfoCommand(connection, transaction),
                 DbScopeCommandType.UpdateServerHistoryScopeInfo => GetUpdateServerHistoryScopeInfoCommand(connection, transaction),
+
+                DbScopeCommandType.DeleteClientScopeInfo => GetDeleteClientScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.DeleteServerScopeInfo => GetDeleteServerScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.DeleteServerHistoryScopeInfo => GetDeleteServerHistoryScopeInfoCommand(connection, transaction),
 
                 DbScopeCommandType.ExistClientScopeInfo => GetExistsClientScopeInfoCommand(connection, transaction),
                 DbScopeCommandType.ExistServerScopeInfo => GetExistsServerScopeInfoCommand(connection, transaction),

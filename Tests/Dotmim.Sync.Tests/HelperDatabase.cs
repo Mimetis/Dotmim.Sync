@@ -254,6 +254,7 @@ namespace Dotmim.Sync.Tests
             string filePath = null;
             try
             {
+                SqliteConnection.ClearAllPools();
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
                 filePath = GetSqliteFilePath(dbName);

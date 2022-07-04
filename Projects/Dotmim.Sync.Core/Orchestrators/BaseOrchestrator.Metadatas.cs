@@ -82,6 +82,7 @@ namespace Dotmim.Sync
                             databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
                         }
 
+                        command.Dispose();
                     }
 
                     doneList.Add(setupTable);
@@ -120,6 +121,8 @@ namespace Dotmim.Sync
 
             if (syncRowCountParam != null)
                 metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
+
+            command.Dispose();
 
             return (context, metadataUpdatedRowsCount > 0);
         }

@@ -153,15 +153,7 @@ namespace Dotmim.Sync.Tests
                 var r = await agent.SynchronizeAsync("v1");
 
                 Assert.Equal(2, r.TotalChangesDownloaded);
-
-
-
             }
-
-
-
-
-
         }
 
 

@@ -16,6 +16,9 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
+        /// <summary>
+        /// Reset a table, deleting rows from table and tracking_table
+        /// </summary>
         public virtual Task<SyncContext> ResetTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -127,6 +130,7 @@ namespace Dotmim.Sync
 
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
+            command.Dispose();
             return context;
         }
 
@@ -142,6 +146,7 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            command.Dispose();
 
             return context;
         }
@@ -157,6 +162,7 @@ namespace Dotmim.Sync
             {
                 await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                command.Dispose();
             }
 
             return context;

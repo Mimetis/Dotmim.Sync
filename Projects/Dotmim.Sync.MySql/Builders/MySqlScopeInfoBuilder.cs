@@ -35,6 +35,9 @@ namespace Dotmim.Sync.MySql.Builders
         public override DbCommand GetCreateClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
         public override DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
         public override DbCommand GetCreateServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public override DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public override DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+        public override DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
         public override DbCommand GetDropClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
         public override DbCommand GetDropServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
         public override DbCommand GetDropServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();

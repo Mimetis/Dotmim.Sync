@@ -46,7 +46,7 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Server"));
+        var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("AdventureWorks"));
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
         //var setup = new SyncSetup(regipro_tables)
         //{
@@ -56,15 +56,15 @@ internal class Program
         //var snapshotDirectory = Path.Combine("C:\\Tmp\\Snapshots");
         //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
 
-        var op = SyncOptions.GetDefaultUserBatchDiretory();
+        //var op = SyncOptions.GetDefaultUserBatchDiretory();
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
-        //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
+        var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var setup = new SyncSetup(new string[] { "clic" });
         var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
@@ -91,8 +91,8 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        await ScenarioMigrationAddingColumnsAndTableAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await ScenarioMigrationAddingColumnsAndTableAsync();
 
     }
 
@@ -174,7 +174,7 @@ internal class Program
         Console.WriteLine(await agent.SynchronizeAsync("v1", progress: progress));
 
         var deprovision = SyncProvision.StoredProcedures;
-        await localOrchestrator.DeprovisionAsync(defaultClientScopeInfo, deprovision);
+        await localOrchestrator.DeprovisionAsync(deprovision);
 
 
 

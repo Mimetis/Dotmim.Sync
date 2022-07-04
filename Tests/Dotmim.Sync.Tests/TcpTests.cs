@@ -10,6 +10,7 @@ using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 #if NET5_0 || NET6_0 || NETCOREAPP3_1
 using MySqlConnector;
@@ -150,6 +151,9 @@ namespace Dotmim.Sync.Tests
         {
             try
             {
+                SqliteConnection.ClearAllPools();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
                 HelperDatabase.DropDatabase(this.ServerType, Server.DatabaseName);
 
                 foreach (var client in Clients)
@@ -186,6 +190,9 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
                 var setup = new SyncSetup(this.Tables)
                 { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
+
+                client.Provider.OnConnectionOpened(connection => Debug.WriteLine("Connection opened"));
+                client.Provider.OnConnectionClosed(connection => Debug.WriteLine("Connection closed"));
 
                 var s = await agent.SynchronizeAsync(setup);
 
@@ -1508,7 +1515,7 @@ namespace Dotmim.Sync.Tests
 
                 //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
 
-                await localOrchestrator.DeprovisionAsync(clientScope, provision);
+                await localOrchestrator.DeprovisionAsync(provision);
 
                 // check if scope table is correctly created
                 scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();

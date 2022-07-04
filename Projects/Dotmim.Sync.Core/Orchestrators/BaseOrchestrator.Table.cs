@@ -276,7 +276,7 @@ namespace Dotmim.Sync
             if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var command = await tableBuilder.GetAddColumnCommandAsync(addedColumnName, connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetAddColumnCommandAsync(addedColumnName, connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -296,6 +296,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new ColumnCreatedArgs(context, addedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.Dispose();
+
             return (context, true);
         }
 
@@ -311,7 +313,7 @@ namespace Dotmim.Sync
             if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var command = await tableBuilder.GetDropColumnCommandAsync(droppedColumnName, connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetDropColumnCommandAsync(droppedColumnName, connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -329,6 +331,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new ColumnDroppedArgs(context, droppedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.Dispose();
+
             return (context, true);
         }
 
@@ -343,7 +347,7 @@ namespace Dotmim.Sync
             if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
                 throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var command = await tableBuilder.GetCreateTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetCreateTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -363,6 +367,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new TableCreatedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.Dispose();
+            
             return (context, true);
         }
 
@@ -372,7 +378,7 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool created)> InternalCreateSchemaAsync(
             IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var command = await tableBuilder.GetCreateSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetCreateSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -388,6 +394,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new SchemaNameCreatedArgs(context, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.Dispose();
+
             return (context, true);
         }
 
@@ -396,7 +404,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool dropped)> InternalDropTableAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var command = await tableBuilder.GetDropTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var command = await tableBuilder.GetDropTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (command == null)
                 return (context, false);
@@ -414,6 +422,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new TableDroppedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.Dispose();
+
             return (context, true);
 
         }
@@ -424,7 +434,7 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool exists)> InternalExistsTableAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
-            var existsCommand = await tableBuilder.GetExistsTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var existsCommand = await tableBuilder.GetExistsTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (existsCommand == null)
                 return (context, false);
@@ -446,7 +456,7 @@ namespace Dotmim.Sync
                 return (context, true);
 
             // Get exists command
-            var existsCommand = await tableBuilder.GetExistsSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
+            using var existsCommand = await tableBuilder.GetExistsSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
 
             if (existsCommand == null)
                 return (context, false);
@@ -465,7 +475,7 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool exists)> InternalExistsColumnAsync(IScopeInfo scopeInfo, SyncContext context, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
-            var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName, connection, transaction).ConfigureAwait(false);
+            using var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName, connection, transaction).ConfigureAwait(false);
 
             if (existsCommand == null)
                 return (context, false);
