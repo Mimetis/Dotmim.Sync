@@ -46,7 +46,7 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("AdventureWorks"));
+        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("AdventureWorks"));
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
         //var setup = new SyncSetup(regipro_tables)
         //{
@@ -58,13 +58,13 @@ internal class Program
 
         //var op = SyncOptions.GetDefaultUserBatchDiretory();
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup(new string[] { "clic" });
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
         var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
@@ -133,7 +133,7 @@ internal class Program
 
         // --------------------------
         // Step2 : Adding a new column "CreatedDate datetime NULL" on the server
-        //         Then create the corresponding scope (called "v1")
+        //         Then create the corresponding scope (called "v1  ")
         await AddColumnsToProductCategoryAsync(serverProvider);
 
         // Step 2 : Add a new scope to server with this new column

@@ -77,7 +77,7 @@ namespace Dotmim.Sync
             }
         }
 
-        public virtual async Task< ServerScopeInfo> ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
             try
@@ -132,14 +132,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision the remote database. Schema tables are retrieved through the default scope.
         /// </summary>
-        public virtual Task<bool> 
+        public virtual Task<bool>
                DeprovisionAsync(SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction, cancellationToken, progress);
 
         /// <summary>
         /// Deprovision the remote database. Schema tables are retrieved through scope name.
         /// </summary>
-        public virtual async Task<bool> 
+        public virtual async Task<bool>
             DeprovisionAsync(string scopeName, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -202,6 +202,45 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
 
+        }
+
+
+
+
+        /// <summary>
+        /// Drop everything related to DMS
+        /// </summary>
+        public virtual async Task DropAllAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // get client scope and create tables / row if needed
+
+                List<ServerScopeInfo> serverScopeInfos;
+                (context, serverScopeInfos) = await this.InternalLoadAllServerScopesInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (serverScopeInfos == null || serverScopeInfos.Count == 0)
+                    return;
+
+                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ServerScope | SyncProvision.ServerHistoryScope;
+
+                foreach (var serverScopeInfo in serverScopeInfos)
+                {
+                    if (serverScopeInfo == null || serverScopeInfo.Schema == null || !serverScopeInfo.Schema.HasTables || !serverScopeInfo.Schema.HasColumns)
+                        continue;
+
+                    (context, _) = await InternalDeprovisionAsync(serverScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
         }
 
     }

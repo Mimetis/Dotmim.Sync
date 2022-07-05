@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider);
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync( setup, "v1");
 
                 Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
             }
@@ -75,12 +75,12 @@ namespace Dotmim.Sync.Tests
 
             // Adding a new scope on the server with this new column and a new table
             // Creating a new scope called "V1" on server
-            var setupV1 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
+            var setupV2 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
 
-            setupV1.Tables[productCategoryTableName].Columns.AddRange(
+            setupV2.Tables[productCategoryTableName].Columns.AddRange(
             new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
 
-            var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
+            var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupV2);
 
 
             // Create a server new ProductCategory with the new column value filled

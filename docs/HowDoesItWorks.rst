@@ -28,11 +28,11 @@ If we take a close look to the `HelloSync <https://github.com/Mimetis/Dotmim.Syn
   var serverProvider = new MySqlSyncProvider(serverConnectionString);
   var clientProvider = new SqliteSyncProvider(clientConnectionString);
 
-  var tables = new string[] {"ProductCategory", "ProductModel", "Product" };
+  var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
 
-  var agent = new SyncAgent(clientProvider, serverProvider, tables);
+  var agent = new SyncAgent(clientProvider, serverProvider);
 
-  var result = await agent.SynchronizeAsync();
+  var result = await agent.SynchronizeAsync(setup);
 
   Console.WriteLine(result);
 
@@ -48,19 +48,19 @@ We can rewrite this code, this way:
   var clientProvider = new SqliteSyncProvider(clientConnectionString);
 
   // Setup and options define the tables and some useful options.
-  var setup = new SyncSetup(new string[] {"ProductCategory", "ProductModel", "Product" });
+  var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
   var options = new SyncOptions();
 
   // Define a local orchestrator, using the Sqlite provider
   // and a remote orchestrator, using the MySql provider.
-  var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
-  var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+  var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+  var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
   // Create the agent with existing orchestrators
   var agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
 
   // Launch the sync
-  var result = await agent.SynchronizeAsync();
+  var result = await agent.SynchronizeAsync(setup);
 
   Console.WriteLine(result);
 

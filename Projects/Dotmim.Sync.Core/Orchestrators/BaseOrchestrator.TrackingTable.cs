@@ -77,7 +77,7 @@ namespace Dotmim.Sync
         /// Check if a tracking table exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, you want to check if the corresponding tracking table exists</param>
-        public async Task<bool> ExistTrackingTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistTrackingTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -167,7 +167,7 @@ namespace Dotmim.Sync
         /// Drop a tracking table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public async Task<bool> DropTrackingTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropTrackingTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 

@@ -10,7 +10,7 @@ namespace Orchestrators
     {
 
         private static SyncOptions syncOptions = new SyncOptions { BatchSize = 100 };
-        private static SyncSetup setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        private static SyncSetup setup = new SyncSetup("ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
         /// <summary>
         /// Get Setup, containing tables

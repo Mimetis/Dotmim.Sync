@@ -110,16 +110,16 @@ This tutorial will describe all the steps required to create a first sync betwee
 
 
     // Tables involved in the sync process:
-    var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+    var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" );
 
     // Creating an agent that will handle all the process
-    var agent = new SyncAgent(clientProvider, serverProvider, tables);
+    var agent = new SyncAgent(clientProvider, serverProvider);
 
     do
     {
         // Launch the sync process
-        var s1 = await agent.SynchronizeAsync();
+        var s1 = await agent.SynchronizeAsync(setup);
         // Write results
         Console.WriteLine(s1);
 

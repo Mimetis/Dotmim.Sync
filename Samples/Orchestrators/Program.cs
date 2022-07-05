@@ -17,9 +17,22 @@ namespace HelloSync
 
         static async Task Main(string[] args)
         {
-            await AddingOneColumnInTrackingTable();
 
-            Console.WriteLine("Done.");
+            await GetTableSchemaAsync();
+            await CreateOneTrackingTable();
+            await CreateOneStoredProcedure();
+            await DropOneTrackingTableAndOneStoredProcedure();
+
+            await CreateOneTrackingTable();
+            await CreateOneStoredProcedure();
+
+            await DropSync();
+
+            Console.WriteLine("Done. Please reset database for next operations");
+
+            await GetClientChangesToSendToServerAsync();
+            await GetServerChangesToSendToClientAsync();
+
             Console.ReadLine();
         }
 
@@ -31,16 +44,12 @@ namespace HelloSync
         {
             var provider = new SqlSyncProvider(serverConnectionString);
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-            var orchestrator = new RemoteOrchestrator(provider, options, setup);
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
+            var orchestrator = new RemoteOrchestrator(provider, options);
 
-            // working on the product Table
-            var productSetupTable = setup.Tables["Product"];
+            var serverScope = await orchestrator.GetServerScopeInfoAsync(setup);
 
-            // Getting the table schema
-            var productTable = await orchestrator.GetTableSchemaAsync(productSetupTable);
-
-            foreach (var column in productTable.Columns)
+            foreach (var column in serverScope.Schema.Tables["Product"].Columns)
                 Console.WriteLine(column);
         }
 
@@ -52,15 +61,14 @@ namespace HelloSync
         {
             var provider = new SqlSyncProvider(serverConnectionString);
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-            var orchestrator = new RemoteOrchestrator(provider, options, setup);
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
+            var orchestrator = new RemoteOrchestrator(provider, options);
 
-            // working on the product Table
-            var productSetupTable = setup.Tables["Product"];
+            var serverScope = await orchestrator.GetServerScopeInfoAsync("v1", setup);
 
-            var spExists = await orchestrator.ExistStoredProcedureAsync(productSetupTable, DbStoredProcedureType.SelectChanges);
+            var spExists = await orchestrator.ExistStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
             if (!spExists)
-                await orchestrator.CreateStoredProcedureAsync(productSetupTable, DbStoredProcedureType.SelectChanges);
+                await orchestrator.CreateStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
 
         }
 
@@ -71,73 +79,16 @@ namespace HelloSync
         {
             var provider = new SqlSyncProvider(serverConnectionString);
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-            var orchestrator = new RemoteOrchestrator(provider, options, setup);
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
+            var orchestrator = new RemoteOrchestrator(provider, options);
 
-            // working on the product Table
-            var productSetupTable = setup.Tables["Product"];
+            var serverScope = await orchestrator.GetServerScopeInfoAsync(setup);
 
-            var spExists = await orchestrator.ExistTrackingTableAsync(productSetupTable);
+            var spExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product"); ;
             if (!spExists)
-                await orchestrator.CreateTrackingTableAsync(productSetupTable);
+                await orchestrator.CreateTrackingTableAsync(serverScope, "Product");
 
         }
-
-        /// <summary>
-        /// Create one tracking table
-        /// </summary>
-        private static async Task AddingOneColumnInTrackingTable()
-        {
-            var provider = new SqlSyncProvider(serverConnectionString);
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-            var orchestrator = new RemoteOrchestrator(provider, options, setup);
-
-            // working on the product Table
-            var productSetupTable = setup.Tables["Product"];
-
-            orchestrator.OnTrackingTableCreating(ttca =>
-            {
-                var addingID = $" ALTER TABLE {ttca.TrackingTableName.Schema().Quoted()} ADD internal_id varchar(10) null";
-                ttca.Command.CommandText += addingID;
-            });
-
-            var trExists = await orchestrator.ExistTrackingTableAsync(productSetupTable);
-            if (!trExists)
-                await orchestrator.CreateTrackingTableAsync(productSetupTable);
-
-            orchestrator.OnTriggerCreating(tca =>
-            {
-                string val;
-                if (tca.TriggerType == DbTriggerType.Insert)
-                    val = "INS";
-                else if (tca.TriggerType == DbTriggerType.Delete)
-                    val = "DEL";
-                else
-                    val = "UPD";
-
-                var cmdText = $"UPDATE Product_tracking " +
-                              $"SET Product_tracking.internal_id='{val}' " +
-                              $"FROM Product_tracking JOIN Inserted ON Product_tracking.ProductID = Inserted.ProductID;";
-
-                tca.Command.CommandText += Environment.NewLine + cmdText;
-            });
-
-            var trgExists = await orchestrator.ExistTriggerAsync(productSetupTable, DbTriggerType.Insert);
-            if (!trgExists)
-                await orchestrator.CreateTriggerAsync(productSetupTable, DbTriggerType.Insert);
-
-            trgExists = await orchestrator.ExistTriggerAsync(productSetupTable, DbTriggerType.Update);
-            if (!trgExists)
-                await orchestrator.CreateTriggerAsync(productSetupTable, DbTriggerType.Update);
-
-            trgExists = await orchestrator.ExistTriggerAsync(productSetupTable, DbTriggerType.Delete);
-            if (!trgExists)
-                await orchestrator.CreateTriggerAsync(productSetupTable, DbTriggerType.Delete);
-
-            orchestrator.OnTriggerCreating(null);
-        }
-
 
         /// <summary>
         /// Drop one tracking table and one stored procedure
@@ -146,35 +97,46 @@ namespace HelloSync
         {
             var provider = new SqlSyncProvider(serverConnectionString);
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-            var orchestrator = new RemoteOrchestrator(provider, options, setup);
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
+            var orchestrator = new RemoteOrchestrator(provider, options);
 
-            // working on the product Table
-            var productSetupTable = setup.Tables["Product"];
+            var serverScope = await orchestrator.GetServerScopeInfoAsync(setup);
 
-            var trExists = await orchestrator.ExistTrackingTableAsync(productSetupTable);
+            var trExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product");
             if (trExists)
-                await orchestrator.DropTrackingTableAsync(productSetupTable);
+                await orchestrator.DropTrackingTableAsync(serverScope, "Product");
 
-            var spExists = await orchestrator.ExistStoredProcedureAsync(productSetupTable, DbStoredProcedureType.SelectChanges);
+            var spExists = await orchestrator.ExistStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
             if (spExists)
-                await orchestrator.DropStoredProcedureAsync(productSetupTable, DbStoredProcedureType.SelectChanges);
+                await orchestrator.DropStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
 
         }
 
-        /// <summary>
-        /// Create a localorchestrator, and get changes that should be sent to server
-        /// </summary>
-        private static async Task GetClientChangesToSendToServerAsync()
+        private static async Task DropSync()
+        {
+            var provider = new SqlSyncProvider(serverConnectionString);
+            var options = new SyncOptions();
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
+            var orchestrator = new RemoteOrchestrator(provider, options);
+
+            await orchestrator.DropAllAsync();
+
+        }
+
+            /// <summary>
+            /// Create a localorchestrator, and get changes that should be sent to server
+            /// </summary>
+            private static async Task GetClientChangesToSendToServerAsync()
         {
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
+            var setup = Config.GetSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, Config.GetClientOptions(), Config.GetSetup());
+            var agent = new SyncAgent(clientProvider, serverProvider, Config.GetClientOptions());
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync();
+            await agent.SynchronizeAsync(setup);
 
             // Get the localorchestrator (you can create a new instance as well)
             var localOrchestrator = agent.LocalOrchestrator;
@@ -183,28 +145,21 @@ namespace HelloSync
             await Helper.InsertOneProductCategoryAsync(clientProvider.CreateConnection(), "New Product Category 2");
             await Helper.InsertOneProductCategoryAsync(clientProvider.CreateConnection(), "New Product Category 3");
             await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "John", "Doe");
-            await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "Sébastien", "Pertus");
+            await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "Will", "Doe");
 
             // Get changes to be populated to the server
             var changes = await localOrchestrator.GetChangesAsync(progress: Config.GetProgress());
 
-            // enumerate changes retrieved
             foreach (var tableChanges in changes.ClientChangesSelected.TableChangesSelected)
             {
-                foreach (var bpi in changes.ClientBatchInfo.BatchPartsInfo)
-                {
-                    // only one table in each bpi
-                    var table = bpi.Tables[0];
-                    var path = changes.ClientBatchInfo.GetBatchPartInfoPath(bpi).FullPath;
-                    var schemaTable = changes.ClientBatchInfo.SanitizedSchema.Tables[table.TableName, table.SchemaName];
+                var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, tableChanges.TableName, tableChanges.SchemaName);
 
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"Changes for table {table.TableName}. Rows:{table.RowsCount}");
-                    Console.ResetColor();
-                    foreach (var row in agent.Options.LocalSerializerFactory.GetLocalSerializer().ReadRowsFromFile(path, schemaTable))
-                    {
-                        Console.WriteLine(row);
-                    }
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"Changes for table {syncTable.TableName}. Rows:{syncTable.Rows.Count}");
+                Console.ResetColor();
+                foreach (var row in syncTable.Rows)
+                {
+                    Console.WriteLine(row);
                 }
             }
         }
@@ -216,28 +171,27 @@ namespace HelloSync
         {
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
+            var setup = Config.GetSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, Config.GetClientOptions(), Config.GetSetup());
+            var agent = new SyncAgent(clientProvider, serverProvider, Config.GetClientOptions());
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync();
+            await agent.SynchronizeAsync(setup);
 
             // Get the orchestrators (you can create a new instance as well)
             var localOrchestrator = agent.LocalOrchestrator;
             var remoteOrchestrator = agent.RemoteOrchestrator;
 
             // Create a productcategory item
-            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 2");
-            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 3");
-            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "John", "Doe");
-            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Sébastien", "Pertus");
+            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 4");
+            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 5");
+            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Jane", "Doe");
+            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Lisa", "Doe");
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
 
-            // Simulate a full get changes (initialization step)
-            // clientScope.IsNewScope = true;
 
             // Get changes to be populated to the server
             var changes = await remoteOrchestrator.GetChangesAsync(clientScope: clientScope, progress: Config.GetProgress());
@@ -245,22 +199,17 @@ namespace HelloSync
             // enumerate changes retrieved
             foreach (var tableChanges in changes.ServerChangesSelected.TableChangesSelected)
             {
+                var syncTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, tableChanges.TableName, tableChanges.SchemaName);
 
-                foreach (var bpi in changes.ServerBatchInfo.BatchPartsInfo)
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"Changes for table {syncTable.TableName}. Rows:{syncTable.Rows.Count}");
+                Console.ResetColor();
+                foreach (var row in syncTable.Rows)
                 {
-                    // only one table in each bpi
-                    var table = bpi.Tables[0];
-                    var path = changes.ServerBatchInfo.GetBatchPartInfoPath(bpi).FullPath;
-                    var schemaTable = changes.ServerBatchInfo.SanitizedSchema.Tables[table.TableName, table.SchemaName];
-
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"Changes for table {table.TableName}. Rows:{table.RowsCount}");
-                    Console.ResetColor();
-                    foreach (var row in agent.Options.LocalSerializerFactory.GetLocalSerializer().ReadRowsFromFile(path, schemaTable))
-                    {
-                        Console.WriteLine(row);
-                    }
+                    Console.WriteLine(row);
                 }
+
+
             }
         }
     }
