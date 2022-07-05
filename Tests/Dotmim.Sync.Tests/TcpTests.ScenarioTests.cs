@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Tests
             {
                 var commandText = client.ProviderType switch
                 {
-                    ProviderType.Sql => @"ALTER TABLE SalesLT.ProductCategory ADD [Attribute With Space] nvarchar(250) NULL;",
+                    ProviderType.Sql => $@"ALTER TABLE {productCategoryTableName} ADD [Attribute With Space] nvarchar(250) NULL;",
                     ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
                     ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
                     ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
