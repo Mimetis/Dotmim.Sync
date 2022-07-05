@@ -343,7 +343,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
 
             // Making a first sync, will initialize everything we need
-            var r = await agent.SynchronizeAsync(setup, scopeName);
+            var r = await agent.SynchronizeAsync(scopeName);
             Assert.Equal(rowsCount, r.TotalChangesDownloaded);
 
             // Get the orchestrators
@@ -464,7 +464,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
 
             // Making a first sync, will initialize everything we need
-            var r = await agent.SynchronizeAsync(setup, scopeName);
+            var r = await agent.SynchronizeAsync(scopeName);
             Assert.Equal(rowsCount, r.TotalChangesDownloaded);
 
             // Get the orchestrators
@@ -530,7 +530,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Making a second sync, with these new rows
-            r = await agent.SynchronizeAsync(setup, scopeName);
+            r = await agent.SynchronizeAsync(scopeName);
             Assert.Equal(4, r.TotalChangesDownloaded);
 
             // now delete these lines on server

@@ -82,7 +82,7 @@ namespace Dotmim.Sync
         /// Internal exists server history scope
         /// </summary>
         internal async Task<(SyncContext context, bool exists)> 
-            InternalExistsServerHistoryScopeInfoAsync(string scopeId, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            InternalExistsServerHistoryScopeInfoAsync(string scopeId, string scopeName, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -91,8 +91,7 @@ namespace Dotmim.Sync
 
             if (existsCommand == null) return (context, false);
 
-
-            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
+            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", scopeName);
             DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_Id", scopeId);
 
             if (existsCommand == null)
@@ -217,7 +216,7 @@ namespace Dotmim.Sync
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
             bool scopeExists;
-            (context, scopeExists) = await InternalExistsServerHistoryScopeInfoAsync(serverHistoryScopeInfo.Id.ToString(), context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, scopeExists) = await InternalExistsServerHistoryScopeInfoAsync(serverHistoryScopeInfo.Id.ToString(), serverHistoryScopeInfo.Name, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             DbCommand command;
             if (scopeExists)
@@ -227,7 +226,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            command = InternalSetSaveServerHistoryScopeParameters(serverHistoryScopeInfo, command);
+            InternalSetSaveServerHistoryScopeParameters(serverHistoryScopeInfo, command);
 
             var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), DbScopeType.ServerHistory, serverHistoryScopeInfo, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
