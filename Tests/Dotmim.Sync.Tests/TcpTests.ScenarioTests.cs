@@ -35,8 +35,6 @@ namespace Dotmim.Sync.Tests
     //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public abstract partial class TcpTests : IClassFixture<HelperProvider>, IDisposable
     {
-
-
         [Fact]
         public virtual async Task Scenario_Adding_OneColumn_OneTable_With_TwoScopes()
         {
@@ -155,7 +153,6 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, r.TotalChangesDownloaded);
             }
         }
-
 
 
         [Fact]
@@ -326,6 +323,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
+   
 
     }
 }
