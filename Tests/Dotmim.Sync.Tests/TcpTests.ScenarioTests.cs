@@ -48,8 +48,12 @@ namespace Dotmim.Sync.Tests
             // --------------------------
             // Step 1: Create a default scope and Sync clients
             // Note we are not including the [Attribute With Space] column
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory" });
-            setup.Tables["SalesLT.ProductCategory"].Columns.AddRange(
+
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+
+            var setup = new SyncSetup(new string[] { productCategoryTableName });
+            setup.Tables[productCategoryTableName].Columns.AddRange(
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
@@ -71,9 +75,9 @@ namespace Dotmim.Sync.Tests
 
             // Adding a new scope on the server with this new column and a new table
             // Creating a new scope called "V1" on server
-            var setupV1 = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.Product" });
+            var setupV1 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
 
-            setupV1.Tables["SalesLT.ProductCategory"].Columns.AddRange(
+            setupV1.Tables[productCategoryTableName].Columns.AddRange(
             new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
@@ -176,11 +180,13 @@ namespace Dotmim.Sync.Tests
             var client1provider = new SqliteSyncProvider(HelperDatabase.GetSqliteFilePath(client1DatabaseName));
             var client2provider = new SqliteSyncProvider(HelperDatabase.GetSqliteFilePath(client2DatabaseName));
 
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
             // --------------------------
             // Step 1: Create a default scope and Sync clients
             // Note we are not including the [Attribute With Space] column
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory" });
-            setup.Tables["SalesLT.ProductCategory"].Columns.AddRange(
+            var setup = new SyncSetup(new string[] { productCategoryTableName });
+            setup.Tables[productCategoryTableName].Columns.AddRange(
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             // Counting product categories & products
@@ -209,9 +215,9 @@ namespace Dotmim.Sync.Tests
 
             // Adding a new scope on the server with this new column and a new table
             // Creating a new scope called "V1" on server
-            var setupV1 = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.Product" });
+            var setupV1 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
 
-            setupV1.Tables["SalesLT.ProductCategory"].Columns.AddRange(
+            setupV1.Tables[productCategoryTableName].Columns.AddRange(
             new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
@@ -258,7 +264,11 @@ namespace Dotmim.Sync.Tests
             // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
 
             var localOrchestrator = new LocalOrchestrator(client1provider);
-            await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
+
+            if (this.Server.ProviderType == ProviderType.Sql)
+                await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
+            else
+                await localOrchestrator.CreateTableAsync(serverScope, "Product");
 
             // Once created we can provision the new scope, thanks to the serverScope instance we already have
             var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
@@ -295,7 +305,10 @@ namespace Dotmim.Sync.Tests
             var serverScope2 = await agent2.RemoteOrchestrator.GetServerScopeInfoAsync();
 
             // Create the new table locally
-            await agent2.LocalOrchestrator.CreateTableAsync(serverScope2, "Product", "SalesLT");
+            if (this.Server.ProviderType == ProviderType.Sql)
+                await agent2.LocalOrchestrator.CreateTableAsync(serverScope2, "Product", "SalesLT");
+            else
+                await agent2.LocalOrchestrator.CreateTableAsync(serverScope2, "Product");
 
             // Add this new column on the client 1, with default value as null
             connection = client2provider.CreateConnection();
@@ -323,7 +336,7 @@ namespace Dotmim.Sync.Tests
 
         }
 
-   
+
 
     }
 }

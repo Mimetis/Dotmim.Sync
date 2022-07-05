@@ -1593,7 +1593,7 @@ namespace Dotmim.Sync.Tests
             foreach (var clientProvider in clientProviders)
             {
                 var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
-                allTasks.Add(agent.SynchronizeAsync(setup));
+                allTasks.Add(agent.SynchronizeAsync());
             }
 
             // Await all tasks
@@ -1625,7 +1625,7 @@ namespace Dotmim.Sync.Tests
             foreach (var clientProvider in clientProviders)
             {
                 var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
-                allTasks.Add(agent.SynchronizeAsync(setup));
+                allTasks.Add(agent.SynchronizeAsync());
             }
 
             // Await all tasks

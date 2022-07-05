@@ -777,7 +777,7 @@ namespace Dotmim.Sync.Tests
                 agent.LocalOrchestrator.OnSnapshotApplying(saa => snapshotApplying++);
                 agent.LocalOrchestrator.OnSnapshotApplied(saa => snapshotApplied++);
 
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);

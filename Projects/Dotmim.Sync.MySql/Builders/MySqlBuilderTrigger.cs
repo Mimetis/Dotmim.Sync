@@ -198,39 +198,39 @@ namespace Dotmim.Sync.MySql.Builders
             createTrigger.Append($"\tWhere ");
             createTrigger.Append(MySqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "new"));
 
-            if (this.tableDescription.GetMutableColumns().Count() > 0)
-            {
-                createTrigger.AppendLine();
-                createTrigger.AppendLine("\t AND (");
-                string or = "    ";
-                foreach (var column in this.tableDescription.GetMutableColumns())
-                {
-                    var quotedColumn = ParserName.Parse(column, "`").Quoted().ToString();
+            //if (this.tableDescription.GetMutableColumns().Count() > 0)
+            //{
+            //    createTrigger.AppendLine();
+            //    createTrigger.AppendLine("\t AND (");
+            //    string or = "    ";
+            //    foreach (var column in this.tableDescription.GetMutableColumns())
+            //    {
+            //        var quotedColumn = ParserName.Parse(column, "`").Quoted().ToString();
 
-                    createTrigger.Append("\t");
-                    createTrigger.Append(or);
-                    createTrigger.Append("IFNULL(");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("`old`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("`new`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.Append(", ");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("`new`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("`old`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.AppendLine(") IS NOT NULL");
+            //        createTrigger.Append("\t");
+            //        createTrigger.Append(or);
+            //        createTrigger.Append("IFNULL(");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("`old`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("`new`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("`new`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("`old`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.AppendLine(") IS NOT NULL");
 
-                    or = " OR ";
-                }
-                createTrigger.AppendLine("\t ) ");
-            }
+            //        or = " OR ";
+            //    }
+            //    createTrigger.AppendLine("\t ) ");
+            //}
             createTrigger.AppendLine($"; ");
 
             createTrigger.AppendLine("IF (SELECT ROW_COUNT() = 0) THEN ");
@@ -273,40 +273,39 @@ namespace Dotmim.Sync.MySql.Builders
             createTrigger.AppendLine("\t\t,utc_timestamp()");
             createTrigger.AppendLine($"\tFROM {tableName.Quoted().ToString()}"); //[AB] added to be compatible with MariaDB 10.3.x
 
+            //if (this.tableDescription.GetMutableColumns().Count() > 0)
+            //{
+            //    createTrigger.AppendLine();
+            //    createTrigger.AppendLine("\t WHERE (");
+            //    string or = "    ";
+            //    foreach (var column in this.tableDescription.GetMutableColumns())
+            //    {
+            //        var quotedColumn = ParserName.Parse(column, "`").Quoted().ToString();
 
-            if (this.tableDescription.GetMutableColumns().Count() > 0)
-            {
-                createTrigger.AppendLine();
-                createTrigger.AppendLine("\t WHERE (");
-                string or = "    ";
-                foreach (var column in this.tableDescription.GetMutableColumns())
-                {
-                    var quotedColumn = ParserName.Parse(column, "`").Quoted().ToString();
+            //        createTrigger.Append("\t");
+            //        createTrigger.Append(or);
+            //        createTrigger.Append("IFNULL(");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("`old`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("`new`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("`new`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("`old`.");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.AppendLine(") IS NOT NULL");
 
-                    createTrigger.Append("\t");
-                    createTrigger.Append(or);
-                    createTrigger.Append("IFNULL(");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("`old`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("`new`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.Append(", ");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("`new`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("`old`.");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.AppendLine(") IS NOT NULL");
-
-                    or = " OR ";
-                }
-                createTrigger.AppendLine("\t ) ");
-            }
+            //        or = " OR ";
+            //    }
+            //    createTrigger.AppendLine("\t ) ");
+            //}
             createTrigger.AppendLine("ON DUPLICATE KEY UPDATE");
             createTrigger.AppendLine("\t`update_scope_id` = NULL, ");
             createTrigger.AppendLine("\t`sync_row_is_tombstone` = 0, ");

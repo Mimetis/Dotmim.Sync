@@ -361,6 +361,16 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
+        private async Task<Version> UpgdrateTo095Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+
+        {
+            var newVersion = new Version(0, 9, 5);
+
+            // update history scope table with two primary keys instead of one
+
+            return newVersion;
+        }
         private async Task<Version> AutoUpgdrateToNewVersionAsync(IScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var message = $"Upgrade to {newVersion} for scope {scopeInfo.Name}.";

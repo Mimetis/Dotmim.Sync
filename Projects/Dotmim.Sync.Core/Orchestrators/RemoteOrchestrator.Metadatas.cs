@@ -124,7 +124,9 @@ namespace Dotmim.Sync
             foreach (var serverScopeInfo in allScopes)
             {
                 serverScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
-                await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var tmpContext = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
+
+                await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, tmpContext, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
             return (context, databaseMetadatasCleaned);
         }
