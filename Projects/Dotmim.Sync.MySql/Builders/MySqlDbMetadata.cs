@@ -212,7 +212,7 @@ namespace Dotmim.Sync.MySql.Builders
             "year" or "time" or "timestamp" => true,
             _ => false,
         };
-        public override bool IsReadonly(SyncColumn columnDefinition) => false;
+        public override bool IsReadonly(SyncColumn columnDefinition) => columnDefinition.IsCompute;
 
         // ----------------------------------------------------------------------------------
 

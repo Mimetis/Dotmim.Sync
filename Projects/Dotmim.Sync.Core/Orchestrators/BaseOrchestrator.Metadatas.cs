@@ -39,6 +39,9 @@ namespace Dotmim.Sync
 
             foreach (var scopeInfo in scopeInfos)
             {
+                if (scopeInfo.Setup?.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
+                    continue;
+
                 foreach (var setupTable in scopeInfo.Setup.Tables)
                 {
                     var isDone = doneList.Any(t => t.EqualsByName(setupTable));

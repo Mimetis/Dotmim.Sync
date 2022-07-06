@@ -98,17 +98,13 @@ namespace Dotmim.Sync.MySql.Builders
                     nullString = "NULL";
 
                 string defaultValue = string.Empty;
-                //if (this.tableDescription.OriginalProvider == originalProvider)
-                //    if (!string.IsNullOrEmpty(column.DefaultValue))
-                //    {
-                //        string tmp = column.DefaultValue;
-                //        if (!tmp.StartsWith("'") && !this.dbMetadata.IsNumericType(column))
-                //            tmp = $"'{tmp}'";
 
-                //        defaultValue = $"DEFAULT {tmp}";
-                //    }
+                if (this.tableDescription.OriginalProvider == originalProvider && !string.IsNullOrEmpty(column.DefaultValue) && column.IsCompute)
+                {
+                    defaultValue = column.DefaultValue;
+                }
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {defaultValue}");
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {defaultValue} {nullString}");
                 empty = ",";
             }
 
@@ -351,6 +347,19 @@ namespace Dotmim.Sync.MySql.Builders
                     sColumn.AutoIncrementStep = 1;
                 }
 
+                if (!string.IsNullOrEmpty(extra) && extra.Contains("generated"))
+                {
+                    var generationExpression = c["generation_expression"] != DBNull.Value ? ((string)c["generation_expression"]) : null;
+
+                    if (!string.IsNullOrEmpty(generationExpression) && !string.IsNullOrEmpty(extra) && extra.Contains("generated"))
+                    {
+                        var virtualOrStored = extra.Contains("virtual") ? "VIRTUAL" : "STORED";
+                        var exp = $"GENERATED ALWAYS AS ({generationExpression}) {virtualOrStored}";
+                        sColumn.DefaultValue = exp;
+                        sColumn.IsCompute = true;
+                    }
+
+                }
                 columns.Add(sColumn);
 
             }

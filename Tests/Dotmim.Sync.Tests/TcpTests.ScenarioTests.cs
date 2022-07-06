@@ -74,7 +74,7 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
 
             // Adding a new scope on the server with this new column and a new table
-            // Creating a new scope called "V1" on server
+            // Creating a new scope called "v2" on server
             var setupV2 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
 
             setupV2.Tables[productCategoryTableName].Columns.AddRange(
@@ -146,13 +146,13 @@ namespace Dotmim.Sync.Tests
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync("v1");
                 clientScopeV1.ShadowScope(oldClientScopeInfo);
                 await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
 
                 // We are ready to sync this new scope !
                 var agent = new SyncAgent(client.Provider, Server.Provider);
-                var r = await agent.SynchronizeAsync("v1");
+                var r = await agent.SynchronizeAsync("v2");
 
                 Assert.Equal(2, r.TotalChangesDownloaded);
             }
