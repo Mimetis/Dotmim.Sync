@@ -18,7 +18,7 @@ namespace Dotmim.Sync
     /// Sync agent. It's the sync orchestrator
     /// Knows both the Sync Server provider and the Sync Client provider
     /// </summary>
-    public class SyncAgent : IDisposable
+    public partial class SyncAgent : IDisposable
     {
         private bool syncInProgress;
         private Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
@@ -47,7 +47,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get or Sets the Sync parameters to pass to Remote provider for filtering rows
         /// </summary>
-        public SyncParameters Parameters { get; private set; } = new SyncParameters();
+        // public SyncParameters Parameters { get; private set; } = new SyncParameters();
 
         /// <summary>
         /// Occurs when sync is starting, ending
@@ -103,35 +103,7 @@ namespace Dotmim.Sync
         }
 
 
-        /// <summary>
-        /// Sets the current context
-        /// </summary>
-        internal virtual void SetContext(SyncContext context)
-        {
-            if (!this.syncContexts.ContainsKey(context.ScopeName))
-                this.syncContexts.Add(context.ScopeName, context);
-            else
-                this.syncContexts[context.ScopeName] = context;
-        }
-
-        /// <summary>
-        /// Gets the current context
-        /// </summary>
-        //[DebuggerStepThrough]
-        public virtual SyncContext GetContext(string scopeName)
-        {
-            if (this.syncContexts.ContainsKey(scopeName))
-                return this.syncContexts[scopeName];
-
-            var syncContext = new SyncContext(Guid.NewGuid(), scopeName);
-
-            this.syncContexts.Add(scopeName, syncContext);
-
-            return syncContext;
-        }
-
         private SyncAgent() { }
-
 
         // 4
         /// <summary>
@@ -164,10 +136,7 @@ namespace Dotmim.Sync
         /// <param name="clientProvider">local provider to your client database</param>
         /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
         /// <param name="options">Sync Options defining options used by your local provider (and remote provider if remoteOrchestrator is not a WebClientOrchestrator)</param>
-        /// <param name="setup">Sync Setup containing the definition of your tables, columns, filters and naming conventions.</param>
-        /// <param name="scopeName">scope name</param>
-        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator,
-                         SyncOptions options = default)
+        public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options = default)
             : this()
         {
             if (clientProvider is null)
@@ -194,15 +163,12 @@ namespace Dotmim.Sync
         /// <param name="localOrchestrator">Local Orchestrator already configured with a SyncProvider</param>
         /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
         /// <param name="scopeName">scope name</param>
-        public SyncAgent(LocalOrchestrator localOrchestrator, RemoteOrchestrator remoteOrchestrator,
-            SyncOptions options = default) : this()
+        public SyncAgent(LocalOrchestrator localOrchestrator, RemoteOrchestrator remoteOrchestrator) : this()
         {
             if (localOrchestrator is null)
                 throw new ArgumentNullException(nameof(localOrchestrator));
             if (remoteOrchestrator is null)
                 throw new ArgumentNullException(nameof(remoteOrchestrator));
-            if (options == default)
-                options = new SyncOptions();
 
             this.LocalOrchestrator = localOrchestrator;
             this.RemoteOrchestrator = remoteOrchestrator;
@@ -224,56 +190,12 @@ namespace Dotmim.Sync
 
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public Task<SyncResult> SynchronizeAsync(string[] tables, string scopeName, IProgress<ProgressArgs> progress = default) =>
-            SynchronizeAsync(SyncType.Normal, new SyncSetup(tables), scopeName, CancellationToken.None, progress);
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public Task<SyncResult> SynchronizeAsync(string[] tables, IProgress<ProgressArgs> progress = default) =>
-            SynchronizeAsync(SyncType.Normal, new SyncSetup(tables), SyncOptions.DefaultScopeName, CancellationToken.None, progress);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public Task<SyncResult> SynchronizeAsync(SyncSetup setup, string scopeName, IProgress<ProgressArgs> progress = default)
-            => SynchronizeAsync(SyncType.Normal, setup, scopeName, CancellationToken.None, progress);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public Task<SyncResult> SynchronizeAsync(SyncSetup setup, IProgress<ProgressArgs> progress = default)
-            => SynchronizeAsync(SyncType.Normal, setup, SyncOptions.DefaultScopeName, CancellationToken.None, progress);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public Task<SyncResult> SynchronizeAsync(SyncType syncType, string scopeName = SyncOptions.DefaultScopeName, IProgress<ProgressArgs> progress = null)
-            => SynchronizeAsync(syncType, null, scopeName, CancellationToken.None, progress);
-
-        public Task<SyncResult> SynchronizeAsync(SyncType syncType, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName, IProgress<ProgressArgs> progress = null)
-            => SynchronizeAsync(syncType, setup, scopeName, CancellationToken.None, progress);
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public Task<SyncResult> SynchronizeAsync(IProgress<ProgressArgs> progress = null)
-            => SynchronizeAsync(SyncType.Normal, null, SyncOptions.DefaultScopeName, CancellationToken.None, progress);
-
-        /// <summary>
-        /// Launch a synchronization with a SyncType specified
-        /// </summary>
-        public Task<SyncResult> SynchronizeAsync(string scopeName, SyncType syncType = SyncType.Normal, IProgress<ProgressArgs> progress = null)
-            => SynchronizeAsync(syncType, null, scopeName, CancellationToken.None, progress);
 
         /// <summary>
         /// Launch a synchronization with the specified mode
         /// </summary>
-        public async Task<SyncResult> SynchronizeAsync(SyncType syncType, SyncSetup setup, string scopeName,
-                CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<SyncResult> SynchronizeAsync(string scopeName, SyncSetup setup, SyncType syncType, SyncParameters parameters, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             // checkpoints dates
             var startTime = DateTime.UtcNow;
@@ -289,7 +211,7 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeName)
             {
                 // if any parameters, set in context
-                Parameters = this.Parameters,
+                Parameters = parameters,
                 // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
                 SyncType = syncType
             };

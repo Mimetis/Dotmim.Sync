@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(setup, scopeName);
+            await agent.SynchronizeAsync(scopeName, setup);
 
             Assert.True(onSnapshotApplying);
             Assert.True(onSnapshotApplied);

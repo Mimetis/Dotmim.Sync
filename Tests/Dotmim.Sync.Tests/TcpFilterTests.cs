@@ -187,9 +187,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider);
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -261,9 +259,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -295,10 +291,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -332,10 +325,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(2, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -369,10 +359,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -424,10 +411,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 //Assert.Equal(download, s.TotalChangesDownloaded);
                 Assert.Equal(4, s.TotalChangesUploaded);
@@ -440,10 +424,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                await agent.SynchronizeAsync(this.FilterSetup);
+                await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
             }
 
             rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -474,10 +455,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -525,10 +503,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 //Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(4, s.TotalChangesUploaded);
@@ -540,10 +515,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                await agent.SynchronizeAsync(this.FilterSetup);
+                await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
             }
 
 
@@ -563,10 +535,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 //Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(8, s.TotalChangesUploaded);
@@ -643,10 +612,7 @@ namespace Dotmim.Sync.Tests
 
                 agent.LocalOrchestrator.OnSnapshotApplying(saa => snapshotApplying++);
                 agent.LocalOrchestrator.OnSnapshotApplied(saa => snapshotApplied++);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -679,10 +645,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -734,10 +697,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(5, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -746,7 +706,7 @@ namespace Dotmim.Sync.Tests
         }
 
 
- 
+
 
         /// <summary>
         /// </summary>
@@ -787,9 +747,8 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
-
-                var s = await agent.SynchronizeAsync(setup);
+                var p = new SyncParameters(("EmployeeID", 1));
+                var s = await agent.SynchronizeAsync(setup, p);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
@@ -821,9 +780,9 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(setup, p);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -856,9 +815,9 @@ namespace Dotmim.Sync.Tests
 
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize, p);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -891,9 +850,9 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(setup, p);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -953,9 +912,9 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // create agent with filtered tables and parameter
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize);
+                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize, p);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -988,9 +947,9 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(setup, p);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -1052,9 +1011,9 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(setup, p);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
@@ -1160,10 +1119,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup, "v2");
+                var s = await agent.SynchronizeAsync("v2", this.FilterSetup, this.FilterParameters);
 
                 Assert.True(Directory.Exists(rootDirectory));
                 Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
@@ -1246,10 +1202,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1281,10 +1234,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-                var s = await agent.SynchronizeAsync(this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
 
                 Assert.Equal(download++, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1303,11 +1253,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-                agent.Parameters.AddRange(this.FilterParameters);
-
-
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, this.FilterSetup);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, SyncType.Reinitialize, this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1341,9 +1287,9 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(setup, p);
 
                 Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
@@ -1385,10 +1331,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                agent.Parameters.Add("EmployeeID", 1);
+                var p = new SyncParameters(("EmployeeID", 1));
 
 
-                var s = await agent.SynchronizeAsync(SyncType.Reinitialize, setup);
+                var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, p);
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
 

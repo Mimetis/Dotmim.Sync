@@ -487,7 +487,7 @@ internal class Program
             Console.WriteLine("Sync start");
             try
             {
-                var s = await agent.SynchronizeAsync(setup, scopeName, progress);
+                var s = await agent.SynchronizeAsync(scopeName, setup, progress);
                 Console.WriteLine(s);
             }
             catch (SyncException e)

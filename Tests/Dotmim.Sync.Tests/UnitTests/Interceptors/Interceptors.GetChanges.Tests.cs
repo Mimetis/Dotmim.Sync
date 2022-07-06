@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(this.Tables, scopeName);
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var agent = new SyncAgent(clientProvider, serverProvider, syncOptions);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(this.Tables, scopeName);
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -247,7 +247,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(this.Tables, scopeName);
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;

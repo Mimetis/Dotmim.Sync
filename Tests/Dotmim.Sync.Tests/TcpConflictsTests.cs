@@ -1119,7 +1119,7 @@ namespace Dotmim.Sync.Tests
             var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
             // Since we may have an Outdated situation due to previous client, go for a Reinitialize sync type
-            await agent.SynchronizeAsync(SyncType.Reinitialize, setup);
+            await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
 
             // Insert the conflict product category on each client
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);

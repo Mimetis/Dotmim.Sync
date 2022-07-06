@@ -128,10 +128,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
-            agent.Parameters.Add(new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerIdForFilter));
 
             // Making a first sync, will initialize everything we need
-            var r = await agent.SynchronizeAsync(setup, scopeName);
+            var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
             Assert.Equal(rowsCount, r.TotalChangesDownloaded);
 
             // Get the orchestrators
@@ -173,7 +173,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxClient.SaveChangesAsync();
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync(scopeName, agent.Parameters);
+            var changes = await localOrchestrator.GetChangesAsync(scopeName, parameters);
 
             Assert.NotNull(changes.ClientBatchInfo);
             Assert.NotNull(changes.ClientChangesSelected);
@@ -216,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(this.Tables, scopeName);
+            await agent.SynchronizeAsync(scopeName, this.Tables);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -290,7 +290,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(this.Tables, scopeName);
+            await agent.SynchronizeAsync(scopeName, this.Tables);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;

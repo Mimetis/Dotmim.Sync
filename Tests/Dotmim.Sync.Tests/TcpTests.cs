@@ -491,7 +491,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
 
-                var s2 = await agent.SynchronizeAsync(setup, "v2");
+                var s2 = await agent.SynchronizeAsync("v2", setup);
 
                 Assert.Equal(rowsCount, s2.TotalChangesDownloaded);
                 Assert.Equal(0, s2.TotalChangesUploaded);
@@ -3250,7 +3250,7 @@ namespace Dotmim.Sync.Tests
                 remoteOrchestrator.OnDeserializingSyncRow(deserializingRowsAction);
 
                 // Making a first sync, will initialize everything we need
-                var result = await agent.SynchronizeAsync(setup, scopeName);
+                var result = await agent.SynchronizeAsync(scopeName, setup);
 
                 foreach (var table in result.ChangesAppliedOnClient.TableChangesApplied)
                 {
@@ -3339,7 +3339,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Making a first sync, will initialize everything we need
-                var s = await agent.SynchronizeAsync(Tables, scopeName);
+                var s = await agent.SynchronizeAsync(scopeName, Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);

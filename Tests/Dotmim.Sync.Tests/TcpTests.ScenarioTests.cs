@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider);
-                var r = await agent.SynchronizeAsync( setup, "v1");
+                var r = await agent.SynchronizeAsync("v1", setup);
 
                 Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
             }

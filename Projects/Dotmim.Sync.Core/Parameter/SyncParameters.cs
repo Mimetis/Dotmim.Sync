@@ -25,6 +25,9 @@ namespace Dotmim.Sync
         {
         }
 
+        public SyncParameters(params (string name, object value)[] parameters) => this.AddRange(parameters.Select(p => new SyncParameter(p.name, p.value)));
+        public SyncParameters(params SyncParameter[] parameters) => this.AddRange(parameters);
+
         /// <summary>
         /// Add a new sync parameter 
         /// </summary>
@@ -47,7 +50,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void AddRange(IEnumerable<SyncParameter> parameters)
         {
-            foreach(var p in parameters)
+            foreach (var p in parameters)
                 Add(p);
         }
 
