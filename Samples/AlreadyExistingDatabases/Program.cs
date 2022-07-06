@@ -33,10 +33,10 @@ namespace AlreadyExstingDatabases
             var tables = new string[] { "ServiceTickets" };
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Launch the sync process
-            var s1 = await agent.SynchronizeAsync();
+            var s1 = await agent.SynchronizeAsync(tables);
 
             // This first sync did not upload the client rows.
             // We only have rows from server that have been downloaded
@@ -65,15 +65,12 @@ namespace AlreadyExstingDatabases
             var clientConnection = clientProvider.CreateConnection();
             await Helper.CreateSqliteServiceTicketsTableAsync(clientConnection);
 
-            // Tables involved in the sync process:
-            var tables = new string[] { "ServiceTickets" };
-
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Be sure we don't have an already existing sync setup.  (from previous run)
-            await agent.LocalOrchestrator.DeprovisionAsync();
-            await agent.RemoteOrchestrator.DeprovisionAsync();
+            await agent.LocalOrchestrator.DropAllAsync();
+            await agent.RemoteOrchestrator.DropAllAsync();
 
             // Be sure we don't have existing rows (from previous run)
             await Helper.DropRowsAsync(serverConnection);

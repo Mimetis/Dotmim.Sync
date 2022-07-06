@@ -77,6 +77,8 @@ namespace Dotmim.Sync
     public static class DependencyInjection
     {
         public static Task WriteHelloAsync(this HttpContext context, WebServerAgent webServerAgent, CancellationToken cancellationToken = default) => webServerAgent.WriteHelloAsync(context, cancellationToken);
+        public static Task WriteHelloAsync(this HttpContext context, IEnumerable<WebServerAgent> webServerAgents, CancellationToken cancellationToken = default) => WebServerAgent.WriteHelloAsync(context, webServerAgents, cancellationToken);
+
 
     }
 }

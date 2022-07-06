@@ -30,8 +30,6 @@ namespace BatchsizeClient
 
             var clientOptions = new SyncOptions { BatchSize = 100, ProgressLevel = SyncProgressLevel.Debug };
 
-
-
             var progress = new SynchronousProgress<ProgressArgs>(
                 s => Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}"));
 

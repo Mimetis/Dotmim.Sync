@@ -40,13 +40,13 @@ namespace FilterWebSyncClient
             var progress = new SynchronousProgress<ProgressArgs>(
                pa => Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}"));
 
-            if (!agent.Parameters.Contains("City"))
-                agent.Parameters.Add("City", "Toronto");
-
-            // Because I've specified that "postal" could be null, 
-            // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
-            if (!agent.Parameters.Contains("postal"))
-                agent.Parameters.Add("postal", DBNull.Value);
+            var parameters = new SyncParameters
+            {
+                { "City", "Toronto" },
+                // Because I've specified that "postal" could be null, 
+                // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
+                { "postal", DBNull.Value }
+            };
             do
             {
                 try

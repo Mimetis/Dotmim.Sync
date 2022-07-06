@@ -35,12 +35,12 @@ namespace CustomProvider
             do
             {
                 // Creating an agent that will handle all the process
-                var agentSqlite = new SyncAgent(clientSqliteProvider, serverProvider, tables);
-                var sqliteResults = await agentSqlite.SynchronizeAsync();
+                var agentSqlite = new SyncAgent(clientSqliteProvider, serverProvider);
+                var sqliteResults = await agentSqlite.SynchronizeAsync(tables);
                 Console.WriteLine(sqliteResults);
 
-                var agentSqlServer = new SyncAgent(clientSqlServerProvider, serverProvider, tables);
-                var sqlServerResults = await agentSqlServer.SynchronizeAsync();
+                var agentSqlServer = new SyncAgent(clientSqlServerProvider, serverProvider);
+                var sqlServerResults = await agentSqlServer.SynchronizeAsync(tables);
                 Console.WriteLine(sqlServerResults);
 
             } while (Console.ReadKey().Key != ConsoleKey.Escape);

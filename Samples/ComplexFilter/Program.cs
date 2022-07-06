@@ -111,18 +111,18 @@ namespace Filter
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProvider);
 
-            if (!agent.Parameters.Contains("City"))
-                agent.Parameters.Add("City", "Toronto");
-
-            // Because I've specified that "postal" could be null, 
-            // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
-            if (!agent.Parameters.Contains("postal"))
-                agent.Parameters.Add("postal", "M4B 1V5");
+            var parameters = new SyncParameters
+            {
+                { "City", "Toronto" },
+                // Because I've specified that "postal" could be null, 
+                // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
+                { "postal", "M4B 1V5" }
+            };
 
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(setup);
+                var s1 = await agent.SynchronizeAsync(setup, parameters);
                 // Write results
                 Console.WriteLine(s1);
 

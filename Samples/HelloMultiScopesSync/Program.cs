@@ -39,11 +39,11 @@ namespace HelloMultiScopesSync
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(tables1, "products");
+                var s1 = await agent.SynchronizeAsync("products", tables1);
                 // Write results
                 Console.WriteLine(s1);
 
-                s1 = await agent.SynchronizeAsync(tables2, "customers");
+                s1 = await agent.SynchronizeAsync("customers", tables2);
                 // Write results
                 Console.WriteLine(s1);
 
