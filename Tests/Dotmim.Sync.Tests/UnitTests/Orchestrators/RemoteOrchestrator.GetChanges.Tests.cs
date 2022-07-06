@@ -530,7 +530,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Making a second sync, with these new rows
-            r = await agent.SynchronizeAsync(scopeName);
+            r = await agent.SynchronizeAsync(scopeName, parameters);
             Assert.Equal(4, r.TotalChangesDownloaded);
 
             // now delete these lines on server
