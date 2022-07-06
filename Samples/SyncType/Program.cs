@@ -44,7 +44,7 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
 
-            Console.WriteLine(await agent.SynchronizeAsync(SyncType.Reinitialize, setup));
+            Console.WriteLine(await agent.SynchronizeAsync(setup, SyncType.Reinitialize));
             Console.WriteLine("End");
         }
 
@@ -63,7 +63,7 @@ namespace HelloSync
 
             SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
 
-            Console.WriteLine(await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload, setup));
+            Console.WriteLine(await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload));
             Console.WriteLine("End");
         }
     }

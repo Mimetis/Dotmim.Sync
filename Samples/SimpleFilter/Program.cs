@@ -42,14 +42,11 @@ namespace Filter
 
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProvider);
-
-            if (!agent.Parameters.Contains("ProductCategoryID"))
-                agent.Parameters.Add("ProductCategoryID", new Guid("10A7C342-CA82-48D4-8A38-46A2EB089B74"));
-
+            var parameters = new SyncParameters(("ProductCategoryID", new Guid("10A7C342-CA82-48D4-8A38-46A2EB089B74")));
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(setup);
+                var s1 = await agent.SynchronizeAsync(setup, parameters);
                 // Write results
                 Console.WriteLine(s1);
 

@@ -55,11 +55,11 @@ namespace Migration
             // To make a full example, we are going to use differente scope name (v0, v1)
             // v0 is the initial database
             // v1 will contains the new column in the Address table
-            var s1 = await agent1.SynchronizeAsync(setup, "v0", progress);
+            var s1 = await agent1.SynchronizeAsync("v0", setup, progress);
             Console.WriteLine("Initial Sync on Sql Server Client 1");
             Console.WriteLine(s1);
 
-            var s2 = await agent2.SynchronizeAsync(setup, "v0", progress);
+            var s2 = await agent2.SynchronizeAsync("v0", setup, progress);
             Console.WriteLine("Initial Sync on Sqlite Client 2");
             Console.WriteLine(s2);
 
@@ -111,7 +111,7 @@ namespace Migration
             // allows old clients that do not have the new column, to continue sync normally
             // these old clients will continue to sync on the v0 scope
 
-            var s3 = await agent2.SynchronizeAsync(setup, "v0", progress: progress);
+            var s3 = await agent2.SynchronizeAsync("v0", setup, progress: progress);
             Console.WriteLine($"Sqlite not migrated, doing a sync on first scope v0:");
             Console.WriteLine(s3);
 
