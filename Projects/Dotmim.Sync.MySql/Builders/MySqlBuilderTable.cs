@@ -94,14 +94,19 @@ namespace Dotmim.Sync.MySql.Builders
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if we have a readonly column, we may have a computed one, so we need to allow null
+                // if we are not on the same provider with a default value existing
                 if (column.IsReadOnly)
-                    nullString = "NULL";
+                {
+                    if (this.tableDescription.OriginalProvider != originalProvider || string.IsNullOrEmpty(column.DefaultValue))
+                        nullString = "NULL";
+                }
 
                 string defaultValue = string.Empty;
 
                 if (this.tableDescription.OriginalProvider == originalProvider && !string.IsNullOrEmpty(column.DefaultValue) && column.IsCompute)
                 {
                     defaultValue = column.DefaultValue;
+                    nullString = "";
                 }
 
                 stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {defaultValue} {nullString}");
@@ -357,6 +362,7 @@ namespace Dotmim.Sync.MySql.Builders
                         var exp = $"GENERATED ALWAYS AS ({generationExpression}) {virtualOrStored}";
                         sColumn.DefaultValue = exp;
                         sColumn.IsCompute = true;
+                        sColumn.AllowDBNull = false;
                     }
 
                 }
