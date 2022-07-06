@@ -46,6 +46,29 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Read all tables from database.
+        /// </summary>
+        /// <returns>SyncSetup containing tables names and column names</returns>
+        public virtual async Task<SyncSetup> GetAllTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                SyncSetup setup;
+                (context, setup) = await this.InternalGetAllTablesAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                return setup;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+
+        }
+
+        /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
         internal async Task<(SyncContext context, SyncSet schema)> InternalGetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -89,6 +112,22 @@ namespace Dotmim.Sync
             await this.InterceptAsync(schemaArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             return (context, schema);
+        }
+
+
+
+        /// <summary>
+        /// Get all tables with column names from database
+        /// </summary>
+        internal async Task<(SyncContext context, SyncSetup setup)> InternalGetAllTablesAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+            var setup = await dbBuilder.GetAllTablesAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+            return (context, setup);
         }
 
 

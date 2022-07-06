@@ -1553,6 +1553,244 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+        /// <summary>
+        /// </summary>
+        [Fact]
+        public async Task DropAll()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // generate a sync conf to host the schema
+            var setup = new SyncSetup(this.Tables);
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                // init a sync
+                await agent.SynchronizeAsync(Tables);
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // get clientScope for further check
+                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
+
+                // try to drop everything from local database
+                await localOrchestrator.DropAllAsync();
+
+                Assert.False(await localOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Client));
+
+                // get the db manager
+                foreach (var setupTable in setup.Tables)
+                {
+                    Assert.False(await localOrchestrator.ExistTrackingTableAsync(clientScope, setupTable.TableName, setupTable.SchemaName));
+
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
+
+                    if (client.ProviderType == ProviderType.Sql)
+                    {
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
+
+                        // No filters here
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                    }
+
+                }
+
+                // get clientScope for further check
+                var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+
+                // try to drop everything from local database
+                await remoteOrchestrator.DropAllAsync();
+
+                Assert.False(await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.ServerHistory));
+                Assert.False(await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Server));
+
+                // get the db manager
+                foreach (var setupTable in setup.Tables)
+                {
+                    Assert.False(await remoteOrchestrator.ExistTrackingTableAsync(serverScope, setupTable.TableName, setupTable.SchemaName));
+
+                    Assert.False(await remoteOrchestrator.ExistTriggerAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.False(await remoteOrchestrator.ExistTriggerAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.False(await remoteOrchestrator.ExistTriggerAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
+
+                    if (client.ProviderType == ProviderType.Sql)
+                    {
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
+
+                        // No filters here
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                    }
+
+                }
+
+
+            }
+        }
+
+
+        /// <summary>
+        /// </summary>
+        [Fact]
+        public async Task DropAllFallback()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // generate a sync conf to host the schema
+            var setup = new SyncSetup(this.Tables);
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                // init a sync
+                await agent.SynchronizeAsync(Tables);
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // get clientScope for further check
+                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
+
+                // Drop client scope
+                // Once client scope table is dropped, we will not be able to get client scopes
+                // for the DropAll method.
+                // So far, the Drop All method should fallback on default scope to drop all
+                await localOrchestrator.DeprovisionAsync(SyncProvision.ClientScope);
+
+                // check if scope table is correctly deleted
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Client);
+                Assert.False(scopeInfoTableExists);
+
+                // try to drop everything from local database
+                await localOrchestrator.DropAllAsync();
+
+                // get the db manager
+                foreach (var setupTable in setup.Tables)
+                {
+                    Assert.False(await localOrchestrator.ExistTrackingTableAsync(clientScope, setupTable.TableName, setupTable.SchemaName));
+
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
+
+                    if (client.ProviderType == ProviderType.Sql)
+                    {
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
+
+                        // No filters here
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                    }
+
+                }
+
+                // get clientScope for further check
+                var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+
+                // Drop server scope
+                // Once server scope table is dropped, we will not be able to get Server scopes
+                // for the DropAll method.
+                // So far, the Drop All method should fallback on default scope to drop all
+                await remoteOrchestrator.DeprovisionAsync(SyncProvision.ServerScope);
+
+                // check if scope table is correctly deleted
+                scopeInfoTableExists = await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Server);
+                Assert.False(scopeInfoTableExists);
+
+                // try to drop everything from local database
+                await remoteOrchestrator.DropAllAsync();
+
+                Assert.False(await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.ServerHistory));
+           
+                // get the db manager
+                foreach (var setupTable in setup.Tables)
+                {
+                    Assert.False(await remoteOrchestrator.ExistTrackingTableAsync(serverScope, setupTable.TableName, setupTable.SchemaName));
+
+                    Assert.False(await remoteOrchestrator.ExistTriggerAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.False(await remoteOrchestrator.ExistTriggerAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.False(await remoteOrchestrator.ExistTriggerAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
+
+                    if (client.ProviderType == ProviderType.Sql)
+                    {
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
+
+                        // No filters here
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(serverScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                    }
+
+                }
+
+
+            }
+        }
+
+
+
+
         /// <summary>
         /// Check foreign keys existence
         /// </summary>

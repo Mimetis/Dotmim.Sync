@@ -19,6 +19,11 @@ namespace Dotmim.Sync.Builders
         public abstract Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
+        /// Get all tables with column names from a database
+        /// </summary>
+        public abstract Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null);
+
+        /// <summary>
         /// Make a hello test on the current database
         /// </summary>
         public abstract Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null);

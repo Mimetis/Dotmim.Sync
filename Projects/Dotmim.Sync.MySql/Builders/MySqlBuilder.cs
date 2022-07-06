@@ -38,6 +38,13 @@ namespace Dotmim.Sync.MySql.Builders
             //    connection.Close();
         }
 
+        public override async Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null)
+        {
+            var setup = await MySqlManagementUtils.GetAllTablesAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
+            return setup;
+        }
+
+
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => Task.FromResult(new SyncTable(tableName));
 

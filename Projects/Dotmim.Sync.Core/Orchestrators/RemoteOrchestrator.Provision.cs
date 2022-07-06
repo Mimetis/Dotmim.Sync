@@ -153,9 +153,6 @@ namespace Dotmim.Sync
                 ServerScopeInfo serverScopeInfo;
                 (context, serverScopeInfo) = await this.InternalLoadServerScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (serverScopeInfo == null || serverScopeInfo.Schema == null || serverScopeInfo.Schema.Tables == null || serverScopeInfo.Schema.Tables.Count <= 0 || !serverScopeInfo.Schema.HasColumns)
-                    throw new MissingSchemaInScopeException();
-
                 bool isDeprovisioned;
                 (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -217,10 +214,31 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // get client scope and create tables / row if needed
-
                 List<ServerScopeInfo> serverScopeInfos;
-                (context, serverScopeInfos) = await this.InternalLoadAllServerScopesInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!exists)
+                {
+                    // fallback to "try to drop an hypothetical default scope"
+                    serverScopeInfos = new List<ServerScopeInfo>();
+                    var serverScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName, DbScopeType.Server) as ServerScopeInfo;
+
+                    SyncSetup setup;
+                    (context, setup) = await this.InternalGetAllTablesAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    // Considering removing tables with "_tracking" at the end
+                    var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking")).ToList();
+                    setup.Tables.Clear();
+                    setup.Tables.AddRange(tables);
+                    serverScopeInfo.Setup = setup;
+
+                    serverScopeInfos.Add(serverScopeInfo);
+                }
+                else
+                {
+                    (context, serverScopeInfos) = await this.InternalLoadAllServerScopesInfosAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                }
 
                 if (serverScopeInfos == null || serverScopeInfos.Count == 0)
                     return;
@@ -229,7 +247,7 @@ namespace Dotmim.Sync
 
                 foreach (var serverScopeInfo in serverScopeInfos)
                 {
-                    if (serverScopeInfo == null || serverScopeInfo.Schema == null || !serverScopeInfo.Schema.HasTables || !serverScopeInfo.Schema.HasColumns)
+                    if (serverScopeInfo == null || serverScopeInfo.Setup == null || serverScopeInfo.Setup.Tables == null || serverScopeInfo.Setup.Tables.Count <= 0)
                         continue;
 
                     (context, _) = await InternalDeprovisionAsync(serverScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);

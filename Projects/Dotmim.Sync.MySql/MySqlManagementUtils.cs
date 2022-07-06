@@ -68,6 +68,48 @@ namespace Dotmim.Sync.MySql
             return (dbName, dbVersion);
         }
 
+        /// <summary>
+        /// Get all Tables
+        /// </summary>
+        public static async Task<SyncSetup> GetAllTablesAsync(MySqlConnection connection, MySqlTransaction transaction)
+        {
+            var command = $"select TABLE_NAME from information_schema.TABLES where table_schema = schema()";
+
+            var syncSetup = new SyncSetup();
+
+            using (var mySqlCommand = new MySqlCommand(command, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                mySqlCommand.Transaction = transaction;
+
+                using (var reader = await mySqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (reader.Read())
+                    {
+                        var tableName = reader.GetString(0);
+                        var setupTable = new SetupTable(tableName);
+                        syncSetup.Tables.Add(setupTable);
+                    }
+                }
+
+                foreach(var setupTable in syncSetup.Tables)
+                {
+                    var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName).ConfigureAwait(false);
+
+                    foreach (var column in syncTableColumnsList.Rows)
+                        setupTable.Columns.Add(column["column_name"].ToString());
+                }
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return syncSetup;
+        }
+
 
         public static async Task<SyncTable> GetTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
         {
@@ -389,7 +431,7 @@ namespace Dotmim.Sync.MySql
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
             string str1 = "";
             foreach (var column in primaryKeys)
-            {   
+            {
                 var quotedColumn = ParserName.Parse(column, "`");
                 var paramQuotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}", "`");
 

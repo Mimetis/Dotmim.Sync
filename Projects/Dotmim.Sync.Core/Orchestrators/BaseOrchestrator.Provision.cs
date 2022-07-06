@@ -125,18 +125,26 @@ namespace Dotmim.Sync
             context.SyncStage = SyncStage.Deprovisioning;
 
             // If schema does not have any table, raise an exception
-            if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
+            if (scopeInfo.Setup == null || scopeInfo.Setup.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
                 throw new MissingTablesException(scopeInfo.Name);
 
-            await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo.Setup, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
 
             // Sorting tables based on dependencies between them
-            var schemaTables = scopeInfo.Schema.Tables
-                .SortByDependencies(tab => tab.GetRelations()
-                    .Select(r => r.GetParentTable()));
+            IEnumerable<SyncTable> schemaTables;
+            if (scopeInfo.Schema != null)
+            {
+                schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToList();
+            }
+            else
+            {
+                schemaTables = new List<SyncTable>();
+                foreach(var setupTable in scopeInfo.Setup.Tables)
+                ((List<SyncTable>)schemaTables).Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+            }
 
             // Disable check constraints
             if (this.Options.DisableConstraintsOnApplyChanges)
@@ -224,7 +232,7 @@ namespace Dotmim.Sync
                     (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            var args = new DeprovisionedArgs(context, provision, scopeInfo.Schema, connection);
+            var args = new DeprovisionedArgs(context, provision, scopeInfo.Setup, connection);
             await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, true);

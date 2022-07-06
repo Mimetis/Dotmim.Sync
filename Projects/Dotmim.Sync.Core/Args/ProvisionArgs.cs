@@ -59,18 +59,18 @@ namespace Dotmim.Sync
     public class DeprovisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
-        public SyncSet Schema { get; }
+        public SyncSetup Setup { get; }
 
 
-        public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
+        public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
             Provision = provision;
-            Schema = schema;
+            Setup = setup;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         public override string Source => Connection.Database;
-        public override string Message => $"Deprovisioned {Schema.Tables.Count} Tables. Provision:{Provision}.";
+        public override string Message => $"Deprovisioned {Setup.Tables.Count} Tables. Provision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioned.Id;
     }
 
@@ -84,17 +84,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the schema to be applied in the database
         /// </summary>
-        public SyncSet Schema { get; }
-        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        public SyncSetup Setup { get; }
+        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSetup setup, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
             Provision = provision;
-            Schema = schema;
+            Setup = setup;
         }
         public override string Source => Connection.Database;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Message => $"Deprovisioning {Schema.Tables.Count} Tables. Provision:{Provision}.";
+        public override string Message => $"Deprovisioning {Setup.Tables.Count} Tables. Provision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioning.Id;
     }
 
