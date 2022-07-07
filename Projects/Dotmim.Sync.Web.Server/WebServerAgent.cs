@@ -186,7 +186,14 @@ namespace Dotmim.Sync.Web.Server
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
                         break;
 
-                    // version >= 0.8    
+                    case HttpStep.EnsureSchema:
+                        var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m11.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        //var s11 = await this.EnsureSchemaAsync(httpContext, m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        // context = s11.SyncContext;
+                        //binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
+                        break;
+
                     case HttpStep.SendChangesInProgress:
                         var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
                         await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);

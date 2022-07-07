@@ -50,6 +50,33 @@ namespace Dotmim.Sync
 
         }
 
+
+        /// <summary>
+        /// Get all scopes. scopeName arg is just here for logging purpose and is not used
+        /// </summary>
+        public virtual async Task<List<ServerScopeInfo>>
+            GetAllServerScopesInfoAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                List<ServerScopeInfo> localScopes;
+                (context, localScopes) = await InternalLoadAllServerScopesInfosAsync(context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return localScopes;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
         /// <summary>
         /// Update or Insert a server scope row
         /// </summary>

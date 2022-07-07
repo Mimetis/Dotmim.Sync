@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="McMaster.Extensions.CommandLineUtils" Version="4.0.1" />
+		<PackageReference Include="McMaster.Extensions.Hosting.CommandLine" Version="4.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="appsettings.json">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </None>
+	</ItemGroup>
+
+</Project>

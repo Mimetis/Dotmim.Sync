@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Not Allowed from WebClientOrchestrator
         /// </summary>
-        public override Task<bool> NeedsToUpgradeAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> NeedsToUpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
                         => throw new NotImplementedException();
 
     }

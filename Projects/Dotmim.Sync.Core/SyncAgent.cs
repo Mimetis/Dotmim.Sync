@@ -21,8 +21,7 @@ namespace Dotmim.Sync
     public partial class SyncAgent : IDisposable
     {
         private bool syncInProgress;
-        private Dictionary<string, SyncContext> syncContexts = new Dictionary<string, SyncContext>();
-
+        private bool checkUpgradeDone = false;
 
         /// <summary>
         /// Defines the state that a synchronization session is in.
@@ -38,16 +37,6 @@ namespace Dotmim.Sync
         /// Get or Sets the remote orchestrator
         /// </summary>
         public RemoteOrchestrator RemoteOrchestrator { get; set; }
-
-        /// <summary>
-        /// Setup used to define tables (and optionnaly columns) to sync 
-        /// </summary>
-        //public SyncSetup Setup { get; private set;  }
-
-        /// <summary>
-        /// Get or Sets the Sync parameters to pass to Remote provider for filtering rows
-        /// </summary>
-        // public SyncParameters Parameters { get; private set; } = new SyncParameters();
 
         /// <summary>
         /// Occurs when sync is starting, ending
@@ -262,6 +251,17 @@ namespace Dotmim.Sync
                     (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
+                // no need to check on every call to SynchronizeAsync
+                if (!checkUpgradeDone)
+                {
+                    var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (needToUpgrade)
+                        await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    checkUpgradeDone = true;
+                }
+
                 // On local orchestrator, get scope info.
                 ClientScopeInfo clientScopeInfo;
                 (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
@@ -279,10 +279,6 @@ namespace Dotmim.Sync
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
                     (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
-                }
-                else if (this.LocalOrchestrator.InternalNeedsToUpgrade(clientScopeInfo))
-                {
-                    (context, clientScopeInfo) = await this.LocalOrchestrator.InternalUpgradeAsync(clientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (setup == null)

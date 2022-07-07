@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dotmim.Sync.SqlServer.ChangeTracking" Version="0.9.4" />
+    <PackageReference Include="Dotmim.Sync.Web.Server" Version="0.9.4" />
+  </ItemGroup>
+
+
+</Project>

@@ -32,7 +32,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Setup. stored locally
         /// </summary>
-        [DataMember(Name = "set", IsRequired = true, Order = 4)]
+        [DataMember(Name = "s", IsRequired = true, Order = 4)]
         public SyncSetup Setup { get; set; }
 
         /// <summary>

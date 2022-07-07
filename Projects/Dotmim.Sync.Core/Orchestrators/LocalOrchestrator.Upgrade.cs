@@ -21,47 +21,29 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator
     {
 
-        public virtual async Task<ClientScopeInfo> UpgradeAsync(ClientScopeInfo clientScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                Guard.Against.Null(clientScopeInfo);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // Initialize database if needed
+                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                (context, clientScopeInfo) = await this.InternalUpgradeAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                List<ClientScopeInfo> clientScopeInfos;
+                (context, clientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
+                if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
+                    throw new MissingClientScopeInfoException();
 
-                return clientScopeInfo;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-        public virtual async Task<ClientScopeInfo> UpgradeAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            Guard.Against.NullOrWhiteSpace(scopeName);
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
-            try
-            {
-
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                ClientScopeInfo scopeInfo;
-                (context, scopeInfo) = await this.InternalLoadClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (scopeInfo == null || scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || scopeInfo.Schema.Tables.Count <= 0 || !scopeInfo.Schema.HasColumns)
-                    return null;
-
-                (context, scopeInfo) = await this.InternalUpgradeAsync(scopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, _) = await this.InternalUpgradeAsync(clientScopeInfos, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return scopeInfo;
+                return true;
             }
             catch (Exception ex)
             {
@@ -72,93 +54,133 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
-        public virtual async Task<bool> NeedsToUpgradeAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> NeedsToUpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // get Database builder
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
 
-                ClientScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await this.InternalLoadClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                // Initialize database if needed
+                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                if (clientScopeInfo == null || clientScopeInfo.Schema == null || clientScopeInfo.Schema.Tables == null || clientScopeInfo.Schema.Tables.Count <= 0 || !clientScopeInfo.Schema.HasColumns)
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (!exists)
                     return false;
 
+                List<ClientScopeInfo> clientScopeInfos;
+                (context, clientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                return InternalNeedsToUpgrade(clientScopeInfo);
+                if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
+                    return false;
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return InternalNeedsToUpgrade(clientScopeInfos);
             }
             catch (Exception ex)
             {
                 throw GetSyncError(context, ex);
             }
         }
-
-        internal virtual bool InternalNeedsToUpgrade(IScopeInfo scopeInfo)
+        internal virtual bool InternalNeedsToUpgrade(List<ClientScopeInfo> clientScopeInfos)
         {
-            var version = SyncVersion.EnsureVersion(scopeInfo.Version);
+            var version = SyncVersion.Current;
+
+            // get the smallest version of all scope in the scope info server tables
+            foreach (var clientScopeInfo in clientScopeInfos)
+            {
+                var tmpVersion = SyncVersion.EnsureVersion(clientScopeInfo.Version);
+
+                if (tmpVersion < version)
+                    version = tmpVersion;
+            }
+
             return version < SyncVersion.Current;
         }
 
-        internal virtual async Task<(SyncContext context, ClientScopeInfo clientScopeInfo)> InternalUpgradeAsync(ClientScopeInfo clientScopeInfo,
+
+        internal virtual async Task<(SyncContext context, bool upgraded)> InternalUpgradeAsync(List<ClientScopeInfo> clientScopeInfos,
                         SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var version = SyncVersion.EnsureVersion(clientScopeInfo.Version);
-            var oldVersion = version.Clone() as Version;
-            // beta version
-            if (version.Major == 0)
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            try
             {
-                if (version.Minor <= 5)
-                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 6, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (version.Minor == 6 && version.Build == 0)
-                    version = await UpgdrateTo601Async(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                foreach (var clientScopeInfo in clientScopeInfos)
+                {
+                    var version = SyncVersion.EnsureVersion(clientScopeInfo.Version);
+                    var oldVersion = version.Clone() as Version;
+                    // beta version
+                    if (version.Major == 0)
+                    {
+                        if (version.Minor <= 5)
+                            version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 6, 0), runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 6 && version.Build == 1)
-                    version = await UpgdrateTo602Async(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 6 && version.Build == 0)
+                            version = await UpgdrateTo601Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 6 && version.Build >= 2)
-                    version = await UpgdrateTo700Async(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 6 && version.Build == 1)
+                            version = await UpgdrateTo602Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 7 && version.Build == 0)
-                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 7, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 6 && version.Build >= 2)
+                            version = await UpgdrateTo700Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 7 && version.Build == 1)
-                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 7, 2), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 7 && version.Build == 0)
+                            version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 7, 1), runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 7 && version.Build == 2)
-                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 7, 3), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 7 && version.Build == 1)
+                            version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 7, 2), runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 7 && version.Build >= 3)
-                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 8, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 7 && version.Build == 2)
+                            version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 7, 3), runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 8 && version.Build == 0)
-                    version = await UpgdrateTo801Async(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 7 && version.Build >= 3)
+                            version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 8, 0), runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 8 && version.Build == 1)
-                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 9, 0), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 8 && version.Build == 0)
+                            version = await UpgdrateTo801Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 9 && version.Build == 0)
-                    version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 9, 1), connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 8 && version.Build == 1)
+                            version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 9, 0), runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 9 && version.Build == 1)
-                    version = await UpgdrateTo093Async(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 9 && version.Build == 0)
+                            version = await AutoUpgdrateToNewVersionAsync(clientScopeInfo, context, new Version(0, 9, 1), runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 9 && version.Build == 2)
-                    version = await UpgdrateTo093Async(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 9 && version.Build == 1)
+                            version = await UpgdrateTo093Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (version.Minor == 9 && version.Build == 3)
-                    version = await UpgdrateTo094Async(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        if (version.Minor == 9 && version.Build == 2)
+                            version = await UpgdrateTo093Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        if (version.Minor == 9 && version.Build == 3)
+                            version = await UpgdrateTo094Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        if (version.Minor == 9 && version.Build == 4)
+                            version = await UpgdrateTo095Async(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    if (oldVersion != version)
+                    {
+                        clientScopeInfo.Version = version.ToString();
+                        (context, _) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
             }
-
-            if (oldVersion != version)
+            catch (Exception ex)
             {
-                clientScopeInfo.Version = version.ToString();
-                (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                throw GetSyncError(context, ex);
             }
-            return (context, clientScopeInfo);
+            return (context, true);
 
         }
 
@@ -388,46 +410,125 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo095Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo095Async(ClientScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
         {
-            var newVersion = new Version(0, 9, 4);
+
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            var newVersion = new Version(0, 9, 5);
+
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade client scope {scopeInfo.Name} to {newVersion}:", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             // get scope info table name
-            var scopeInfoTableName = ParserName.Parse(this.Options.ScopeInfoTableName);
-            var tableName = $"{scopeInfoTableName.Unquoted().Normalized().ToString()}";
+            var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
+            var scopeClientInfoTableName = $"{parsedName.Unquoted().Normalized().ToString()}";
 
-            var alterScopeInfoTableCommandTextSql = @$"
-            ALTER TABLE [dbo].[{tableName}] DROP CONSTRAINT [PK_{tableName}];
-            ALTER TABLE dbo.scope_info ADD CONSTRAINT
-                [PK_{tableName}] PRIMARY KEY CLUSTERED (sync_scope_id, sync_scope_name) ON[PRIMARY];";
+            var syncTable = new SyncTable(scopeClientInfoTableName);
+            var scopeClientInfoTableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
+            var pkeys = await scopeClientInfoTableBuilder.GetPrimaryKeysAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-            var alterScopeInfoTableCommandTextSqlite = @$"
-            PRAGMA foreign_keys=off;
-            BEGIN TRANSACTION;
+            if (pkeys.Count() == 1)
+            {
+                if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.SqlServer.SqlSyncProvider"))
+                {
+                    var commandText = @$"ALTER TABLE dbo.{scopeClientInfoTableName} DROP CONSTRAINT PK_{scopeClientInfoTableName};
+                                        ALTER TABLE dbo.{scopeClientInfoTableName} ADD CONSTRAINT 
+                                        PK_{scopeClientInfoTableName} PRIMARY KEY CLUSTERED (sync_scope_id, sync_scope_name);";
 
-            ALTER TABLE [{tableName}] RENAME TO old_table_{tableName};
-            CREATE TABLE [{tableName}](
-                        sync_scope_id blob NOT NULL,
-	                    sync_scope_name text NOT NULL,
-	                    sync_scope_schema text NULL,
-	                    sync_scope_setup text NULL,
-	                    sync_scope_version text NULL,
-                        scope_last_server_sync_timestamp integer NULL,
-                        scope_last_sync_timestamp integer NULL,
-                        scope_last_sync_duration integer NULL,
-                        scope_last_sync datetime NULL,
-                        CONSTRAINT PK_{tableName} PRIMARY KEY(sync_scope_id, sync_scope_name));
+                    var command = runner.Connection.CreateCommand();
+                    command.CommandText = commandText;
+                    command.Transaction = runner.Transaction;
+                    await command.ExecuteNonQueryAsync();
 
-            INSERT INTO [{tableName}] SELECT * FROM old_table_{tableName};
-            COMMIT;
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, $"{scopeClientInfoTableName} primary keys updated on SQL Server", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                }
 
-            DROP TABLE old_table_{tableName};
+                if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.MySql.MySqlSyncProvider"))
+                {
+                    var commandText = @$"ALTER TABLE `{scopeClientInfoTableName}` 
+                                        CHANGE COLUMN `sync_scope_name` `sync_scope_name` VARCHAR(100) NOT NULL ,
+                                        DROP PRIMARY KEY,
+                                        ADD PRIMARY KEY (`sync_scope_id`, `sync_scope_name`);";
+                    var command = runner.Connection.CreateCommand();
+                    command.CommandText = commandText;
+                    command.Transaction = runner.Transaction;
+                    await command.ExecuteNonQueryAsync();
+                }
+                if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.Sqlite.SqliteSyncProvider"))
+                {
+                    var commandText = @$"
+                                        PRAGMA foreign_keys=off;
+                                        BEGIN TRANSACTION;
 
-            PRAGMA foreign_keys=on;";
+                                        ALTER TABLE [{scopeClientInfoTableName}] RENAME TO old_table_{scopeClientInfoTableName};
+                                        CREATE TABLE [{scopeClientInfoTableName}](
+                                                    sync_scope_id blob NOT NULL,
+	                                                sync_scope_name text NOT NULL,
+	                                                sync_scope_schema text NULL,
+	                                                sync_scope_setup text NULL,
+	                                                sync_scope_version text NULL,
+                                                    scope_last_server_sync_timestamp integer NULL,
+                                                    scope_last_sync_timestamp integer NULL,
+                                                    scope_last_sync_duration integer NULL,
+                                                    scope_last_sync datetime NULL,
+                                                    CONSTRAINT PK_{scopeClientInfoTableName} PRIMARY KEY(sync_scope_id, sync_scope_name));
+
+                                        INSERT INTO [{scopeClientInfoTableName}] SELECT * FROM old_table_{scopeClientInfoTableName};
+                                        COMMIT;
+
+                                        DROP TABLE old_table_{scopeClientInfoTableName};
+
+                                        PRAGMA foreign_keys=on;";
+
+                    var command = runner.Connection.CreateCommand();
+                    command.CommandText = commandText;
+                    command.Transaction = runner.Transaction;
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
 
 
+            List<ClientScopeInfo> clientScopeInfos;
+            (context, clientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            var defaultClientScopeInfo = clientScopeInfos.FirstOrDefault(csi => csi.Name == "DefaultScope");
+            if (defaultClientScopeInfo == null)
+                defaultClientScopeInfo = clientScopeInfos[0];
+
+            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+            await this.DeprovisionAsync(scopeInfo.Name, provision, runner.Connection, runner.Transaction, progress: progress);
+
+            // simulate 0.94 scope without scopename in sp
+            // Creating a fake scope info
+            var fakeClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName, DbScopeType.Client);
+            fakeClientScopeInfo.Setup = scopeInfo.Setup;
+
+            await this.InternalDeprovisionAsync(fakeClientScopeInfo, context, provision, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Deprovision scope {scopeInfo.Name}", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+            // Delete scope info to be able to recreate it with correct primary keys
+            await this.InternalDeleteClientScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            scopeInfo.Id = defaultClientScopeInfo.Id;
+            await this.InternalSaveClientScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            // provision with a fake server scope
+            var serverScope = new ServerScopeInfo
+            {
+                Schema = scopeInfo.Schema,
+                Setup = scopeInfo.Setup,
+                Version = scopeInfo.Version,
+                Name = scopeInfo.Name,
+                IsNewScope = scopeInfo.IsNewScope,
+            };
+
+            await this.ProvisionAsync(serverScope, provision, true, runner.Connection, runner.Transaction, progress: runner.Progress);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Provision scope {scopeInfo.Name}", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+            await runner.CommitAsync().ConfigureAwait(false);
 
             return newVersion;
         }
