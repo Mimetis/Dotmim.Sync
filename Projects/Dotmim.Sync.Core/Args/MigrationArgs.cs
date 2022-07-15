@@ -79,23 +79,23 @@
 //        /// <summary>
 //        /// Intercept the orchestrator when migrating a Setup
 //        /// </summary>
-//        public static void OnMigrating(this BaseOrchestrator orchestrator, Action<MigratingArgs> action)
+//        public static Guid OnMigrating(this BaseOrchestrator orchestrator, Action<MigratingArgs> action)
 //            => orchestrator.SetInterceptor(action);
 //        /// <summary>
 //        /// Intercept the orchestrator when migrating a Setup
 //        /// </summary>
-//        public static void OnMigrating(this BaseOrchestrator orchestrator, Func<MigratingArgs, Task> action)
+//        public static Guid OnMigrating(this BaseOrchestrator orchestrator, Func<MigratingArgs, Task> action)
 //            => orchestrator.SetInterceptor(action);
 
 //        /// <summary>
 //        /// Intercept the orchestrator when a Setup has been migrated
 //        /// </summary>
-//        public static void OnMigrated(this BaseOrchestrator orchestrator, Action<MigratedArgs> action)
+//        public static Guid OnMigrated(this BaseOrchestrator orchestrator, Action<MigratedArgs> action)
 //            => orchestrator.SetInterceptor(action);
 //        /// <summary>
 //        /// Intercept the orchestrator when a Setup has been migrated
 //        /// </summary>
-//        public static void OnMigrated(this BaseOrchestrator orchestrator, Func<MigratedArgs, Task> action)
+//        public static Guid OnMigrated(this BaseOrchestrator orchestrator, Func<MigratedArgs, Task> action)
 //            => orchestrator.SetInterceptor(action);
 
 //    }

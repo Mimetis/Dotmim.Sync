@@ -69,30 +69,30 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http response message is sent back to the client
         /// </summary>
-        public static void OnHttpSendingResponse(this WebServerAgent webServerAgent,
+        public static Guid OnHttpSendingResponse(this WebServerAgent webServerAgent,
             Action<HttpSendingResponseArgs> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http response message is sent back to the client
         /// </summary>
-        public static void OnHttpSendingResponse(this WebServerAgent webServerAgent,
+        public static Guid OnHttpSendingResponse(this WebServerAgent webServerAgent,
             Func<HttpSendingResponseArgs, Task> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message request from the client arrived to the server
         /// </summary>
-        public static void OnHttpGettingRequest(this WebServerAgent webServerAgent,
+        public static Guid OnHttpGettingRequest(this WebServerAgent webServerAgent,
             Action<HttpGettingRequestArgs> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message request from the client arrived to the server
         /// </summary>
-        public static void OnHttpGettingRequest(this WebServerAgent webServerAgent,
+        public static Guid OnHttpGettingRequest(this WebServerAgent webServerAgent,
             Func<HttpGettingRequestArgs, Task> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
     }
 }

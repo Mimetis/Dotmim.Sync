@@ -68,24 +68,24 @@ namespace Dotmim.Sync
         /// <summary>
         /// Occurs just before serializing a SyncRow in a json stream
         /// </summary>
-        public static void OnSerializingSyncRow(this BaseOrchestrator orchestrator, Action<SerializingRowArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSerializingSyncRow(this BaseOrchestrator orchestrator, Action<SerializingRowArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Occurs just before serializing a SyncRow in a json stream
         /// </summary>
-        public static void OnSerializingSyncRow(this BaseOrchestrator orchestrator, Func<SerializingRowArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSerializingSyncRow(this BaseOrchestrator orchestrator, Func<SerializingRowArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Occurs just after loading a serialized SyncRow from a json stream
         /// </summary>
-        public static void OnDeserializingSyncRow(this BaseOrchestrator orchestrator, Action<DeserializingRowArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeserializingSyncRow(this BaseOrchestrator orchestrator, Action<DeserializingRowArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Occurs just after loading a serialized SyncRow from a json stream
         /// </summary>
-        public static void OnDeserializingSyncRow(this BaseOrchestrator orchestrator, Func<DeserializingRowArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeserializingSyncRow(this BaseOrchestrator orchestrator, Func<DeserializingRowArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
 
     }

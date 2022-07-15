@@ -599,8 +599,8 @@ namespace Dotmim.Sync.Web.Server
                 if (this.clientConverter != null)
                     AfterDeserializedRows(containerTable, schemaTable, this.clientConverter);
 
-                var interceptorWriting = this.RemoteOrchestrator.interceptors.GetInterceptor<SerializingRowArgs>();
-                if (!interceptorWriting.IsEmpty)
+                var interceptorsWriting = this.RemoteOrchestrator.interceptors.GetInterceptors<SerializingRowArgs>();
+                if (interceptorsWriting.Count > 0)
                 {
                     localSerializer.OnWritingRow(async (syncTable, rowArray) =>
                     {

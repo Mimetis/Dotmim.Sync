@@ -111,36 +111,36 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesSelecting(this BaseOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelecting(this BaseOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesSelecting(this BaseOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when changes are selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesSelected(this BaseOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when changes are selected on each table defined in the configuration schema
         /// </summary>
-        public static void OnTableChangesSelected(this BaseOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesSelected(this BaseOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
         /// </summary>
-        public static void OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Action<TableChangesSelectedSyncRowArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Action<TableChangesSelectedSyncRowArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
         /// </summary>
-        public static void OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Func<TableChangesSelectedSyncRowArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Func<TableChangesSelectedSyncRowArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
 
     }

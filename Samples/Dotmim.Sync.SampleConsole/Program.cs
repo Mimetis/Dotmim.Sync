@@ -481,6 +481,14 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
+        var id1 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 1"));
+        var id2 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 2"));
+        var id3 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 3"));
+        var id4 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 4"));
+        agent.LocalOrchestrator.ClearInterceptors(id3);
+
+        
+
         do
         {
             Console.Clear();

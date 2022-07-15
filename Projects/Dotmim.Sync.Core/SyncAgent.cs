@@ -49,11 +49,6 @@ namespace Dotmim.Sync
         public SyncOptions Options => this.LocalOrchestrator?.Options;
 
         /// <summary>
-        /// Set interceptors on the LocalOrchestrator
-        /// </summary>
-        public void SetInterceptors(Interceptors interceptors) => this.LocalOrchestrator.On(interceptors);
-
-        /// <summary>
         /// Shortcut to Apply changed failed if remote orchestrator supports it
         /// </summary>
         public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action)

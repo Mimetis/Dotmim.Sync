@@ -106,8 +106,8 @@ namespace Dotmim.Sync.Web.Client
                     {
                         var localSerializer = new LocalJsonSerializer();
 
-                        var interceptorWriting = this.interceptors.GetInterceptor<SerializingRowArgs>();
-                        if (!interceptorWriting.IsEmpty)
+                        var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+                        if (interceptorsWriting.Count > 0)
                         {
                             localSerializer.OnWritingRow(async (syncTable, rowArray) =>
                             {

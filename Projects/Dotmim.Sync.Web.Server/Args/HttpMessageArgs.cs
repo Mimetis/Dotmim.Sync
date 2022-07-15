@@ -86,28 +86,28 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpSendingChanges(this WebServerAgent webServerAgent,
             Action<HttpSendingServerChangesArgs> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpSendingChanges(this WebServerAgent webServerAgent,
             Func<HttpSendingServerChangesArgs, Task> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpGettingChanges(this WebServerAgent webServerAgent,
             Action<HttpGettingClientChangesArgs> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpGettingChanges(this WebServerAgent webServerAgent,
             Func<HttpGettingClientChangesArgs, Task> action)
-            => webServerAgent.RemoteOrchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
     }
 }

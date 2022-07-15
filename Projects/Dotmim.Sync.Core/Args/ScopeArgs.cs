@@ -182,112 +182,112 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a scope table is creating
         /// </summary>
-        public static void OnScopeTableCreating(this BaseOrchestrator orchestrator, Action<ScopeTableCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableCreating(this BaseOrchestrator orchestrator, Action<ScopeTableCreatingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope table is creating
         /// </summary>
-        public static void OnScopeTableCreating(this BaseOrchestrator orchestrator, Func<ScopeTableCreatingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableCreating(this BaseOrchestrator orchestrator, Func<ScopeTableCreatingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope table is created
         /// </summary>
-        public static void OnScopeTableCreated(this BaseOrchestrator orchestrator, Action<ScopeTableCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableCreated(this BaseOrchestrator orchestrator, Action<ScopeTableCreatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope table is created
         /// </summary>
-        public static void OnScopeTableCreated(this BaseOrchestrator orchestrator, Func<ScopeTableCreatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableCreated(this BaseOrchestrator orchestrator, Func<ScopeTableCreatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope table is dropping
         /// </summary>
-        public static void OnScopeTableDropping(this BaseOrchestrator orchestrator, Action<ScopeTableDroppingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableDropping(this BaseOrchestrator orchestrator, Action<ScopeTableDroppingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope table is dropping
         /// </summary>
-        public static void OnScopeTableDropping(this BaseOrchestrator orchestrator, Func<ScopeTableDroppingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableDropping(this BaseOrchestrator orchestrator, Func<ScopeTableDroppingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope table is dropped
         /// </summary>
-        public static void OnScopeTableDropped(this BaseOrchestrator orchestrator, Action<ScopeTableDroppedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableDropped(this BaseOrchestrator orchestrator, Action<ScopeTableDroppedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope table is dropped
         /// </summary>
-        public static void OnScopeTableDropped(this BaseOrchestrator orchestrator, Func<ScopeTableDroppedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeTableDropped(this BaseOrchestrator orchestrator, Func<ScopeTableDroppedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is about to be loaded from client database
         /// </summary>
-        public static void OnScopeLoading(this LocalOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeLoading(this LocalOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is about to be loaded from client database
         /// </summary>
-        public static void OnScopeLoading(this LocalOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeLoading(this LocalOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is about to be loaded from ServerScope database
         /// </summary>
-        public static void OnServerScopeLoading(this RemoteOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnServerScopeLoading(this RemoteOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is about to be loaded from ServerScope database
         /// </summary>
-        public static void OnServerScopeLoading(this RemoteOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnServerScopeLoading(this RemoteOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
-        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
-        public static void OnScopeLoaded(this LocalOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeLoaded(this LocalOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
-        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
-        public static void OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is saving
         /// </summary>
-        public static void OnScopeSaving(this BaseOrchestrator orchestrator, Action<ScopeSavingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeSaving(this BaseOrchestrator orchestrator, Action<ScopeSavingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is saving
         /// </summary>
-        public static void OnScopeSaving(this BaseOrchestrator orchestrator, Func<ScopeSavingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeSaving(this BaseOrchestrator orchestrator, Func<ScopeSavingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is saved
         /// </summary>
-        public static void OnScopeSaved(this BaseOrchestrator orchestrator, Action<ScopeSavedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeSaved(this BaseOrchestrator orchestrator, Action<ScopeSavedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is saved
         /// </summary>
-        public static void OnScopeSaved(this BaseOrchestrator orchestrator, Func<ScopeSavedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnScopeSaved(this BaseOrchestrator orchestrator, Func<ScopeSavedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
     public static partial class SyncEventsId

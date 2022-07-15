@@ -98,10 +98,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var assertOverWritten = false;
 
-            remoteOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
+            remoteOrchestrator.OnStoredProcedureCreating(args =>
             {
                 assertOverWritten = true;
-            }));
+            });
 
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, true);
 
@@ -143,10 +143,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var assertOverWritten = false;
 
-            remoteOrchestrator.On(new Action<StoredProcedureCreatingArgs>(args =>
+            remoteOrchestrator.OnStoredProcedureCreating(args =>
             {
                 assertOverWritten = true;
-            }));
+            });
 
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 

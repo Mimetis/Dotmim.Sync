@@ -170,10 +170,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
             var assertOverWritten = false;
-            remoteOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
+            remoteOrchestrator.OnTriggerCreating(args =>
             {
                assertOverWritten = true;
-            }));
+            });
 
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, true);
 
@@ -213,10 +213,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             var assertOverWritten = false;
-            remoteOrchestrator.On(new Action<TriggerCreatingArgs>(args =>
+            remoteOrchestrator.OnTriggerCreating(args =>
             {
                 assertOverWritten = true;
-            }));
+            });
 
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 

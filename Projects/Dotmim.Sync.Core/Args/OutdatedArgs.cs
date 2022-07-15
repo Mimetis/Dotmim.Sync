@@ -60,13 +60,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a database is out dated
         /// </summary>
-        public static void OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a database is out dated
         /// </summary>
-        public static void OnOutdated(this BaseOrchestrator orchestrator, Func<OutdatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnOutdated(this BaseOrchestrator orchestrator, Func<OutdatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

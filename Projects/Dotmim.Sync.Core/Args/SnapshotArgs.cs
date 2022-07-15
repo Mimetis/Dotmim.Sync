@@ -104,46 +104,46 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the orchestrator when creating a snapshot
         /// </summary>
-        public static void OnSnapshotCreating(this BaseOrchestrator orchestrator, Action<SnapshotCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotCreating(this BaseOrchestrator orchestrator, Action<SnapshotCreatingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the orchestrator when creating a snapshot
         /// </summary>
-        public static void OnSnapshotCreating(this BaseOrchestrator orchestrator, Func<SnapshotCreatingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotCreating(this BaseOrchestrator orchestrator, Func<SnapshotCreatingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the orchestrator when a snapshot has been created
         /// </summary>
-        public static void OnSnapshotCreated(this BaseOrchestrator orchestrator, Action<SnapshotCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotCreated(this BaseOrchestrator orchestrator, Action<SnapshotCreatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the orchestrator when a snapshot has been created
         /// </summary>
-        public static void OnSnapshotCreated(this BaseOrchestrator orchestrator, Func<SnapshotCreatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotCreated(this BaseOrchestrator orchestrator, Func<SnapshotCreatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the orchestrator when applying a snapshot
         /// </summary>
-        public static void OnSnapshotApplying(this BaseOrchestrator orchestrator, Action<SnapshotApplyingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotApplying(this BaseOrchestrator orchestrator, Action<SnapshotApplyingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the orchestrator when applying a snapshot
         /// </summary>
-        public static void OnSnapshotApplying(this BaseOrchestrator orchestrator, Func<SnapshotApplyingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotApplying(this BaseOrchestrator orchestrator, Func<SnapshotApplyingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the orchestrator when a snapshot has been applied
         /// </summary>
-        public static void OnSnapshotApplied(this BaseOrchestrator orchestrator, Action<SnapshotAppliedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotApplied(this BaseOrchestrator orchestrator, Action<SnapshotAppliedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the orchestrator when a snapshot has been applied
         /// </summary>
-        public static void OnSnapshotApplied(this BaseOrchestrator orchestrator, Func<SnapshotAppliedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSnapshotApplied(this BaseOrchestrator orchestrator, Func<SnapshotAppliedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

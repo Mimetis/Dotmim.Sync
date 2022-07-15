@@ -133,68 +133,68 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when database schema is created (works only on SQL Server)
         /// </summary>
-        public static void OnSchemaNameCreated(this BaseOrchestrator orchestrator, Action<SchemaNameCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSchemaNameCreated(this BaseOrchestrator orchestrator, Action<SchemaNameCreatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when database schema is created (works only on SQL Server)
         /// </summary>
-        public static void OnSchemaNameCreated(this BaseOrchestrator orchestrator, Func<SchemaNameCreatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSchemaNameCreated(this BaseOrchestrator orchestrator, Func<SchemaNameCreatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when database schema is creating (works only on SQL Server)
         /// </summary>
-        public static void OnSchemaNameCreating(this BaseOrchestrator orchestrator, Action<SchemaNameCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSchemaNameCreating(this BaseOrchestrator orchestrator, Action<SchemaNameCreatingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when database schema is creating (works only on SQL Server)
         /// </summary>
-        public static void OnSchemaNameCreating(this BaseOrchestrator orchestrator, Func<SchemaNameCreatingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnSchemaNameCreating(this BaseOrchestrator orchestrator, Func<SchemaNameCreatingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a table is creating
         /// </summary>
-        public static void OnTableCreating(this BaseOrchestrator orchestrator, Action<TableCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableCreating(this BaseOrchestrator orchestrator, Action<TableCreatingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a table is creating
         /// </summary>
-        public static void OnTableCreating(this BaseOrchestrator orchestrator, Func<TableCreatingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableCreating(this BaseOrchestrator orchestrator, Func<TableCreatingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a table is created
         /// </summary>
-        public static void OnTableCreated(this BaseOrchestrator orchestrator, Action<TableCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableCreated(this BaseOrchestrator orchestrator, Action<TableCreatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a table is created
         /// </summary>
-        public static void OnTableCreated(this BaseOrchestrator orchestrator, Func<TableCreatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableCreated(this BaseOrchestrator orchestrator, Func<TableCreatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a table is dropping
         /// </summary>
-        public static void OnTableDropping(this BaseOrchestrator orchestrator, Action<TableDroppingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableDropping(this BaseOrchestrator orchestrator, Action<TableDroppingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a table is dropping
         /// </summary>
-        public static void OnTableDropping(this BaseOrchestrator orchestrator, Func<TableDroppingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableDropping(this BaseOrchestrator orchestrator, Func<TableDroppingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a table is dropped
         /// </summary>
-        public static void OnTableDropped(this BaseOrchestrator orchestrator, Action<TableDroppedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableDropped(this BaseOrchestrator orchestrator, Action<TableDroppedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a table is dropped
         /// </summary>
-        public static void OnTableDropped(this BaseOrchestrator orchestrator, Func<TableDroppedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableDropped(this BaseOrchestrator orchestrator, Func<TableDroppedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

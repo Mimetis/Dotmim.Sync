@@ -166,6 +166,7 @@ namespace Migration
             // On this new client, migrated, we no longer need the v0 scope
             // we can deprovision it
             await agent1.LocalOrchestrator.DeprovisionAsync("v0", SyncProvision.StoredProcedures, progress:progress);
+            await agent1.LocalOrchestrator.DeleteClientScopeInfoAsync(v0clientScope, progress: progress);
             Console.WriteLine($"Deprovision of old scope v0 done on Sql Server client1");
 
             // -----------------------------------------------------------------

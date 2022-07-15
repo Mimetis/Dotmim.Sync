@@ -104,46 +104,46 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider before it begins a database provisioning
         /// </summary>
-        public static void OnProvisioning(this BaseOrchestrator orchestrator, Action<ProvisioningArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioning(this BaseOrchestrator orchestrator, Action<ProvisioningArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider before it begins a database provisioning
         /// </summary>
-        public static void OnProvisioning(this BaseOrchestrator orchestrator, Func<ProvisioningArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioning(this BaseOrchestrator orchestrator, Func<ProvisioningArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has provisioned a database
         /// </summary>
-        public static void OnProvisioned(this BaseOrchestrator orchestrator, Action<ProvisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioned(this BaseOrchestrator orchestrator, Action<ProvisionedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider after it has provisioned a database
         /// </summary>
-        public static void OnProvisioned(this BaseOrchestrator orchestrator, Func<ProvisionedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioned(this BaseOrchestrator orchestrator, Func<ProvisionedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider before it begins a database deprovisioning
         /// </summary>
-        public static void OnDeprovisioning(this BaseOrchestrator orchestrator, Action<DeprovisioningArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioning(this BaseOrchestrator orchestrator, Action<DeprovisioningArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider before it begins a database deprovisioning
         /// </summary>
-        public static void OnDeprovisioning(this BaseOrchestrator orchestrator, Func<DeprovisioningArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioning(this BaseOrchestrator orchestrator, Func<DeprovisioningArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a database
         /// </summary>
-        public static void OnDeprovisioned(this BaseOrchestrator orchestrator, Action<DeprovisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioned(this BaseOrchestrator orchestrator, Action<DeprovisionedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider after it has deprovisioned a database
         /// </summary>
-        public static void OnDeprovisioned(this BaseOrchestrator orchestrator, Func<DeprovisionedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioned(this BaseOrchestrator orchestrator, Func<DeprovisionedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

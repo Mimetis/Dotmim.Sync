@@ -59,26 +59,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http is about to be done to get server scope 
         /// </summary>
-        public static void OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeRequestArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeRequestArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http is about to be done to get server scope 
         /// </summary>
-        public static void OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeRequestArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeRequestArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get scope is done
         /// </summary>
-        public static void OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeResponseArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeResponseArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get scope is done
         /// </summary>
-        public static void OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeResponseArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeResponseArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
 
     }

@@ -66,26 +66,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when batches are about to be downloaded
         /// </summary>
-        public static void OnHttpBatchesDownloadingArgs(this WebClientOrchestrator orchestrator, Action<HttpBatchesDownloadingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpBatchesDownloadingArgs(this WebClientOrchestrator orchestrator, Action<HttpBatchesDownloadingArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when batches are about to be downloaded
         /// </summary>
-        public static void OnHttpBatchesDownloadingArgs(this WebClientOrchestrator orchestrator, Func<HttpBatchesDownloadingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpBatchesDownloadingArgs(this WebClientOrchestrator orchestrator, Func<HttpBatchesDownloadingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when batches have been completely downloaded
         /// </summary>
-        public static void OnHttpBatchesDownloadedArgs(this WebClientOrchestrator orchestrator, Action<HttpBatchesDownloadedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpBatchesDownloadedArgs(this WebClientOrchestrator orchestrator, Action<HttpBatchesDownloadedArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when batches have been completely downloaded
         /// </summary>
-        public static void OnHttpBatchesDownloadedArgs(this WebClientOrchestrator orchestrator, Func<HttpBatchesDownloadedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpBatchesDownloadedArgs(this WebClientOrchestrator orchestrator, Func<HttpBatchesDownloadedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
 
 

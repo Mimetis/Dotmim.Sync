@@ -88,8 +88,8 @@ namespace Dotmim.Sync.Web.Client
                 var initialPctProgress1 = context.ProgressPercentage;
                 var localSerializer = new LocalJsonSerializer();
 
-                var interceptorReading = this.interceptors.GetInterceptor<DeserializingRowArgs>();
-                if (!interceptorReading.IsEmpty)
+                var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
+                if (interceptorsReading.Count > 0)
                 {
                     localSerializer.OnReadingRow(async (schemaTable, rowString) =>
                     {
@@ -223,8 +223,8 @@ namespace Dotmim.Sync.Web.Client
                     {
                         var localSerializer = new LocalJsonSerializer();
 
-                        var interceptorWriting = this.interceptors.GetInterceptor<SerializingRowArgs>();
-                        if (!interceptorWriting.IsEmpty)
+                        var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+                        if (interceptorsWriting.Count > 0)
                         {
                             localSerializer.OnWritingRow(async (syncTable, rowArray) =>
                             {

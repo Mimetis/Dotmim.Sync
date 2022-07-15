@@ -192,8 +192,9 @@ namespace Dotmim.Sync
 
             var localSerializer = new LocalJsonSerializer();
 
-            var interceptorReading = this.interceptors.GetInterceptor<DeserializingRowArgs>();
-            if (!interceptorReading.IsEmpty)
+            // If someone has an interceptor on deserializing, we read the row and intercept
+            var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
+            if (interceptorsReading.Count > 0)
             {
                 localSerializer.OnReadingRow(async (schemaTable, rowString) =>
                 {
@@ -552,7 +553,7 @@ namespace Dotmim.Sync
             var action = ApplyAction.Continue;
 
             // check the interceptor
-            var interceptor = this.interceptors.GetInterceptor<ApplyChangesFailedArgs>();
+            var interceptors = this.interceptors.GetInterceptors<ApplyChangesFailedArgs>();
 
             SyncRow finalRow = null;
             SyncRow localRow = null;
@@ -565,7 +566,7 @@ namespace Dotmim.Sync
             // We don't get the conflict on automatic conflict resolution
             // Since it's an automatic resolution, we don't need to get the local conflict row
             // So far we get the conflict only if an interceptor exists
-            if (!interceptor.IsEmpty)
+            if (interceptors.Count > 0)
             {
                 // Get the localRow
                 (context, localRow) = await this.InternalGetConflictRowAsync(scopeInfo, context, syncAdapter, localScopeId, conflictRow, schemaChangesTable, connection, transaction).ConfigureAwait(false);

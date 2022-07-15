@@ -21,7 +21,7 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
         // Collection of Interceptors
-        internal Interceptors interceptors = new Interceptors();
+        internal Interceptors interceptors = new();
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -66,35 +66,40 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Set an interceptor to get info on the current sync process
+        /// Add an interceptor of T
         /// </summary>
-        [DebuggerStepThrough]
-        internal void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
-            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
+        public Guid AddInterceptor<T>(Action<T> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
-        /// Set an interceptor to get info on the current sync process
+        /// Add an async interceptor of T
         /// </summary>
-        [DebuggerStepThrough]
-        internal void On<T>(Func<T, Task> interceptorAction) where T : ProgressArgs =>
-            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
+        public Guid AddInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
-        /// Set a collection of interceptors
+        /// Remove all interceptors based on type of ProgressArgs
         /// </summary>
-        [DebuggerStepThrough]
-        internal void On(Interceptors interceptors) => this.interceptors = interceptors;
+        public void ClearInterceptors<T>() where T : ProgressArgs => this.interceptors.Clear<T>();
 
         /// <summary>
-        /// Returns the Task associated with given type of BaseArgs 
-        /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
+        /// Remove all interceptors 
+        /// </summary>
+        public void ClearInterceptors() => this.interceptors.Clear();
+
+        /// <summary>
+        /// Remove interceptor based on Id
+        /// </summary>
+        public void ClearInterceptors(Guid id) => this.interceptors.Clear(id);
+
+
+        /// <summary>
+        /// Try to proc a On[Method]
         /// </summary>
         internal async Task<T> InterceptAsync<T>(T args, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default) where T : ProgressArgs
         {
             if (this.interceptors == null)
                 return args;
 
-            var interceptor = this.interceptors.GetInterceptor<T>();
+            var interceptors = this.interceptors.GetInterceptors<T>();
 
             // Check logger, because we make some reflection here
             if (this.Logger.IsEnabled(LogLevel.Debug))
@@ -105,7 +110,8 @@ namespace Dotmim.Sync
                 this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
             }
 
-            await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
+            foreach (var interceptor in interceptors)
+                await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
 
             if (progress != default)
                 this.ReportProgress(args.Context, progress, args, args.Connection, args.Transaction);
@@ -113,23 +119,6 @@ namespace Dotmim.Sync
             return args;
         }
 
-        /// <summary>
-        /// Affect an interceptor
-        /// </summary>
-        [DebuggerStepThrough]
-        internal void SetInterceptor<T>(Action<T> action) where T : ProgressArgs => this.On(action);
-
-        /// <summary>
-        /// Affect an interceptor
-        /// </summary>
-        [DebuggerStepThrough]
-        internal void SetInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.On(action);
-
-        /// <summary>
-        /// Gets a boolean returning true if an interceptor of type T, exists
-        /// </summary>
-        [DebuggerStepThrough]
-        internal bool ContainsInterceptor<T>() where T : ProgressArgs => this.interceptors.Contains<T>();
 
         /// <summary>
         /// Try to report progress

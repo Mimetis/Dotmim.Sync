@@ -134,38 +134,38 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when batch changes is uploading to server.
         /// </summary>
-        public static void OnHttpSendingChangesRequest(this WebClientOrchestrator orchestrator, Action<HttpSendingClientChangesRequestArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpSendingChangesRequest(this WebClientOrchestrator orchestrator, Action<HttpSendingClientChangesRequestArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when batch changes is uploading to server.
         /// </summary>
-        public static void OnHttpSendingChangesRequest(this WebClientOrchestrator orchestrator, Func<HttpSendingClientChangesRequestArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpSendingChangesRequest(this WebClientOrchestrator orchestrator, Func<HttpSendingClientChangesRequestArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when downloading a batch changes from server side.
         /// </summary>
-        public static void OnHttpGettingChangesRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingServerChangesRequestArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingChangesRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingServerChangesRequestArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when downloading a batch changes from server side.
         /// </summary>
-        public static void OnHttpGettingChangesRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingServerChangesRequestArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingChangesRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingServerChangesRequestArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a batch changes has been downloaded from server side
         /// </summary>
-        public static void OnHttpGettingChangesResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingServerChangesResponseArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingChangesResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingServerChangesResponseArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a batch changes has been downloaded from server side
         /// </summary>
-        public static void OnHttpGettingChangesResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingServerChangesResponseArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingChangesResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingServerChangesResponseArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 }

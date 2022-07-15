@@ -133,46 +133,46 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a table starts to apply changes
         /// </summary>
-        public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesApplying(this BaseOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a table starts to apply changes
         /// </summary>
-        public static void OnTableChangesApplying(this BaseOrchestrator orchestrator, Func<TableChangesApplyingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesApplying(this BaseOrchestrator orchestrator, Func<TableChangesApplyingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a batch changes is going to be applied on a table
         /// </summary>
-        public static void OnTableChangesApplyingSyncRows(this BaseOrchestrator orchestrator, Action<TableChangesApplyingSyncRowsArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesApplyingSyncRows(this BaseOrchestrator orchestrator, Action<TableChangesApplyingSyncRowsArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a batch changes is going to be applied on a table
         /// </summary>
-        public static void OnTableChangesApplyingSyncRows(this BaseOrchestrator orchestrator, Func<TableChangesApplyingSyncRowsArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesApplyingSyncRows(this BaseOrchestrator orchestrator, Func<TableChangesApplyingSyncRowsArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a batch changes is applied on a datasource table
         /// </summary>
-        public static void OnTableChangesBatchApplied(this BaseOrchestrator orchestrator, Action<TableChangesBatchAppliedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesBatchApplied(this BaseOrchestrator orchestrator, Action<TableChangesBatchAppliedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a batch changes is applied on a datasource table
         /// </summary>
-        public static void OnTableChangesBatchApplied(this BaseOrchestrator orchestrator, Func<TableChangesBatchAppliedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesBatchApplied(this BaseOrchestrator orchestrator, Func<TableChangesBatchAppliedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a all changes have been applied on a datasource table
         /// </summary>
-        public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesApplied(this BaseOrchestrator orchestrator, Action<TableChangesAppliedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a all changes have been applied on a datasource table
         /// </summary>
-        public static void OnTableChangesApplied(this BaseOrchestrator orchestrator, Func<TableChangesAppliedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTableChangesApplied(this BaseOrchestrator orchestrator, Func<TableChangesAppliedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 
