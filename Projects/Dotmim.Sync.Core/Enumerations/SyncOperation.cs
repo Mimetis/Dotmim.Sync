@@ -5,7 +5,7 @@ using System.Text;
 namespace Dotmim.Sync.Enumerations
 {
     [Flags]
-    public enum SyncOrder
+    public enum SyncOperation
     {
         /// <summary>
         /// Normal synchronization

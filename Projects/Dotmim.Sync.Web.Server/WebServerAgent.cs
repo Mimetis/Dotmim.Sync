@@ -250,12 +250,21 @@ namespace Dotmim.Sync.Web.Server
                         await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s6, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s6);
                         break;
+
                     case HttpStep.GetRemoteClientTimestamp:
                         var m7 = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampRequest>().DeserializeAsync(readableStream);
                         await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m7.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
                         var s7 = await this.GetRemoteClientTimestampAsync(httpContext, m7, cancellationToken, progress);
                         context = s7.SyncContext;
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampResponse>().SerializeAsync(s7);
+                        break;
+
+                    case HttpStep.GetOperation:
+                        var m8 = await clientSerializerFactory.GetSerializer<HttpMessageOperationRequest>().DeserializeAsync(readableStream);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m8.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        var s8 = await this.GetOperationAsync(httpContext, m8, cancellationToken, progress);
+                        context = s8.SyncContext;
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageOperationResponse>().SerializeAsync(s8);
                         break;
                 }
 
@@ -468,6 +477,23 @@ namespace Dotmim.Sync.Web.Server
             var ts = await this.RemoteOrchestrator.GetLocalTimestampAsync(httpMessage.SyncContext.ScopeName, default, default, cancellationToken, progress);
 
             return new HttpMessageRemoteTimestampResponse(httpMessage.SyncContext, ts);
+        }
+
+
+        internal protected virtual async Task<HttpMessageOperationResponse> GetOperationAsync(HttpContext httpContext, HttpMessageOperationRequest httpMessage,
+             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+
+            var context = httpMessage.SyncContext;
+
+            ServerScopeInfo serverScopeInfo;
+
+            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+            SyncOperation operation;
+            (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, httpMessage.ClientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+            return new HttpMessageOperationResponse(context, operation);
         }
 
         internal protected virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
@@ -1051,64 +1077,6 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-        //internal protected virtual async Task<HttpMessageEnsureSchemaResponse> EnsureSchemaAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
-        //    CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
-        //{
-
-        //    if (httpMessage == null)
-        //        throw new ArgumentException("EnsureScopesAsync message could not be null");
-
-        //    if (this.Setup == null)
-        //        throw new ArgumentException("You need to set the tables to sync on server side");
-
-        //    // Get context from request message
-        //    var ctx = httpMessage.SyncContext;
-
-        //    // Set the context coming from the client
-        //    this.SetContext(ctx);
-
-        //    // Get schema
-        //    var serverScopeInfo = await base.GetServerScopeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
-        //    var schema = serverScopeInfo.Schema;
-        //    schema.EnsureSchema();
-        //    httpContext.Session.Set(httpMessage.SyncContext.ScopeName, schema);
-
-        //    var httpResponse = new HttpMessageEnsureSchemaResponse(ctx, serverScopeInfo);
-
-        //    return httpResponse;
-
-
-        //}
-
-        //internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
-        //                int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        //{
-
-        //    // Overriding batch size options value, coming from client
-        //    // having changes from server in batch size or not is decided by the client.
-        //    // Basically this options is not used on the server, since it's always overriden by the client
-        //    this.Options.BatchSize = clientBatchSize;
-
-        //    // Get context from request message
-        //    var ctx = httpMessage.SyncContext;
-
-        //    // Set the context coming from the client
-        //    this.SetContext(ctx);
-
-        //    var changes = await base.GetChangesAsync(httpMessage.Scope, default, default, cancellationToken, progress);
-
-        //    // no changes applied to server
-        //    var clientChangesApplied = new DatabaseChangesApplied();
-
-        //    // Save the server batch info object to cache if not working in memory
-        //    sessionCache.RemoteClientTimestamp = changes.RemoteClientTimestamp;
-        //    sessionCache.ServerBatchInfo = changes.ServerBatchInfo;
-        //    sessionCache.ServerChangesSelected = changes.ServerChangesSelected;
-        //    sessionCache.ClientChangesApplied = clientChangesApplied;
-
-        //    // Get the firt response to send back to client
-        //    return await GetChangesResponseAsync(httpContext, ctx, changes.RemoteClientTimestamp, changes.ServerBatchInfo, clientChangesApplied, changes.ServerChangesSelected, 0);
-        //}
+      
     }
 }

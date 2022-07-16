@@ -237,13 +237,10 @@ namespace Dotmim.Sync
                 if (!checkUpgradeDone)
                 {
                     var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
                     if (needToUpgrade)
                         await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
-
                     checkUpgradeDone = true;
                 }
-
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -275,34 +272,39 @@ namespace Dotmim.Sync
                     (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                if (serverScopeInfo.OverrideOrder != SyncOrder.Normal)
+
+                // Get operation from server
+                SyncOperation operation;
+                (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, clientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                if (operation != SyncOperation.Normal)
                 {
                     // override order to Deprovision client
-                    if (serverScopeInfo.OverrideOrder == SyncOrder.DeprovisionAndSync && clientScopeInfo.Setup != null && clientScopeInfo.Setup.HasTables)
+                    if (operation == SyncOperation.DeprovisionAndSync && clientScopeInfo.Setup != null && clientScopeInfo.Setup.HasTables)
                     {
                         var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
                         (context, _) = await this.LocalOrchestrator.InternalDeprovisionAsync(clientScopeInfo, context, provision, default, default, cancellationToken, progress).ConfigureAwait(false);
                         (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
 
-                    if (serverScopeInfo.OverrideOrder == SyncOrder.DropAllAndSync)
+                    if (operation == SyncOperation.DropAllAndSync)
                     {
                         await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
                         // Recreated scope info
                         (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
 
-                    if (serverScopeInfo.OverrideOrder == SyncOrder.DropAllAndExit)
+                    if (operation == SyncOperation.DropAllAndExit)
                     {
                         await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
                         return result;
                     }
 
-                    if (serverScopeInfo.OverrideOrder == SyncOrder.Reinitialize)
+                    if (operation == SyncOperation.Reinitialize)
                     {
                         context.SyncType = SyncType.Reinitialize;
                     }
-                    else if (serverScopeInfo.OverrideOrder == SyncOrder.ReinitializeWithUpload)
+                    else if (operation == SyncOperation.ReinitializeWithUpload)
                     {
                         context.SyncType = SyncType.ReinitializeWithUpload;
                     }

@@ -23,6 +23,7 @@ using System.Linq;
 using Microsoft.Data.SqlClient;
 using Dotmim.Sync.MariaDB;
 using Dotmim.Sync.Tests.Models;
+using System.Collections.Generic;
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -699,21 +700,27 @@ internal class Program
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            var webServerAgent = new WebServerAgent(serverProvider, setup, options);
             services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "DefaultScope", setup, options);
+            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "pc", setup, options);
         });
 
         var serverHandler = new RequestDelegate(async context =>
         {
             try
             {
-                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+                var webServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
 
-                var scopeId = webServerAgent.GetClientScopeId(context);
+                var scopeName = context.GetScopeName();
+                var clientScopeId = context.GetClientScopeId();
 
-                webServerAgent.RemoteOrchestrator.OnServerScopeInfoLoaded(sla =>
+                var webServerAgent = webServerAgents.First(wsa => wsa.ScopeName == scopeName);
+
+                webServerAgent.RemoteOrchestrator.OnGettingOperation(operationArgs=>
                 {
-                    sla.ServerScopeInfo.OverrideOrder = SyncOrder.Reinitialize;
+                    var syncOperation = SyncOperation.Reinitialize;
+
+                    // this operation will be applied for the current sync
+                    operationArgs.Operation = syncOperation; 
                 });
 
                 await webServerAgent.HandleRequestAsync(context);
@@ -728,6 +735,7 @@ internal class Program
         });
 
         using var server = new KestrellTestServer(configureServices, false);
+
         var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
             do
@@ -748,22 +756,11 @@ internal class Program
                         Console.ResetColor();
                     });
 
-                    //agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
-                    //{
-                    //    foreach (var syncRow in args.SyncRows)
-                    //        Console.Write(syncRow);
-                    //});
-
                     // create the agent
                     var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
 
-                    //var remoteTimestamp = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
-
-                    // Mark si new local database as synchronized
-                    //await agent.SetSynchronizedAsync(remoteClientTimestamp:remoteTimestamp, progress: localProgress);
-
                     // make a synchronization to get all rows between backup and now
-                    var s = await agent.SynchronizeAsync(localProgress);
+                    var s = await agent.SynchronizeAsync("pc", progress:localProgress);
 
                     Console.WriteLine(s);
 

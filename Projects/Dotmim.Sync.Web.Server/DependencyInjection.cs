@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.Threading;
+using Dotmim.Sync.Web.Client;
 
 [assembly: InternalsVisibleTo("Dotmim.Sync.Tests")]
 
@@ -71,6 +72,27 @@ namespace Dotmim.Sync
     {
         public static Task WriteHelloAsync(this HttpContext context, WebServerAgent webServerAgent, CancellationToken cancellationToken = default) => webServerAgent.WriteHelloAsync(context, cancellationToken);
         public static Task WriteHelloAsync(this HttpContext context, IEnumerable<WebServerAgent> webServerAgents, CancellationToken cancellationToken = default) => WebServerAgent.WriteHelloAsync(context, webServerAgents, cancellationToken);
+
+
+        /// <summary>
+        /// Get Scope Name sent by the client
+        /// </summary>
+        public static string GetScopeName(this HttpContext httpContext) => WebServerAgent.TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-name", out var val) ? val : null;
+
+        /// <summary>
+        /// Get Scope Name sent by the client
+        /// </summary>
+        public static Guid? GetClientScopeId(this HttpContext httpContext) => WebServerAgent.TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-id", out var val) ? new Guid(val) : null;
+
+        /// <summary>
+        /// Get the current client session id
+        /// </summary>
+        public static string GetClientSessionId(this HttpContext httpContext) => WebServerAgent.TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-session-id", out var val) ? val : null;
+
+        /// <summary>
+        /// Get the current Step
+        /// </summary>
+        public static HttpStep GetCurrentStep(this HttpContext httpContext) => WebServerAgent.TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out var val) ? (HttpStep)Convert.ToInt32(val) : HttpStep.None;
 
 
     }
