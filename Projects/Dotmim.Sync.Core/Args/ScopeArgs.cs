@@ -32,7 +32,7 @@ namespace Dotmim.Sync
 
     public class ScopeTableCreatedArgs : ProgressArgs
     {
-        public ScopeTableCreatedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null) 
+        public ScopeTableCreatedArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.ScopeType = scopeType;
@@ -54,7 +54,7 @@ namespace Dotmim.Sync
         public string ScopeName { get; }
 
         public ScopeTableDroppingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context,  connection, transaction)
+            : base(context, connection, transaction)
         {
             this.Command = command;
             this.ScopeType = scopeType;
@@ -73,7 +73,7 @@ namespace Dotmim.Sync
         public DbCommand Command { get; set; }
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
-        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+        public ScopeTableCreatingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Command = command;
@@ -86,54 +86,74 @@ namespace Dotmim.Sync
         public override int EventId => SyncEventsId.ScopeTableCreating.Id;
     }
 
-    public class ScopeLoadedArgs : ProgressArgs
+    public class ClientScopeInfoLoadedArgs : ProgressArgs
     {
-        public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
-        public ScopeLoadedArgs(SyncContext context, string scopeName, 
-            DbScopeType scopeType, IScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
+        public ClientScopeInfoLoadedArgs(SyncContext context, string scopeName, ClientScopeInfo clientScopeInfo, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.ScopeName = scopeName;
-            this.ScopeType = scopeType;
-            this.ScopeInfo = scopeInfo;
+            this.ClientScopeInfo = clientScopeInfo;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
 
-        public override string Message {
-            get
-            {
-                return this.ScopeInfo switch
-                {
-                    ServerScopeInfo ssi => $"[{Connection.Database}] [{ssi?.Name}] [Version {ssi.Version}] Last cleanup Timestamp:{ssi?.LastCleanupTimestamp}.",
-                    ClientScopeInfo si => $"[{Connection.Database}] [{si?.Name}] [Version {si.Version}] Last sync:{si?.LastSync} Last sync duration:{si?.LastSyncDurationString}.",
-                    _ => base.Message
-                };
-            }
-        }
-        public IScopeInfo ScopeInfo { get; }
-        public override int EventId => SyncEventsId.ScopeLoaded.Id;
+        public override string Message => $"[{Connection.Database}] [{ClientScopeInfo?.Name}] [Version {ClientScopeInfo.Version}] Last sync:{ClientScopeInfo?.LastSync} Last sync duration:{ClientScopeInfo?.LastSyncDurationString}.";
+        public ClientScopeInfo ClientScopeInfo { get; }
+        public override int EventId => SyncEventsId.ClientScopeScopeLoaded.Id;
     }
 
-    public class ScopeLoadingArgs : ProgressArgs
+    public class ClientScopeInfoLoadingArgs : ProgressArgs
     {
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; set; }
-        public DbScopeType ScopeType { get; set; }
         public string ScopeName { get; }
-        public ScopeLoadingArgs(SyncContext context, string scopeName, DbScopeType scopeType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+        public ClientScopeInfoLoadingArgs(SyncContext context, string scopeName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Command = command;
-            this.ScopeType = scopeType;
             this.ScopeName = scopeName;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override int EventId => SyncEventsId.ScopeLoading.Id;
+        public override int EventId => SyncEventsId.ClientScopeScopeLoading.Id;
         public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Loading.";
+        public override string Message => $"[{Connection.Database}] Client Scope Table Loading.";
     }
+
+    public class ServerScopeInfoLoadedArgs : ProgressArgs
+    {
+        public string ScopeName { get; }
+        public ServerScopeInfoLoadedArgs(SyncContext context, string scopeName, ServerScopeInfo serverScopeInfo, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.ScopeName = scopeName;
+            this.ServerScopeInfo = serverScopeInfo;
+        }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+        public override string Source => Connection.Database;
+
+        public override string Message => $"[{Connection.Database}] [{ServerScopeInfo?.Name}] [Version {ServerScopeInfo.Version}] Last cleanup timestamp:{ServerScopeInfo?.LastCleanupTimestamp}.";
+        public ServerScopeInfo ServerScopeInfo { get; }
+        public override int EventId => SyncEventsId.ServerScopeScopeLoaded.Id;
+    }
+
+    public class ServerScopeInfoLoadingArgs : ProgressArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; set; }
+        public string ScopeName { get; }
+        public ServerScopeInfoLoadingArgs(SyncContext context, string scopeName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.Command = command;
+            this.ScopeName = scopeName;
+        }
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+        public override int EventId => SyncEventsId.ServerScopeScopeLoading.Id;
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Connection.Database}] Server Scope Table Loading.";
+    }
+
 
     public class ScopeSavingArgs : ProgressArgs
     {
@@ -142,7 +162,7 @@ namespace Dotmim.Sync
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
 
-        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, IScopeInfo scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null) 
+        public ScopeSavingArgs(SyncContext context, string scopeName, DbScopeType scopeType, IScopeInfo scopeInfo, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Command = command;
@@ -162,7 +182,7 @@ namespace Dotmim.Sync
     {
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
-        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, IScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null) 
+        public ScopeSavedArgs(SyncContext context, string scopeName, DbScopeType scopeType, IScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.ScopeType = scopeType;
@@ -224,47 +244,47 @@ namespace Dotmim.Sync
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// Intercept the provider action when a client scope is about to be loaded from client database
         /// </summary>
-        public static Guid OnScopeLoading(this LocalOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+        public static Guid OnClientScopeInfoLoading(this LocalOrchestrator orchestrator, Action<ClientScopeInfoLoadingArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
-        /// Intercept the provider action when a scope is about to be loaded from client database
+        /// Intercept the provider action when a client scope is about to be loaded from client database
         /// </summary>
-        public static Guid OnScopeLoading(this LocalOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
+        public static Guid OnClientScopeInfoLoading(this LocalOrchestrator orchestrator, Func<ClientScopeInfoLoadingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider action when a scope is about to be loaded from ServerScope database
+        /// Intercept the provider action when a server scope is about to be loaded from server database
         /// </summary>
-        public static Guid OnServerScopeLoading(this RemoteOrchestrator orchestrator, Action<ScopeLoadingArgs> action)
+        public static Guid OnServerScopeInfoLoading(this RemoteOrchestrator orchestrator, Action<ServerScopeInfoLoadingArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
-        /// Intercept the provider action when a scope is about to be loaded from ServerScope database
+        /// Intercept the provider action when a server scope is about to be loaded from server database
         /// </summary>
-        public static Guid OnServerScopeLoading(this RemoteOrchestrator orchestrator, Func<ScopeLoadingArgs, Task> action)
+        public static Guid OnServerScopeInfoLoading(this RemoteOrchestrator orchestrator, Func<ServerScopeInfoLoadingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
-        public static Guid OnScopeLoaded(this LocalOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
+        public static Guid OnClientScopeInfoLoaded(this LocalOrchestrator orchestrator, Action<ClientScopeInfoLoadedArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client database
         /// </summary>
-        public static Guid OnScopeLoaded(this LocalOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
+        public static Guid OnClientScopeInfoLoaded(this LocalOrchestrator orchestrator, Func<ClientScopeInfoLoadedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
-        public static Guid OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Action<ScopeLoadedArgs> action)
+        public static Guid OnServerScopeInfoLoaded(this RemoteOrchestrator orchestrator, Action<ServerScopeInfoLoadedArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is loaded from Server database
         /// </summary>
-        public static Guid OnServerScopeLoaded(this RemoteOrchestrator orchestrator, Func<ScopeLoadedArgs, Task> action)
+        public static Guid OnServerScopeInfoLoaded(this RemoteOrchestrator orchestrator, Func<ServerScopeInfoLoadedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
@@ -300,6 +320,8 @@ namespace Dotmim.Sync
         public static EventId ScopeLoaded => CreateEventId(7250, nameof(ScopeLoaded));
         public static EventId ServerScopeScopeLoading => CreateEventId(7300, nameof(ServerScopeScopeLoading));
         public static EventId ServerScopeScopeLoaded => CreateEventId(7350, nameof(ServerScopeScopeLoaded));
+        public static EventId ClientScopeScopeLoading => CreateEventId(7301, nameof(ServerScopeScopeLoading));
+        public static EventId ClientScopeScopeLoaded => CreateEventId(7351, nameof(ServerScopeScopeLoaded));
         public static EventId ScopeSaving => CreateEventId(7400, nameof(ScopeSaving));
         public static EventId ScopeSaved => CreateEventId(7450, nameof(ScopeSaved));
     }

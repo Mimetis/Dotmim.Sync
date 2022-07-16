@@ -58,10 +58,9 @@ namespace Dotmim.Sync.Tests
             setup.Tables[productCategoryTableName].Columns.AddRange(
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
-            // Create Server agent
-            // create web remote orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, setup);
-            this.Kestrell.AddSyncServer(webServerAgent);
+            // configure server orchestrator
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, setup);
+
             var serviceUri = this.Kestrell.Run();
 
             int productCategoryRowsCount = 0;
@@ -123,9 +122,10 @@ namespace Dotmim.Sync.Tests
                 await ctx.SaveChangesAsync();
             }
 
-            var webServerAgentV1 = new WebServerAgent(this.Server.Provider, setupV1);
-            this.Kestrell.AddSyncServer(webServerAgent);
-            this.Kestrell.AddSyncServer(webServerAgentV1);
+            // configure server orchestrator
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, setup);
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, setupV1);
+
             serviceUri = this.Kestrell.Run();
 
 

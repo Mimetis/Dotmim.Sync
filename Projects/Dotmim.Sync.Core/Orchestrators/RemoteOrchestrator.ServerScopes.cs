@@ -229,7 +229,7 @@ namespace Dotmim.Sync
                     // override default value
                     serverScopeInfo.IsNewScope = true;
 
-                    var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.Server, serverScopeInfo, runner.Connection, runner.Transaction);
+                    var scopeLoadedArgs = new ServerScopeInfoLoadedArgs(context, context.ScopeName, serverScopeInfo, runner.Connection, runner.Transaction);
                     await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
                 }
 
@@ -260,7 +260,7 @@ namespace Dotmim.Sync
 
             DbSyncAdapter.SetParameterValue(command, "sync_scope_name", context.ScopeName);
 
-            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.Server, command, connection, transaction);
+            var action = new ServerScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -280,7 +280,7 @@ namespace Dotmim.Sync
             if (serverScopeInfo?.Schema != null)
                 serverScopeInfo.Schema.EnsureSchema();
 
-            var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.Server, serverScopeInfo, connection, transaction);
+            var scopeLoadedArgs = new ServerScopeInfoLoadedArgs(context, context.ScopeName, serverScopeInfo, connection, transaction);
             await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
             action.Command.Dispose();
 
@@ -299,7 +299,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.Server, command, connection, transaction);
+            var action = new ServerScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -325,7 +325,7 @@ namespace Dotmim.Sync
 
             foreach (var scopeInfo in serverScopes)
             {
-                var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.Server, scopeInfo, connection, transaction);
+                var scopeLoadedArgs = new ServerScopeInfoLoadedArgs(context, context.ScopeName, scopeInfo, connection, transaction);
                 await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             }

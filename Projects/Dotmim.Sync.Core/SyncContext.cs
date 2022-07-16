@@ -65,7 +65,6 @@ namespace Dotmim.Sync
         [DataMember(Name = "ap", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public Dictionary<string, string> AdditionalProperties { get; set; }
 
-
         /// <summary>
         /// Gets or Sets the current percentage progress overall
         /// </summary>

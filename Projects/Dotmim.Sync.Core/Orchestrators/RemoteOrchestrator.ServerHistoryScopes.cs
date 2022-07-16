@@ -119,15 +119,9 @@ namespace Dotmim.Sync
             DbSyncAdapter.SetParameterValue(command, "sync_scope_id", scopeId);
             DbSyncAdapter.SetParameterValue(command, "sync_scope_name", context.ScopeName);
 
-            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.ServerHistory, command, connection, transaction);
-            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            if (action.Cancel || action.Command == null)
-                return (context, null);
-
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
+            using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             ServerHistoryScopeInfo serverHistoryScopeInfo = null;
 
@@ -138,10 +132,8 @@ namespace Dotmim.Sync
 
             if (serverHistoryScopeInfo.Schema != null)
                 serverHistoryScopeInfo.Schema.EnsureSchema();
-
-            var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.ServerHistory, serverHistoryScopeInfo, connection, transaction);
-            await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
-            action.Command.Dispose();
+            
+            command.Dispose();
 
             return (context, serverHistoryScopeInfo);
         }
@@ -158,17 +150,11 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.ServerHistory, command, connection, transaction);
-            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
-
-            if (action.Cancel || action.Command == null)
-                return (context, null);
-
             var serverHistoriesScopes = new List<ServerHistoryScopeInfo>();
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
+            using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             while (reader.Read())
             {
@@ -182,13 +168,7 @@ namespace Dotmim.Sync
 
             reader.Close();
 
-            foreach (var scopeInfo in serverHistoriesScopes)
-            {
-                var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.ServerHistory, scopeInfo, connection, transaction);
-                await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-            }
-            action.Command.Dispose();
+            command.Dispose();
 
             return (context, serverHistoriesScopes);
         }

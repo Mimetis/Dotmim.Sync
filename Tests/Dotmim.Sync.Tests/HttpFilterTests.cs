@@ -175,7 +175,7 @@ namespace Dotmim.Sync.Tests
                     HelperDatabase.DropDatabase(client.ProviderType, client.DatabaseName);
 
             }
-            catch (Exception){}
+            catch (Exception) { }
 
             this.stopwatch.Stop();
 
@@ -196,8 +196,7 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            this.Kestrell.AddSyncServer(webServerAgent);
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, this.FilterSetup);
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
@@ -227,8 +226,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            this.Kestrell.AddSyncServer(webServerAgent);
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, this.FilterSetup);
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
@@ -261,8 +259,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            this.Kestrell.AddSyncServer(webServerAgent);
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, this.FilterSetup);
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize client and server schema 
@@ -330,8 +327,7 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            this.Kestrell.AddSyncServer(webServerAgent);
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, this.FilterSetup);
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize client and server schema 
@@ -468,10 +464,9 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            webServerAgent.Options.SnapshotsDirectory = directory;
-            webServerAgent.Options.BatchSize = 200;
-            this.Kestrell.AddSyncServer(webServerAgent);
+            var serverOptions = new SyncOptions { SnapshotsDirectory = directory, BatchSize = 200 };
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, this.FilterSetup, serverOptions);
+
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
@@ -515,10 +510,9 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            webServerAgent.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
-            this.Kestrell.AddSyncServer(webServerAgent);
+            var webServerOptions = new WebServerOptions();
+            webServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, this.FilterSetup, null, webServerOptions);
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients to initialize client and server schema 
@@ -647,12 +641,16 @@ namespace Dotmim.Sync.Tests
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // configure server orchestrator
-            // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            webServerAgent.Options.SnapshotsDirectory = serverOptions.SnapshotsDirectory;
-            webServerAgent.Options.BatchSize = serverOptions.BatchSize;
-            webServerAgent.Options.BatchDirectory = serverOptions.BatchDirectory;
-            this.Kestrell.AddSyncServer(webServerAgent);
+            var remoteOptions = new SyncOptions
+            {
+                SnapshotsDirectory = serverOptions.SnapshotsDirectory,
+                BatchSize = serverOptions.BatchSize,
+                BatchDirectory = serverOptions.BatchDirectory
+            };
+
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, 
+                this.FilterSetup, remoteOptions);
+
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
@@ -735,11 +733,21 @@ namespace Dotmim.Sync.Tests
 
             // configure server orchestrator
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(this.Server.Provider, this.FilterSetup);
-            webServerAgent.Options.SnapshotsDirectory = directory;
-            webServerAgent.Options.BatchSize = 200;
-            webServerAgent.WebServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
-            this.Kestrell.AddSyncServer(webServerAgent);
+
+            // configure server orchestrator
+            var remoteOptions = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 100,
+            };
+
+            var webServerOptions = new WebServerOptions();
+            webServerOptions.SerializerFactories.Add(new CustomMessagePackSerializerFactory());
+
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
+                this.FilterSetup, remoteOptions, webServerOptions);
+
+
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results

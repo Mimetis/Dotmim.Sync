@@ -128,7 +128,9 @@ namespace Dotmim.Sync
             if (scopeInfo.Setup == null || scopeInfo.Setup.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
                 throw new MissingTablesException(scopeInfo.Name);
 
-            await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo.Setup, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo.Setup, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
@@ -149,7 +151,7 @@ namespace Dotmim.Sync
             // Disable check constraints
             if (this.Options.DisableConstraintsOnApplyChanges)
                 foreach (var table in schemaTables.Reverse())
-                    await this.InternalDisableConstraintsAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
+                    await this.InternalDisableConstraintsAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), runner.Connection, runner.Transaction).ConfigureAwait(false);
 
 
             // Checking if we have to deprovision tables
@@ -165,7 +167,7 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.StoredProcedures))
                 {
-                    (context, _) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Removing cached commands
                     var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
@@ -174,16 +176,16 @@ namespace Dotmim.Sync
 
                 if (provision.HasFlag(SyncProvision.Triggers))
                 {
-                    (context, _) = await InternalDropTriggersAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await InternalDropTriggersAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (provision.HasFlag(SyncProvision.TrackingTable))
                 {
                     bool exists;
-                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        (context, _) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
@@ -194,46 +196,49 @@ namespace Dotmim.Sync
                 {
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                     bool exists;
-                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (exists)
-                        (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
             if (provision.HasFlag(SyncProvision.ClientScope))
             {
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
                 {
-                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
             if (provision.HasFlag(SyncProvision.ServerScope))
             {
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
                 {
-                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
             if (provision.HasFlag(SyncProvision.ServerHistoryScope))
             {
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
-                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            var args = new DeprovisionedArgs(context, provision, scopeInfo.Setup, connection);
+            var args = new DeprovisionedArgs(context, provision, scopeInfo.Setup, runner.Connection);
             await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
 
             return (context, true);
         }

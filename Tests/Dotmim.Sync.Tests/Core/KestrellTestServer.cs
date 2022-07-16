@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Tests
                 services.AddDistributedMemoryCache();
                 services.AddSession(options =>
                 {
-                                // Set a long timeout for easy testing.
+                    // Set a long timeout for easy testing.
                     options.IdleTimeout = TimeSpan.FromDays(10);
                     options.Cookie.HttpOnly = true;
                 });
@@ -52,23 +52,27 @@ namespace Dotmim.Sync.Tests
             this.builder = hostBuilder;
         }
 
-        public void AddSyncServer(WebServerAgent webServerAgent)
+        public void AddSyncServer(Type providerType, string connectionString,
+            string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null)
         {
             this.builder.ConfigureServices(services =>
             {
-                services.AddSyncServer(webServerAgent);
+                services.AddSyncServer(providerType, connectionString, scopeName, setup, options, webServerOptions);
             });
         }
 
 
-        public string Run()
+        public string Run(RequestDelegate serverHandler = null)
         {
             // Create server web proxy
-            var serverHandler = new RequestDelegate(async context =>
+            if (serverHandler == null)
             {
-                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
-                await webServerAgent.HandleRequestAsync(context);
-            });
+                serverHandler = new RequestDelegate(async context =>
+                {
+                    var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+                    await webServerAgent.HandleRequestAsync(context);
+                });
+            }
 
 
             this.builder.Configure(app =>

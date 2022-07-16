@@ -95,7 +95,7 @@ namespace Dotmim.Sync
                     (context, localScopeInfo) = await this.InternalSaveClientScopeInfoAsync(localScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // if not shouldSave, that means we already raised this event before
-                    var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.Client, localScopeInfo, runner.Connection, runner.Transaction);
+                    var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, localScopeInfo, runner.Connection, runner.Transaction);
                     await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 }
@@ -238,7 +238,7 @@ namespace Dotmim.Sync
 
             DbSyncAdapter.SetParameterValue(command, "sync_scope_name", context.ScopeName);
 
-            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.Client, command, connection, transaction);
+            var action = new ClientScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -258,7 +258,7 @@ namespace Dotmim.Sync
             if (clientScopeInfo?.Schema != null)
                 clientScopeInfo.Schema.EnsureSchema();
 
-            var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.Client, clientScopeInfo, connection, transaction);
+            var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, clientScopeInfo, connection, transaction);
             await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
             action.Command.Dispose();
 
@@ -277,7 +277,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            var action = new ScopeLoadingArgs(context, context.ScopeName, DbScopeType.Client, command, connection, transaction);
+            var action = new ClientScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -303,7 +303,7 @@ namespace Dotmim.Sync
 
             foreach (var scopeInfo in clientScopes)
             {
-                var scopeLoadedArgs = new ScopeLoadedArgs(context, context.ScopeName, DbScopeType.Client, scopeInfo, connection, transaction);
+                var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, scopeInfo, connection, transaction);
                 await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             }

@@ -330,8 +330,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var kestrell = new KestrellTestServer(false);
 
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(serverProvider, setup, default, default, scopeName);
-            kestrell.AddSyncServer(webServerAgent);
+            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, scopeName, setup);
+
             var serviceUri = kestrell.Run();
 
             var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
@@ -451,8 +451,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var kestrell = new KestrellTestServer(false);
 
             // configure server orchestrator
-            var webServerAgent = new WebServerAgent(serverProvider, setup, default, default, scopeName);
-            kestrell.AddSyncServer(webServerAgent);
+            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, scopeName, setup);
             var serviceUri = kestrell.Run();
 
             var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));

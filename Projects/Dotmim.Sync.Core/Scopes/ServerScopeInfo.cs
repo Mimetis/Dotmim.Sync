@@ -48,6 +48,10 @@ namespace Dotmim.Sync
         public long LastCleanupTimestamp { get; set; }
 
 
-
+        /// <summary>
+        /// Gets or Sets the order to execute on the client
+        /// </summary>
+        [DataMember(Name = "oo", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        public SyncOrder OverrideOrder { get; set; }
     }
 }

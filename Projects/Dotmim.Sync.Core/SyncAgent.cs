@@ -232,6 +232,35 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+
+                // no need to check on every call to SynchronizeAsync
+                if (!checkUpgradeDone)
+                {
+                    var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    if (needToUpgrade)
+                        await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    checkUpgradeDone = true;
+                }
+
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                // On local orchestrator, get scope info.
+                ClientScopeInfo clientScopeInfo;
+                (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                if (setup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(setup))
+                    throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your scope");
+
+                // Register local scope id
+                context.ClientScopeId = clientScopeInfo.Id;
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 // on remote orchestrator, get Server scope
                 ServerScopeInfo serverScopeInfo;
                 (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, default, default, cancellationToken, progress).ConfigureAwait(false);
@@ -246,26 +275,38 @@ namespace Dotmim.Sync
                     (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                // no need to check on every call to SynchronizeAsync
-                if (!checkUpgradeDone)
+                if (serverScopeInfo.OverrideOrder != SyncOrder.Normal)
                 {
-                    var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                    // override order to Deprovision client
+                    if (serverScopeInfo.OverrideOrder == SyncOrder.DeprovisionAndSync && clientScopeInfo.Setup != null && clientScopeInfo.Setup.HasTables)
+                    {
+                        var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                        (context, _) = await this.LocalOrchestrator.InternalDeprovisionAsync(clientScopeInfo, context, provision, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    }
 
-                    if (needToUpgrade)
-                        await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                    if (serverScopeInfo.OverrideOrder == SyncOrder.DropAllAndSync)
+                    {
+                        await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                        // Recreated scope info
+                        (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    }
 
-                    checkUpgradeDone = true;
+                    if (serverScopeInfo.OverrideOrder == SyncOrder.DropAllAndExit)
+                    {
+                        await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                        return result;
+                    }
+
+                    if (serverScopeInfo.OverrideOrder == SyncOrder.Reinitialize)
+                    {
+                        context.SyncType = SyncType.Reinitialize;
+                    }
+                    else if (serverScopeInfo.OverrideOrder == SyncOrder.ReinitializeWithUpload)
+                    {
+                        context.SyncType = SyncType.ReinitializeWithUpload;
+                    }
                 }
-
-                // On local orchestrator, get scope info.
-                ClientScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                if (setup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(setup))
-                    throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your scope");
-
-                // Register local scope id
-                context.ClientScopeId = clientScopeInfo.Id;
 
                 // if client is new or schema does not exists or scope name is a new one
                 // We need to get the scope from server

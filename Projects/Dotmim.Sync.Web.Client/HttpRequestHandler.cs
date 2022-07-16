@@ -179,7 +179,6 @@ namespace Dotmim.Sync.Web.Client
 
             // Eventually, send the request
             var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            //var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
