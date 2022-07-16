@@ -88,6 +88,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             });
 
+
+
             // Making a first sync, will call cleaning, but nothing is cleaned (still interceptors are called)
             var s2 = await agent.SynchronizeAsync(scopeName);
 
@@ -95,8 +97,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, cleaned);
 
             // Reset interceptors
-            localOrchestrator.OnMetadataCleaning(null);
-            localOrchestrator.OnMetadataCleaned(null);
+            localOrchestrator.ClearInterceptors();
+
             cleaning = 0;
             cleaned = 0;
 
@@ -132,8 +134,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Reset interceptors
-            localOrchestrator.OnMetadataCleaning(null);
-            localOrchestrator.OnMetadataCleaned(null);
+            localOrchestrator.ClearInterceptors();
+
             cleaning = 0;
             cleaned = 0;
 
@@ -181,8 +183,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Reset interceptors
-            localOrchestrator.OnMetadataCleaning(null);
-            localOrchestrator.OnMetadataCleaned(null);
+            localOrchestrator.ClearInterceptors();
             cleaning = 0;
             cleaned = 0;
 

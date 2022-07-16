@@ -827,7 +827,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                wenClientOrchestrator.OnHttpGettingScopeResponse(null);
+                wenClientOrchestrator.ClearInterceptors();
             }
 
             // Insert one line on each client
@@ -867,7 +867,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                webClientOrchestrator.OnHttpSendingChangesRequest(null);
+                webClientOrchestrator.ClearInterceptors();
             }
 
         }
@@ -1505,6 +1505,42 @@ namespace Dotmim.Sync.Tests
             this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
                 new SyncSetup(Tables));
 
+            var serviceUri = this.Kestrell.Run();
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            await this.Kestrell.StopAsync();
+
+            // insert 1000 new products so batching is used
+            var rowsToReceive = 1000;
+            var productNumber = "12345";
+
+            var products = Enumerable.Range(1, rowsToReceive).Select(i =>
+                new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}" });
+
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                serverDbCtx.Product.AddRange(products);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // configure server orchestrator
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
+                new SyncSetup(Tables));
+
             int batchIndex = 0;
 
             // Create server web proxy
@@ -1530,35 +1566,7 @@ namespace Dotmim.Sync.Tests
                 await webServerAgent.HandleRequestAsync(context);
             });
 
-            var serviceUri = this.Kestrell.Run(serverHandler);
-
-            // Get count of rows
-            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-            // Execute a sync on all clients and check results
-            foreach (var client in Clients)
-            {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
-
-                var s = await agent.SynchronizeAsync();
-
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalResolvedConflicts);
-            }
-
-            // insert 1000 new products so batching is used
-            var rowsToReceive = 1000;
-            var productNumber = "12345";
-
-            var products = Enumerable.Range(1, rowsToReceive).Select(i =>
-                new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}" });
-
-            using (var serverDbCtx = new AdventureWorksContext(this.Server))
-            {
-                serverDbCtx.Product.AddRange(products);
-                await serverDbCtx.SaveChangesAsync();
-            }
+            serviceUri = this.Kestrell.Run(serverHandler);
 
             // for each client, fake that the sync session is interrupted
             foreach (var client in Clients)

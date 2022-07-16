@@ -1961,7 +1961,7 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                agent.LocalOrchestrator.OnTableChangesSelected(null);
+                agent.LocalOrchestrator.ClearInterceptors();
 
                 Assert.Equal(download, s.TotalChangesDownloaded);
                 Assert.Equal(3, s.TotalChangesUploaded);
@@ -2384,10 +2384,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                agent.LocalOrchestrator.OnDatabaseChangesApplying(null);
-                agent.LocalOrchestrator.OnDatabaseChangesApplied(null);
-                agent.LocalOrchestrator.OnConnectionOpen(null);
-
+                agent.LocalOrchestrator.ClearInterceptors(); 
             }
 
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
