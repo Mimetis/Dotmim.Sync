@@ -27,11 +27,12 @@ let's see now a straightforward sample illustrating the use of the ``SyncType`` 
 	SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
 	SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
 
-	SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-	"ProductCategory", "ProductModel", "Product", "Address", "Customer", 
-	"CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
+	var setup = new SyncSetup("ProductCategory", "ProductModel", "Product", "Address", "Customer", 
+		"CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
-	var syncContext = await agent.SynchronizeAsync();
+	SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
+
+	var syncContext = await agent.SynchronizeAsync(setup);
 
 	Console.WriteLine(syncContext);
 
@@ -47,7 +48,21 @@ Here is the result, after the **first initial** synchronization:
 		Total duration :0:0:4.720
 
 As you can see, the client has downloaded 2752 lines from the server.   
+
 Obviously if we made a new sync, without making any changes neither on the server nor the client, the result will be :
+
+.. code-block:: csharp
+
+	SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
+	SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
+
+	SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
+
+	var syncContext = await agent.SynchronizeAsync();
+
+	Console.WriteLine(syncContext);
+
+.. note:: Since you've made a first sync before, the setup is already saved in the databases. So far, no need to pass the argument anymore now.
 
 .. code-block:: bash
 
@@ -76,10 +91,12 @@ SyncType
 		/// Normal synchronization
 		/// </summary>
 		Normal,
+
 		/// <summary>
 		/// Reinitialize the whole sync database, applying all rows from the server to the client
 		/// </summary>
 		Reinitialize,
+		
 		/// <summary>
 		/// Reinitialize the whole sync database, applying all rows from the server to the client, 
 		/// after tried a client upload
@@ -112,10 +129,6 @@ Let's see what happens, now that we have updated a row on the client side, with 
 	SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
 	SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
 
-	SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-	"ProductCategory", "ProductModel", "Product", "Address", "Customer", 
-	"CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
-
 	var syncContext = await agent.SynchronizeAsync();
 
 	Console.WriteLine(syncContext);
@@ -140,15 +153,10 @@ Every rows on the client will be deleted and downloaded again from the server, e
 
 Use this mode with caution, since you could lost some "*out of sync client*" rows.
 
-
 .. code-block:: csharp
 
 	SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
 	SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
-
-	SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-	"ProductCategory", "ProductModel", "Product", "Address", "Customer", 
-	"CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
 
 	var syncContext = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
@@ -179,10 +187,6 @@ SyncType.ReinitializeWithUpload
 	SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
 	SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
 
-	SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-	"ProductCategory", "ProductModel", "Product", "Address", "Customer", 
-	"CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
-
 	var syncResult = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
 	Console.WriteLine(syncResult);
@@ -199,8 +203,8 @@ SyncType.ReinitializeWithUpload
 In this case, as you can see, the ``SyncType.ReinitializeWithUpload`` value has marked the client database to be fully resynchronized, but the edited row has been sent correctly to the server.  
 
 
-Forcing Reinitialize 
-^^^^^^^^^^^^^^^^^^^^^
+Forcing operations on the client from server side 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. warning:: This part covers some concept explained later in the next chapters:
 
@@ -208,39 +212,76 @@ Forcing Reinitialize
 			* HTTP architecture : `Using ASP.Net Web API <Web.html>`_ 
 
 
-| This technic applies if you do not have access to the client machine, allowing you to *force* the reinitialization of the client.
-| It could be useful to *override* a normal synchronization with a reinitialization for a particular client, from the server side.
+| This technic applies if you do not have access to the client machine, allowing you to *force* operations from the client side.
+| It could be useful to *override* a normal synchronization, for example, with a reinitialization for a particular client, from the server side.
 
 .. note:: Forcing a reinitialization from the server is a good practice if you have an **HTTP** architecture.
 
-Using an `interceptor <Progression.html#interceptor-t>`_, from the **server side**, you are able to *force* the reinitialization from the client.
+Here are the operation action you can use to force the client in a particular situation:
+
+.. code-block:: csharp
+
+ public enum SyncOperation
+ {
+     /// <summary>
+     /// Normal synchronization
+     /// </summary>
+     Normal = 0,
+
+     /// <summary>
+     /// Reinitialize the whole sync database, applying all rows from the server to the client
+     /// </summary>
+     Reinitialize = 1,
+     
+     /// <summary>
+     /// Reinitialize the whole sync database, 
+		 /// applying all rows from the server to the client, after trying a client upload
+     /// </summary>
+     ReinitializeWithUpload = 2,
+
+     /// <summary>
+     /// Drop all the sync metadatas even tracking tables and scope infos and make a full sync again
+     /// </summary>
+     DropAllAndSync = 4,
+
+     /// <summary>
+     /// Drop all the sync metadatas even tracking tables and scope infos and exit
+     /// </summary>
+     DropAllAndExit = 8,
+
+     /// <summary>
+     /// Deprovision stored procedures & triggers and sync again
+     /// </summary>
+     DeprovisionAndSync = 16,
+ }
 
 
-On the server side, from your controller, just modify the request ``SyncContext`` with the correct value, like this:
+.. hint:: Use the client scope id to identify the current client trying to sync.
+
 
 .. code-block:: csharp
 
 	[HttpPost]
 	public async Task Post()
 	{
-
-		// Get Orchestrator regarding the incoming scope name (from http context)
-		var orchestrator = webServerManager.GetOrchestrator(this.HttpContext);
+		// Get the current scope name
+		var scopeName = this.HttpContext.GetScopeName();
+		
+		// Get the current client scope id
+		var clientScopeId = this.HttpContext.GetClientScopeId();
 
 		// override sync type to force a reinitialization from a particular client
-		orchestrator.OnServerScopeLoaded(sla =>
+		if (clientScopeId == OneParticularClientScopeIdToReinitialize)
 		{
-			// ClientId represents one client. 
-			// If you want to reinitialize ALL clients, 
-			// just remove this condition
-			if (sla.Context.ClientScopeId == clientId)
+			webServerAgentRemoteOrchestrator.OnGettingOperation(operationArgs=>
 			{
-				sla.Context.SyncType = SyncType.Reinitialize;
-			}
-		});
+					// this operation will be applied for the current sync
+					operationArgs.Operation = SyncOperation.Reinitialize; 
+			});
+		}
 
 		// handle request
-		await webServerManager.HandleRequestAsync(this.HttpContext);
+		await webServerAgent.HandleRequestAsync(this.HttpContext);
 	}
 
 SyncDirection
@@ -268,15 +309,14 @@ Since, we need to specify the direction on each table, the ``SyncDirection`` opt
 
 .. code-block:: csharp
 
-	var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
-			"SalesLT.Address", "SalesLT.Customer", "SalesLT.CustomerAddress"};
-
-	var syncSetup = new SyncSetup(tables);
+	var syncSetup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
+			"SalesLT.Address", "SalesLT.Customer", "SalesLT.CustomerAddress");
+	
 	syncSetup.Tables["Customer"].SyncDirection = SyncDirection.DownloadOnly;
 	syncSetup.Tables["CustomerAddress"].SyncDirection = SyncDirection.DownloadOnly;
 	syncSetup.Tables["Address"].SyncDirection = SyncDirection.DownloadOnly;
 
-	var agent = new SyncAgent(clientProvider, serverProvider, syncSetup);
+	var agent = new SyncAgent(clientProvider, serverProvider);
 
 
 SyncDirection.Bidirectional

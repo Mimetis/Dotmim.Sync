@@ -91,7 +91,7 @@ In this particular scenario, the sync agent will not be able to use a simple Rem
 Here is coming a new orchestrator in the game. Or shoud I say *two* new orchestrators:
 
 * The ``WebClientOrchestrator``: This orchestrator will run locally, and will act "*as*" a orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information
-* The ``WebServerOrchestrator``: On the opposite side, this orchestrator is hosted through an exposed web api, and will get the incoming request from the ``WebClientOrchestrator`` and will then call the server provider correctly.
+* The ``WebServerAgent``: On the opposite side, this web server agent is hosted through an exposed web api, and will get the incoming request from the ``WebClientOrchestrator`` and will then call the server provider correctly.
 
 Here is the big picture of this more advanced scenario:
 
