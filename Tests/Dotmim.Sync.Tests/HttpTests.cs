@@ -1394,54 +1394,24 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            // configure server orchestrator
-            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-                new SyncSetup(Tables));
-
-
-            int batchIndex = 0;
-
-            // Create server web proxy
-            var serverHandler = new RequestDelegate(async context =>
-            {
-                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
-
-                webServerAgent.OnHttpSendingResponse(async args =>
-                {
-                    // SendChangesInProgress is occuring when server is receiving data from client
-                    // We are droping session on the second batch
-                    if (args.HttpStep == HttpStep.SendChangesInProgress && batchIndex == 1)
-                    {
-                        args.HttpContext.Session.Clear();
-                        await args.HttpContext.Session.CommitAsync();
-                    }
-
-                    batchIndex++;
-                });
-
-                await webServerAgent.HandleRequestAsync(context);
-            });
-
-
-            var serviceUri = this.Kestrell.Run(serverHandler);
-
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, this.Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(this.Tables);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
-            // insert 1000 new products so batching is used
-            var rowsToSend = 1000;
+
+            // insert 3000 new products
+            var rowsToSend = 3000;
             var productNumber = "12345";
 
             foreach (var client in Clients)
@@ -1454,11 +1424,43 @@ namespace Dotmim.Sync.Tests
                 await clientDbCtx.SaveChangesAsync();
             }
 
+
+
             // for each client, fake that the sync session is interrupted
             var clientCount = 0;
             foreach (var client in Clients)
             {
-                batchIndex = 0;
+                // configure server orchestrator
+                this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
+                    new SyncSetup(Tables));
+
+                int batchIndex = 0;
+
+                // Create server web proxy
+                var serverHandler = new RequestDelegate(async context =>
+                {
+                    var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+
+                    webServerAgent.OnHttpSendingResponse(async args =>
+                    {
+                        // SendChangesInProgress is occuring when server is receiving data from client
+                        // We are droping session on the second batch
+                        if (args.HttpStep == HttpStep.SendChangesInProgress && batchIndex == 1)
+                        {
+                            args.HttpContext.Session.Clear();
+                            await args.HttpContext.Session.CommitAsync();
+                        }
+                        if (args.HttpStep == HttpStep.SendChangesInProgress)
+                            batchIndex++;
+
+                    });
+
+                    await webServerAgent.HandleRequestAsync(context);
+                });
+
+
+                var serviceUri = this.Kestrell.Run(serverHandler);
+
 
                 var orch = new WebClientOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
@@ -1468,6 +1470,18 @@ namespace Dotmim.Sync.Tests
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
+
+                await this.Kestrell.StopAsync();
+
+            }
+
+            foreach (var client in Clients)
+            {
+                // configure server orchestrator
+                this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
+                    new SyncSetup(Tables));
+
+                var serviceUri = this.Kestrell.Run();
 
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
@@ -1484,6 +1498,7 @@ namespace Dotmim.Sync.Tests
                 var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
                 Assert.Equal(rowsToSend * clientCount, serverCount);
 
+                await this.Kestrell.StopAsync();
             }
 
         }
@@ -1578,7 +1593,7 @@ namespace Dotmim.Sync.Tests
                 var orch = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 1);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
-              
+
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
                 {
                     var r = await agent.SynchronizeAsync();

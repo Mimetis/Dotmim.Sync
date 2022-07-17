@@ -132,7 +132,7 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
 
-        public override string Message => $"[{Connection.Database}] [{ServerScopeInfo?.Name}] [Version {ServerScopeInfo.Version}] Last cleanup timestamp:{ServerScopeInfo?.LastCleanupTimestamp}.";
+        public override string Message => $"[{Connection.Database}] [{ServerScopeInfo?.Name}] [Version {ServerScopeInfo?.Version}] Last cleanup timestamp:{ServerScopeInfo?.LastCleanupTimestamp}.";
         public ServerScopeInfo ServerScopeInfo { get; }
         public override int EventId => SyncEventsId.ServerScopeScopeLoaded.Id;
     }

@@ -28,7 +28,7 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         [HttpPost]
         public async Task Post()
         {
-            var scopeName = WebServerAgent.GetScopeName(HttpContext);
+            var scopeName = HttpContext.GetScopeName();
 
             var webserverAgent = webserverAgents.FirstOrDefault(c => c.ScopeName == scopeName);
 
