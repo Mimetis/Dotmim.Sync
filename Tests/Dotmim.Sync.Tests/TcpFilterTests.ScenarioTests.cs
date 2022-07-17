@@ -37,7 +37,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Using_ExistingClientDatabase_ProvisionDeprovision_WithoutAccessToServerSide(SyncOptions options)
+        public async Task Scenario_Using_ExistingClientDatabase_ProvisionDeprovision_WithoutAccessToServerSide(SyncOptions options)
         {
             // This test works only if we have the same exact provider on both sides
 
@@ -164,5 +164,66 @@ namespace Dotmim.Sync.Tests
 
             }
         }
+
+
+        /// <summary>
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Scenario_MultiScopes_SameTables_DifferentFilters(SyncOptions options)
+        {
+            // This test works only if we have the same exact provider on both sides
+
+            // create client orchestrator that is the same as server
+            var clientDatabaseName = HelperDatabase.GetRandomName("tcpfilt_cli_");
+            var clientProvider = this.CreateProvider(this.ServerType, clientDatabaseName);
+
+            // create a client database
+            await this.CreateDatabaseAsync(Server.ProviderType, clientDatabaseName, true);
+
+            // Get the correct names for ProductCategory and Product
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // Step 1: Create a default scope and Sync clients
+            // Note we are not including the [Attribute With Space] column
+            var setup = new SyncSetup(productCategoryTableName, productTableName);
+
+            setup.Tables[productCategoryTableName].Columns.AddRange(
+                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+
+            var schemaName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT" : null;
+
+            // Add filters
+            var productFilter = new SetupFilter("Product", schemaName);
+            productFilter.AddParameter("ProductCategoryID", "Product", schemaName);
+            productFilter.AddWhere("ProductCategoryID", "Product", "ProductCategoryID", schemaName);
+
+            var productCategoryFilter = new SetupFilter("ProductCategory", schemaName);
+            productCategoryFilter.AddParameter("ProductCategoryID", "ProductCategory", schemaName);
+            productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", schemaName);
+
+            setup.Filters.Add(productCategoryFilter);
+            setup.Filters.Add(productFilter);
+
+            // ------------------------------------------------
+            var paramMountb = new SyncParameters(("ProductCategoryID", "MOUNTB"));
+            var paramRoadfr = new SyncParameters(("ProductCategoryID", "ROADFR"));
+
+            // create agent with filtered tables and parameter
+            var agent = new SyncAgent(clientProvider, Server.Provider, options);
+            
+            var rTourb = await agent.SynchronizeAsync("Mountb", setup, paramMountb);
+            var rRoadfr = await agent.SynchronizeAsync("Roadfr", setup, paramRoadfr);
+
+            Assert.Equal(8, rTourb.TotalChangesDownloaded);
+            Assert.Equal(8, rTourb.TotalChangesApplied);
+            Assert.Equal(3, rRoadfr.TotalChangesDownloaded);
+            Assert.Equal(3, rRoadfr.TotalChangesApplied);
+        }
+
     }
 }
