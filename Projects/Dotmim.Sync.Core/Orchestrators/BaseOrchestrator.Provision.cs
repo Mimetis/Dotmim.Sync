@@ -113,6 +113,9 @@ namespace Dotmim.Sync
 
             }
 
+
+            await this.InterceptAsync(new ProvisionedArgs(context, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
             return (context, true);
 
         }

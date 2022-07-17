@@ -64,8 +64,8 @@ internal class Program
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
 
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup(new string[] { "ProductCategory" });
         var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
@@ -92,8 +92,7 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
-        //await ScenarioMigrationAddingColumnsAndTableAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
     }
 
@@ -431,29 +430,25 @@ internal class Program
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
-            Console.ResetColor();
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
         });
 
+        var syncOptions = new SyncOptions
+        {
+            ProgressLevel = SyncProgressLevel.Debug
+        };
+
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        var id1 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 1"));
-        var id2 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 2"));
-        var id3 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 3"));
-        var id4 = agent.LocalOrchestrator.OnSessionBegin(sba => Console.WriteLine("Session begins 4"));
-        agent.LocalOrchestrator.ClearInterceptors<SessionBeginArgs>();
-
-        
+        var agent = new SyncAgent(clientProvider, serverProvider, syncOptions);
 
         do
         {
-            Console.Clear();
-            Console.WriteLine("Sync start");
             try
             {
-                var s = await agent.SynchronizeAsync(scopeName, setup, progress);
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress);
+                Console.ResetColor();
                 Console.WriteLine(s);
             }
             catch (SyncException e)
