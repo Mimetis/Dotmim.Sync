@@ -41,15 +41,15 @@ SqlSyncProvider serverProvider = new SqlSyncProvider(
 SqliteSyncProvider clientProvider = new SqliteSyncProvider("advworks.db");
 
 // Tables involved in the sync process:
-var tables = new string[] {"ProductCategory", "ProductDescription", "ProductModel", "Product", "ProductModelProductDescription",
-                           "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+var setup = new SyncSetup("ProductCategory", "ProductDescription", "ProductModel", "Product", "ProductModelProductDescription",
+                           "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
 // Sync agent
-SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
+SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
 
 do
 {
-    var result = await agent.SynchronizeAsync();
+    var result = await agent.SynchronizeAsync(setup);
     Console.WriteLine(result);
 
 } while (Console.ReadKey().Key != ConsoleKey.Escape);
