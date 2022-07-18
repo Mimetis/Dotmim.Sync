@@ -14,7 +14,7 @@ using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Web.Client
 {
-    public partial class WebClientOrchestrator : RemoteOrchestrator
+    public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Gets a new web proxy orchestrator
         /// </summary>
-        public WebClientOrchestrator(string serviceUri,
+        public WebRemoteOrchestrator(string serviceUri,
             IConverter customConverter = null,
             HttpClient client = null,
             SyncPolicy syncPolicy = null,

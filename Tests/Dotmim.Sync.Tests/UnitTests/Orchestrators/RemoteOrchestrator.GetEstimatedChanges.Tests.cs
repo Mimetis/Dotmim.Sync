@@ -288,7 +288,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
 
-            var remoteOrchestrator = new WebClientOrchestrator(serviceUri);
+            var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, remoteOrchestrator);
@@ -402,7 +402,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
 
-            var remoteOrchestrator = new WebClientOrchestrator(serviceUri);
+            var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, remoteOrchestrator);

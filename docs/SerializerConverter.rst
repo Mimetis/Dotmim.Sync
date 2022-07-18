@@ -24,7 +24,7 @@ Before seeing how to create a custom serializer, we should explain the serializa
 
 .. warning:: Something really important to notice : Client dictates its own serialization mechanism.
 
-When you run a synchronization, The ``WebClientOrchestrator`` sends a special HTTP header ``dotmim-sync-serialization-format``, containing two information:
+When you run a synchronization, The ``WebRemoteOrchestrator`` sends a special HTTP header ``dotmim-sync-serialization-format``, containing two information:
 
 * First one is specifying the serialization format to use. The server then knows how to deserialize the messages and also uses the same serialization format when sending back messages to the client.
 * Second one is specifying if the client needs batch mode or not.
@@ -127,7 +127,7 @@ On the client side, add this serializer as the default serializer:
 .. code-block:: csharp
 
     // Create a web proxy Orchesrtrator with a custom serializer
-    var serverProxyOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync")
+    var serverProxyOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync")
     {
         SerializerFactory = new CustomMessagePackSerializerFactory()
     };
@@ -138,7 +138,7 @@ On the client side, add this serializer as the default serializer:
 
 Now the communication between the server side and the client side will be completely made in a **MessagePack** format !
 
-To check if everything is serialized correctly, you can use a web debugging proxy, like `Fiddler <https://www.telerik.com/fiddler>`_  or you can use an ``Interceptor<T>``, available from the ``WebClientOrchestrator`` orchestrator instance:
+To check if everything is serialized correctly, you can use a web debugging proxy, like `Fiddler <https://www.telerik.com/fiddler>`_  or you can use an ``Interceptor<T>``, available from the ``WebRemoteOrchestrator`` orchestrator instance:
 
 .. code-block:: csharp
 
@@ -241,12 +241,12 @@ Example of a simple `IConverter`:
     }
 
 
-On client side, register this converter from your ``WebClientOrchestrator``:
+On client side, register this converter from your ``WebRemoteOrchestrator``:
 
 .. code-block:: csharp
 
     // Create the web proxy client provider with specific options
-    var proxyClientProvider = new WebClientOrchestrator
+    var proxyClientProvider = new WebRemoteOrchestrator
     {
         SerializerFactory = new CustomMessagePackSerializerFactory(),
         Converter = new CustomConverter()

@@ -93,7 +93,7 @@
 
 //            await HelperDatabase.ExecuteScriptAsync(ProviderType.Sql, this.ServerDatabaseName, createProducTable);
 
-//            var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri));
+//            var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(this.ServiceUri));
 
 //            var s = await agent.SynchronizeAsync();
 
@@ -124,7 +124,7 @@
 
 //            await HelperDatabase.ExecuteScriptAsync(ProviderType.Sql, this.ServerDatabaseName, createProducTable);
 
-//            var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri));
+//            var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(this.ServiceUri));
 
 //            var s = await agent.SynchronizeAsync();
 
@@ -164,7 +164,7 @@
 
 //            await HelperDatabase.ExecuteScriptAsync(ProviderType.Sql, this.ServerDatabaseName, createProducTable);
 
-//            var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri));
+//            var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(this.ServiceUri));
 
 //            var s = await agent.SynchronizeAsync();
 
@@ -201,7 +201,7 @@
 
 //            await HelperDatabase.ExecuteScriptAsync(ProviderType.Sql, this.ServerDatabaseName, createProducTable);
 
-//            var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri));
+//            var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(this.ServiceUri));
 
 //            var s = await agent.SynchronizeAsync();
 
@@ -259,7 +259,7 @@
 //            var clientCs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameClient);
 //            var clientProvider = new SqlSyncProvider(clientCs);
 
-//            var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(this.ServiceUri));
+//            var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(this.ServiceUri));
 
 //            var s = await agent.SynchronizeAsync();
 

@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri));
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri));
 
                 var s = await agent.SynchronizeAsync();
 
@@ -90,7 +90,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -122,10 +122,10 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
 
                 agent.LocalOrchestrator.OnReConnect(onReconnect);
 
@@ -161,9 +161,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                webClientOrchestrator.SyncPolicy.RetryCount = 0;
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -200,10 +200,10 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -236,10 +236,10 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -274,7 +274,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -298,7 +298,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -331,7 +331,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -360,7 +360,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(download++, s.TotalChangesDownloaded);
@@ -440,7 +440,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -476,7 +476,7 @@ namespace Dotmim.Sync.Tests
             // Sync and check we have delete these lines on each server
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -516,7 +516,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 await agent.SynchronizeAsync();
             }
 
@@ -543,7 +543,7 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(download * 2000, s.TotalChangesDownloaded);
@@ -581,7 +581,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -611,7 +611,7 @@ namespace Dotmim.Sync.Tests
             // inserted rows will be deleted 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
@@ -648,7 +648,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -679,7 +679,7 @@ namespace Dotmim.Sync.Tests
             int download = 2;
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
                 Assert.Equal(rowsCount + download, s.TotalChangesDownloaded);
@@ -719,10 +719,10 @@ namespace Dotmim.Sync.Tests
             {
                 // Add a converter on the client.
                 // But this converter is not register on the server side converters list.
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new DateConverter());
-                webClientOrchestrator.SyncPolicy.RetryCount = 0;
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri, new DateConverter());
+                webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 var exception = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
                 {
@@ -780,7 +780,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -794,7 +794,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         //[Theory]
         //[ClassData(typeof(SyncOptionsData))]
-        public async Task Check_Interceptors_WebClientOrchestrator(SyncOptions options)
+        public async Task Check_Interceptors_WebRemoteOrchestrator(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -811,7 +811,7 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                var wenClientOrchestrator = new WebClientOrchestrator(serviceUri);
+                var wenClientOrchestrator = new WebRemoteOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, wenClientOrchestrator, options);
 
                 // Interceptor on sending scopes
@@ -850,11 +850,11 @@ namespace Dotmim.Sync.Tests
             int download = 0;
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Just before sending changes, get changes sent
-                webClientOrchestrator.OnHttpSendingChangesRequest(sra =>
+                webRemoteOrchestrator.OnHttpSendingChangesRequest(sra =>
                 {
                     // check we have rows
                     Assert.True(sra.Request.Changes.HasRows);
@@ -867,7 +867,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                webClientOrchestrator.ClearInterceptors();
+                webRemoteOrchestrator.ClearInterceptors();
             }
 
         }
@@ -938,8 +938,8 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri, new DateConverter());
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri, new DateConverter());
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1015,7 +1015,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1049,7 +1049,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1088,7 +1088,7 @@ namespace Dotmim.Sync.Tests
                                     $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
 
                 // create a new agent
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 //// Making a first sync, will initialize everything we need
                 //var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
@@ -1132,7 +1132,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync("customScope1");
 
@@ -1170,14 +1170,14 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
                 var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
-                var serverSyncChanges = await webClientOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
 
                 Assert.Equal(rowsCount, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
             }
@@ -1210,7 +1210,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1247,14 +1247,14 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
                 var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
-                var serverSyncChanges = await webClientOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
 
                 Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
 
@@ -1291,14 +1291,14 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
                 var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webClientOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
 
                 Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
             }
@@ -1330,7 +1330,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1367,14 +1367,14 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
                 var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webClientOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
 
                 Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
 
@@ -1462,7 +1462,7 @@ namespace Dotmim.Sync.Tests
                 var serviceUri = this.Kestrell.Run(serverHandler);
 
 
-                var orch = new WebClientOrchestrator(serviceUri);
+                var orch = new WebRemoteOrchestrator(serviceUri);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
@@ -1484,7 +1484,7 @@ namespace Dotmim.Sync.Tests
                 var serviceUri = this.Kestrell.Run();
 
                 // Act 2: Ensure client can recover
-                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent2 = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s2 = await agent2.SynchronizeAsync();
 
@@ -1528,7 +1528,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1590,7 +1590,7 @@ namespace Dotmim.Sync.Tests
 
                 // restreint parallelism degrees to be sure the batch index is not downloaded at the end
                 // (This will not raise the error if the batchindex 1 is downloaded as the last part)
-                var orch = new WebClientOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 1);
+                var orch = new WebRemoteOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 1);
                 var agent = new SyncAgent(client.Provider, orch, options);
 
 
@@ -1604,7 +1604,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
                 // Act 2: Ensure client can recover
-                var agent2 = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent2 = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s2 = await agent2.SynchronizeAsync();
 
@@ -1671,7 +1671,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and add the task to a list of tasks
             foreach (var clientProvider in clientProviders)
             {
-                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
                 allTasks.Add(agent.SynchronizeAsync());
             }
 
@@ -1703,7 +1703,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to get the new server row
             foreach (var clientProvider in clientProviders)
             {
-                var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
                 allTasks.Add(agent.SynchronizeAsync());
             }
 
@@ -1783,15 +1783,15 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
                 var policyRetries = 0;
-                webClientOrchestrator.OnHttpPolicyRetrying(args =>
+                webRemoteOrchestrator.OnHttpPolicyRetrying(args =>
                 {
                     policyRetries++;
                 });
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1866,15 +1866,15 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
                 var policyRetries = 0;
-                webClientOrchestrator.OnHttpPolicyRetrying(args =>
+                webRemoteOrchestrator.OnHttpPolicyRetrying(args =>
                 {
                     policyRetries++;
                 });
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1937,9 +1937,9 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -1975,7 +1975,7 @@ namespace Dotmim.Sync.Tests
             {
                 interruptedBatch = false;
 
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
                 Assert.Equal(download, s.TotalChangesDownloaded);
@@ -2020,8 +2020,8 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize schemas
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
                 var s = await agent.SynchronizeAsync();
             }
 
@@ -2066,14 +2066,14 @@ namespace Dotmim.Sync.Tests
             // Two sync to be sure all clients have all rows from all
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
                 var s = await agent.SynchronizeAsync();
             }
             foreach (var client in this.Clients)
             {
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
                 var s = await agent.SynchronizeAsync();
             }
 

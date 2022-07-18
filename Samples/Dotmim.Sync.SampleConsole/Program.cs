@@ -752,7 +752,7 @@ internal class Program
                     });
 
                     // create the agent
-                    var agent = new SyncAgent(clientProvider, new WebClientOrchestrator(serviceUri), options);
+                    var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
 
                     // make a synchronization to get all rows between backup and now
                     var s = await agent.SynchronizeAsync("pc", progress:localProgress);
@@ -806,7 +806,7 @@ internal class Program
     //    var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
     //    var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(5) };
 
-    //    var proxyClientProvider = new WebClientOrchestrator("https://localhost:44313/api/Sync", client: client);
+    //    var proxyClientProvider = new WebRemoteOrchestrator("https://localhost:44313/api/Sync", client: client);
 
     //    var options = new SyncOptions
     //    {
@@ -873,7 +873,7 @@ internal class Program
 
     //}
 
-   
+
 
     //private static async Task SynchronizeWithFiltersAsync()
     //{

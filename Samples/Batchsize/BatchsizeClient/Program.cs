@@ -23,7 +23,7 @@ namespace BatchsizeClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync");
+            var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
 
             //var clientProvider = new SqlSyncProvider(clientConnectionString);
             var clientProvider = new SqliteSyncProvider("adv.db");

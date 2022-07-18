@@ -14,7 +14,7 @@ using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Web.Client
 {
-    public partial class WebClientOrchestrator : RemoteOrchestrator
+    public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
         internal override async Task<(SyncContext context, long timestamp)> InternalGetLocalTimestampAsync(SyncContext context,

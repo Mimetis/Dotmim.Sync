@@ -40,7 +40,7 @@
 //            { ProviderType.Sqlite};
 
 //        public override ProviderType ServerType => ProviderType.Sql;
-        
+
 //        public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
 //        {
 //            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
@@ -136,7 +136,7 @@
 //            // Get count of rows
 //            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
-//            var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+//            var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(this.ServiceUri), options);
 //            var s = await agent.SynchronizeAsync();
 
 //            Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -151,7 +151,7 @@
 
 //            this.WebServerOrchestrator.Provider.SupportsMultipleActiveResultSets = false;
 //            // create brand new client and setup locks
-//            agent = new SyncAgent(client.Provider, new WebClientOrchestrator(this.ServiceUri), options);
+//            agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(this.ServiceUri), options);
 //            agent.LocalOrchestrator.OnDatabaseChangesSelecting((e) =>
 //            {
 //                ev1.Release();
@@ -179,7 +179,7 @@
 //                // Otherwise, this means the SqliteSyncProvider uses a deferred transaction (since Microsoft.Data.Sqlite 5.0!)
 //                // see here: https://docs.microsoft.com/en-us/dotnet/standard/data/sqlite/transactions
 //                using var tx = c.BeginTransaction();
-                
+
 //                var productId = Guid.NewGuid();
 //                InsertProduct(c, "locally added prod", productId, tx);
 
@@ -200,7 +200,7 @@
 //            catch (SyncException x)
 //            {
 //                exception = x.InnerException as OperationCanceledException;
-                
+
 //            }
 
 //            // Assert

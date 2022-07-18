@@ -37,7 +37,7 @@ namespace WebSyncClient
 
         public async Task<int> OnExecuteAsync(CommandLineApplication app)
         {
-            var serverOrchestrator = new WebClientOrchestrator(ApiOptions.SyncAddressOld);
+            var serverOrchestrator = new WebRemoteOrchestrator(ApiOptions.SyncAddressOld);
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var connectionString = Configuration.GetConnectionString(ProviderType.Sql, "Client");

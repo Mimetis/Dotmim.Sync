@@ -202,7 +202,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri));
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri));
 
                 var s = await agent.SynchronizeAsync();
 
@@ -232,7 +232,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in this.Clients)
             {
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -266,7 +266,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -299,7 +299,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 Assert.Equal(2, s.TotalChangesDownloaded);
@@ -334,7 +334,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -386,7 +386,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 //Assert.Equal(download, s.TotalChangesDownloaded);
@@ -399,7 +399,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 await agent.SynchronizeAsync(this.FilterParameters);
             }
         }
@@ -473,7 +473,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var snapshotApplying = 0;
                 var snapshotApplied = 0;
@@ -519,10 +519,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                webClientOrchestrator.SerializerFactory = new CustomMessagePackSerializerFactory();
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                webRemoteOrchestrator.SerializerFactory = new CustomMessagePackSerializerFactory();
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloaded);
@@ -555,8 +555,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 Assert.Equal(2, s.TotalChangesDownloaded);
@@ -657,7 +657,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var agent = new SyncAgent(client.Provider, new WebClientOrchestrator(serviceUri), clientOptions);
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), clientOptions);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 Assert.True(Directory.Exists(rootDirectory));
@@ -754,10 +754,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
-                var webClientOrchestrator = new WebClientOrchestrator(serviceUri);
-                webClientOrchestrator.SerializerFactory = new CustomMessagePackSerializerFactory();
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                webRemoteOrchestrator.SerializerFactory = new CustomMessagePackSerializerFactory();
 
-                var agent = new SyncAgent(client.Provider, webClientOrchestrator, options);
+                var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 var snapshotApplying = 0;
                 var snapshotApplied = 0;

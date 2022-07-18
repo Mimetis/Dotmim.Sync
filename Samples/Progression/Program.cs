@@ -64,7 +64,7 @@ namespace Progression
 
             // Row has been selected from datasource.
             // You can change the synrow before the row is serialized on the disk.
-            agent.LocalOrchestrator.OnTableChangesSelectedSyncRow(args =>
+            agent.LocalOrchestrator.OnRowsChangesSelected(args =>
             {
                 Console.Write(".");
             });

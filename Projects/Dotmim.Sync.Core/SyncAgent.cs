@@ -119,7 +119,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="clientProvider">local provider to your client database</param>
         /// <param name="remoteOrchestrator">Remote Orchestrator already configured with a SyncProvider</param>
-        /// <param name="options">Sync Options defining options used by your local provider (and remote provider if remoteOrchestrator is not a WebClientOrchestrator)</param>
+        /// <param name="options">Sync Options defining options used by your local provider (and remote provider if type of remoteOrchestrator is not a WebRemoteOrchestrator)</param>
         public SyncAgent(CoreProvider clientProvider, RemoteOrchestrator remoteOrchestrator, SyncOptions options = default)
             : this()
         {
@@ -222,7 +222,7 @@ namespace Dotmim.Sync
                 {
                     var remoteOrchestratorType = this.RemoteOrchestrator.GetType();
                     var providerType = remoteOrchestratorType.Name;
-                    if (providerType.ToLowerInvariant() == "webclientorchestrator")
+                    if (providerType.ToLowerInvariant() == "webclientorchestrator" || providerType.ToLowerInvariant() == "webremotetorchestrator")
                         throw new Exception("Do not set Tables (or SyncSetup) from your client. Please use SyncAgent, without any Tables or SyncSetup. The tables will come from the server side");
                 }
 

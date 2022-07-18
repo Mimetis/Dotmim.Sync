@@ -115,7 +115,7 @@ namespace ProvisionDeprovision
             // This method is useful if you want to provision by yourself the client database
             // You will need to :
             // - Create a local orchestrator with the correct setup to provision
-            // - Get the ServerScopeInfo from the server side using a RemoteOrchestrator or a WebClientOrchestrator
+            // - Get the ServerScopeInfo from the server side using a RemoteOrchestrator or a WebRemoteOrchestrator
             // - Provision everything locally
 
             // Create a local orchestrator used to provision everything locally
@@ -127,8 +127,8 @@ namespace ProvisionDeprovision
             // Getting the server scope from server side
             var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
 
-            // You can create a WebClientOrchestrator and get the ServerScope as well
-            // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
+            // You can create a WebRemoteOrchestrator and get the ServerScope as well
+            // var proxyClientProvider = new WebRemoteOrchestrator("https://localhost:44369/api/Sync");
             // var serverScope = proxyClientProvider.GetServerScopeInfoAsync();
 
             // Provision everything needed (sp, triggers, tracking tables, AND TABLES)

@@ -32,7 +32,7 @@ To be able to *proxify* everything, we should:
 * Create any kind of client application (Console, Windows Forms, WPF ...)
 * Add the `Dotmim.Sync.Web.Client <https://www.nuget.org/packages/Dotmim.Sync.Web.Client>`_  nuget package to the client application: 
 * Add the client provider. For example the `Dotmim.Sync.SqliteSyncProvider <Dotmim.Sync.SqliteSyncProvider>`_  
-* Create a new ``SyncAgent`` using a local orchestrator with the ``SqliteSyncProvider`` and a remote ``WebClientOrchestrator`` orchestrator.
+* Create a new ``SyncAgent`` using a local orchestrator with the ``SqliteSyncProvider`` and a remote ``WebRemoteOrchestrator`` orchestrator.
 
 
 Server side
@@ -157,7 +157,7 @@ The client side is pretty similar to the starter sample, except we will have to 
 
 .. code-block:: csharp
 
-    var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync");
+    var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
 
     // Second provider is using plain old Sql Server provider, 
     // relying on triggers and tracking tables to create the sync environment

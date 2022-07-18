@@ -19,7 +19,7 @@ namespace XamSyncSample.Services
 
         private SqliteSyncProvider sqliteSyncProvider;
         private SyncAgent syncAgent;
-        private WebClientOrchestrator webProxyProvider;
+        private WebRemoteOrchestrator webProxyProvider;
         private HttpClient httpClient;
 
         private ISettingServices settings;
@@ -49,7 +49,7 @@ namespace XamSyncSample.Services
 
             this.httpClient.DefaultRequestHeaders.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
 
-            this.webProxyProvider = new WebClientOrchestrator(this.settings.SyncApiUrl, client:this.httpClient);
+            this.webProxyProvider = new WebRemoteOrchestrator(this.settings.SyncApiUrl, client:this.httpClient);
 
             this.sqliteSyncProvider = new SqliteSyncProvider(this.settings.DataSource);
             

@@ -54,26 +54,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http request message is sent
         /// </summary>
-        public static Guid OnHttpSendingRequest(this WebClientOrchestrator orchestrator, 
+        public static Guid OnHttpSendingRequest(this WebRemoteOrchestrator orchestrator, 
             Action<HttpSendingRequestMessageArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http request message is sent
         /// </summary>
-        public static Guid OnHttpSendingRequest(this WebClientOrchestrator orchestrator, 
+        public static Guid OnHttpSendingRequest(this WebRemoteOrchestrator orchestrator, 
             Func<HttpSendingRequestMessageArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message response is downloaded from remote side
         /// </summary>
-        public static Guid OnHttpGettingResponse(this WebClientOrchestrator orchestrator, 
+        public static Guid OnHttpGettingResponse(this WebRemoteOrchestrator orchestrator, 
             Action<HttpGettingResponseMessageArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message response is downloaded from remote side
         /// </summary>
-        public static Guid OnHttpGettingResponse(this WebClientOrchestrator orchestrator, 
+        public static Guid OnHttpGettingResponse(this WebRemoteOrchestrator orchestrator, 
             Func<HttpGettingResponseMessageArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

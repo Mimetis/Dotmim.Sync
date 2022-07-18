@@ -23,7 +23,7 @@ namespace FilterWebSyncClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync");
+            var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
                                                                 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqlSyncProvider(clientConnectionString);

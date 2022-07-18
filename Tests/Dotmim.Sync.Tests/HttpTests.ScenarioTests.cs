@@ -72,7 +72,7 @@ namespace Dotmim.Sync.Tests
             // First sync to initialiaze client database, create table and fill product categories
             foreach (var client in this.Clients)
             {
-                var webServerProxyOrchestrator = new WebClientOrchestrator(serviceUri);
+                var webServerProxyOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
                 var agent = new SyncAgent(client.Provider, webServerProxyOrchestrator);
 
@@ -152,7 +152,7 @@ namespace Dotmim.Sync.Tests
                 connection.Close();
 
                 // Get scope from server (v1 because it contains the new table schema)
-                var webServerProxyOrchestrator = new WebClientOrchestrator(serviceUri);
+                var webServerProxyOrchestrator = new WebRemoteOrchestrator(serviceUri);
                 serverScope = await webServerProxyOrchestrator.GetServerScopeInfoAsync("v1");
 
                 // Creating a new table is quite easier since DMS can do it for us

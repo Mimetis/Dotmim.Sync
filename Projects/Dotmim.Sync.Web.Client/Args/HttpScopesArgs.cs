@@ -59,25 +59,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http is about to be done to get server scope 
         /// </summary>
-        public static Guid OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeRequestArgs> action)
+        public static Guid OnHttpGettingScopeRequest(this WebRemoteOrchestrator orchestrator, Action<HttpGettingScopeRequestArgs> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http is about to be done to get server scope 
         /// </summary>
-        public static Guid OnHttpGettingScopeRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeRequestArgs, Task> action)
+        public static Guid OnHttpGettingScopeRequest(this WebRemoteOrchestrator orchestrator, Func<HttpGettingScopeRequestArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get scope is done
         /// </summary>
-        public static Guid OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingScopeResponseArgs> action)
+        public static Guid OnHttpGettingScopeResponse(this WebRemoteOrchestrator orchestrator, Action<HttpGettingScopeResponseArgs> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get scope is done
         /// </summary>
-        public static Guid OnHttpGettingScopeResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingScopeResponseArgs, Task> action)
+        public static Guid OnHttpGettingScopeResponse(this WebRemoteOrchestrator orchestrator, Func<HttpGettingScopeResponseArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
 

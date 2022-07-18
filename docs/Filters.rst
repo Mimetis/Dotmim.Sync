@@ -508,7 +508,7 @@ The client side shoud be familiar to you:
 
     // Replacing a classic remote orchestrator 
     // with a web proxy orchestrator that point on the web api
-    var proxyClientProvider = new WebClientOrchestrator("http://localhost:52288/api/Sync");
+    var proxyClientProvider = new WebRemoteOrchestrator("http://localhost:52288/api/Sync");
 
     // Set the web server Options
     var options = new SyncOptions

@@ -238,7 +238,7 @@ Client side
 
 From you mobile / console / desktop application, you just need to send your **Bearer Token** embedded into your `HttpClient` headers.
 
-The ``WebClientOrchestrator`` object allows you to use your own ``HttpClient`` instance. So far, create an instance and add your bearer token to the ``DefaultRequestHeaders.Authorization`` property.
+The ``WebRemoteOrchestrator`` object allows you to use your own ``HttpClient`` instance. So far, create an instance and add your bearer token to the ``DefaultRequestHeaders.Authorization`` property.
 
 .. code-block:: csharp
 
@@ -250,7 +250,7 @@ The ``WebClientOrchestrator`` object allows you to use your own ``HttpClient`` i
     httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
     // Adding the HttpClient instance to the web client orchestrator
-    var serverOrchestrator = new WebClientOrchestrator(
+    var serverOrchestrator = new WebRemoteOrchestrator(
                     "https://localhost:44342/api/sync", client:httpClient);
 
     var clientProvider = new SqlSyncProvider(clientConnectionString);

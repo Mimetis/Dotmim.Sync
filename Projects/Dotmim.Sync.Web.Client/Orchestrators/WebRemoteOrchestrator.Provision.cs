@@ -14,7 +14,7 @@ using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Web.Client
 {
-    public partial class WebClientOrchestrator : RemoteOrchestrator
+    public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
         public override Task<ServerScopeInfo> ProvisionAsync(SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)

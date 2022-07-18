@@ -14,7 +14,7 @@ using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Web.Client
 {
-    public partial class WebClientOrchestrator : RemoteOrchestrator
+    public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
         /// <summary>
         /// Apply changes

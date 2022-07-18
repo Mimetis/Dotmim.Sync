@@ -51,14 +51,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when client is trying to send again an http request message 
         /// </summary>
-        public static Guid OnHttpPolicyRetrying(this WebClientOrchestrator orchestrator,
+        public static Guid OnHttpPolicyRetrying(this WebRemoteOrchestrator orchestrator,
             Action<HttpSyncPolicyArgs> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when client is trying to send again an http request message 
         /// </summary>
-        public static Guid OnHttpPolicyRetrying(this WebClientOrchestrator orchestrator,
+        public static Guid OnHttpPolicyRetrying(this WebRemoteOrchestrator orchestrator,
             Func<HttpSyncPolicyArgs, Task> action)
             => orchestrator.AddInterceptor(action);
     }
