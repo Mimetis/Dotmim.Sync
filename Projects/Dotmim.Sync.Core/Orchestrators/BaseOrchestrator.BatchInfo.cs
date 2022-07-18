@@ -18,10 +18,10 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState dataRowState = DataRowState.Modified)
+        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState? dataRowState = default)
             => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, dataRowState);
 
-        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState dataRowState = DataRowState.Modified)
+        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState? dataRowState = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -43,7 +43,7 @@ namespace Dotmim.Sync
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
         internal virtual Task<(SyncContext context, SyncTable syncTable)> InternalLoadTableFromBatchInfoAsync(
-            SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState dataRowState = DataRowState.Modified)
+            SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState? dataRowState = default)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
                 return Task.FromResult<(SyncContext, SyncTable)>((context, null));
@@ -77,7 +77,7 @@ namespace Dotmim.Sync
                     return Task.FromResult<(SyncContext, SyncTable)>((context, null));
 
                 foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
-                    if (syncRow.RowState == dataRowState)
+                    if (!dataRowState.HasValue || dataRowState == default || syncRow.RowState == dataRowState)
                         table.Rows.Add(syncRow);
             }
 
@@ -86,11 +86,11 @@ namespace Dotmim.Sync
         }
 
 
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState dataRowState = DataRowState.Modified)
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState? dataRowState = default)
             => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, dataRowState);
 
 
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState dataRowState = DataRowState.Modified)
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState? dataRowState = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -106,7 +106,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        internal Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState dataRowState = DataRowState.Modified)
+        internal Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState? dataRowState = default)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
                 return Task.FromResult<SyncTable>(null);
@@ -138,7 +138,7 @@ namespace Dotmim.Sync
             }
 
             foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
-                if (syncRow.RowState == dataRowState)
+                if (!dataRowState.HasValue || dataRowState == default || syncRow.RowState == dataRowState)
                     table.Rows.Add(syncRow);
 
             return Task.FromResult(table);
