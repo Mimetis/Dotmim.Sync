@@ -131,7 +131,8 @@ To be able to load batches from the temporary folder, or save rows, you can use 
         foreach (var table in args.ApplyChanges.Schema.Tables)
         {
             // loading in memory all batches containing rows for the current table
-            var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.BatchInfo, table.TableName, table.SchemaName);
+            var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(
+                args.ApplyChanges.BatchInfo, table.TableName, table.SchemaName);
 
             Console.WriteLine($"Changes for table {table.TableName}. Rows:{syncTable.Rows.Count}");
             foreach (var row in syncTable.Rows)
@@ -145,10 +146,8 @@ To be able to load batches from the temporary folder, or save rows, you can use 
 .. code-block:: bash
 
     --------------------------------------------
-    Applying changes to the local database:
+    Changes to be applied on the local database:
     --------------------------------------------
-    Last timestamp used to compare local rows : 34000
-    List of ALL rows to be sync locally:
     Changes for table ProductCategory. Rows:1
     [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, 
     [ParentProductCategoryID]:<NULL />
@@ -243,11 +242,11 @@ The number of rows to be applied here is depending on:
 
     - --------------------------------------------
     - In memory rows that are going to be Applied
-    [Sync state]:Modified, [ProductCategoryID]:275c44e0-cfc7-4648-95e3-e67f9bb47fb4, [ParentProductCategoryID]:<NULL />, [Name]:Shoes 20202lhufa0w.hab, [rowguid]:d0d159e1-462b-4c35-940d-63972fb8027e, [ModifiedDate]:18/07/2022 12:46:40
+    [Sync state]:Modified, [ProductCategoryID]:275c44e0-cfc7-4648-95e3-e67f9bb47fb4, [ParentProductCategoryID]:<NULL />
 
     - --------------------------------------------
     - In memory rows that are going to be Applied
-    [Sync state]:Modified, [CustomerID]:30130, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, [MiddleName]:<NULL />, [LastName]:Doe, [Suffix]:<NULL />, [CompanyName]:<NULL />, [SalesPerson]:<NULL />, [EmailAddress]:<NULL />, [Phone]:<NULL />, [PasswordHash]:<NULL />, [PasswordSalt]:<NULL />, [rowguid]:19b9d81c-2ad4-41c1-a0e1-82deda5a38b8, [ModifiedDate]:18/07/2022 12:46:40
+    [Sync state]:Modified, [CustomerID]:30130, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John
 
 
 Interceptors DbCommand execution
@@ -569,7 +568,8 @@ As you can see:
 
                     if (pUserId == null)
                     {
-                        var userId = this.HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier);
+                        var userId = this.HttpContext.User.Claims.FirstOrDefault(
+                            x => x.Type == ClaimTypes.NameIdentifier);
                         args.Context.Parameters.Add("UserId", userId);
                     }
 
