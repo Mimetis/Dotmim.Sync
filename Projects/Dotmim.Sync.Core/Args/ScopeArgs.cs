@@ -98,7 +98,7 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
 
-        public override string Message => $"[{Connection.Database}] [{ClientScopeInfo?.Name}] [Version {ClientScopeInfo.Version}] Last sync:{ClientScopeInfo?.LastSync} Last sync duration:{ClientScopeInfo?.LastSyncDurationString}.";
+        public override string Message => $"[{Connection.Database}] [{ClientScopeInfo?.Name}] [Version {ClientScopeInfo?.Version}] Last sync:{ClientScopeInfo?.LastSync} Last sync duration:{ClientScopeInfo?.LastSyncDurationString}.";
         public ClientScopeInfo ClientScopeInfo { get; }
         public override int EventId => SyncEventsId.ClientScopeScopeLoaded.Id;
     }
