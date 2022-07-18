@@ -277,10 +277,8 @@ namespace Dotmim.Sync.MySql.Builders
 
             var sqlCommand = new MySqlCommand();
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"SET FOREIGN_KEY_CHECKS=0;");
             stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
             stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
-            stringBuilder.AppendLine($"SET FOREIGN_KEY_CHECKS=1;");
             stringBuilder.AppendLine();
 
             sqlCommand.CommandText = stringBuilder.ToString();
