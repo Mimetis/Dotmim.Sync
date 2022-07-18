@@ -20,8 +20,8 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class DependencyInjection
     {
         /// <summary>
-        /// Add the server provider (inherited from CoreProvider) and register in the DI a WebServerOrchestrator.
-        /// Use the WebServerOrchestrator in your controller, by inject it.
+        /// Add the server provider (inherited from CoreProvider) and register in the DI a WebServerAgent.
+        /// Use the WebServerAgent in your controller, by inject it.
         /// </summary>
         /// <param name="providerType">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Should have [CanBeServerProvider=true] </param>
         /// <param name="serviceCollection">services collections</param>

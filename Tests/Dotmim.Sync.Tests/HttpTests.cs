@@ -739,7 +739,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         //[Theory]
         //[ClassData(typeof(SyncOptionsData))]
-        public async Task Check_Interceptors_WebServerOrchestrator(SyncOptions options)
+        public async Task Check_Interceptors_WebServerAgent(SyncOptions options)
         {
             // create a server db and seed it
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);

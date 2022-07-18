@@ -131,7 +131,7 @@
 //            await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
 //            // configure server orchestrator
-//            this.WebServerOrchestrator.Setup.Tables.AddRange(Tables);
+//            this.WebServerAgent.Setup.Tables.AddRange(Tables);
 
 //            // Get count of rows
 //            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -149,7 +149,7 @@
 //            var ev3 = new SemaphoreSlim(10);
 //            using var cts = new CancellationTokenSource();
 
-//            this.WebServerOrchestrator.Provider.SupportsMultipleActiveResultSets = false;
+//            this.WebServerAgent.Provider.SupportsMultipleActiveResultSets = false;
 //            // create brand new client and setup locks
 //            agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(this.ServiceUri), options);
 //            agent.LocalOrchestrator.OnDatabaseChangesSelecting((e) =>

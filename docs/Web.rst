@@ -56,6 +56,10 @@ Once we have added these **DMS** packages to our project, we are configuring the
           Having a cache is mandatory to be able to serve multiple requests 
           for one particular session (representing one sync client)
 
+
+Simple Scope
+-----------------
+
 .. code-block:: csharp
 
     public void ConfigureServices(IServiceCollection services)
@@ -102,23 +106,25 @@ Once we have added these **DMS** packages to our project, we are configuring the
 Once we have correctly configured our sync process, we can create our controller:
 
 * Create a new controller (for example ``SyncController``)
-* In this newly created controller, inject your ``WebServerOrchestrator`` instance.   
+* In this newly created controller, inject your ``WebServerAgent`` instance.   
 * Use this newly injected instance in the ``POST`` method, calling the ``HandleRequestAsync`` method and ... **that's all** !
 * We can optionally add a ``GET`` method, to see our configuration from within the web browser. Useful to check if everything is configured correctly.
 
 .. code-block:: csharp
 
+[ApiController]
     [Route("api/[controller]")]
-    [ApiController]
     public class SyncController : ControllerBase
     {
-        // the Web server orchestrator registered in the Startup.cs
-        // This instance contains your SyncProvider (like SqlSyncProvider or SqlSyncChangeTrackingProvider...)
-        private WebServerOrchestrator orchestrator;
+        private WebServerAgent webServerAgent;
+        private readonly IWebHostEnvironment env;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerOrchestrator webServerOrchestrator) 
-            => this.orchestrator = webServerOrchestrator;
+        public SyncController(WebServerAgent webServerAgent, IWebHostEnvironment env)
+        {
+            this.webServerAgent = webServerAgent;
+            this.env = env;
+        }
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
@@ -126,15 +132,32 @@ Once we have correctly configured our sync process, we can create our controller
         /// <returns></returns>
         [HttpPost]
         public Task Post() 
-            => orchestrator.HandleRequestAsync(this.HttpContext);
+            => webServerAgent.HandleRequestAsync(this.HttpContext);
 
         /// <summary>
         /// This GET handler is optional. It allows you to see the configuration hosted on the server
-        /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public Task Get() 
-            => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
+        public async Task Get()
+        {
+            if (env.IsDevelopment())
+            {
+                await this.HttpContext.WriteHelloAsync(webServerAgent);
+            }
+            else
+            {
+                var stringBuilder = new StringBuilder();
+
+                stringBuilder.AppendLine("<!doctype html>");
+                stringBuilder.AppendLine("<html>");
+                stringBuilder.AppendLine("<title>Web Server properties</title>");
+                stringBuilder.AppendLine("<body>");
+                stringBuilder.AppendLine(" PRODUCTION MODE. HIDDEN INFO ");
+                stringBuilder.AppendLine("</body>");
+                await this.HttpContext.Response.WriteAsync(stringBuilder.ToString());
+            }
+        }
+
     }
 
 
@@ -147,6 +170,94 @@ You should have useful information, like a test to reach your server database, y
 If your configuration is not correct, you should have an error message, like this:
 
 .. image:: assets/WebServerPropertiesError.png
+
+
+Mutlis Scope
+-----------------
+
+If you need to handle multi scopes, here is the implementation with 2 scopes : "prod", "cust".
+
+.. code-block:: csharp
+
+    public void ConfigureServices(IServiceCollection services)
+    {
+        services.AddControllers();
+
+        services.AddDistributedMemoryCache();
+        services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
+
+        var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
+
+        var options = new SyncOptions { };
+
+        var tables1 = new string[] {"ProductCategory", "ProductModel", "Product" };
+        var tables2 = new string[] {"Address", "Customer", "CustomerAddress"};
+
+        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, "prod", tables1, options);
+        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, "cust", tables2, options);
+
+    }
+
+
+Once we have correctly configured our sync process, we can create our controller:
+
+* Create a new controller (for example ``SyncController``)
+* In this newly created controller, inject your ``IEnumerable<WebServerAgent>`` instance.   
+
+.. code-block:: csharp
+
+[ApiController]
+    [Route("api/[controller]")]
+    public class SyncController : ControllerBase
+    {
+        private IEnumerable<WebServerAgent> webserverAgents;
+        private readonly IWebHostEnvironment env;
+
+        // Injected thanks to Dependency Injection
+        public SyncController(IEnumerable<WebServerAgent> webServerAgents, IWebHostEnvironment env)
+        {
+            this.webServerAgents = webServerAgents;
+            this.env = env;
+        }
+
+        /// <summary>
+        /// This POST handler is mandatory to handle all the sync process
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost]
+        public Task Post() 
+        {
+            var scopeName = HttpContext.GetScopeName();
+
+            var webserverAgent = webserverAgents.FirstOrDefault(c => c.ScopeName == scopeName);
+            await webserverAgent.HandleRequestAsync(HttpContext).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// This GET handler is optional. It allows you to see the configuration hosted on the server
+        /// </summary>
+        [HttpGet]
+        public async Task Get()
+        {
+            if (env.IsDevelopment())
+            {
+                await this.HttpContext.WriteHelloAsync(this.webserverAgents);
+            }
+            else
+            {
+                var stringBuilder = new StringBuilder();
+
+                stringBuilder.AppendLine("<!doctype html>");
+                stringBuilder.AppendLine("<html>");
+                stringBuilder.AppendLine("<title>Web Server properties</title>");
+                stringBuilder.AppendLine("<body>");
+                stringBuilder.AppendLine(" PRODUCTION MODE. HIDDEN INFO ");
+                stringBuilder.AppendLine("</body>");
+                await this.HttpContext.Response.WriteAsync(stringBuilder.ToString());
+            }
+        }
+
+    }
 
 
 Client side
