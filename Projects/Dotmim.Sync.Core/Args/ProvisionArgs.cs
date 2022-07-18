@@ -59,18 +59,18 @@ namespace Dotmim.Sync
     public class DeprovisionedArgs : ProgressArgs
     {
         public SyncProvision Provision { get; }
-        public SyncSet Schema { get; }
+        public SyncSetup Setup { get; }
 
 
-        public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
+        public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
             Provision = provision;
-            Schema = schema;
+            Setup = setup;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         public override string Source => Connection.Database;
-        public override string Message => $"Deprovisioned {Schema.Tables.Count} Tables. Provision:{Provision}.";
+        public override string Message => $"Deprovisioned {Setup.Tables.Count} Tables. Provision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioned.Id;
     }
 
@@ -84,17 +84,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the schema to be applied in the database
         /// </summary>
-        public SyncSet Schema { get; }
-        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        public SyncSetup Setup { get; }
+        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSetup setup, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
             Provision = provision;
-            Schema = schema;
+            Setup = setup;
         }
         public override string Source => Connection.Database;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Message => $"Deprovisioning {Schema.Tables.Count} Tables. Provision:{Provision}.";
+        public override string Message => $"Deprovisioning {Setup.Tables.Count} Tables. Provision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioning.Id;
     }
 
@@ -104,46 +104,46 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider before it begins a database provisioning
         /// </summary>
-        public static void OnProvisioning(this BaseOrchestrator orchestrator, Action<ProvisioningArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioning(this BaseOrchestrator orchestrator, Action<ProvisioningArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider before it begins a database provisioning
         /// </summary>
-        public static void OnProvisioning(this BaseOrchestrator orchestrator, Func<ProvisioningArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioning(this BaseOrchestrator orchestrator, Func<ProvisioningArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has provisioned a database
         /// </summary>
-        public static void OnProvisioned(this BaseOrchestrator orchestrator, Action<ProvisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioned(this BaseOrchestrator orchestrator, Action<ProvisionedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider after it has provisioned a database
         /// </summary>
-        public static void OnProvisioned(this BaseOrchestrator orchestrator, Func<ProvisionedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnProvisioned(this BaseOrchestrator orchestrator, Func<ProvisionedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider before it begins a database deprovisioning
         /// </summary>
-        public static void OnDeprovisioning(this BaseOrchestrator orchestrator, Action<DeprovisioningArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioning(this BaseOrchestrator orchestrator, Action<DeprovisioningArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider before it begins a database deprovisioning
         /// </summary>
-        public static void OnDeprovisioning(this BaseOrchestrator orchestrator, Func<DeprovisioningArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioning(this BaseOrchestrator orchestrator, Func<DeprovisioningArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider after it has deprovisioned a database
         /// </summary>
-        public static void OnDeprovisioned(this BaseOrchestrator orchestrator, Action<DeprovisionedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioned(this BaseOrchestrator orchestrator, Action<DeprovisionedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider after it has deprovisioned a database
         /// </summary>
-        public static void OnDeprovisioned(this BaseOrchestrator orchestrator, Func<DeprovisionedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnDeprovisioned(this BaseOrchestrator orchestrator, Func<DeprovisionedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

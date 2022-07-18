@@ -28,42 +28,53 @@ namespace Dotmim.Sync.Tests
         private bool useFiddler;
         IWebHost host;
 
-        public KestrellTestServer(WebServerOrchestrator webServerOrchestrator, bool useFidller = false)
+        public KestrellTestServer(bool useFidller = false)
+        {
+            initBuilder();
+            this.useFiddler = useFidller;
+        }
+
+        private void initBuilder()
         {
             var hostBuilder = new WebHostBuilder()
-                .UseKestrel()
-                .UseUrls("http://127.0.0.1:0/")
-                .ConfigureServices(services =>
+            .UseKestrel()
+            .UseUrls("http://127.0.0.1:0/")
+            .ConfigureServices(services =>
+            {
+                services.AddDistributedMemoryCache();
+                services.AddSession(options =>
                 {
-                    services.AddDistributedMemoryCache();
-                    services.AddSession(options =>
-                    {
-                        // Set a long timeout for easy testing.
-                        options.IdleTimeout = TimeSpan.FromDays(10);
-                        options.Cookie.HttpOnly = true;
-                    });
-
-                    // add a SqlSyncProvider acting as the server hub
-                    services.AddSyncServer(webServerOrchestrator);
-
+                    // Set a long timeout for easy testing.
+                    options.IdleTimeout = TimeSpan.FromDays(10);
+                    options.Cookie.HttpOnly = true;
                 });
+            });
             this.builder = hostBuilder;
+        }
 
-            this.useFiddler = useFidller;
-
+        public void AddSyncServer(Type providerType, string connectionString,
+            string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null)
+        {
+            this.builder.ConfigureServices(services =>
+            {
+                services.AddSyncServer(providerType, connectionString, scopeName, setup, options, webServerOptions);
+            });
         }
 
 
-        public string Run()
+        public string Run(RequestDelegate serverHandler = null)
         {
             // Create server web proxy
-            var serverHandler = new RequestDelegate(async context =>
+            if (serverHandler == null)
             {
-                var webServerOrchestrator = context.RequestServices.GetService(typeof(WebServerOrchestrator)) as WebServerOrchestrator;
-                await webServerOrchestrator.HandleRequestAsync(context);
-            });
+                serverHandler = new RequestDelegate(async context =>
+                {
+                    var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+                    await webServerAgent.HandleRequestAsync(context);
+                });
+            }
 
-                
+
             this.builder.Configure(app =>
             {
                 app.UseSession();
@@ -91,10 +102,19 @@ namespace Dotmim.Sync.Tests
             {
                 await this.host.StopAsync();
                 this.host.Dispose();
+                this.host = null;
+                this.builder = null;
             }
         }
 
-        internal Task StopAsync() => this.Dispose(true);
+        public async Task StopAsync()
+        {
+            await this.host.StopAsync();
+            this.host.Dispose();
+            this.host = null;
+            this.builder = null;
+            this.initBuilder();
+        }
     }
 
     public static class IWebHostPortExtensions

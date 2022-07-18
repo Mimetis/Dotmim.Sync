@@ -55,15 +55,15 @@ namespace Dotmim.Sync
         public int Ordinal { get; set; }
 
         [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 14)]
-        public bool PrecisionSpecified { get; set; }
+        public bool PrecisionIsSpecified { get; set; }
 
-        [DataMember(Name = "p1", Order = 15)]
+        [DataMember(Name = "p1", IsRequired = false, EmitDefaultValue = false, Order = 15)]
         public byte Precision { get; set; }
 
         [DataMember(Name = "ss", IsRequired = false, EmitDefaultValue = false, Order = 16)]
-        public bool ScaleSpecified { get; set; }
+        public bool ScaleIsSpecified { get; set; }
 
-        [DataMember(Name = "sc", EmitDefaultValue = false, Order = 17)]
+        [DataMember(Name = "sc", IsRequired = false, EmitDefaultValue = false, Order = 17)]
         public byte Scale { get; set; }
 
         [DataMember(Name = "odb", IsRequired = false, EmitDefaultValue = false, Order = 18)]
@@ -138,9 +138,9 @@ namespace Dotmim.Sync
             clone.OriginalDbType = this.OriginalDbType;
             clone.OriginalTypeName = this.OriginalTypeName;
             clone.Precision = this.Precision;
-            clone.PrecisionSpecified = this.PrecisionSpecified;
+            clone.PrecisionIsSpecified = this.PrecisionIsSpecified;
             clone.Scale = this.Scale;
-            clone.ScaleSpecified = this.ScaleSpecified;
+            clone.ScaleIsSpecified = this.ScaleIsSpecified;
             clone.DefaultValue = this.DefaultValue;
             clone.ExtraProperty1 = this.ExtraProperty1;
             return clone;
@@ -401,9 +401,9 @@ namespace Dotmim.Sync
                this.IsCompute == column.IsCompute &&
                this.MaxLength == column.MaxLength &&
                this.Ordinal == column.Ordinal &&
-               this.PrecisionSpecified == column.PrecisionSpecified &&
+               this.PrecisionIsSpecified == column.PrecisionIsSpecified &&
                this.Precision == column.Precision &&
-               this.ScaleSpecified == column.ScaleSpecified &&
+               this.ScaleIsSpecified == column.ScaleIsSpecified &&
                this.Scale == column.Scale &&
                string.Equals(this.OriginalDbType, column.OriginalDbType, sc) &&
                string.Equals(this.OriginalTypeName, column.OriginalTypeName, sc) &&

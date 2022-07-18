@@ -15,11 +15,11 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private IEnumerable<WebServerOrchestrator> orchestrators;
+        private IEnumerable<WebServerAgent> webserverAgents;
 
         // Injected thanks to Dependency Injection
-        public SyncController(IEnumerable<WebServerOrchestrator> webServerOrchestrators) 
-            => this.orchestrators = webServerOrchestrators;
+        public SyncController(IEnumerable<WebServerAgent> webServerAgents) 
+            => this.webserverAgents = webServerAgents;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
@@ -28,11 +28,11 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         [HttpPost]
         public async Task Post()
         {
-            var scopeName = WebServerOrchestrator.GetScopeName(HttpContext);
+            var scopeName = HttpContext.GetScopeName();
 
-            var orchestrator = orchestrators.FirstOrDefault(c => c.ScopeName == scopeName);
+            var webserverAgent = webserverAgents.FirstOrDefault(c => c.ScopeName == scopeName);
 
-            await orchestrator.HandleRequestAsync(HttpContext).ConfigureAwait(false);
+            await webserverAgent.HandleRequestAsync(HttpContext).ConfigureAwait(false);
 
         }
 
@@ -41,7 +41,7 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrators);
+        public Task Get() => this.HttpContext.WriteHelloAsync(this.webserverAgents);
 
     }
 }

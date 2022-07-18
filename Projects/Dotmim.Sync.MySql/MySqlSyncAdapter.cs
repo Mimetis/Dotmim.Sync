@@ -30,10 +30,10 @@ namespace Dotmim.Sync.MySql
         public MySqlObjectNames MySqlObjectNames { get; set; }
         public MySqlDbMetadata MySqlDbMetadata { get; set; }
 
-        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
+        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
         {
             this.MySqlDbMetadata = new MySqlDbMetadata();
-            this.MySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup);
+            this.MySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup, scopeName);
 
         }
         public override bool IsPrimaryKeyViolation(Exception Error) => false;

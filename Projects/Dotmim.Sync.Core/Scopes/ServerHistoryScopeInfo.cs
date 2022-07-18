@@ -7,7 +7,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Mapping sur la table ScopeInfo
     /// </summary>
-    public class ServerHistoryScopeInfo
+    public class ServerHistoryScopeInfo : IScopeInfo
     {
         /// <summary>
         /// Scope name. Shared by all clients and the server
@@ -48,5 +48,8 @@ namespace Dotmim.Sync
             }
         }
 
+        public SyncSet Schema { get; set; }
+        public SyncSetup Setup { get; set; }
+        public string Version { get; set; }
     }
 }

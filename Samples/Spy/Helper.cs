@@ -10,23 +10,27 @@ namespace Spy
     public class Helper
     {
 
-        public static async Task<int> InsertOneProductCategoryAsync(DbConnection c, string updatedName)
+        public static async Task InsertOneProductCategoryAsync(DbConnection c, Guid productCategoryId, string updatedName)
         {
-            using (var command = c.CreateCommand())
-            {
-                command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
-                var p = command.CreateParameter();
-                p.DbType = DbType.String;
-                p.Value = updatedName;
-                p.ParameterName = "@Name";
-                command.Parameters.Add(p);
+            using var command = c.CreateCommand();
+            
+            command.CommandText = @"Insert Into ProductCategory 
+                                (ProductCategoryID, Name) Values (@ProductCategoryID, @Name);";
+            var p = command.CreateParameter();
+            p.DbType = DbType.Guid;
+            p.Value = productCategoryId;
+            p.ParameterName = "@ProductCategoryID";
+            command.Parameters.Add(p);
 
-                await c.OpenAsync();
-                var id = await command.ExecuteScalarAsync();
-                c.Close();
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.Value = updatedName;
+            p.ParameterName = "@Name";
+            command.Parameters.Add(p);
 
-                return Convert.ToInt32(id);
-            }
+            await c.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            c.Close();
         }
 
         public static async Task<int> DeleteOneSalesDetailOrderAsync(DbConnection c, int sodId)

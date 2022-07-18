@@ -69,30 +69,30 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http response message is sent back to the client
         /// </summary>
-        public static void OnHttpSendingResponse(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpSendingResponse(this WebServerAgent webServerAgent,
             Action<HttpSendingResponseArgs> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http response message is sent back to the client
         /// </summary>
-        public static void OnHttpSendingResponse(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpSendingResponse(this WebServerAgent webServerAgent,
             Func<HttpSendingResponseArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message request from the client arrived to the server
         /// </summary>
-        public static void OnHttpGettingRequest(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpGettingRequest(this WebServerAgent webServerAgent,
             Action<HttpGettingRequestArgs> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message request from the client arrived to the server
         /// </summary>
-        public static void OnHttpGettingRequest(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpGettingRequest(this WebServerAgent webServerAgent,
             Func<HttpGettingRequestArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
     }
 }

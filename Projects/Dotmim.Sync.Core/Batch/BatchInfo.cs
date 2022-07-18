@@ -226,60 +226,29 @@ namespace Dotmim.Sync.Batch
         }
 
 
-        /// <summary>
-        /// Load the Batch part info in memory, in a SyncTable
-        /// </summary>
-        public Task<SyncTable> LoadBatchPartInfoAsync(BatchPartInfo batchPartInfo, ILocalSerializerFactory localSerializerFactory = null)
-        {
-            if (localSerializerFactory == null)
-                localSerializerFactory = new LocalJsonSerializerFactory();
 
-            // Get full path of my batchpartinfo
-            var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
+        //public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable)
+        //{
+        //     var localSerializer = new LocalJsonSerializer();
 
-            if (!File.Exists(fullPath))
-                return Task.FromResult<SyncTable>(null);
+        //    // Get full path of my batchpartinfo
+        //    var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
-            if (this.SanitizedSchema == null || batchPartInfo.Tables == null || batchPartInfo.Tables.Count() < 1)
-                return Task.FromResult<SyncTable>(null);
+        //    if (!File.Exists(fullPath))
+        //        return;
 
-            var schemaTable = this.SanitizedSchema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName];
+        //    File.Delete(fullPath);
 
-            var localSerializer = localSerializerFactory.GetLocalSerializer();
+        //    // open the file and write table header
+        //    await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
 
-            var table = schemaTable.Clone();
+        //    foreach (var row in syncTable.Rows)
+        //        await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
 
-            foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
-                table.Rows.Add(syncRow);
+        //    // Close file
+        //    await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
 
-            return Task.FromResult(table);
-        }
-
-        public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable, ILocalSerializerFactory localSerializerFactory = null)
-        {
-            if (localSerializerFactory == null)
-                localSerializerFactory = new LocalJsonSerializerFactory();
-
-            // Get full path of my batchpartinfo
-            var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
-
-            if (!File.Exists(fullPath))
-                return;
-
-            File.Delete(fullPath);
-
-            var localSerializer = localSerializerFactory.GetLocalSerializer();
-
-            // open the file and write table header
-            await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
-
-            foreach (var row in syncTable.Rows)
-                await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
-
-            // Close file
-            await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
-
-        }
+        //}
 
         /// <summary>
         /// try to delete the Batch tmp directory and all the files stored in it

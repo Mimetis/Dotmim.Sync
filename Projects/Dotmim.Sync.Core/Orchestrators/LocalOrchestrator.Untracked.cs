@@ -23,53 +23,59 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual async Task<bool> UpdateUntrackedRowsAsync(SyncSet schema, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<long> UpdateUntrackedRowsAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                // If schema does not have any table, just return
-                if (schema == null || schema.Tables == null || !schema.HasTables)
-                    throw new MissingTablesException();
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                ClientScopeInfo clientScopeInfo;
+                (context, clientScopeInfo) = await this.InternalLoadClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                if (clientScopeInfo.Schema == null || clientScopeInfo.Schema.Tables == null || clientScopeInfo.Schema.Tables.Count <= 0 || !clientScopeInfo.Schema.HasColumns)
+                    throw new MissingTablesException(scopeName);
+
+                long totalUpdates = 0L;
                 // Update untracked rows
-                foreach (var table in schema.Tables)
+                foreach (var table in clientScopeInfo.Schema.Tables)
                 {
-                    var syncAdapter = this.GetSyncAdapter(table, this.Setup);
-                    await this.InternalUpdateUntrackedRowsAsync(this.GetContext(), syncAdapter, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    var syncAdapter = this.GetSyncAdapter(table, clientScopeInfo);
+                    long updates = 0L;
+                    (context, updates) = await this.InternalUpdateUntrackedRowsAsync(clientScopeInfo, context, syncAdapter, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    totalUpdates += updates;
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return true;
+                return totalUpdates;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(context, ex);
             }
         }
 
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual async Task<bool> UpdateUntrackedRowsAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var schema = await this.GetSchemaAsync(connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            return await this.UpdateUntrackedRowsAsync(schema, connection, transaction, cancellationToken).ConfigureAwait(false);
-        }
+        public virtual Task<long> UpdateUntrackedRowsAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => this.UpdateUntrackedRowsAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken);
 
 
 
         /// <summary>
         /// Internal update untracked rows routine
         /// </summary>
-        internal async Task<int> InternalUpdateUntrackedRowsAsync(SyncContext ctx, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal async Task<(SyncContext context, int updated)> InternalUpdateUntrackedRowsAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get table builder
-            var tableBuilder = this.GetTableBuilder(syncAdapter.TableDescription, syncAdapter.Setup);
+            var tableBuilder = this.GetTableBuilder(syncAdapter.TableDescription, scopeInfo);
 
             // Check if tracking table exists
-            var trackingTableExists = await this.InternalExistsTrackingTableAsync(ctx, tableBuilder, connection, transaction, CancellationToken.None, null).ConfigureAwait(false);
+            bool trackingTableExists;
+            (context, trackingTableExists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, connection, transaction, CancellationToken.None, null).ConfigureAwait(false);
 
             if (!trackingTableExists)
                 throw new MissingTrackingTableException(tableBuilder.TableDescription.GetFullName());
@@ -77,9 +83,9 @@ namespace Dotmim.Sync
             // Get correct Select incremental changes command 
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
 
-            if (command == null) return 0;
+            if (command == null) return (context, 0);
 
-            await this.InterceptAsync(new DbCommandArgs(ctx, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -89,8 +95,9 @@ namespace Dotmim.Sync
 
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;
+            command.Dispose();
 
-            return rowAffected;
+            return (context, rowAffected);
         }
 
     }

@@ -12,18 +12,52 @@ Just as a remember, the **Web Server** code looks like this:
 
 .. code-block:: csharp
 
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerOrchestrator orchestrator;
+        private WebServerAgent webServerAgent;
+        private readonly IWebHostEnvironment env;
 
-        public SyncController(WebServerOrchestrator webServerOrchestrator) 
-            => this.orchestrator = webServerOrchestrator;
+        // Injected thanks to Dependency Injection
+        public SyncController(WebServerAgent webServerAgent, IWebHostEnvironment env)
+        {
+            this.webServerAgent = webServerAgent;
+            this.env = env;
+        }
 
+        /// <summary>
+        /// This POST handler is mandatory to handle all the sync process
+        /// </summary>
+        /// <returns></returns>
         [HttpPost]
         public Task Post() 
-            => orchestrator.HandleRequestAsync(this.HttpContext);
+            => webServerAgent.HandleRequestAsync(this.HttpContext);
+
+        /// <summary>
+        /// This GET handler is optional. It allows you to see the configuration hosted on the server
+        /// </summary>
+        [HttpGet]
+        public async Task Get()
+        {
+            if (env.IsDevelopment())
+            {
+                await this.HttpContext.WriteHelloAsync(webServerAgent);
+            }
+            else
+            {
+                var stringBuilder = new StringBuilder();
+
+                stringBuilder.AppendLine("<!doctype html>");
+                stringBuilder.AppendLine("<html>");
+                stringBuilder.AppendLine("<title>Web Server properties</title>");
+                stringBuilder.AppendLine("<body>");
+                stringBuilder.AppendLine(" PRODUCTION MODE. HIDDEN INFO ");
+                stringBuilder.AppendLine("</body>");
+                await this.HttpContext.Response.WriteAsync(stringBuilder.ToString());
+            }
+        }
+
     }
 
 As you can see, we are completely integrated within the **ASP.Net Core** architecture. So far, protecting our API is just like protecting any kind of ASP.NET Core Api.
@@ -171,14 +205,7 @@ The simplest controller could be written like this, using the ``[Authorize]`` at
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerOrchestrator orchestrator;
-
-        public SyncController(WebServerOrchestrator webServerOrchestrator) 
-            => this.orchestrator = webServerOrchestrator;
-
-        [HttpPost]
-        public Task Post() 
-            => orchestrator.HandleRequestAsync(this.HttpContext);
+        ...
     }
 
 
@@ -190,18 +217,18 @@ Maybe you'll need to expose the ``GET`` method to see the server configuration. 
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerOrchestrator orchestrator;
+        private WebServerAgent webServerAgent;
 
-        public SyncController(WebServerOrchestrator webServerOrchestrator) 
-            => this.orchestrator = webServerOrchestrator;
+        public SyncController(WebServerAgent webServerAgent) 
+            => this.webServerAgent = webServerAgent;
 
         [HttpPost]
         [Authorize]
-        public async Task Post() => orchestrator.HandleRequestAsync(this.HttpContext);
+        public async Task Post() => webServerAgent.HandleRequestAsync(this.HttpContext);
 
         [HttpGet]
         [AllowAnonymous]
-        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
+        public Task Get() => this.HttpContext.WriteHelloAsync(webServerAgent);
 
     }
 
@@ -238,7 +265,7 @@ Client side
 
 From you mobile / console / desktop application, you just need to send your **Bearer Token** embedded into your `HttpClient` headers.
 
-The ``WebClientOrchestrator`` object allows you to use your own ``HttpClient`` instance. So far, create an instance and add your bearer token to the ``DefaultRequestHeaders.Authorization`` property.
+The ``WebRemoteOrchestrator`` object allows you to use your own ``HttpClient`` instance. So far, create an instance and add your bearer token to the ``DefaultRequestHeaders.Authorization`` property.
 
 .. code-block:: csharp
 
@@ -250,7 +277,7 @@ The ``WebClientOrchestrator`` object allows you to use your own ``HttpClient`` i
     httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
     // Adding the HttpClient instance to the web client orchestrator
-    var serverOrchestrator = new WebClientOrchestrator(
+    var serverOrchestrator = new WebRemoteOrchestrator(
                     "https://localhost:44342/api/sync", client:httpClient);
 
     var clientProvider = new SqlSyncProvider(clientConnectionString);

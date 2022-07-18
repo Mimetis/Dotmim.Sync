@@ -44,10 +44,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync();
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -103,7 +103,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetEstimatedChangesCountAsync();
+            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(this.Tables.Length, onSelected);
@@ -137,10 +137,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync();
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -196,7 +196,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSelected++;
             });
 
-            var clientScope = await localOrchestrator.GetClientScopeAsync();
+            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
             // Get changes to be populated to be sent to the client
             var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);

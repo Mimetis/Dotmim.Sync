@@ -6,8 +6,7 @@ using System.Runtime.Serialization;
 namespace Dotmim.Sync
 {
     /// <summary>
-    /// Context of the current Sync session
-    /// Encapsulates data changes and metadata for a synchronization session.
+    /// Compute all the results after a successfull sync. 
     /// </summary>
     public class SyncResult
     {

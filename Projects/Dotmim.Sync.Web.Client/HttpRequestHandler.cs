@@ -33,7 +33,8 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Process a request message with HttpClient object. 
         /// </summary>
-        public async Task<HttpResponseMessage> ProcessRequestAsync(HttpClient client, string baseUri, byte[] data, HttpStep step, Guid sessionId, string scopeName,
+        public async Task<HttpResponseMessage> ProcessRequestAsync(HttpClient client, SyncContext context,
+            string baseUri, byte[] data, HttpStep step,
             ISerializerFactory serializerFactory, IConverter converter, int batchSize, SyncPolicy policy, 
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -84,10 +85,8 @@ namespace Dotmim.Sync.Web.Client
                 var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
 
                 //// Execute my OpenAsync in my policy context
-                response = await policy.ExecuteAsync(ct => this.SendAsync(client, requestUri.ToString(),
-                    sessionId.ToString(), scopeName, step, data, ser, converter, hashString, contentType,
-                    ct), cancellationToken, progress);
-
+                response = await policy.ExecuteAsync(ct => this.SendAsync(client,context,  requestUri.ToString(),
+                    step, data, ser, converter, hashString, contentType, ct), cancellationToken, progress);
 
                 // try to set the cookie for http session
                 var headers = response?.Headers;
@@ -98,7 +97,7 @@ namespace Dotmim.Sync.Web.Client
                 if (response.Content == null)
                     throw new HttpEmptyResponseContentException();
 
-                await this.orchestrator.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.orchestrator.GetContext()), progress, cancellationToken).ConfigureAwait(false);
+                await this.orchestrator.InterceptAsync(new HttpGettingResponseMessageArgs(response, context), progress, cancellationToken).ConfigureAwait(false);
 
                 return response;
             }
@@ -143,9 +142,8 @@ namespace Dotmim.Sync.Web.Client
         }
 
 
-        private async Task<HttpResponseMessage> SendAsync(HttpClient client, string requestUri,
-            string sessionId, string scopeName, HttpStep step,
-            byte[] data, string ser, IConverter converter, string hashString, string contentType, CancellationToken cancellationToken)
+        private async Task<HttpResponseMessage> SendAsync(HttpClient client, SyncContext context, string requestUri,
+            HttpStep step, byte[] data, string ser, IConverter converter, string hashString, string contentType, CancellationToken cancellationToken)
         {
 
             // get byte array content
@@ -155,8 +153,8 @@ namespace Dotmim.Sync.Web.Client
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri) { Content = arrayContent };
 
             // Adding the serialization format used and session id and scope name
-            requestMessage.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
-            requestMessage.Headers.Add("dotmim-sync-scope-name", scopeName);
+            requestMessage.Headers.Add("dotmim-sync-session-id", context.SessionId.ToString());
+            requestMessage.Headers.Add("dotmim-sync-scope-name", context.ScopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
             requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
 
@@ -177,11 +175,10 @@ namespace Dotmim.Sync.Web.Client
             if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
                 requestMessage.Content.Headers.Add("content-type", contentType);
 
-            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, this.orchestrator.GetContext()), progress:default, cancellationToken).ConfigureAwait(false);
+            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, context), progress:default, cancellationToken).ConfigureAwait(false);
 
             // Eventually, send the request
             var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            //var response = await client.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
@@ -300,11 +297,9 @@ namespace Dotmim.Sync.Web.Client
 
 
         // This code added to correctly implement the disposable pattern.
-        public void Dispose()
-        {
+        public void Dispose() =>
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
-        }
         #endregion
 
 

@@ -31,12 +31,10 @@ namespace ProvisionDeprovision
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-            // Create standard Setup and Options
-            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-            var options = new SyncOptions();
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
-            var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
-
+            // no need to specify setup / tables, since we have already provisionned everything 
+            // on both side
             var result = await agent.SynchronizeAsync();
 
             Console.WriteLine(result);
@@ -49,8 +47,7 @@ namespace ProvisionDeprovision
             var serverProvider = new SqlSyncProvider(serverConnectionString);
 
             // Create standard Setup and Options
-            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-            var options = new SyncOptions();
+            var setup = new SyncSetup("Address", "Customer", "CustomerAddress");
 
             // -----------------------------------------------------------------
             // Server side
@@ -61,11 +58,11 @@ namespace ProvisionDeprovision
             // - Create a remote orchestrator with the correct setup to proivision
             // - Provision everything
 
-            // Create a server orchestrator used to Deprovision and Provision only table Address
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+            // Create a server orchestrator
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
-            // Provision everything needed
-            await remoteOrchestrator.ProvisionAsync();
+            // Provision everything needed by the setup
+            await remoteOrchestrator.ProvisionAsync(setup);
 
         }
 
@@ -75,33 +72,33 @@ namespace ProvisionDeprovision
             // Create server provider
             var serverProvider = new SqlSyncProvider(serverConnectionString);
 
-            // Create standard Setup and Options
-            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-            var options = new SyncOptions();
-
             // Create a server orchestrator used to Deprovision everything on the server side
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
             // Deprovision everything
-            await remoteOrchestrator.DeprovisionAsync();
+            var p = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | 
+                    SyncProvision.StoredProcedures | SyncProvision.TrackingTable |
+                    SyncProvision.Triggers;   
+
+            // Deprovision everything
+            await remoteOrchestrator.DeprovisionAsync(p);
         }
         private static async Task DeprovisionClientManuallyAsync()
         {
             // Create client provider
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-            // Create standard Setup and Options
-            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-            var options = new SyncOptions();
-
             // Create a local orchestrator used to Deprovision everything
-            var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(clientProvider);
+
+            var p = SyncProvision.ClientScope |
+                    SyncProvision.StoredProcedures | SyncProvision.TrackingTable |
+                    SyncProvision.Triggers;
 
             // Deprovision everything
-            await localOrchestrator.DeprovisionAsync();
+            await localOrchestrator.DeprovisionAsync(p);
 
         }
-
 
 
         private static async Task ProvisionClientManuallyAsync()
@@ -110,9 +107,6 @@ namespace ProvisionDeprovision
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
-            // Create standard Setup and Options
-            var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-            var options = new SyncOptions();
 
             // -----------------------------------------------------------------
             // Client side
@@ -121,25 +115,24 @@ namespace ProvisionDeprovision
             // This method is useful if you want to provision by yourself the client database
             // You will need to :
             // - Create a local orchestrator with the correct setup to provision
-            // - Get the schema from the server side using a RemoteOrchestrator or a WebClientOrchestrator
+            // - Get the ServerScopeInfo from the server side using a RemoteOrchestrator or a WebRemoteOrchestrator
             // - Provision everything locally
 
             // Create a local orchestrator used to provision everything locally
-            var localOrchestrator = new LocalOrchestrator(clientProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(clientProvider);
 
             // Because we need the schema from remote side, create a remote orchestrator
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
-            // Getting the schema from server side
-            var serverSchema = await remoteOrchestrator.GetSchemaAsync();
+            // Getting the server scope from server side
+            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
 
-            // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
-            // You can create a WebClientOrchestrator and get the schema as well
-            // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
-            // var serverSchema = proxyClientProvider.GetSchemaAsync();
+            // You can create a WebRemoteOrchestrator and get the ServerScope as well
+            // var proxyClientProvider = new WebRemoteOrchestrator("https://localhost:44369/api/Sync");
+            // var serverScope = proxyClientProvider.GetServerScopeInfoAsync();
 
             // Provision everything needed (sp, triggers, tracking tables, AND TABLES)
-            await localOrchestrator.ProvisionAsync(serverSchema);
+            await localOrchestrator.ProvisionAsync(serverScope);
 
         }
     }

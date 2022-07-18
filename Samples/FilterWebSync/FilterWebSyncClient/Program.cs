@@ -23,7 +23,7 @@ namespace FilterWebSyncClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync");
+            var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
                                                                 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqlSyncProvider(clientConnectionString);
@@ -40,13 +40,13 @@ namespace FilterWebSyncClient
             var progress = new SynchronousProgress<ProgressArgs>(
                pa => Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}"));
 
-            if (!agent.Parameters.Contains("City"))
-                agent.Parameters.Add("City", "Toronto");
-
-            // Because I've specified that "postal" could be null, 
-            // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
-            if (!agent.Parameters.Contains("postal"))
-                agent.Parameters.Add("postal", DBNull.Value);
+            var parameters = new SyncParameters
+            {
+                { "City", "Toronto" },
+                // Because I've specified that "postal" could be null, 
+                // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
+                { "postal", DBNull.Value }
+            };
             do
             {
                 try

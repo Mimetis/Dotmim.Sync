@@ -17,6 +17,54 @@ namespace Dotmim.Sync.SqlServer
     public static class SqlManagementUtils
     {
         /// <summary>
+        /// Get all Tables
+        /// </summary>
+        public static async Task<SyncSetup> GetAllTablesAsync(SqlConnection connection, SqlTransaction transaction)
+        {
+            var command = $"Select tbl.name as TableName, " +
+                          $"sch.name as SchemaName " +
+                          $"  from sys.tables as tbl  " +
+                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id;";
+
+            var syncSetup = new SyncSetup();
+
+            using (var sqlCommand = new SqlCommand(command, connection))
+            {
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                sqlCommand.Transaction = transaction;
+
+                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    while (reader.Read())
+                    {
+                        var tableName = reader.GetString(0);
+                        var schemaName = reader.GetString(1);
+                        var setupTable = new SetupTable(tableName, schemaName);
+                        syncSetup.Tables.Add(setupTable);
+                    }
+                }
+
+                foreach (var setupTable in syncSetup.Tables)
+                {
+                    var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName, setupTable.SchemaName).ConfigureAwait(false);
+
+                    foreach (var column in syncTableColumnsList.Rows)
+                        setupTable.Columns.Add(column["name"].ToString());
+                }
+
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+            }
+            return syncSetup;
+        }
+
+        /// <summary>
         /// Get Table
         /// </summary>
         public static async Task<SyncTable> GetTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)

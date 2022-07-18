@@ -14,6 +14,7 @@ namespace Dotmim.Sync
     public static class DbConnectionRunnerExtensions
     {
         public static async Task<DbConnectionRunner> GetConnectionAsync(this BaseOrchestrator orchestrator,
+                                SyncContext context,
                                 SyncMode syncMode = SyncMode.Writing,
                                 SyncStage syncStage = SyncStage.None,
                                 DbConnection connection = default,
@@ -21,38 +22,41 @@ namespace Dotmim.Sync
                                 CancellationToken cancellationToken = default,
                                 IProgress<ProgressArgs> progress = default)
         {
+            // Get context or create a new one
+            context.SyncStage = syncStage;
+
+            if (orchestrator.Provider == null)
+                return new DbConnectionRunner(null, context, null, null, true, true, cancellationToken, progress);
+
             if (connection == null)
                 connection = orchestrator.Provider.CreateConnection();
 
             var alreadyOpened = connection.State == ConnectionState.Open;
             var alreadyInTransaction = transaction != null && transaction.Connection == connection;
 
-            // Get context or create a new one
-            var ctx = orchestrator.GetContext();
-            ctx.SyncStage = syncStage;
-
             // Open connection
             if (!alreadyOpened)
-                await orchestrator.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
+                await orchestrator.OpenConnectionAsync(context, connection, cancellationToken, progress).ConfigureAwait(false);
 
             // Create a transaction
             if (!alreadyInTransaction && syncMode == SyncMode.Writing)
             {
                 transaction = connection.BeginTransaction(orchestrator.Provider.IsolationLevel);
-                await orchestrator.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await orchestrator.InterceptAsync(new TransactionOpenedArgs(context, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
-            return new DbConnectionRunner(orchestrator, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken, progress);
+            return new DbConnectionRunner(orchestrator, context, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken, progress);
         }
     }
 
     public sealed class DbConnectionRunner : IDisposable, IAsyncDisposable
     {
-        public DbConnectionRunner(BaseOrchestrator orchestrator, DbConnection connection, DbTransaction transaction,
+        public DbConnectionRunner(BaseOrchestrator orchestrator, SyncContext context, DbConnection connection, DbTransaction transaction,
             bool alreadyOpened, bool alreadyInTransaction,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             this.Orchestrator = orchestrator;
+            this.Context = context;
             this.Connection = connection;
             this.Transaction = transaction;
             this.AlreadyOpened = alreadyOpened;
@@ -62,6 +66,7 @@ namespace Dotmim.Sync
         }
 
         public BaseOrchestrator Orchestrator { get; set; }
+        public SyncContext Context { get; }
         public DbConnection Connection { get; set; }
         public DbTransaction Transaction { get; set; }
         public bool AlreadyOpened { get; }
@@ -74,10 +79,13 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task CommitAsync(bool autoClose = true)
         {
+            if (this.Orchestrator == null)
+                return;
+
             if (!this.AlreadyInTransaction && this.Transaction != null)
             {
                 await this.Orchestrator.InterceptAsync(
-                    new TransactionCommitArgs(this.Orchestrator.GetContext(), this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
+                    new TransactionCommitArgs(this.Context, this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
 
                 this.Transaction.Commit();
             }
@@ -91,11 +99,20 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task CloseAsync()
         {
+            if (this.Orchestrator == null)
+                return;
+
             if (!this.AlreadyOpened && this.Connection != null)
-                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
+                await this.Orchestrator.CloseConnectionAsync(this.Context, this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
         }
 
-        public Task RollbackAsync() => Task.Run(() => this.Transaction.Rollback());
+        public Task RollbackAsync() => Task.Run(() =>
+        {
+            if (this.Orchestrator == null || this.Transaction == null)
+                return;
+
+            this.Transaction.Rollback();
+        });
 
 
         // This code added to correctly implement the disposable pattern.
@@ -114,19 +131,22 @@ namespace Dotmim.Sync
             {
                 if (disposing)
                 {
-                    if (!this.AlreadyInTransaction && this.Transaction != null)
+                    if (this.Orchestrator != null)
                     {
-                        this.Transaction.Dispose();
-                        this.Transaction = null;
-                    }
+                        if (!this.AlreadyInTransaction && this.Transaction != null)
+                        {
+                            this.Transaction.Dispose();
+                            this.Transaction = null;
+                        }
 
-                    if (!this.AlreadyOpened && this.Connection != null)
-                    {
-                        if (this.Connection.State == ConnectionState.Open)
-                            this.Connection.Close();
+                        if (!this.AlreadyOpened && this.Connection != null)
+                        {
+                            if (this.Connection.State == ConnectionState.Open)
+                                this.Connection.Close();
 
-                        this.Connection.Dispose();
-                        this.Connection = null;
+                            this.Connection.Dispose();
+                            this.Connection = null;
+                        }
                     }
                 }
                 disposedValue = true;
@@ -135,19 +155,21 @@ namespace Dotmim.Sync
 
         public async ValueTask DisposeAsync()
         {
-            if (!this.AlreadyInTransaction && this.Transaction != null)
+            if (this.Orchestrator != null)
             {
-                this.Transaction.Dispose();
-                this.Transaction = null;
-            }
+                if (!this.AlreadyInTransaction && this.Transaction != null)
+                {
+                    this.Transaction.Dispose();
+                    this.Transaction = null;
+                }
 
-            if (!this.AlreadyOpened && this.Connection != null)
-            {
-                await this.Orchestrator.CloseConnectionAsync(this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
-                this.Connection.Dispose();
-                this.Connection = null;
+                if (!this.AlreadyOpened && this.Connection != null)
+                {
+                    await this.Orchestrator.CloseConnectionAsync(this.Context, this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
+                    this.Connection.Dispose();
+                    this.Connection = null;
+                }
             }
-
             this.Dispose(false);
             GC.SuppressFinalize(this);
         }

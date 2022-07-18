@@ -41,23 +41,23 @@ Here is a ``web.config`` example where ``requestTimeout`` is fixed to **20** min
 Client side
 ^^^^^^^^^^^^^^^^
 
-On the client side, the web orchestrator ``WebClientOrchestrator`` instance uses its own ``HttpClient`` instance unless you specify your own ``HttpClient`` instance.
+On the client side, the web orchestrator ``WebRemoteOrchestrator`` instance uses its own ``HttpClient`` instance unless you specify your own ``HttpClient`` instance.
 
 So far, to increase the timeout, you can either:
 
-* Provide your own `HttpClient` instance with the `Timeout` property correctly set:
+* Provide your own ``HttpClient`` instance with the ``Timeout`` property correctly set:
 
 .. code-block:: csharp
 
   var handler = new HttpClientHandler { AutomaticDecompression = DecompressionMethods.GZip };
   var client = new HttpClient(handler) { Timeout = TimeSpan.FromMinutes(20) };
-  var clientProvider = new WebClientOrchestrator("http://my.syncapi.com:88/Sync", null, null, client);
+  var clientProvider = new WebRemoteOrchestrator("http://my.syncapi.com:88/Sync", null, null, client);
 
 
-* Increase the existing `HttpClient` instance, created by `WebClientOrchestrator`:
+* Increase the existing ``HttpClient`` instance, created by ``WebRemoteOrchestrator``:
 
 .. code-block:: csharp
 
-  var clientProvider = new WebClientOrchestrator("http://my.syncapi.com:88/Sync");
+  var clientProvider = new WebRemoteOrchestrator("http://my.syncapi.com:88/Sync");
   clientProvider.HttpClient.Timeout = TimeSpan.FromMinutes(20);
 

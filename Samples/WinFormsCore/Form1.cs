@@ -1,6 +1,7 @@
 using Dotmim.Sync;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
+using Microsoft.Data.Sqlite;
 
 namespace WinFormsCore
 {
@@ -8,6 +9,8 @@ namespace WinFormsCore
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
+
+        private string dbName = "adv2.db";
 
         public Form1()
         {
@@ -27,21 +30,49 @@ namespace WinFormsCore
             var serverProvider = new SqlSyncProvider(serverConnectionString);
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
-            var clientProvider = new SqliteSyncProvider("adv.db");
+            var clientProvider = new SqliteSyncProvider(dbName);
 
             // Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-                        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+                        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Launch the sync process
-            var s1 = await agent.SynchronizeAsync();
+            var s1 = await agent.SynchronizeAsync(setup);
 
             // Write results
             MessageBox.Show(s1.ToString());
         }
 
+
+        private void Clear(string dbName)
+        {
+            SqliteConnection.ClearAllPools();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            var filePath = GetSqliteFilePath(dbName);
+
+            if (File.Exists(filePath))
+                File.Delete(filePath);
+        }
+
+        public static string GetSqliteFilePath(string dbName)
+        {
+            var fi = new FileInfo(dbName);
+
+            if (string.IsNullOrEmpty(fi.Extension))
+                dbName = $"{dbName}.db";
+
+            return Path.Combine(Directory.GetCurrentDirectory(), dbName);
+
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            Clear(dbName);
+
+        }
     }
 }

@@ -14,14 +14,14 @@ We have two kind of orchestrators:
 
 We have to more kind of orchestrators, that will handle under the hood the web sync process:
 
-* The ``WebClientOrchestrator``: This orchestrator will run locally, and will act "*as*" a orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information
-* The ``WebServerOrchestrator``: On the opposite side, this orchestrator is hosted through an exposed web api, and will get the incoming request from the ``WebClientOrchestrator`` and will then call the server provider correctly.
+* The ``WebRemoteOrchestrator``: This orchestrator will run locally, and will act "*as*" a orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information
+* The ``WebServerAgent``: On the opposite side, this agent is hosted through an exposed web api, and will get the incoming request from the ``WebRemoteOrchestrator`` and will then call the server provider correctly.
 
 
 Orchestrators public methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A set of new methods are accessible from both ``LocalOrchestrator`` or ``RemoteOrchestrator`` (and for some of them from ``WebClientOrchestrator`` and ``WebServerOrchestrator``).
+A set of methods are accessible from both ``LocalOrchestrator`` or ``RemoteOrchestrator`` (and for some of them from ``WebRemoteOrchestrator``).
 
 Generaly, you have access to three methods (``Create_XXX``, ``Drop_XXX``, ``Exists_XXX``) for all the core components :
 

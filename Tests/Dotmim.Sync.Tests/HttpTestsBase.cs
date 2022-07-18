@@ -43,15 +43,6 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public abstract bool UseFiddler { get; }
 
-        /// <summary>
-        /// Service Uri provided by kestrell when starts
-        /// </summary>
-        public string ServiceUri { get; private set; }
-
-        /// <summary>
-        /// Gets the Web Server Orchestrator used for the tests
-        /// </summary>
-        public WebServerOrchestrator WebServerOrchestrator { get; private set; }
 
         /// <summary>
         /// Get the server rows count
@@ -81,7 +72,6 @@ namespace Dotmim.Sync.Tests
 
         // Current test running
         private ITest test;
-        private KestrellTestServer kestrell;
 
 
         /// <summary>
@@ -98,6 +88,11 @@ namespace Dotmim.Sync.Tests
         /// Gets a bool indicating if we should generate the schema for tables
         /// </summary>
         public bool UseFallbackSchema => ServerType == ProviderType.Sql;
+
+        /// <summary>
+        /// Gets or Sets the Kestrell server used to server http queries
+        /// </summary>
+        public KestrellTestServer Kestrell { get; set; }
 
         /// <summary>
         /// ctor
@@ -126,17 +121,11 @@ namespace Dotmim.Sync.Tests
 
             var serverProvider = this.CreateProvider(this.ServerType, serverDatabaseName);
 
-            // create web remote orchestrator
-            this.WebServerOrchestrator = new WebServerOrchestrator(serverProvider, new SyncOptions(), new SyncSetup(), new WebServerOptions());
-
             // public property
             this.Server = (serverDatabaseName, this.ServerType, serverProvider);
 
             // Create a kestrell server
-            this.kestrell = new KestrellTestServer(this.WebServerOrchestrator, this.UseFiddler);
-
-            // start server and get uri
-            this.ServiceUri = this.kestrell.Run();
+            this.Kestrell = new KestrellTestServer(this.UseFiddler);
 
             // Get all clients providers
             Clients = new List<(string, ProviderType, CoreProvider)>(this.ClientsType.Count);
@@ -164,7 +153,7 @@ namespace Dotmim.Sync.Tests
             }
             catch (Exception) { }
 
-            this.kestrell.Dispose();
+            this.Kestrell.Dispose();
 
             this.stopwatch.Stop();
 

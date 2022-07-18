@@ -94,46 +94,46 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when a trigger is creating
         /// </summary>
-        public static void OnTriggerCreating(this BaseOrchestrator orchestrator, Action<TriggerCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerCreating(this BaseOrchestrator orchestrator, Action<TriggerCreatingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a trigger is creating
         /// </summary>
-        public static void OnTriggerCreating(this BaseOrchestrator orchestrator, Func<TriggerCreatingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerCreating(this BaseOrchestrator orchestrator, Func<TriggerCreatingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a trigger is created
         /// </summary>
-        public static void OnTriggerCreated(this BaseOrchestrator orchestrator, Action<TriggerCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerCreated(this BaseOrchestrator orchestrator, Action<TriggerCreatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a trigger is created
         /// </summary>
-        public static void OnTriggerCreated(this BaseOrchestrator orchestrator, Func<TriggerCreatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerCreated(this BaseOrchestrator orchestrator, Func<TriggerCreatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a trigger is dropping
         /// </summary>
-        public static void OnTriggerDropping(this BaseOrchestrator orchestrator, Action<TriggerDroppingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerDropping(this BaseOrchestrator orchestrator, Action<TriggerDroppingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a trigger is dropping
         /// </summary>
-        public static void OnTriggerDropping(this BaseOrchestrator orchestrator, Func<TriggerDroppingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerDropping(this BaseOrchestrator orchestrator, Func<TriggerDroppingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a trigger is dropped
         /// </summary>
-        public static void OnTriggerDropped(this BaseOrchestrator orchestrator, Action<TriggerDroppedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerDropped(this BaseOrchestrator orchestrator, Action<TriggerDroppedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a trigger is dropped
         /// </summary>
-        public static void OnTriggerDropped(this BaseOrchestrator orchestrator, Func<TriggerDroppedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnTriggerDropped(this BaseOrchestrator orchestrator, Func<TriggerDroppedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

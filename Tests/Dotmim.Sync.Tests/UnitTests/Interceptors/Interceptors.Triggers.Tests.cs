@@ -43,19 +43,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Debug);
             options.Logger = logger;
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTriggerCreating(tca => onCreating++);
-            localOrchestrator.OnTriggerCreated(tca => onCreated++);
-            localOrchestrator.OnTriggerDropping(tca => onDropping++);
-            localOrchestrator.OnTriggerDropped(tca => onDropped++);
+            remoteOrchestrator.OnTriggerCreating(tca => onCreating++);
+            remoteOrchestrator.OnTriggerCreated(tca => onCreated++);
+            remoteOrchestrator.OnTriggerDropping(tca => onDropping++);
+            remoteOrchestrator.OnTriggerDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            var isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
 
             Assert.True(isCreated);
             Assert.Equal(1, onCreating);
@@ -91,13 +93,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var isCreated = await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
-            var exists = await localOrchestrator.ExistTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
+
+            var exists = await remoteOrchestrator.ExistTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
             Assert.True(exists);
-            exists = await localOrchestrator.ExistTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Update);
+
+            exists = await remoteOrchestrator.ExistTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update);
             Assert.False(exists);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -119,19 +124,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTriggerCreating(tca => onCreating++);
-            localOrchestrator.OnTriggerCreated(tca => onCreated++);
-            localOrchestrator.OnTriggerDropping(tca => onDropping++);
-            localOrchestrator.OnTriggerDropped(tca => onDropped++);
+            remoteOrchestrator.OnTriggerCreating(tca => onCreating++);
+            remoteOrchestrator.OnTriggerCreated(tca => onCreated++);
+            remoteOrchestrator.OnTriggerDropping(tca => onDropping++);
+            remoteOrchestrator.OnTriggerDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateTriggersAsync(setup.Tables["Product", "SalesLT"]);
+            var isCreated = await remoteOrchestrator.CreateTriggersAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
             Assert.Equal(3, onCreating);
@@ -172,25 +179,27 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var isCreated = await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+
+            var isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTriggerCreating(tca => onCreating++);
-            localOrchestrator.OnTriggerCreated(tca => onCreated++);
-            localOrchestrator.OnTriggerDropping(tca => onDropping++);
-            localOrchestrator.OnTriggerDropped(tca => onDropped++);
+            remoteOrchestrator.OnTriggerCreating(tca => onCreating++);
+            remoteOrchestrator.OnTriggerCreated(tca => onCreated++);
+            remoteOrchestrator.OnTriggerDropping(tca => onDropping++);
+            remoteOrchestrator.OnTriggerDropped(tca => onDropped++);
 
-            var isDropped = await localOrchestrator.DropTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            var isDropped = await remoteOrchestrator.DropTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
 
             Assert.True(isDropped);
             Assert.Equal(0, onCreating);
@@ -208,7 +217,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // try to delete a non existing one
-            isDropped = await localOrchestrator.DropTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Update);
+            isDropped = await remoteOrchestrator.DropTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update);
 
             Assert.False(isDropped);
 
@@ -231,30 +240,32 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var isCreated = await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+
+            var isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTriggerCreating(tca => onCreating++);
+            remoteOrchestrator.OnTriggerCreating(tca => onCreating++);
 
-            localOrchestrator.OnTriggerCreated(tca => onCreated++);
-            localOrchestrator.OnTriggerDropping(tca =>
+            remoteOrchestrator.OnTriggerCreated(tca => onCreated++);
+            remoteOrchestrator.OnTriggerDropping(tca =>
             {
                 tca.Cancel = true;
                 onDropping++;
             });
-            localOrchestrator.OnTriggerDropped(tca => onDropped++);
+            remoteOrchestrator.OnTriggerDropped(tca => onDropped++);
 
-            var isDropped = await localOrchestrator.DropTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            var isDropped = await remoteOrchestrator.DropTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
 
             Assert.False(isDropped);
             Assert.Equal(0, onCreating);
@@ -290,19 +301,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTriggerCreating(tca => onCreating++);
-            localOrchestrator.OnTriggerCreated(tca => onCreated++);
-            localOrchestrator.OnTriggerDropping(tca => onDropping++);
-            localOrchestrator.OnTriggerDropped(tca => onDropped++);
+            remoteOrchestrator.OnTriggerCreating(tca => onCreating++);
+            remoteOrchestrator.OnTriggerCreated(tca => onCreated++);
+            remoteOrchestrator.OnTriggerDropping(tca => onDropping++);
+            remoteOrchestrator.OnTriggerDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            var isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
 
             Assert.True(isCreated);
             Assert.Equal(1, onCreating);
@@ -315,7 +328,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            isCreated = await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert);
+            isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
 
             Assert.False(isCreated);
             Assert.Equal(0, onCreating);
@@ -323,7 +336,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 
-            isCreated = await localOrchestrator.CreateTriggerAsync(setup.Tables["Product", "SalesLT"], DbTriggerType.Insert, true);
+            isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, true);
 
             Assert.True(isCreated);
             Assert.Equal(1, onCreating);
@@ -351,19 +364,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTriggerCreating(tca => onCreating++);
-            localOrchestrator.OnTriggerCreated(tca => onCreated++);
-            localOrchestrator.OnTriggerDropping(tca => onDropping++);
-            localOrchestrator.OnTriggerDropped(tca => onDropped++);
+            remoteOrchestrator.OnTriggerCreating(tca => onCreating++);
+            remoteOrchestrator.OnTriggerCreated(tca => onCreated++);
+            remoteOrchestrator.OnTriggerDropping(tca => onDropping++);
+            remoteOrchestrator.OnTriggerDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateTriggersAsync(setup.Tables["Product", "SalesLT"]);
+            var isCreated = await remoteOrchestrator.CreateTriggersAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
             Assert.Equal(3, onCreating);
@@ -377,7 +392,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            var isDropped = await localOrchestrator.DropTriggersAsync(setup.Tables["Product", "SalesLT"]);
+            var isDropped = await remoteOrchestrator.DropTriggersAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
             Assert.Equal(0, onCreating);

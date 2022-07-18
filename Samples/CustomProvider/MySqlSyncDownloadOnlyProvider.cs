@@ -30,11 +30,11 @@ namespace CustomProvider
         public MySqlSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
         public MySqlSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MySqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MySqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
     }
 
     /// <summary>
@@ -42,8 +42,8 @@ namespace CustomProvider
     /// </summary>
     public class MySqlDownloadOnlyTableBuilder : MySqlTableBuilder
     {
-        public MySqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingTableName, setup) { }
+        public MySqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName) { }
 
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
@@ -70,8 +70,8 @@ namespace CustomProvider
     {
         private ParserName tableName;
 
-        public MySqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingName, setup)
+        public MySqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingName, setup, scopeName)
         {
             this.tableName = tableName;
         }

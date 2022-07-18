@@ -50,11 +50,11 @@ namespace Dotmim.Sync.SampleConsole
         public MariaDBSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
         public MariaDBSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, this.BulkBatchMaxLinesCount);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.BulkBatchMaxLinesCount);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         // Max number of lines in batch bulk init operation
         public override int BulkBatchMaxLinesCount => 100;
@@ -65,8 +65,8 @@ namespace Dotmim.Sync.SampleConsole
     /// </summary>
     public class MariaDBDownloadOnlyTableBuilder : MySqlTableBuilder
     {
-        public MariaDBDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingTableName, setup) { }
+        public MariaDBDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName) { }
 
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
@@ -94,8 +94,8 @@ namespace Dotmim.Sync.SampleConsole
         private ParserName tableName;
         private readonly int bulkBatchMaxLinesCount;
 
-        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, int bulkBatchMaxLinesCount)
-            : base(tableDescription, tableName, trackingName, setup)
+        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName,int bulkBatchMaxLinesCount)
+            : base(tableDescription, tableName, trackingName, setup, scopeName)
         {
             this.tableName = tableName;
             this.bulkBatchMaxLinesCount = bulkBatchMaxLinesCount;
@@ -212,11 +212,11 @@ namespace Dotmim.Sync.SampleConsole
             {
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
-                    return Task.CompletedTask; ;
+                    return Task.CompletedTask;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InsertRow:
                     this.SetUpdateRowParameters(command);
-                    return Task.CompletedTask; ;
+                    return Task.CompletedTask;
                 default:
                     break;
             }

@@ -43,7 +43,7 @@ namespace HelloWebSyncClient
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
             // Adding the HttpClient instance to the web client orchestrator
-            var serverOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync", client:httpClient);
+            var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync", client:httpClient);
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqlSyncProvider(clientConnectionString);
@@ -67,6 +67,8 @@ namespace HelloWebSyncClient
         {
             var claims = new List<Claim>
             {
+                new Claim(JwtRegisteredClaimNames.Iss, "Dotmim.Sync.Bearer"),
+                new Claim(JwtRegisteredClaimNames.Aud, "Dotmim.Sync.Bearer"),
                 new Claim(JwtRegisteredClaimNames.Sub, "Dotmim.Sync"),
                 new Claim(JwtRegisteredClaimNames.Email, email),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),

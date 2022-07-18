@@ -46,8 +46,8 @@ namespace Dotmim.Sync
         /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly) 
         /// Default is Bidirectional
         /// </summary>
-        [DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public SyncDirection SyncDirection { get; set; }
+        //[DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        //public SyncDirection SyncDirection { get; set; }
 
         /// <summary>
         /// Gets or Sets the table columns
@@ -158,7 +158,7 @@ namespace Dotmim.Sync
             {
                 OriginalProvider = this.OriginalProvider,
                 SchemaName = this.SchemaName,
-                SyncDirection = this.SyncDirection,
+                //SyncDirection = this.SyncDirection,
                 TableName = this.TableName
             };
 
@@ -338,8 +338,8 @@ namespace Dotmim.Sync
                 return false;
 
             // checking properties
-            if (this.SyncDirection != other.SyncDirection)
-                return false;
+            //if (this.SyncDirection != other.SyncDirection)
+            //    return false;
 
             if (!string.Equals(this.OriginalProvider, other.OriginalProvider, sc))
                 return false;

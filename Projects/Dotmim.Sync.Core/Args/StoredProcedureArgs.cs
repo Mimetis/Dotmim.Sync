@@ -93,46 +93,46 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when a Stored Procedure is creating
         /// </summary>
-        public static void OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a Stored Procedure is creating
         /// </summary>
-        public static void OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a Stored Procedure is created
         /// </summary>
-        public static void OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a Stored Procedure is created
         /// </summary>
-        public static void OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a Stored Procedure is dropping
         /// </summary>
-        public static void OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a Stored Procedure is dropping
         /// </summary>
-        public static void OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a Stored Procedure is dropped
         /// </summary>
-        public static void OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a Stored Procedure is dropped
         /// </summary>
-        public static void OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
     public static partial class SyncEventsId

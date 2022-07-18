@@ -12,8 +12,6 @@ namespace Conflict
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-
-
         static async Task Main() => await ConflictAsync();
 
         private static async Task ConflictAsync()
@@ -31,11 +29,11 @@ namespace Conflict
                         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             Console.WriteLine("- Initialize the databases with initial data");
             // Make a first sync to have everything in place
-            Console.WriteLine(await agent.SynchronizeAsync(SyncType.Reinitialize));
+            Console.WriteLine(await agent.SynchronizeAsync(tables));
 
             Console.WriteLine("- Insert data in client and server databases to generate a conflict Insert Client - Insert Server");
 

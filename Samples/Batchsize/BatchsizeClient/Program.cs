@@ -1,4 +1,6 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using System;
@@ -21,13 +23,16 @@ namespace BatchsizeClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var serverOrchestrator = new WebClientOrchestrator("https://localhost.fiddler:44342/api/sync");
+            var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
 
-            var clientProvider = new SqlSyncProvider(clientConnectionString);
+            //var clientProvider = new SqlSyncProvider(clientConnectionString);
+            var clientProvider = new SqliteSyncProvider("adv.db");
 
-            var clientOptions = new SyncOptions { BatchSize = 500 };
+            var clientOptions = new SyncOptions { BatchSize = 100, ProgressLevel = SyncProgressLevel.Debug };
 
-            var progress = new SynchronousProgress<ProgressArgs>(pa => Console.WriteLine($"{pa.Context.SessionId} - {pa.Context.SyncStage}\t {pa.Message}"));
+            var progress = new SynchronousProgress<ProgressArgs>(
+                s => Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}"));
+
             var agent = new SyncAgent(clientProvider, serverOrchestrator, clientOptions);
 
             do

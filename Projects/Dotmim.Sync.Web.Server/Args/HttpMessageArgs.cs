@@ -86,28 +86,28 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpSendingChanges(this WebServerAgent webServerAgent,
             Action<HttpSendingServerChangesArgs> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is sent
         /// </summary>
-        public static void OnHttpSendingChanges(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpSendingChanges(this WebServerAgent webServerAgent,
             Func<HttpSendingServerChangesArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpGettingChanges(this WebServerAgent webServerAgent,
             Action<HttpGettingClientChangesArgs> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when an http message is downloaded from remote side
         /// </summary>
-        public static void OnHttpGettingChanges(this WebServerOrchestrator orchestrator,
+        public static Guid OnHttpGettingChanges(this WebServerAgent webServerAgent,
             Func<HttpGettingClientChangesArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+            => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
     }
 }

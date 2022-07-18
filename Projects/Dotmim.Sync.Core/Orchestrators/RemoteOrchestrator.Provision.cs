@@ -20,17 +20,26 @@ namespace Dotmim.Sync
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
 
+
+        public virtual Task<ServerScopeInfo> ProvisionAsync(SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => ProvisionAsync(SyncOptions.DefaultScopeName, provision, overwrite, connection, transaction, cancellationToken, progress);
+
         /// <summary>
         /// Provision the remote database 
         /// </summary>
         /// <param name="overwrite">Overwrite existing objects</param>
-        public virtual Task<SyncSet> ProvisionAsync(bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<ServerScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope |
-                            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+            if (provision == SyncProvision.None)
+                provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
 
-            return this.ProvisionAsync(provision, overwrite, null, connection, transaction, cancellationToken, progress);
+            return this.ProvisionAsync(scopeName, null, provision, overwrite, connection, transaction, cancellationToken, progress);
         }
+
+
+        public virtual Task<ServerScopeInfo> ProvisionAsync(SyncSetup setup, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => ProvisionAsync(SyncOptions.DefaultScopeName, setup, provision, overwrite, connection, transaction, cancellationToken, progress);
+
 
         /// <summary>
         /// Provision the remote database based on the Setup parameter, and the provision enumeration
@@ -38,85 +47,114 @@ namespace Dotmim.Sync
         /// <param name="provision">Provision enumeration to determine which components to apply</param>
         /// <param name="serverScopeInfo">server scope. Will be saved once provision is done</param>
         /// <returns>Full schema with table and columns properties</returns>
-        public virtual async Task<SyncSet> ProvisionAsync(SyncProvision provision, bool overwrite = false, ServerScopeInfo serverScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 // Check incompatibility with the flags
                 if (provision.HasFlag(SyncProvision.ClientScope))
                     throw new InvalidProvisionForRemoteOrchestratorException();
 
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (serverScopeInfo == null)
-                {
-                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                    if (exists)
-                        serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
+                ServerScopeInfo serverScopeInfo;
+                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
+                // 2) Provision
+                if (provision == SyncProvision.None)
+                    provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                var schema = serverScopeInfo?.Schema != null ? serverScopeInfo?.Schema : new SyncSet(this.Setup);
-                schema = await InternalProvisionAsync(this.GetContext(), overwrite, schema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, _) = await this.InternalProvisionAsync(serverScopeInfo, context, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
-                return schema;
+
+                return serverScopeInfo;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(context, ex);
             }
         }
 
-        /// <summary>
-        /// Deprovision the remote database 
-        /// </summary>
-        /// <param name="overwrite">Overwrite existing objects</param>
-        public virtual Task<bool> DeprovisionAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ServerScopeInfo> ProvisionAsync(ServerScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope |
-                            SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+            var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
+            try
+            {
+                (_, serverScopeInfo) = await InternalProvisionServerAsync(serverScopeInfo, context, provision, overwrite, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                return serverScopeInfo;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
 
-            return this.DeprovisionAsync(provision, null, connection, transaction, cancellationToken, progress);
         }
 
-        /// <summary>
-        /// Deprovision the orchestrator database based on the schema argument, and the provision enumeration
-        /// </summary>
-        /// <param name="schema">Schema to be deprovisioned from the database managed by the orchestrator, through the provider.</param>
-        /// <param name="provision">Provision enumeration to determine which components to deprovision</param>
-        public virtual async Task<bool> DeprovisionAsync(SyncProvision provision, ServerScopeInfo serverScopeInfo = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+
+        internal virtual async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)>
+          InternalProvisionServerAsync(ServerScopeInfo serverScopeInfo, SyncContext context, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                // Get server scope if not supplied
-                if (serverScopeInfo == null)
-                {
-                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                if (serverScopeInfo.Schema == null)
+                    throw new Exception($"No Schema in your server scopeInfo {serverScopeInfo.Name}");
 
-                    var exists = await this.InternalExistsScopeInfoTableAsync(this.GetContext(), DbScopeType.Server, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (serverScopeInfo.Schema == null)
+                    throw new Exception($"No Setup in your server scopeInfo {serverScopeInfo.Name}");
 
-                    if (exists)
-                        serverScopeInfo = await this.InternalGetScopeAsync<ServerScopeInfo>(this.GetContext(), DbScopeType.Server, this.ScopeName, scopeBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Create a temporary SyncSet for attaching to the schemaTable
-                var tmpSchema = new SyncSet();
+                // Check incompatibility with the flags
+                if (provision.HasFlag(SyncProvision.ClientScope))
+                    throw new InvalidProvisionForRemoteOrchestratorException();
 
-                // Add this table to schema
-                foreach (var table in this.Setup.Tables)
-                    tmpSchema.Tables.Add(new SyncTable(table.TableName, table.SchemaName));
+                if (provision == SyncProvision.None)
+                    provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                tmpSchema.EnsureSchema();
+                (context, _) = await this.InternalProvisionAsync(serverScopeInfo, context, false, provision, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // copy filters from old setup
-                foreach (var filter in this.Setup.Filters)
-                    tmpSchema.Filters.Add(filter);
+                // Write scopes locally
+                (context, serverScopeInfo) = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                var isDeprovisioned = await InternalDeprovisionAsync(this.GetContext(), tmpSchema, this.Setup, provision, serverScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return (context, serverScopeInfo);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+
+        }
+
+        /// <summary>
+        /// Deprovision the remote database. Schema tables are retrieved through the default scope.
+        /// </summary>
+        public virtual Task<bool>
+               DeprovisionAsync(SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction, cancellationToken, progress);
+
+        /// <summary>
+        /// Deprovision the remote database. Schema tables are retrieved through scope name.
+        /// </summary>
+        public virtual async Task<bool>
+            DeprovisionAsync(string scopeName, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+                if (provision == default)
+                    provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                ServerScopeInfo serverScopeInfo;
+                (context, serverScopeInfo) = await this.InternalLoadServerScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                bool isDeprovisioned;
+                (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -124,9 +162,101 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(context, ex);
             }
 
         }
+
+        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision, connection, transaction, cancellationToken, progress);
+
+        /// <summary>
+        /// Deprovision the remote database. Schema tables are retrieved through setup in parameter.
+        /// </summary>
+        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+                if (provision == default)
+                    provision = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
+
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // Creating a fake scope info
+                var serverScopeInfo = this.InternalCreateScopeInfo(scopeName, DbScopeType.Server);
+                serverScopeInfo.Setup = setup;
+
+                bool isDeprovisioned;
+                (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return isDeprovisioned;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+
+        }
+
+
+
+
+        /// <summary>
+        /// Drop everything related to DMS
+        /// </summary>
+        public virtual async Task DropAllAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                List<ServerScopeInfo> serverScopeInfos = null;
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (exists)
+                {
+                    (context, serverScopeInfos) = await this.InternalLoadAllServerScopesInfosAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                }
+
+                // fallback to "try to drop an hypothetical default scope"
+                if (serverScopeInfos == null)
+                    serverScopeInfos = new List<ServerScopeInfo>();
+
+                var defaultServerScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName, DbScopeType.Server) as ServerScopeInfo;
+
+                SyncSetup setup;
+                (context, setup) = await this.InternalGetAllTablesAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                // Considering removing tables with "_tracking" at the end
+                var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking")).ToList();
+                setup.Tables.Clear();
+                setup.Tables.AddRange(tables);
+                defaultServerScopeInfo.Setup = setup;
+
+                serverScopeInfos.Add(defaultServerScopeInfo);
+
+                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ServerScope | SyncProvision.ServerHistoryScope;
+
+                foreach (var serverScopeInfo in serverScopeInfos)
+                {
+                    if (serverScopeInfo == null || serverScopeInfo.Setup == null || serverScopeInfo.Setup.Tables == null || serverScopeInfo.Setup.Tables.Count <= 0)
+                        continue;
+
+                    (context, _) = await InternalDeprovisionAsync(serverScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
     }
 }

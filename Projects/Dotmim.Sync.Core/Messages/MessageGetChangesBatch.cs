@@ -10,20 +10,16 @@ namespace Dotmim.Sync
     /// </summary>
     public class MessageGetChangesBatch
     {
-        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
-                                      int batchSize, string batchDirectory, string batchDirectoryName, bool supportsMultiActiveResultSets, ILocalSerializerFactory localSerializerFactory)
+        public MessageGetChangesBatch(Guid? excludingScopeId, Guid localScopeId, bool isNew, SyncSet schema,
+                                      int batchSize, string batchDirectory, string batchDirectoryName, bool supportsMultiActiveResultSets)
         {
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
-            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
             this.BatchDirectoryName = batchDirectoryName;
             this.SupportsMultiActiveResultSets = supportsMultiActiveResultSets;
-            //this.SerializerFactory = serializerFactory;
-            this.LocalSerializerFactory = localSerializerFactory;
             this.ExcludingScopeId = excludingScopeId;
             this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
-            this.LastTimestamp = lastTimestamp;
             this.BatchSize = batchSize;
         }
 
@@ -38,28 +34,16 @@ namespace Dotmim.Sync
         /// </summary>
         public Guid LocalScopeId { get; set; }
 
-
         /// <summary>
         /// Gets or Sets if the sync is a first sync. In this case, the last sync timestamp is ignored
         /// </summary>
         public bool IsNew { get; set; }
 
-
-        /// <summary>
-        /// Gets or Sets the last date timestamp from where we want rows
-        /// </summary>
-        public long? LastTimestamp { get; set; }
-
         /// <summary>
         /// Gets or Sets the schema used for this sync
         /// </summary>
         public SyncSet Schema { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Setup used for this sync
-        /// </summary>
-        public SyncSetup Setup { get; }
-
+ 
         /// <summary>
         /// Gets or Sets the download batch size, if needed
         /// </summary>
@@ -76,15 +60,5 @@ namespace Dotmim.Sync
         public string BatchDirectoryName { get; set; }
 
         public bool SupportsMultiActiveResultSets { get; }
-
-        ///// <summary>
-        ///// Gets or Sets the Serializer used to serialize rows
-        ///// </summary>
-        //public ISerializerFactory SerializerFactory { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the Local Serializer factory, used to buffer rows when reading from datasource
-        /// </summary>
-        public ILocalSerializerFactory LocalSerializerFactory { get; set; }
     }
 }

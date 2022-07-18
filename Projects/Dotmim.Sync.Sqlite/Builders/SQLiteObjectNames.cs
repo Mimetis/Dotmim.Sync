@@ -24,6 +24,7 @@ namespace Dotmim.Sync.Sqlite
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
+        public string ScopeName { get; }
 
         public void AddCommandName(DbCommandType objectType, string name)
         {
@@ -70,10 +71,11 @@ namespace Dotmim.Sync.Sqlite
 
 
 
-        public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
+            this.ScopeName = scopeName;
             this.tableName = tableName;
             this.trackingName = trackingName;
 

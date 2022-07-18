@@ -14,7 +14,6 @@ namespace Dotmim.Sync.Builders
         UpdateRow,
         DeleteRow,
         DeleteMetadata,
-        BulkInitRows,
         BulkUpdateRows,
         BulkDeleteRows,
         Reset,

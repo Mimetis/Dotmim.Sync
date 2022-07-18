@@ -108,46 +108,46 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when a column is creating
         /// </summary>
-        public static void OnColumnCreating(this BaseOrchestrator orchestrator, Action<ColumnCreatingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnCreating(this BaseOrchestrator orchestrator, Action<ColumnCreatingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a column is creating
         /// </summary>
-        public static void OnColumnCreating(this BaseOrchestrator orchestrator, Func<TableCreatingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnCreating(this BaseOrchestrator orchestrator, Func<TableCreatingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a column is created
         /// </summary>
-        public static void OnColumnCreated(this BaseOrchestrator orchestrator, Action<ColumnCreatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnCreated(this BaseOrchestrator orchestrator, Action<ColumnCreatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a column is created
         /// </summary>
-        public static void OnColumnCreated(this BaseOrchestrator orchestrator, Func<ColumnCreatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnCreated(this BaseOrchestrator orchestrator, Func<ColumnCreatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a column is dropping
         /// </summary>
-        public static void OnColumnDropping(this BaseOrchestrator orchestrator, Action<ColumnDroppingArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnDropping(this BaseOrchestrator orchestrator, Action<ColumnDroppingArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a column is dropping
         /// </summary>
-        public static void OnColumnDropping(this BaseOrchestrator orchestrator, Func<ColumnDroppingArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnDropping(this BaseOrchestrator orchestrator, Func<ColumnDroppingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when a column is dropped
         /// </summary>
-        public static void OnColumnDropped(this BaseOrchestrator orchestrator, Action<ColumnDroppedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnDropped(this BaseOrchestrator orchestrator, Action<ColumnDroppedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider when a column is dropped
         /// </summary>
-        public static void OnColumnDropped(this BaseOrchestrator orchestrator, Func<ColumnDroppedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnColumnDropped(this BaseOrchestrator orchestrator, Func<ColumnDroppedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

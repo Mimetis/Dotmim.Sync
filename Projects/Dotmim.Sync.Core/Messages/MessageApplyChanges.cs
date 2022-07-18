@@ -15,25 +15,22 @@ namespace Dotmim.Sync
         /// Applying changes message.
         /// Be careful policy could be differente from the schema (especially on client side, it's the reverse one, by default)
         /// </summary>
-        public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema, SyncSetup setup,
+        public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema,
                                     ConflictResolutionPolicy policy, bool disableConstraintsOnApplyChanges,bool cleanMetadatas, 
-                                    bool cleanFolder, bool snapshotApplied, BatchInfo changes, ILocalSerializerFactory localSerializerFactory)
+                                    bool cleanFolder, bool snapshotApplied, BatchInfo changes)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
             this.IsNew = isNew;
             this.LastTimestamp = lastTimestamp;
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
-            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
             this.Policy = policy;
             this.DisableConstraintsOnApplyChanges = disableConstraintsOnApplyChanges;
             this.CleanMetadatas = cleanMetadatas;
             this.CleanFolder = cleanFolder;
             this.BatchInfo = changes ?? throw new ArgumentNullException(nameof(changes));
-            this.LocalSerializerFactory = localSerializerFactory;
             this.SnapshoteApplied = snapshotApplied;
         }
-
 
         /// <summary>
         /// Gets the local Scope Id
@@ -45,14 +42,13 @@ namespace Dotmim.Sync
         /// </summary>
         public Guid SenderScopeId { get; }
 
-
         /// <summary>
-        /// Gets or Sets if the sync is a first sync. In this case, the last sync timestamp is ignored
+        /// Gets if the sync is a first sync. In this case, the last sync timestamp is ignored
         /// </summary>
         public bool IsNew { get; }
 
         /// <summary>
-        /// Gets or Sets the last date timestamp from where we want rows
+        /// Gets the Last timestamp used to compare rows
         /// </summary>
         public long? LastTimestamp { get; }
 
@@ -61,11 +57,6 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncSet Schema { get; set; }
        
-        /// <summary>
-        /// Gets or Sets the setup used for this sync
-        /// </summary>
-        public SyncSetup Setup { get; }
-
         /// <summary>
         /// Gets or Sets the current Conflict resolution policy
         /// </summary>
@@ -95,11 +86,6 @@ namespace Dotmim.Sync
         /// Gets or Sets the batch info containing the changes to apply
         /// </summary>
         public BatchInfo BatchInfo { get; set; }
-
-        /// <summary>
-        /// Gets or Sets the local Serializer used to buffer rows on disk
-        /// </summary>
-        public ILocalSerializerFactory LocalSerializerFactory { get; set; }
 
         /// <summary>
         /// Gets or Sets if we have already applied a snapshot. So far, we don't reset the tables, even if we are in reinit mode.

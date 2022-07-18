@@ -29,6 +29,7 @@ namespace Dotmim.Sync
         /// </summary>
         [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public string ScopeName { get; set; }
+        public DateTime StartTime { get; }
 
         /// <summary>
         /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload
@@ -64,7 +65,6 @@ namespace Dotmim.Sync
         [DataMember(Name = "ap", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public Dictionary<string, string> AdditionalProperties { get; set; }
 
-
         /// <summary>
         /// Gets or Sets the current percentage progress overall
         /// </summary>
@@ -78,6 +78,8 @@ namespace Dotmim.Sync
         {
             this.SessionId = sessionId;
             this.ScopeName = scopeName;
+            this.StartTime = DateTime.UtcNow;
+
         }
 
         /// <summary>
@@ -96,6 +98,7 @@ namespace Dotmim.Sync
         {
             otherSyncContext.Parameters = this.Parameters;
             otherSyncContext.ScopeName = this.ScopeName;
+            otherSyncContext.ClientScopeId= this.ClientScopeId;
             otherSyncContext.SessionId = this.SessionId;
             otherSyncContext.SyncStage = this.SyncStage;
             otherSyncContext.SyncType = this.SyncType;

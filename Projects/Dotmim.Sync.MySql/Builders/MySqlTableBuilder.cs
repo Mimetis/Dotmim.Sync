@@ -26,14 +26,15 @@ namespace Dotmim.Sync.MySql.Builders
         private MySqlBuilderTrackingTable sqlBuilderTrackingTable;
         private MySqlBuilderTrigger sqlBuilderTrigger;
 
-        public MySqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
+        public MySqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName) 
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
 
-            this.sqlObjectNames = new MySqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
-            this.sqlBuilderProcedure = new MySqlBuilderProcedure(tableDescription, TableName, TrackingTableName, setup);
+            this.sqlObjectNames = new MySqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup, scopeName);
+            this.sqlBuilderProcedure = new MySqlBuilderProcedure(tableDescription, TableName, TrackingTableName, setup, scopeName);
             this.sqlBuilderTable = new MySqlBuilderTable(tableDescription, TableName, TrackingTableName, setup);
             this.sqlBuilderTrackingTable = new MySqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
-            this.sqlBuilderTrigger = new MySqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderTrigger = new MySqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup, scopeName);
 
         }
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)

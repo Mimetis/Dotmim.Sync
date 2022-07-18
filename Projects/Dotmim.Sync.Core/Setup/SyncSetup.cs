@@ -58,16 +58,15 @@ namespace Dotmim.Sync
         [DataMember(Name = "tts", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public string TrackingTablesSuffix { get; set; }
 
-        ///// <summary>
-        ///// Gets or Sets the current Setup version.
-        ///// </summary>
-        //[DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        //public string Version { get; set; }
-
         /// <summary>
         /// Create a list of tables to be added to the sync process
         /// </summary>
         public SyncSetup(IEnumerable<string> tables) : this() => this.Tables.AddRange(tables);
+
+        /// <summary>
+        /// Create a list of tables to be added to the sync process
+        /// </summary>
+        public SyncSetup(params string[] tables) : this() => this.Tables.AddRange(tables);
 
         /// <summary>
         /// ctor

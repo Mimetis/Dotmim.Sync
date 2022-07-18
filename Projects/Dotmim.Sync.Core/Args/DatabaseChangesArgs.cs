@@ -19,13 +19,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseChangesSelectingArgs : ProgressArgs
     {
-        public DatabaseChangesSelectingArgs(SyncContext context, MessageGetChangesBatch changesRequest, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction) => this.ChangesRequest = changesRequest;
+        public DatabaseChangesSelectingArgs(SyncContext context, string batchDirectory, int batchSize, bool isNew, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.BatchDirectory = batchDirectory;
+            this.BatchSize = batchSize;
+            this.IsNew = isNew;
+        }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Getting Changes. [{ChangesRequest.BatchDirectory}]. Batch size:{ChangesRequest.BatchSize}. IsNew:{ChangesRequest.IsNew}. LastTimestamp:{ChangesRequest.LastTimestamp}. ";
-        public MessageGetChangesBatch ChangesRequest { get; }
+        public override string Message => $"[{Connection.Database}] Getting Changes. [{BatchDirectory}]. Batch size:{BatchSize}. IsNew:{IsNew}.";
         public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
+
+        public string BatchDirectory { get; }
+        public int BatchSize { get; }
+        public bool IsNew { get; }
     }
 
     /// <summary>
@@ -100,48 +108,47 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
-            => orchestrator.SetInterceptor(func);
+        public static Guid OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
+            => orchestrator.AddInterceptor(func);
         /// <summary>
         /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
-
+        public static Guid OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
+            => orchestrator.AddInterceptor(func);
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
-            => orchestrator.SetInterceptor(func);
+        public static Guid OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Action<DatabaseChangesAppliedArgs> func)
+            => orchestrator.AddInterceptor(func);
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema
         /// </summary>
-        public static void OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Func<DatabaseChangesAppliedArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
+        public static Guid OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Func<DatabaseChangesAppliedArgs, Task> func)
+            => orchestrator.AddInterceptor(func);
 
 
         /// <summary>
         /// Occurs when changes are going to be queried on the local database
         /// </summary>
-        public static void OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectingArgs> func)
-            => orchestrator.SetInterceptor(func);
+        public static Guid OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectingArgs> func)
+            => orchestrator.AddInterceptor(func);
         /// <summary>
         /// Occurs when changes are going to be queried on the local database
         /// </summary>
-        public static void OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectingArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
+        public static Guid OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectingArgs, Task> func)
+            => orchestrator.AddInterceptor(func);
 
         /// <summary>
         /// Occurs when changes have been retrieved from the local database
         /// </summary>
-        public static void OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectedArgs> func)
-            => orchestrator.SetInterceptor(func);
+        public static Guid OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectedArgs> func)
+            => orchestrator.AddInterceptor(func);
         /// <summary>
         /// Occurs when changes have been retrieved from the local database
         /// </summary>
-        public static void OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectedArgs, Task> func)
-            => orchestrator.SetInterceptor(func);
+        public static Guid OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectedArgs, Task> func)
+            => orchestrator.AddInterceptor(func);
 
     }
 

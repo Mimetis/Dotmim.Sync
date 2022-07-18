@@ -35,7 +35,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup, scopeName);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
 
             var scopeTableCreating = 0;
@@ -64,36 +64,34 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeTableCreated++;
             });
 
-            localOrchestrator.OnScopeLoading(args =>
+            localOrchestrator.OnClientScopeInfoLoading(args =>
             {
                 Assert.NotNull(args.Command);
                 Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.Equal(scopeName, args.ScopeName);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
                 scopeLoading++;
             });
 
-            localOrchestrator.OnScopeLoaded(args =>
+            localOrchestrator.OnClientScopeInfoLoaded(args =>
             {
                 Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.ScopeInfo);
-                Assert.Equal(scopeName, args.ScopeInfo.Name);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 scopeLoaded++;
             });
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeAsync();
+            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
 
 
             Assert.Equal(1, scopeTableCreating);
             Assert.Equal(1, scopeTableCreated);
-            Assert.Equal(1, scopeLoading);
-            Assert.Equal(1, scopeLoaded);
+            Assert.Equal(2, scopeLoading);
+            Assert.Equal(2, scopeLoaded);
             Assert.Equal(1, scopeSaving);
             Assert.Equal(1, scopeSaved);
 
@@ -106,7 +104,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localScopeInfo.Version = "2.0";
 
-            await localOrchestrator.SaveClientScopeAsync(localScopeInfo);
+            await localOrchestrator.SaveClientScopeInfoAsync(localScopeInfo);
 
             Assert.Equal(0, scopeTableCreating);
             Assert.Equal(0, scopeTableCreated);
@@ -131,7 +129,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options, setup, scopeName);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeTableCreating = 0;
             var scopeTableCreated = 0;
@@ -159,39 +157,36 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeTableCreated++;
             });
 
-            remoteOrchestrator.OnServerScopeLoading(args =>
+            remoteOrchestrator.OnServerScopeInfoLoading(args =>
             {
                 Assert.NotNull(args.Command);
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.Equal(scopeName, args.ScopeName);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 Assert.Equal(ConnectionState.Open, args.Connection.State);
                 scopeLoading++;
             });
 
-            remoteOrchestrator.OnServerScopeLoaded(args =>
+            remoteOrchestrator.OnServerScopeInfoLoaded(args =>
             {
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
-                Assert.NotNull(args.ScopeInfo);
-                Assert.Equal(scopeName, args.ScopeInfo.Name);
                 Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
+                Assert.NotNull(args.Transaction);
                 scopeLoaded++;
             });
 
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeAsync();
+            var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            // TODO : if serverScope.Schema is null, should we Provision here ?
 
             serverScopeInfo.Version = "2.0";
 
-            await remoteOrchestrator.SaveServerScopeAsync(serverScopeInfo);
+            await remoteOrchestrator.SaveServerScopeInfoAsync(serverScopeInfo);
 
             Assert.Equal(2, scopeTableCreating);
             Assert.Equal(2, scopeTableCreated);
-            Assert.Equal(1, scopeLoading);
-            Assert.Equal(1, scopeLoaded);
+            Assert.Equal(2, scopeLoading);
+            Assert.Equal(3, scopeLoaded);
             Assert.Equal(3, scopeSaving);
             Assert.Equal(3, scopeSaved);
 

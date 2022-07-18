@@ -17,10 +17,10 @@ namespace HelloWebSyncServer.Controllers
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerOrchestrator orchestrator;
+        private WebServerAgent webServerAgent;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerOrchestrator webServerOrchestrator) => this.orchestrator = webServerOrchestrator;
+        public SyncController(WebServerAgent webServerAgent) => this.webServerAgent = webServerAgent;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
@@ -31,8 +31,12 @@ namespace HelloWebSyncServer.Controllers
             // the User.Identity.IsAuthenticated value
             if (HttpContext.User.Identity.IsAuthenticated)
             {
+                // OPTIONAL: -------------------------------------------
+                // OPTIONAL: Playing with user coming from bearer token
+                // OPTIONAL: -------------------------------------------
+
                 // on each request coming from the client, just inject the User Id parameter
-                orchestrator.OnHttpGettingRequest(args =>
+                webServerAgent.OnHttpGettingRequest(args =>
                 {
                     var pUserId = args.Context.Parameters["UserId"];
 
@@ -45,13 +49,13 @@ namespace HelloWebSyncServer.Controllers
                 });
 
                 // Because we don't want to send back this value, remove it from the response 
-                orchestrator.OnHttpSendingResponse(args =>
+                webServerAgent.OnHttpSendingResponse(args =>
                 {
                     if (args.Context.Parameters.Contains("UserId"))
                         args.Context.Parameters.Remove("UserId");
                 });
 
-                await orchestrator.HandleRequestAsync(this.HttpContext);
+                await webServerAgent.HandleRequestAsync(this.HttpContext);
             }
             else
             {
@@ -65,6 +69,7 @@ namespace HelloWebSyncServer.Controllers
         /// </summary>
         [HttpGet]
         [AllowAnonymous]
-        public Task Get() => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
+        public Task Get() => this.HttpContext.WriteHelloAsync(webServerAgent);
+
     }
 }

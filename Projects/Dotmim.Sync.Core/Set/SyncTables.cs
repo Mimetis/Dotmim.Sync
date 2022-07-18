@@ -69,6 +69,15 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
+                // trying a fallback on dbo schema
+                if (table == null)
+                {
+                    table = InnerCollection.FirstOrDefault(innerTable =>
+                    {
+                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
+                    });
+                }
                 return table;
             }
         }
@@ -96,6 +105,15 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
+                // trying a fallback on dbo schema
+                if (table == null)
+                {
+                    table = InnerCollection.FirstOrDefault(innerTable =>
+                    {
+                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
+                    });
+                }
                 return table;
             }
         }

@@ -21,37 +21,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public partial class RemoteOrchestratorTests : IDisposable
     {
-        public string[] Tables => new string[]
-        {
-            "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
-            "PricesList", "PricesListCategory", "PricesListDetail"
-        };
-
-        // Current test running
-        private ITest test;
-        private Stopwatch stopwatch;
-        public ITestOutputHelper Output { get; }
-
-        public RemoteOrchestratorTests(ITestOutputHelper output)
-        {
-
-            // Getting the test running
-            this.Output = output;
-            var type = output.GetType();
-            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.test = (ITest)testMember.GetValue(output);
-            this.stopwatch = Stopwatch.StartNew();
-        }
-
-        public void Dispose()
-        {
-            this.stopwatch.Stop();
-
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-            Debug.WriteLine(str);
-        }
+ 
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_CheckInterceptors()
@@ -80,10 +50,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var setup = new SyncSetup(Tables);
 
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup, scopeName);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            // Assert on connection and transaction interceptors
-            BaseOrchestratorTests.AssertConnectionAndTransaction(remoteOrchestrator, SyncStage.SnapshotCreating);
 
             remoteOrchestrator.OnSnapshotCreating(args =>
             {
@@ -102,7 +70,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             remoteOrchestrator.OnSnapshotCreated(args =>
             {
                 Assert.IsType<SnapshotCreatedArgs>(args);
-                Assert.Equal(SyncStage.SnapshotCreating, args.Context.SyncStage);
+                Assert.Equal(SyncStage.ChangesSelecting, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
                 Assert.Null(args.Transaction);
@@ -122,9 +90,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSnapshotCreated = true;
             });
 
-            var bi = await remoteOrchestrator.CreateSnapshotAsync();
-
-            Assert.Equal(SyncStage.SnapshotCreating, remoteOrchestrator.GetContext().SyncStage);
+            var bi = await remoteOrchestrator.CreateSnapshotAsync(scopeName, setup);
 
             Assert.True(onSnapshotCreating);
             Assert.True(onSnapshotCreated);
@@ -138,7 +104,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, options, setup, scopeName);
+            var agent = new SyncAgent(clientProvider, serverProvider, options);
 
             var onSnapshotApplying = false;
             var onSnapshotApplied = false;
@@ -157,7 +123,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync();
+            await agent.SynchronizeAsync(scopeName, setup);
 
             Assert.True(onSnapshotApplying);
             Assert.True(onSnapshotApplied);
@@ -195,9 +161,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(Tables);
             var provider = new SqlSyncProvider(cs);
 
-            var orchestrator = new RemoteOrchestrator(provider, options, setup, scopeName);
+            var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var bi = await orchestrator.CreateSnapshotAsync();
+            var bi = await orchestrator.CreateSnapshotAsync(scopeName, setup);
 
             var finalDirectoryFullName = Path.Combine(snapshotDirectory, scopeName);
 
@@ -292,13 +258,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.Filters.Add(orderDetailsFilter);
 
 
-            var orchestrator = new RemoteOrchestrator(provider, options, setup);
+            var orchestrator = new RemoteOrchestrator(provider, options);
 
             SyncParameters parameters = new SyncParameters();
             var p1 = new SyncParameter("CompanyName", "A Bike Store");
             parameters.Add(p1);
 
-            var bi = await orchestrator.CreateSnapshotAsync(parameters);
+            var bi = await orchestrator.CreateSnapshotAsync(setup, parameters);
 
             var finalDirectoryFullName = Path.Combine(snapshotDirectory, SyncOptions.DefaultScopeName);
 
@@ -360,24 +326,24 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup = new SyncSetup(Tables);
             var provider = new SqlSyncProvider(cs);
 
-            var orchestrator = new RemoteOrchestrator(provider, options, setup, scopeName);
-            var se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync());
+            var orchestrator = new RemoteOrchestrator(provider, options);
+            var se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             options = new SyncOptions { BatchSize = 2000 };
-            orchestrator = new RemoteOrchestrator(provider, options, setup, scopeName);
-            se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync());
+            orchestrator = new RemoteOrchestrator(provider, options);
+            se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             options = new SyncOptions { };
-            orchestrator = new RemoteOrchestrator(provider, options, setup, scopeName);
-            se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync());
+            orchestrator = new RemoteOrchestrator(provider, options);
+            se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);

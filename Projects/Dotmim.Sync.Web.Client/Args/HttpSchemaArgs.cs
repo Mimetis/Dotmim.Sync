@@ -56,25 +56,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when an http call is about to be made to get server schema
         /// </summary>
-        public static void OnHttpGettingSchemaRequest(this WebClientOrchestrator orchestrator, Action<HttpGettingSchemaRequestArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingSchemaRequest(this WebRemoteOrchestrator orchestrator, Action<HttpGettingSchemaRequestArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call is about to be made to get server schema
         /// </summary>
-        public static void OnHttpGettingSchemaRequest(this WebClientOrchestrator orchestrator, Func<HttpGettingSchemaRequestArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingSchemaRequest(this WebRemoteOrchestrator orchestrator, Func<HttpGettingSchemaRequestArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get schema is done
         /// </summary>
-        public static void OnHttpGettingSchemaResponse(this WebClientOrchestrator orchestrator, Action<HttpGettingSchemaResponseArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingSchemaResponse(this WebRemoteOrchestrator orchestrator, Action<HttpGettingSchemaResponseArgs> action)
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when an http call to get schema is done
         /// </summary>
-        public static void OnHttpGettingSchemaResponse(this WebClientOrchestrator orchestrator, Func<HttpGettingSchemaResponseArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnHttpGettingSchemaResponse(this WebRemoteOrchestrator orchestrator, Func<HttpGettingSchemaResponseArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
     }
 }

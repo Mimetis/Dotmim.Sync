@@ -16,10 +16,8 @@ namespace EncryptionClient
         static async Task Main(string[] args)
         {
             await EncryptionAsync();
-
             Console.ReadLine();
         }
-
 
         private static async Task EncryptionAsync()
         {
@@ -30,46 +28,46 @@ namespace EncryptionClient
             myRijndael.GenerateIV();
 
             // Create action for serializing and deserialzing for both remote and local orchestrators
-            var deserializing = new Action<DeserializingSetArgs>(dsa =>
+            var deserializing = new Func<DeserializingRowArgs, Task>((args) =>
             {
-                // Create an encryptor to perform the stream transform.
-                var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+                Console.ForegroundColor = ConsoleColor.DarkYellow;
+                Console.WriteLine($"Deserializing row {args.RowString}");
+                string value;
+                var byteArray = Convert.FromBase64String(args.RowString);
+                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+                using var msDecrypt = new MemoryStream(byteArray);
+                using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+                using (var swDecrypt = new StreamReader(csDecrypt))
+                    value = swDecrypt.ReadToEnd();
 
-                using (var csDecrypt = new CryptoStream(dsa.FileStream, decryptor, CryptoStreamMode.Read))
-                {
-                    using (var swDecrypt = new StreamReader(csDecrypt))
-                    {
-                        //Read all data to the ContainerSet
-                        var str = swDecrypt.ReadToEnd();
-                        dsa.Result = JsonConvert.DeserializeObject<ContainerSet>(str);
+                var array = JsonConvert.DeserializeObject<object[]>(value);
+                args.Result = array;
 
-                        Console.WriteLine($"Deserialized container from file {dsa.FileName}. Container tables count:{dsa.Result.Tables.Count}");
-                    }
-                }
+                // output result to console
+                Console.WriteLine($"row deserialized {new SyncRow(args.SchemaTable, array)}");
+                Console.ResetColor();
+                return Task.CompletedTask;
             });
 
 
-            var serializing = new Action<SerializingSetArgs>(ssa =>
+            var serializing = new Func<SerializingRowArgs, Task>((sra) =>
             {
-                Console.WriteLine($"Serialized container to file {ssa.FileName}. container tables count:{ssa.Set.Tables.Count}");
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                // output arg to console
+                Console.WriteLine($"Serializing row {new SyncRow(sra.SchemaTable, sra.RowArray).ToString()}");
 
-                // Create an encryptor to perform the stream transform.
-                var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
 
-                using (var msEncrypt = new MemoryStream())
-                {
-                    using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (var swEncrypt = new StreamWriter(csEncrypt))
-                        {
-                            //Write all data to the stream.
-                            var strSet = JsonConvert.SerializeObject(ssa.Set);
-                            swEncrypt.Write(strSet);
-                        }
-                        ssa.Result = msEncrypt.ToArray();
-                    }
-                }
+                var strSet = JsonConvert.SerializeObject(sra.RowArray);
+                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+                using var msEncrypt = new MemoryStream();
+                using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+                using (var swEncrypt = new StreamWriter(csEncrypt))
+                    swEncrypt.Write(strSet);
 
+                sra.Result = Convert.ToBase64String(msEncrypt.ToArray());
+                Console.WriteLine($"row serialized: {0}", sra.Result);
+                Console.ResetColor();
+                return Task.CompletedTask;
             });
 
             SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
@@ -78,20 +76,21 @@ namespace EncryptionClient
             // Defining options with Batchsize to enable serialization on disk
             var options = new SyncOptions { BatchSize = 1000 };
 
-            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, options, new string[] {
-                "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
+            var tables = new string[] { "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, options);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
             var remoteOrchestrator = agent.RemoteOrchestrator;
 
             // Encrypting / decrypting data on disk
-            localOrchestrator.OnSerializingSet(serializing);
-            localOrchestrator.OnDeserializingSet(deserializing);
-            remoteOrchestrator.OnSerializingSet(serializing);
-            remoteOrchestrator.OnDeserializingSet(deserializing);
+            localOrchestrator.OnSerializingSyncRow(serializing);
+            localOrchestrator.OnDeserializingSyncRow(deserializing);
+            remoteOrchestrator.OnSerializingSyncRow(serializing);
+            remoteOrchestrator.OnDeserializingSyncRow(deserializing);
 
-            Console.WriteLine(await agent.SynchronizeAsync());
+            Console.WriteLine(await agent.SynchronizeAsync(tables));
 
             Console.WriteLine("End");
 

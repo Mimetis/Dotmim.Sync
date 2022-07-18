@@ -2,10 +2,9 @@
 	<PropertyGroup>
 		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNetStandard>netcoreapp2.1</TargetFrameworkNetStandard>
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet5);$(TargetFrameworkNet6)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNetCore);$(TargetFrameworkNet5);$(TargetFrameworkNet6)</TargetFrameworks>
 
 		<IsPackable>false</IsPackable>
 		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
@@ -51,20 +50,6 @@
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="5.0.0-alpha.2" />
 	</ItemGroup>
-
-
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)'">
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="2.2.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
-		<PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.8" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.8" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.1.8" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.8.3" />
-		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.2.4" />
-	</ItemGroup>
-
-
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />

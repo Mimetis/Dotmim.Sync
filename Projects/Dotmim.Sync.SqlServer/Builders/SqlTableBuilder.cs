@@ -23,15 +23,16 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlBuilderTrackingTable sqlBuilderTrackingTable;
         private SqlBuilderTrigger sqlBuilderTrigger;
 
-        public SqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
+        public SqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
-            this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingTableName, setup);
+            this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingTableName, setup, scopeName);
             this.SqlDbMetadata = new SqlDbMetadata();
 
-            this.sqlBuilderProcedure = new SqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderProcedure = new SqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup, scopeName);
             this.sqlBuilderTable = new SqlBuilderTable(tableDescription, tableName, trackingTableName, Setup);
             this.sqlBuilderTrackingTable = new SqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
-            this.sqlBuilderTrigger = new SqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup);
+            this.sqlBuilderTrigger = new SqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup, scopeName);
         }
 
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
@@ -44,16 +45,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             => this.sqlBuilderTable.GetExistsSchemaCommandAsync(connection, transaction);
         public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetDropTableCommandAsync(connection, transaction);
-
         public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetExistsColumnCommandAsync(columnName, connection, transaction);
         public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetAddColumnCommandAsync(columnName, connection, transaction);
         public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetDropColumnCommandAsync(columnName, connection, transaction);
-
-
-
         public override Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTable.GetColumnsAsync(connection, transaction);
         public override Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)

@@ -10,8 +10,8 @@ namespace Dotmim.Sync
 {
     public class HttpSyncPolicyArgs : ProgressArgs
     {
-        public HttpSyncPolicyArgs(SyncContext context, int retryCount, int retryNumber, TimeSpan delay)
-            : base(context, null, null)
+        public HttpSyncPolicyArgs(int retryCount, int retryNumber, TimeSpan delay)
+            : base(null, null, null)
         {
             this.RetryCount = retryCount;
             this.RetryNumber = retryNumber;
@@ -51,15 +51,15 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider when client is trying to send again an http request message 
         /// </summary>
-        public static void OnHttpPolicyRetrying(this WebClientOrchestrator orchestrator,
+        public static Guid OnHttpPolicyRetrying(this WebRemoteOrchestrator orchestrator,
             Action<HttpSyncPolicyArgs> action)
-            => orchestrator.SetInterceptor(action);
+            => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider when client is trying to send again an http request message 
         /// </summary>
-        public static void OnHttpPolicyRetrying(this WebClientOrchestrator orchestrator,
+        public static Guid OnHttpPolicyRetrying(this WebRemoteOrchestrator orchestrator,
             Func<HttpSyncPolicyArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+            => orchestrator.AddInterceptor(action);
     }
     }

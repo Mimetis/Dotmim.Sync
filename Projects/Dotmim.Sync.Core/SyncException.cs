@@ -244,9 +244,9 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTableException : Exception
     {
-        const string message = "Table {0} does not exists.";
+        const string message = "Table {0} does not exists in your scope info setup (scope name : {1}).";
 
-        public MissingTableException(string tableName) : base(string.Format(message, tableName)) { }
+        public MissingTableException(string tableName, string schemaName, string scopeName) : base(string.Format(message, string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}", scopeName)) { }
     }
 
     /// <summary>
@@ -280,15 +280,33 @@ namespace Dotmim.Sync
         public MissingPrimaryKeyColumnException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
     }
 
+    /// <summary>
+    /// Setup table exception. Used when a your setup does not contains any table
+    /// </summary>
+    public class MissingProviderException : Exception
+    {
+        const string message = "You need a provider for {0}.";
 
+        public MissingProviderException(string methodName) : base(string.Format(message, methodName)) { }
+    }
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any table
     /// </summary>
     public class MissingTablesException : Exception
     {
-        const string message = "Your setup does not contains any table.";
+        const string message = "Your setup with scope name {0} does not contains any table.";
 
-        public MissingTablesException() : base(message) { }
+        public MissingTablesException(string scopeName) : base(string.Format(message, scopeName)) { }
+    }
+
+    /// <summary>
+    /// No schema in the scope
+    /// </summary>
+    public class MissingSchemaInScopeException : Exception
+    {
+        const string message = "Your scope does not contains any schema.";
+
+        public MissingSchemaInScopeException() : base(message) { }
     }
 
 

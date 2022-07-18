@@ -41,7 +41,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.Columns.Add("Number", typeof(int));
             table.PrimaryKeys.Add("ID");
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var schema = new SyncSet();
+            schema.Tables.Add(table);
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            scopeInfo.Setup = setup;
+            scopeInfo.Schema = schema;
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             var onCreating = false;
             var onCreated = false;
@@ -58,7 +66,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onCreated = true;
             });
 
-            var isCreated = await localOrchestrator.CreateTableAsync(table);
+
+            var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             Assert.True(isCreated);
             Assert.True(onCreating);
@@ -99,13 +108,22 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.Columns.Add("Number", typeof(int));
             table.PrimaryKeys.Add("ID");
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var schema = new SyncSet();
+            schema.Tables.Add(table);   
 
-            await localOrchestrator.CreateTableAsync(table);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var exists = await localOrchestrator.ExistTableAsync(setup.Tables[0]).ConfigureAwait(false);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            scopeInfo.Setup = setup;
+            scopeInfo.Schema = schema;
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
+
+            await localOrchestrator.CreateTableAsync(scopeInfo, "Product", "SalesLT");
+
+            var exists = await localOrchestrator.ExistTableAsync(scopeInfo, table.TableName, table.SchemaName).ConfigureAwait(false);
             Assert.True(exists);
-            exists = await localOrchestrator.ExistTableAsync(setup.Tables[1]).ConfigureAwait(false);
+
+            exists = await localOrchestrator.ExistTableAsync(scopeInfo, "ProductCategory", "SalesLT").ConfigureAwait(false);
             Assert.False(exists);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -133,13 +151,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.Columns.Add("Number", typeof(int));
             table.PrimaryKeys.Add("ID");
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var schema = new SyncSet();
+            schema.Tables.Add(table);
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            scopeInfo.Setup = setup;
+            scopeInfo.Schema = schema;
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             // Call create a first time to have an existing table
-            var isCreated = await localOrchestrator.CreateTableAsync(table);
+            var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var onCreating = false;
             var onCreated = false;
@@ -151,7 +177,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnTableDropping(ttca => onDropping = true);
             localOrchestrator.OnTableDropped(ttca => onDropped = true);
 
-            isCreated = await localOrchestrator.CreateTableAsync(table);
+            // get scope info again
+            scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+
+            isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             Assert.False(isCreated);
             Assert.False(onDropping);
@@ -164,7 +193,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = false;
             onDropped = false;
 
-            isCreated = await localOrchestrator.CreateTableAsync(table, true);
+            isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName, true);
 
             Assert.True(isCreated);
             Assert.True(onDropping);
@@ -190,9 +219,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var schema = await localOrchestrator.GetSchemaAsync();
+            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             // new empty db
             dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -201,8 +231,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
             sqlProvider = new SqlSyncProvider(cs);
 
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
-
+            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -214,7 +243,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnTableDropping(ttca => onDropping++);
             localOrchestrator.OnTableDropped(ttca => onDropped++);
 
-            await localOrchestrator.CreateTablesAsync(schema);
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            scopeInfo.Setup = serverScope.Setup;
+            scopeInfo.Schema = serverScope.Schema;
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
+
+            await localOrchestrator.CreateTablesAsync(scopeInfo);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);
@@ -226,14 +260,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            await localOrchestrator.CreateTablesAsync(schema);
+            await localOrchestrator.CreateTablesAsync(scopeInfo);
 
             Assert.Equal(0, onCreating);
             Assert.Equal(0, onCreated);
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 
-            await localOrchestrator.CreateTablesAsync(schema, true);
+            await localOrchestrator.CreateTablesAsync(scopeInfo, true);
 
             Assert.Equal(4, onCreating);
             Assert.Equal(4, onCreated);
@@ -264,16 +298,25 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.Columns.Add(colName);
             table.Columns.Add("Number", typeof(int));
             table.PrimaryKeys.Add("ID");
+            var schema = new SyncSet();
+            schema.Tables.Add(table);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            scopeInfo.Setup = setup;
+            scopeInfo.Schema = schema;
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
+
+            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             // Call create a first time to have an existing table
-            var isCreated = await localOrchestrator.CreateTableAsync(table);
+            var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var onCreating = false;
             var onCreated = false;
@@ -285,7 +328,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnTableDropping(ttca => onDropping = true);
             localOrchestrator.OnTableDropped(ttca => onDropped = true);
 
-            var isDropped = await localOrchestrator.DropTableAsync(setup.Tables[0]);
+            var isDropped = await localOrchestrator.DropTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             Assert.True(isDropped);
             Assert.True(onDropping);
@@ -326,16 +369,23 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.Columns.Add(colName);
             table.Columns.Add("Number", typeof(int));
             table.PrimaryKeys.Add("ID");
+            var schema = new SyncSet();
+            schema.Tables.Add(table);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            scopeInfo.Setup = setup;
+            scopeInfo.Schema = schema;
+            await localOrchestrator.SaveClientScopeInfoAsync(scopeInfo);
 
             // Call create a first time to have an existing table
-            var isCreated = await localOrchestrator.CreateTableAsync(table);
+            var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var onCreating = false;
             var onCreated = false;
@@ -352,7 +402,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDropping = true;
             });
 
-            var isDropped = await localOrchestrator.DropTableAsync(setup.Tables[0]);
+            var isDropped = await localOrchestrator.DropTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             Assert.True(onDropping);
 
@@ -387,15 +437,17 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(this.Tables);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnTableDropping(ttca => onDropping++);
-            localOrchestrator.OnTableDropped(ttca => onDropped++);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
-            await localOrchestrator.DropTablesAsync();
+            remoteOrchestrator.OnTableDropping(ttca => onDropping++);
+            remoteOrchestrator.OnTableDropped(ttca => onDropped++);
+
+            await remoteOrchestrator.DropTablesAsync(scopeInfo);
 
             Assert.Equal(this.Tables.Length, onDropping);
             Assert.Equal(this.Tables.Length, onDropped);

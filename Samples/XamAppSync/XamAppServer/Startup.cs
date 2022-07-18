@@ -40,12 +40,11 @@ namespace XamAppServer
 
             //var tables = new string[] { "Culinary.RecipeMethodContent" };
 
-            //var setup = new SyncSetup(tables);
-
-            SyncSetup syncSetup = new SyncSetup() { Tables = new SetupTables() { new SetupTable("RecipeMethodContent", new string[] { "RecipeKey", "Method" }, "Culinary") } };
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+                         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncProvider>(connectionString, syncSetup);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, setup);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

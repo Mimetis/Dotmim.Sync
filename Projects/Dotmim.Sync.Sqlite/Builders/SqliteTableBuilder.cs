@@ -22,9 +22,10 @@ namespace Dotmim.Sync.Sqlite
         private SqliteObjectNames sqliteObjectNames;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup) : base(tableDescription, tableName, trackingTableName, setup)
+        public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName) 
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
-            this.sqliteObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup);
+            this.sqliteObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup, scopeName);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 
@@ -407,39 +408,39 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.Append($"\tWhere ");
             createTrigger.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, TrackingTableName.Quoted().ToString(), "new"));
 
-            if (this.TableDescription.GetMutableColumns().Count() > 0)
-            {
-                createTrigger.AppendLine();
-                createTrigger.AppendLine("\t AND (");
-                string or = "    ";
-                foreach (var column in this.TableDescription.GetMutableColumns())
-                {
-                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+            //if (this.TableDescription.GetMutableColumns().Count() > 0)
+            //{
+            //    createTrigger.AppendLine();
+            //    createTrigger.AppendLine("\t AND (");
+            //    string or = "    ";
+            //    foreach (var column in this.TableDescription.GetMutableColumns())
+            //    {
+            //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-                    createTrigger.Append("\t");
-                    createTrigger.Append(or);
-                    createTrigger.Append("IFNULL(");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("[old].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("[new].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.Append(", ");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("[new].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("[old].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.AppendLine(") IS NOT NULL");
+            //        createTrigger.Append("\t");
+            //        createTrigger.Append(or);
+            //        createTrigger.Append("IFNULL(");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("[old].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("[new].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("[new].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("[old].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.AppendLine(") IS NOT NULL");
 
-                    or = " OR ";
-                }
-                createTrigger.AppendLine("\t ) ");
-            }
+            //        or = " OR ";
+            //    }
+            //    createTrigger.AppendLine("\t ) ");
+            //}
 
             createTrigger.AppendLine($"; ");
 
@@ -486,38 +487,38 @@ namespace Dotmim.Sync.Sqlite
                 str1 = " AND ";
             }
             createTrigger.AppendLine(")=0");
-            if (this.TableDescription.GetMutableColumns().Count() > 0)
-            {
-                createTrigger.AppendLine("\t AND (");
-                string or = "    ";
-                foreach (var column in this.TableDescription.GetMutableColumns())
-                {
-                    var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+            //if (this.TableDescription.GetMutableColumns().Count() > 0)
+            //{
+            //    createTrigger.AppendLine("\t AND (");
+            //    string or = "    ";
+            //    foreach (var column in this.TableDescription.GetMutableColumns())
+            //    {
+            //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-                    createTrigger.Append("\t");
-                    createTrigger.Append(or);
-                    createTrigger.Append("IFNULL(");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("[old].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("[new].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.Append(", ");
-                    createTrigger.Append("NULLIF(");
-                    createTrigger.Append("[new].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(", ");
-                    createTrigger.Append("[old].");
-                    createTrigger.Append(quotedColumn);
-                    createTrigger.Append(")");
-                    createTrigger.AppendLine(") IS NOT NULL");
+            //        createTrigger.Append("\t");
+            //        createTrigger.Append(or);
+            //        createTrigger.Append("IFNULL(");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("[old].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("[new].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("NULLIF(");
+            //        createTrigger.Append("[new].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(", ");
+            //        createTrigger.Append("[old].");
+            //        createTrigger.Append(quotedColumn);
+            //        createTrigger.Append(")");
+            //        createTrigger.AppendLine(") IS NOT NULL");
 
-                    or = " OR ";
-                }
-                createTrigger.AppendLine("\t ) ");
-            }
+            //        or = " OR ";
+            //    }
+            //    createTrigger.AppendLine("\t ) ");
+            //}
 
             createTrigger.AppendLine($"; ");
 
@@ -652,7 +653,7 @@ namespace Dotmim.Sync.Sqlite
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"SELECT count(*) FROM pragma_table_info('{this.TableName.Unquoted().ToString()}') WHERE name=@columnName;"; ;
+            command.CommandText = $"SELECT count(*) FROM pragma_table_info('{this.TableName.Unquoted().ToString()}') WHERE name=@columnName;";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@columnName";

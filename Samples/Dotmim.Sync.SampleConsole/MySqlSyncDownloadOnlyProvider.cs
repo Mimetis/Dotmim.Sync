@@ -5,6 +5,7 @@ using Dotmim.Sync.MySql.Builders;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.Data.SqlClient;
 using MySqlConnector;
 using System;
@@ -29,11 +30,11 @@ namespace Dotmim.Sync.SampleConsole
         public MySqlSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
         public MySqlSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MySqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MySqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MySqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
     }
 
     /// <summary>
@@ -41,8 +42,8 @@ namespace Dotmim.Sync.SampleConsole
     /// </summary>
     public class MySqlDownloadOnlyTableBuilder : MySqlTableBuilder
     {
-        public MySqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingTableName, setup) { }
+        public MySqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName) { }
 
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
@@ -69,8 +70,8 @@ namespace Dotmim.Sync.SampleConsole
     {
         private ParserName tableName;
 
-        public MySqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingName, setup)
+        public MySqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingName, setup, scopeName)
         {
             this.tableName = tableName;
         }
@@ -122,11 +123,11 @@ namespace Dotmim.Sync.SampleConsole
             {
                 case DbCommandType.DeleteRow:
                     this.SetDeleteRowParameters(command);
-                    return Task.CompletedTask; ;
+                    return Task.CompletedTask;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InsertRow:
                     this.SetUpdateRowParameters(command);
-                    return Task.CompletedTask; ;
+                    return Task.CompletedTask;
                 default:
                     break;
             }

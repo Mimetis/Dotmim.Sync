@@ -11,7 +11,7 @@ namespace Dotmim.Sync
     
     public class OutdatedArgs : ProgressArgs
     {
-        public OutdatedArgs(SyncContext context, ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, DbConnection connection= null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public OutdatedArgs(SyncContext context, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, DbConnection connection= null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
             this.ClientScopeInfo = clientScopeInfo;
             this.ServerScopeInfo = serverScopeInfo;
@@ -24,12 +24,12 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Database Out Dated. Last Client Sync Endpoint {ClientScopeInfo.LastServerSyncTimestamp} < Last Server Cleanup Metadatas {ServerScopeInfo.LastCleanupTimestamp}.";
+        public override string Message => $"Database Out Dated. Last Client Sync Endpoint < Last Server Cleanup Metadatas {ServerScopeInfo.LastCleanupTimestamp}.";
 
         /// <summary>
         /// Gets the client scope info used to check if the client is outdated
         /// </summary>
-        public ScopeInfo ClientScopeInfo { get; }
+        public ClientScopeInfo ClientScopeInfo { get; }
 
         /// <summary>
         /// Gets the server scope info to check if client is outdated
@@ -60,13 +60,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a database is out dated
         /// </summary>
-        public static void OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a database is out dated
         /// </summary>
-        public static void OnOutdated(this BaseOrchestrator orchestrator, Func<OutdatedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnOutdated(this BaseOrchestrator orchestrator, Func<OutdatedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

@@ -205,10 +205,10 @@ namespace Dotmim.Sync.Tests
             await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
-            var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+            var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
             // init both server and client
-            await agent.SynchronizeAsync();
+            await agent.SynchronizeAsync(Tables);
 
             // Insert the conflict product category on each client
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
@@ -256,9 +256,9 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_InsertClient_InsertServer(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -287,7 +287,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_InsertClient_InsertServer(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -329,7 +329,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -358,11 +358,11 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_InsertClient_InsertServer(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -390,7 +390,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_InsertClient_InsertServer(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
@@ -424,7 +424,7 @@ namespace Dotmim.Sync.Tests
                 });
 
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -452,7 +452,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_InsertClient_InsertServer(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -489,7 +489,7 @@ namespace Dotmim.Sync.Tests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -525,10 +525,10 @@ namespace Dotmim.Sync.Tests
             }
 
             // Execute a sync on all clients to initialize client and server schema 
-            var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+            var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
             // Init both client and server
-            await agent.SynchronizeAsync();
+            await agent.SynchronizeAsync(Tables);
 
             // Update each client to generate an update conflict
             using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
@@ -567,9 +567,9 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_UC_US_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -599,7 +599,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_UC_US_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -641,7 +641,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -670,11 +670,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 var id = await Generate_UC_US_Conflict(client, options);
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -701,7 +701,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 var id = await Generate_UC_US_Conflict(client, options);
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
@@ -733,7 +733,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -761,7 +761,7 @@ namespace Dotmim.Sync.Tests
             {
                 var id = await Generate_UC_US_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.OnApplyChangesFailed(acf =>
                 {
@@ -778,7 +778,7 @@ namespace Dotmim.Sync.Tests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -804,7 +804,7 @@ namespace Dotmim.Sync.Tests
             {
                 var id = await Generate_UC_US_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -856,7 +856,7 @@ namespace Dotmim.Sync.Tests
                 });
 
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -894,7 +894,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Execute a sync on all clients to re-initialize client and server schema 
-            await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+            await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
             // Delete product category on client
             using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
@@ -932,11 +932,11 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 var productId = await Generate_DC_US_Conflict(client, options);
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -965,7 +965,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 var productId = await Generate_DC_US_Conflict(client, options);
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
@@ -1000,7 +1000,7 @@ namespace Dotmim.Sync.Tests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1026,9 +1026,9 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 await Generate_DC_US_Conflict(client, options);
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1054,7 +1054,7 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 await Generate_DC_US_Conflict(client, options);
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1087,7 +1087,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1116,10 +1116,10 @@ namespace Dotmim.Sync.Tests
             var setup = new SyncSetup(Tables);
 
             // Execute a sync to initialize client and server schema 
-            var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+            var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
             // Since we may have an Outdated situation due to previous client, go for a Reinitialize sync type
-            await agent.SynchronizeAsync(SyncType.Reinitialize);
+            await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
 
             // Insert the conflict product category on each client
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
@@ -1139,7 +1139,7 @@ namespace Dotmim.Sync.Tests
             var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
             // Generation of an outdated mark on the server
-            var serverOrchestrator = new RemoteOrchestrator(Server.Provider, options, setup);
+            var serverOrchestrator = new RemoteOrchestrator(Server.Provider, options);
             var ts = await serverOrchestrator.GetLocalTimestampAsync();
             await serverOrchestrator.DeleteMetadatasAsync(ts + 1);
 
@@ -1163,7 +1163,7 @@ namespace Dotmim.Sync.Tests
 
                 var setup = new SyncSetup(Tables);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1186,7 +1186,7 @@ namespace Dotmim.Sync.Tests
                     oa.Action = OutdatedAction.ReinitializeWithUpload;
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(cpt, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1219,7 +1219,7 @@ namespace Dotmim.Sync.Tests
                 var setup = new SyncSetup(Tables);
 
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, setup);
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1241,7 +1241,7 @@ namespace Dotmim.Sync.Tests
                     oa.Action = OutdatedAction.ReinitializeWithUpload;
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(setup);
 
                 Assert.Equal(cpt, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1286,7 +1286,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Execute a sync to initialize client and server schema 
-            await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+            await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
             // Update product category on each client
             using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
@@ -1320,9 +1320,9 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_UC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1346,7 +1346,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_UC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1386,7 +1386,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1410,12 +1410,12 @@ namespace Dotmim.Sync.Tests
             {
                 var productCategoryId = await Generate_UC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Resolution is set to client side
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1440,7 +1440,7 @@ namespace Dotmim.Sync.Tests
             {
                 var productCategoryId = await Generate_UC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Resolution is set to client side
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
@@ -1471,7 +1471,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1509,7 +1509,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Execute a sync to initialize client and server schema 
-            await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+            await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
             // Delete product category 
             using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
@@ -1541,9 +1541,9 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_DC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1567,7 +1567,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_DC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1601,7 +1601,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1625,11 +1625,11 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_DC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1652,9 +1652,9 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
-                await Generate_DC_DS_Conflict(client, options); ;
+                await Generate_DC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
@@ -1681,7 +1681,7 @@ namespace Dotmim.Sync.Tests
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, acf.Conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1712,7 +1712,7 @@ namespace Dotmim.Sync.Tests
             await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
-            await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+            await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
 
             // Insert a product category on all clients
@@ -1745,9 +1745,9 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_DC_NULLS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1770,7 +1770,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_DC_NULLS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1795,7 +1795,7 @@ namespace Dotmim.Sync.Tests
 
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1818,12 +1818,12 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_DC_NULLS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Set conflict resolution to client
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1847,7 +1847,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_DC_NULLS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Set conflict resolution to client
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
@@ -1875,7 +1875,7 @@ namespace Dotmim.Sync.Tests
 
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -1899,7 +1899,7 @@ namespace Dotmim.Sync.Tests
             await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Execute a sync on all clients to initialize client and server schema 
-            await new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables)).SynchronizeAsync();
+            await new SyncAgent(client.Provider, Server.Provider, options).SynchronizeAsync(Tables);
 
             // Insert a product category on server
             using (var ctx = new AdventureWorksContext(this.Server, this.UseFallbackSchema))
@@ -1931,9 +1931,9 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_NULLC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -1956,7 +1956,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_NULLC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1980,7 +1980,7 @@ namespace Dotmim.Sync.Tests
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2005,12 +2005,12 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_NULLC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Set conflict resolution to client
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2037,7 +2037,7 @@ namespace Dotmim.Sync.Tests
             {
                 await Generate_NULLC_DS_Conflict(client, options);
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Set conflict resolution to client
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
@@ -2064,7 +2064,7 @@ namespace Dotmim.Sync.Tests
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
 
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
@@ -2099,7 +2099,7 @@ namespace Dotmim.Sync.Tests
 
                 var clientNameDecidedOnClientMachine = HelperDatabase.GetRandomName();
 
-                var agent = new SyncAgent(client.Provider, Server.Provider, options, new SyncSetup(Tables));
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -2159,7 +2159,7 @@ namespace Dotmim.Sync.Tests
                 });
 
                 // First sync, we allow server to resolve the conflict and send back the result to client
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync(Tables);
 
                 Assert.Equal(1, s.TotalChangesDownloaded);
                 Assert.Equal(1, s.TotalChangesUploaded);
@@ -2169,7 +2169,7 @@ namespace Dotmim.Sync.Tests
                 // And the Client row NAME is "UI_CLIENT..."
                 // Make a new sync to send "UI_CLIENT..." to Server
 
-                s = await agent.SynchronizeAsync();
+                s = await agent.SynchronizeAsync(Tables);
 
 
                 Assert.Equal(0, s.TotalChangesDownloaded);

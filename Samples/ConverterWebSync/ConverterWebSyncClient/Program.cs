@@ -24,7 +24,7 @@ namespace HelloWebSyncClient
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
             // Create a web proxy Orchesrtrator with a custom serializer
-            var serverProxyOrchestrator = new WebClientOrchestrator("https://localhost:44342/api/sync")
+            var serverProxyOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync")
             {
                 Converter = new CustomConverter(),
                 SerializerFactory = new CustomMessagePackSerializerFactory()

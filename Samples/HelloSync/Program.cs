@@ -23,21 +23,21 @@ namespace HelloSync
             // For instance, use this SQL statement on your server database : ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)  
             // Otherwise, if you don't want to use Change Tracking feature, just change 'SqlSyncChangeTrackingProvider' to 'SqlSyncProvider'
             var serverProvider = new SqlSyncProvider(serverConnectionString);
-       
+
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
             var clientProvider = new SqliteSyncProvider("adv.db");
 
             // Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-                        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+                        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync();
+                var s1 = await agent.SynchronizeAsync(setup);
                 // Write results
                 Console.WriteLine(s1);
 

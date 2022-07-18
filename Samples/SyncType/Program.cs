@@ -23,11 +23,11 @@ namespace HelloSync
 
             SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
             SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
+            var tables = new string[] {
+                "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"};
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
 
-            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-                "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
-
-            Console.WriteLine(await agent.SynchronizeAsync());
+            Console.WriteLine(await agent.SynchronizeAsync(tables));
             Console.WriteLine("End");
         }
 
@@ -41,10 +41,10 @@ namespace HelloSync
             SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
             SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
 
-            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-                "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
 
-            Console.WriteLine(await agent.SynchronizeAsync(SyncType.Reinitialize));
+            Console.WriteLine(await agent.SynchronizeAsync(setup, SyncType.Reinitialize));
             Console.WriteLine("End");
         }
 
@@ -59,11 +59,11 @@ namespace HelloSync
 
             SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
             SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("Client"));
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
-            SyncAgent agent = new SyncAgent(clientProvider, serverProvider, new string[] {
-                "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail"});
+            SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
 
-            Console.WriteLine(await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload));
+            Console.WriteLine(await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload));
             Console.WriteLine("End");
         }
     }

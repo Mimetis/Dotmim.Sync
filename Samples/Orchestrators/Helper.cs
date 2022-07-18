@@ -9,22 +9,27 @@ namespace Orchestrators
 {
     public class Helper
     {
-        public static async Task<int> InsertOneProductCategoryAsync(DbConnection c, string updatedName)
+        public static async Task InsertOneProductCategoryAsync(DbConnection c, string updatedName)
         {
             using (var command = c.CreateCommand())
             {
-                command.CommandText = "Insert Into ProductCategory (Name) Values (@Name); SELECT SCOPE_IDENTITY();";
+                command.CommandText = "Insert Into ProductCategory (ProductCategoryID, Name) Values (@ProductCategoryID, @Name)";
+                
                 var p = command.CreateParameter();
+                p.DbType = DbType.Guid;
+                p.Value = Guid.NewGuid();
+                p.ParameterName = "@ProductCategoryID";
+                command.Parameters.Add(p);
+
+                p = command.CreateParameter();
                 p.DbType = DbType.String;
                 p.Value = updatedName;
                 p.ParameterName = "@Name";
                 command.Parameters.Add(p);
 
                 await c.OpenAsync();
-                var id = await command.ExecuteScalarAsync();
+                var id = await command.ExecuteNonQueryAsync();
                 c.Close();
-
-                return Convert.ToInt32(id);
             }
         }
 
@@ -52,28 +57,5 @@ namespace Orchestrators
                 return Convert.ToInt32(id);
             }
         }
-        public static async Task UpdateOneProductCategoryAsync(DbConnection c, int productCategoryId, string updatedName)
-        {
-            using (var command = c.CreateCommand())
-            {
-                command.CommandText = "Update ProductCategory Set Name = @Name Where ProductCategoryId = @Id";
-                var p = command.CreateParameter();
-                p.DbType = DbType.String;
-                p.Value = updatedName;
-                p.ParameterName = "@Name";
-                command.Parameters.Add(p);
-
-                p = command.CreateParameter();
-                p.DbType = DbType.Int32;
-                p.Value = productCategoryId;
-                p.ParameterName = "@Id";
-                command.Parameters.Add(p);
-
-                await c.OpenAsync();
-                await command.ExecuteNonQueryAsync();
-                c.Close();
-            }
-        }
-
     }
 }

@@ -36,19 +36,22 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
-            localOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
-            localOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
-            localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
+            remoteOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
+            remoteOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
+            remoteOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
+            remoteOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            var isCreated = await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo,
+                "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
 
             Assert.True(isCreated);
             Assert.Equal(1, onCreating);
@@ -84,13 +87,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
-            var exists = await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
+
+            var exists = await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
             Assert.True(exists);
-            exists = await localOrchestrator.ExistStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChangesWithFilters);
+
+            exists = await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters);
             Assert.False(exists);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -113,19 +119,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
-            localOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
-            localOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
-            localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
+            remoteOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
+            remoteOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
+            remoteOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
+            remoteOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateStoredProceduresAsync(setup.Tables["Product", "SalesLT"]);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+
+            var isCreated = await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
             Assert.Equal(10, onCreating);
@@ -178,19 +186,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
-            localOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
-            localOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
-            localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
+            remoteOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
+            remoteOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
+            remoteOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
+            remoteOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateStoredProceduresAsync(setup.Tables["Product", "SalesLT"]);
+            var isCreated = await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
             Assert.Equal(10, onCreating);
@@ -203,7 +213,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            isCreated = await localOrchestrator.CreateStoredProceduresAsync(setup.Tables["Product", "SalesLT"]);
+            isCreated = await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.False(isCreated);
             Assert.Equal(0, onCreating);
@@ -216,7 +226,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            isCreated = await localOrchestrator.CreateStoredProceduresAsync(setup.Tables["Product", "SalesLT"], true);
+            isCreated = await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT", true);
 
             Assert.True(isCreated);
             Assert.Equal(10, onCreating);
@@ -245,25 +255,27 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var isCreated = await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+
+            var isCreated = await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
-            localOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
-            localOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
-            localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
+            remoteOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
+            remoteOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
+            remoteOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
+            remoteOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var isDropped = await localOrchestrator.DropStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            var isDropped = await remoteOrchestrator.DropStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
 
             Assert.True(isDropped);
             Assert.Equal(0, onCreating);
@@ -280,8 +292,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 c.Close();
             }
 
-            // try to delete a non existing one
-            isDropped = await localOrchestrator.DropStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChangesWithFilters);
+            // try to delete again a non existing sp type
+            isDropped = await remoteOrchestrator.DropStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters);
 
             Assert.False(isDropped);
 
@@ -304,30 +316,32 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var isCreated = await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+
+            var isCreated = await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
+            remoteOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
 
-            localOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
-            localOrchestrator.OnStoredProcedureDropping(tca =>
+            remoteOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
+            remoteOrchestrator.OnStoredProcedureDropping(tca =>
             {
                 tca.Cancel = true;
                 onDropping++;
             });
-            localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
+            remoteOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var isDropped = await localOrchestrator.DropStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            var isDropped = await remoteOrchestrator.DropStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
 
             Assert.False(isDropped);
             Assert.Equal(0, onCreating);
@@ -363,19 +377,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
-            localOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
-            localOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
-            localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
+            remoteOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
+            remoteOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
+            remoteOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
+            remoteOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            var isCreated = await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
 
             Assert.True(isCreated);
             Assert.Equal(1, onCreating);
@@ -388,7 +404,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            isCreated = await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges);
+            isCreated = await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges);
 
             Assert.False(isCreated);
             Assert.Equal(0, onCreating);
@@ -396,7 +412,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 
-            isCreated = await localOrchestrator.CreateStoredProcedureAsync(setup.Tables["Product", "SalesLT"], DbStoredProcedureType.SelectChanges, true);
+            isCreated = await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, true);
 
             Assert.True(isCreated);
             Assert.Equal(1, onCreating);
@@ -424,19 +440,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options, setup);
+            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+
+            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
             var onDropping = 0;
             var onDropped = 0;
 
-            localOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
-            localOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
-            localOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
-            localOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
+            remoteOrchestrator.OnStoredProcedureCreating(tca => onCreating++);
+            remoteOrchestrator.OnStoredProcedureCreated(tca => onCreated++);
+            remoteOrchestrator.OnStoredProcedureDropping(tca => onDropping++);
+            remoteOrchestrator.OnStoredProcedureDropped(tca => onDropped++);
 
-            var isCreated = await localOrchestrator.CreateStoredProceduresAsync(setup.Tables["Product", "SalesLT"]);
+            var isCreated = await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
             Assert.Equal(10, onCreating);
@@ -450,7 +468,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             onDropping = 0;
             onDropped = 0;
 
-            var isDropped = await localOrchestrator.DropStoredProceduresAsync(setup.Tables["Product", "SalesLT"]);
+            var isDropped = await remoteOrchestrator.DropStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
             Assert.Equal(0, onCreating);

@@ -32,11 +32,11 @@ namespace Progression
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
             // Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             agent.Options.BatchSize = 20;
 
@@ -64,7 +64,7 @@ namespace Progression
 
             // Row has been selected from datasource.
             // You can change the synrow before the row is serialized on the disk.
-            agent.LocalOrchestrator.OnTableChangesSelectedSyncRow(args =>
+            agent.LocalOrchestrator.OnRowsChangesSelected(args =>
             {
                 Console.Write(".");
             });
@@ -90,7 +90,7 @@ namespace Progression
             // This event is raised for each batch rows (maybe 1 or more in each batch)
             // that will be applied on the datasource
             // You can change something to the rows before they are applied here
-            agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
+            agent.LocalOrchestrator.OnRowsChangesApplying(args =>
             {
                 foreach (var syncRow in args.SyncRows)
                     Console.Write(".");
@@ -106,7 +106,7 @@ namespace Progression
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(SyncType.Normal, cts.Token, progress);
+                var s1 = await agent.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, SyncType.Normal, null, cts.Token, progress);
                 // Write results
                 Console.WriteLine(s1);
 

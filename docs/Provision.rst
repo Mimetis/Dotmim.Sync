@@ -147,8 +147,8 @@ Here is an example, using this method on your local database:
     // create remote orchestrator to get the schema for the 2 new tables to add
     var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
     
-    // If you are on a web sync architecture, you can use the WebClientOrchestrator as well:
-    // var remoteOrchestrator = new WebClientOrchestrator(serviceUri)
+    // If you are on a web sync architecture, you can use the WebRemoteOrchestrator as well:
+    // var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri)
 
     // get the old setup
     var scopeInfo = await localOrchestrator.GetClientScopeAsync();
@@ -427,7 +427,7 @@ Provision on the client side is quite similar, despite the fact we will rely on 
     // This method is useful if you want to provision by yourself the client database
     // You will need to :
     // - Create a local orchestrator with the correct setup to provision
-    // - Get the schema from the server side using a RemoteOrchestrator or a WebClientOrchestrator
+    // - Get the schema from the server side using a RemoteOrchestrator or a WebRemoteOrchestrator
     // - Provision everything locally
 
     // Create a local orchestrator used to provision everything locally
@@ -440,8 +440,8 @@ Provision on the client side is quite similar, despite the fact we will rely on 
     var serverSchema = await remoteOrchestrator.GetSchemaAsync();
 
     // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
-    // You can create a WebClientOrchestrator and get the schema as well
-    // var proxyClientProvider = new WebClientOrchestrator("https://localhost:44369/api/Sync");
+    // You can create a WebRemoteOrchestrator and get the schema as well
+    // var proxyClientProvider = new WebRemoteOrchestrator("https://localhost:44369/api/Sync");
     // var serverSchema = proxyClientProvider.GetSchemaAsync();
 
     // Provision everything needed (sp, triggers, tracking tables, AND TABLES)

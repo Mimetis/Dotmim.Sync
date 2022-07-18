@@ -5,7 +5,7 @@ using System.Text;
 namespace Dotmim.Sync.Enumerations
 {
     /// <summary>
-    /// Synchronization mode. Could be Normal, Reinitialize, ReinitializeWithUpload
+    /// Synchronization mode: Normal, Reinitialize or ReinitializeWithUpload
     /// </summary>
     public enum SyncType
     {

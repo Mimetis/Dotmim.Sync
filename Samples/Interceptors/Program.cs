@@ -31,10 +31,10 @@ namespace Interceptors
             var tables = new string[] {"Product" };
 
             // Creating an agent that will handle all the process
-            var agent = new SyncAgent(clientProvider, serverProvider, tables);
+            var agent = new SyncAgent(clientProvider, serverProvider);
 
             // First sync to have some rows on client
-            var s1 = await agent.SynchronizeAsync();
+            var s1 = await agent.SynchronizeAsync(tables);
             // Write results
             Console.WriteLine(s1);
 

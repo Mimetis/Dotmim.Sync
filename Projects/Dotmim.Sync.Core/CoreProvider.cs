@@ -18,6 +18,9 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract partial class CoreProvider
     {
+
+        internal Action<DbConnection> onConnectionOpened = new(c => { });
+        internal Action<DbConnection> onConnectionClosed = new(c => { });
         /// <summary>
         /// Gets the reference to the orchestrator owner of this instance
         /// </summary>
@@ -28,12 +31,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Connection is opened. this method is called before any interceptors
         /// </summary>
-        public virtual void OnConnectionOpened(DbConnection connection) { }
+        public virtual void OnConnectionOpened(Action<DbConnection> onConnectionOpened) => this.onConnectionOpened = onConnectionOpened;
 
         /// <summary>
         /// Connection is closed. this method is called after all interceptors
         /// </summary>
-        public virtual void OnConnectionClosed(DbConnection connection) { }
+        public virtual void OnConnectionClosed(Action<DbConnection> onConnectionClosed) => this.onConnectionClosed = onConnectionClosed;
 
         /// <summary>
         /// Create a new instance of the implemented Connection provider
@@ -50,12 +53,12 @@ namespace Dotmim.Sync
         /// Get a table builder helper which can create object at the table level
         /// </summary>
         /// <returns></returns>
-        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup);
+        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName);
 
         /// <summary>
         /// Get sync adapter which can executes all the commands needed for a complete sync
         /// </summary>
-        public abstract DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup);
+        public abstract DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName);
 
         /// <summary>
         /// Create a Scope Builder, which can create scope table, and scope config

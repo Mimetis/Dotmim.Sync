@@ -27,11 +27,11 @@ namespace CustomProvider
         public SqlSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
         public SqlSyncDownloadOnlyProvider(SqlConnectionStringBuilder builder) : base(builder) { }
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
     }
 
     /// <summary>
@@ -39,8 +39,8 @@ namespace CustomProvider
     /// </summary>
     public class SqlDownloadOnlyTableBuilder : SqlTableBuilder
     {
-        public SqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingTableName, setup) { }
+        public SqlDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName) { }
 
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
@@ -254,8 +254,8 @@ namespace CustomProvider
     /// </summary>
     public class SqlDownloadOnlySyncAdapter : SqlSyncAdapter
     {
-        public SqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingName, setup) { }
+        public SqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingName, setup, scopeName) { }
 
         /// <summary>
         /// Returning null for all non used commands (from case default)

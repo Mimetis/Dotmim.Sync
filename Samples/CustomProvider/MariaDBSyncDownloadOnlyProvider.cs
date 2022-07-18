@@ -31,11 +31,11 @@ namespace CustomProvider
         public MariaDBSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
         public MariaDBSyncDownloadOnlyProvider(MySqlConnectionStringBuilder builder) : base(builder) { }
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, this.BulkBatchMaxLinesCount);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MariaDBDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, this.BulkBatchMaxLinesCount, scopeName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new MariaDBDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         // Max number of lines in batch bulk init operation
         public override int BulkBatchMaxLinesCount => 100;
@@ -46,8 +46,8 @@ namespace CustomProvider
     /// </summary>
     public class MariaDBDownloadOnlyTableBuilder : MySqlTableBuilder
     {
-        public MariaDBDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            : base(tableDescription, tableName, trackingTableName, setup) { }
+        public MariaDBDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName) { }
 
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
@@ -75,8 +75,8 @@ namespace CustomProvider
         private ParserName tableName;
         private readonly int bulkBatchMaxLinesCount;
 
-        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, int bulkBatchMaxLinesCount)
-            : base(tableDescription, tableName, trackingName, setup)
+        public MariaDBDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, int bulkBatchMaxLinesCount, string scopeName)
+            : base(tableDescription, tableName, trackingName, setup, scopeName)
         {
             this.tableName = tableName;
             this.bulkBatchMaxLinesCount = bulkBatchMaxLinesCount;

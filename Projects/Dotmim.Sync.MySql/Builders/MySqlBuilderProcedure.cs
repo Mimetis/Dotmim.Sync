@@ -24,18 +24,20 @@ namespace Dotmim.Sync.MySql.Builders
         private ParserName trackingName;
         private SyncTable tableDescription;
         private SyncSetup setup;
+        private readonly string scopeName;
         private MySqlObjectNames objectNames;
         private MySqlDbMetadata dbMetadata;
         public const string MYSQL_PREFIX_PARAMETER = "in_";
 
 
-        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
+            this.scopeName = scopeName;
             this.tableName = tableName;
             this.trackingName = trackingName;
-            this.objectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup);
+            this.objectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup, scopeName);
             this.dbMetadata = new MySqlDbMetadata();
         }
 
@@ -214,7 +216,7 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
                 storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
                 return Task.FromResult<DbCommand>(null);
 
@@ -248,7 +250,7 @@ namespace Dotmim.Sync.MySql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows || storedProcedureType == DbStoredProcedureType.BulkInitRows ||
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
                 storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
                 return Task.FromResult<DbCommand>(null);
 
@@ -641,6 +643,7 @@ namespace Dotmim.Sync.MySql.Builders
                     sqlParamFilter.Size = columnFilter.MaxLength;
                     sqlParamFilter.IsNullable = param.AllowNull;
                     sqlParamFilter.Value = param.DefaultValue;
+                    sqlParamFilter.SourceColumn = columnFilter.ExtraProperty1;
                     sqlCommand.Parameters.Add(sqlParamFilter);
                 }
 

@@ -10,14 +10,14 @@ namespace Dotmim.Sync
 {
     public class MetadataCleaningArgs : ProgressArgs
     {
-        public SyncSetup Setup { get; }
+        public IEnumerable<IScopeInfo> ScopeInfos { get; }
         public long TimeStampStart { get; }
 
-        public MetadataCleaningArgs(SyncContext context, SyncSetup setup, long timeStampStart, DbConnection connection, DbTransaction transaction)
+        public MetadataCleaningArgs(SyncContext context, IEnumerable<IScopeInfo> scopeInfos, long timeStampStart, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {
-            this.Setup = setup;
+            this.ScopeInfos = scopeInfos;
             this.TimeStampStart = timeStampStart;
         }
         public override string Source => Connection.Database;
@@ -53,22 +53,22 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a provider is cleaning metadata
         /// </summary>
-        public static void OnMetadataCleaning(this BaseOrchestrator orchestrator, Action<MetadataCleaningArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnMetadataCleaning(this BaseOrchestrator orchestrator, Action<MetadataCleaningArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a provider is cleaning metadata
         /// </summary>
-        public static void OnMetadataCleaning(this BaseOrchestrator orchestrator, Func<MetadataCleaningArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnMetadataCleaning(this BaseOrchestrator orchestrator, Func<MetadataCleaningArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
         /// Intercept the provider action when a provider has cleaned metadata
         /// </summary>
-        public static void OnMetadataCleaned(this BaseOrchestrator orchestrator, Action<MetadataCleanedArgs> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnMetadataCleaned(this BaseOrchestrator orchestrator, Action<MetadataCleanedArgs> action)
+            => orchestrator.AddInterceptor(action);
         /// Intercept the provider action when a provider has cleaned metadata
         /// </summary>
-        public static void OnMetadataCleaned(this BaseOrchestrator orchestrator, Func<MetadataCleanedArgs, Task> action)
-            => orchestrator.SetInterceptor(action);
+        public static Guid OnMetadataCleaned(this BaseOrchestrator orchestrator, Func<MetadataCleanedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
 
     }
 

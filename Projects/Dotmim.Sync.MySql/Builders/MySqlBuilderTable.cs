@@ -94,21 +94,22 @@ namespace Dotmim.Sync.MySql.Builders
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if we have a readonly column, we may have a computed one, so we need to allow null
+                // if we are not on the same provider with a default value existing
                 if (column.IsReadOnly)
-                    nullString = "NULL";
+                {
+                    if (this.tableDescription.OriginalProvider != originalProvider || string.IsNullOrEmpty(column.DefaultValue))
+                        nullString = "NULL";
+                }
 
                 string defaultValue = string.Empty;
-                //if (this.tableDescription.OriginalProvider == originalProvider)
-                //    if (!string.IsNullOrEmpty(column.DefaultValue))
-                //    {
-                //        string tmp = column.DefaultValue;
-                //        if (!tmp.StartsWith("'") && !this.dbMetadata.IsNumericType(column))
-                //            tmp = $"'{tmp}'";
 
-                //        defaultValue = $"DEFAULT {tmp}";
-                //    }
+                if (this.tableDescription.OriginalProvider == originalProvider && !string.IsNullOrEmpty(column.DefaultValue) && column.IsCompute)
+                {
+                    defaultValue = column.DefaultValue;
+                    nullString = "";
+                }
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {defaultValue}");
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {defaultValue} {nullString}");
                 empty = ",";
             }
 
@@ -351,6 +352,20 @@ namespace Dotmim.Sync.MySql.Builders
                     sColumn.AutoIncrementStep = 1;
                 }
 
+                if (!string.IsNullOrEmpty(extra) && extra.Contains("generated"))
+                {
+                    var generationExpression = c["generation_expression"] != DBNull.Value ? ((string)c["generation_expression"]) : null;
+
+                    if (!string.IsNullOrEmpty(generationExpression) && !string.IsNullOrEmpty(extra) && extra.Contains("generated"))
+                    {
+                        var virtualOrStored = extra.Contains("virtual") ? "VIRTUAL" : "STORED";
+                        var exp = $"GENERATED ALWAYS AS ({generationExpression}) {virtualOrStored}";
+                        sColumn.DefaultValue = exp;
+                        sColumn.IsCompute = true;
+                        sColumn.AllowDBNull = false;
+                    }
+
+                }
                 columns.Add(sColumn);
 
             }

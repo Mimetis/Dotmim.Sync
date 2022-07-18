@@ -21,20 +21,7 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
         // Collection of Interceptors
-        private Interceptors interceptors = new Interceptors();
-        internal SyncContext syncContext;
-
-        //// Internal table builder cache
-        //private static ConcurrentDictionary<string, Lazy<DbTableBuilder>> tableBuilders
-        //    = new ConcurrentDictionary<string, Lazy<DbTableBuilder>>();
-
-        //// Internal scope builder cache
-        //private static ConcurrentDictionary<string, Lazy<DbScopeBuilder>> scopeBuilders
-        //    = new ConcurrentDictionary<string, Lazy<DbScopeBuilder>>();
-
-        // Internal sync adapter cache
-        //private static ConcurrentDictionary<string, Lazy<DbSyncAdapter>> syncAdapters
-        //    = new ConcurrentDictionary<string, Lazy<DbSyncAdapter>>();
+        internal Interceptors interceptors = new();
 
         /// <summary>
         /// Gets or Sets orchestrator side
@@ -52,21 +39,6 @@ namespace Dotmim.Sync
         public virtual SyncOptions Options { get; internal set; }
 
         /// <summary>
-        /// Gets the Setup used by this local orchestrator
-        /// </summary>
-        public virtual SyncSetup Setup { get; set; }
-
-        /// <summary>
-        /// Gets the scope name used by this local orchestrator
-        /// </summary>
-        public virtual string ScopeName { get; internal protected set; }
-
-        /// <summary>
-        /// Gets or Sets the start time for this orchestrator
-        /// </summary>
-        public virtual DateTime? StartTime { get; set; }
-
-        /// <summary>
         /// Gets or Sets the end time for this orchestrator
         /// </summary>
         public virtual DateTime? CompleteTime { get; set; }
@@ -80,47 +52,54 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a local orchestrator, used to orchestrates the whole sync on the client side
         /// </summary>
-        public BaseOrchestrator(CoreProvider provider, SyncOptions options, SyncSetup setup, string scopeName = SyncOptions.DefaultScopeName)
+        public BaseOrchestrator(CoreProvider provider, SyncOptions options)
         {
-            this.ScopeName = scopeName ?? throw new ArgumentNullException(nameof(scopeName));
-            this.Provider = provider ?? throw new ArgumentNullException(nameof(provider));
-            this.Options = options ?? throw new ArgumentNullException(nameof(options));
-            this.Setup = setup ?? throw new ArgumentNullException(nameof(setup));
+            this.Options = options ?? throw GetSyncError(null, new ArgumentNullException(nameof(options)));
 
-            this.Provider.Orchestrator = this;
+            if (provider != null)
+            {
+                this.Provider = provider;
+                this.Provider.Orchestrator = this;
+            }
+
             this.Logger = options.Logger;
         }
 
         /// <summary>
-        /// Set an interceptor to get info on the current sync process
+        /// Add an interceptor of T
         /// </summary>
-        [DebuggerStepThrough]
-        internal void On<T>(Action<T> interceptorAction) where T : ProgressArgs =>
-            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
+        public Guid AddInterceptor<T>(Action<T> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
-        /// Set an interceptor to get info on the current sync process
+        /// Add an async interceptor of T
         /// </summary>
-        [DebuggerStepThrough]
-        internal void On<T>(Func<T, Task> interceptorAction) where T : ProgressArgs =>
-            this.interceptors.GetInterceptor<T>().Set(interceptorAction);
+        public Guid AddInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
-        /// Set a collection of interceptors
+        /// Remove all interceptors based on type of ProgressArgs
         /// </summary>
-        [DebuggerStepThrough]
-        internal void On(Interceptors interceptors) => this.interceptors = interceptors;
+        public void ClearInterceptors<T>() where T : ProgressArgs => this.interceptors.Clear<T>();
 
         /// <summary>
-        /// Returns the Task associated with given type of BaseArgs 
-        /// Because we are not doing anything else than just returning a task, no need to use async / await. Just return the Task itself
+        /// Remove all interceptors 
+        /// </summary>
+        public void ClearInterceptors() => this.interceptors.Clear();
+
+        /// <summary>
+        /// Remove interceptor based on Id
+        /// </summary>
+        public void ClearInterceptors(Guid id) => this.interceptors.Clear(id);
+
+
+        /// <summary>
+        /// Try to proc a On[Method]
         /// </summary>
         internal async Task<T> InterceptAsync<T>(T args, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default) where T : ProgressArgs
         {
             if (this.interceptors == null)
                 return args;
 
-            var interceptor = this.interceptors.GetInterceptor<T>();
+            var interceptors = this.interceptors.GetInterceptors<T>();
 
             // Check logger, because we make some reflection here
             if (this.Logger.IsEnabled(LogLevel.Debug))
@@ -131,7 +110,8 @@ namespace Dotmim.Sync
                 this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
             }
 
-            await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
+            foreach (var interceptor in interceptors)
+                await interceptor.RunAsync(args, cancellationToken).ConfigureAwait(false);
 
             if (progress != default)
                 this.ReportProgress(args.Context, progress, args, args.Connection, args.Transaction);
@@ -139,23 +119,6 @@ namespace Dotmim.Sync
             return args;
         }
 
-        /// <summary>
-        /// Affect an interceptor
-        /// </summary>
-        [DebuggerStepThrough]
-        internal void SetInterceptor<T>(Action<T> action) where T : ProgressArgs => this.On(action);
-
-        /// <summary>
-        /// Affect an interceptor
-        /// </summary>
-        [DebuggerStepThrough]
-        internal void SetInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.On(action);
-
-        /// <summary>
-        /// Gets a boolean returning true if an interceptor of type T, exists
-        /// </summary>
-        [DebuggerStepThrough]
-        internal bool ContainsInterceptor<T>() where T : ProgressArgs => this.interceptors.Contains<T>();
 
         /// <summary>
         /// Try to report progress
@@ -165,7 +128,7 @@ namespace Dotmim.Sync
             // Check logger, because we make some reflection here
             if (this.Logger.IsEnabled(LogLevel.Information))
             {
-                var argsTypeName = args.GetType().Name.Replace("Args", ""); ;
+                var argsTypeName = args.GetType().Name.Replace("Args", "");
                 if (this.Logger.IsEnabled(LogLevel.Debug))
                     this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
                 else
@@ -195,11 +158,14 @@ namespace Dotmim.Sync
         /// Open a connection
         /// </summary>
         //[DebuggerStepThrough]
-        internal async Task OpenConnectionAsync(DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task OpenConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (this.Provider == null)
+                return;
+
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                this.InterceptAsync(new ReConnectArgs(this.GetContext(), connection, ex, cpt, ts), progress, cancellationToken));
+                this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
 
             // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
@@ -212,16 +178,19 @@ namespace Dotmim.Sync
             await policy.ExecuteAsync(ct => connection.OpenAsync(ct), cancellationToken);
 
             // Let provider knows a connection is opened
-            this.Provider.OnConnectionOpened(connection);
+            this.Provider.onConnectionOpened(connection);
 
-            await this.InterceptAsync(new ConnectionOpenedArgs(this.GetContext(), connection), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ConnectionOpenedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Close a connection
         /// </summary>
-        internal async Task CloseConnectionAsync(DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task CloseConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (this.Provider == null)
+                return;
+
             if (connection != null && connection.State == ConnectionState.Closed)
                 return;
 
@@ -234,10 +203,10 @@ namespace Dotmim.Sync
             }
 
             if (!cancellationToken.IsCancellationRequested)
-                await this.InterceptAsync(new ConnectionClosedArgs(this.GetContext(), connection), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ConnectionClosedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
-            this.Provider.OnConnectionClosed(connection);
+            this.Provider.onConnectionClosed(connection);
 
             if (isClosedHere && connection != null)
                 connection.Dispose();
@@ -245,15 +214,22 @@ namespace Dotmim.Sync
 
 
         [DebuggerStepThrough]
-        internal SyncException GetSyncError(Exception exception)
+        internal SyncException GetSyncError(SyncContext context, Exception exception)
         {
-            var syncException = new SyncException(exception, this.GetContext().SyncStage);
+            if (exception is SyncException)
+                return exception as SyncException;
+
+            var syncStage = context == null ? SyncStage.None : context.SyncStage;
+            var syncException = new SyncException(exception, syncStage);
 
             // try to let the provider enrich the exception
-            this.Provider.EnsureSyncException(syncException);
+            if (this.Provider != null)
+                this.Provider.EnsureSyncException(syncException);
+
             syncException.Side = this.Side;
 
-            this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
+            if (this.Logger != null)
+                this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 
             return syncException;
         }
@@ -261,7 +237,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter
         /// </summary>
-        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, SyncSetup setup)
+        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, IScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -281,15 +257,17 @@ namespace Dotmim.Sync
             //var syncAdapter = lazySyncAdapter.Value;
 
             //return syncAdapter;
+            if (this.Provider == null)
+                return null;
 
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
-            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, setup);
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
+            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
         }
 
         /// <summary>
         /// Get the provider table builder
         /// </summary>
-        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, SyncSetup setup)
+        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, IScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -310,8 +288,11 @@ namespace Dotmim.Sync
 
             //return tableBuilder;
 
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
-            return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, setup);
+            if (this.Provider == null)
+                return null;
+
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
+            return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
         }
 
 
@@ -331,26 +312,10 @@ namespace Dotmim.Sync
             //var scopeBuilder = lazyScopeBuilder.Value;
 
             //return scopeBuilder;
+            if (this.Provider == null)
+                return null;
 
             return this.Provider.GetScopeBuilder(scopeInfoTableName);
-        }
-        /// <summary>
-        /// Sets the current context
-        /// </summary>
-        internal virtual void SetContext(SyncContext context) => this.syncContext = context;
-
-        /// <summary>
-        /// Gets the current context
-        /// </summary>
-        [DebuggerStepThrough]
-        public virtual SyncContext GetContext()
-        {
-            if (this.syncContext != null)
-                return this.syncContext;
-
-            this.syncContext = new SyncContext(Guid.NewGuid(), this.ScopeName); ;
-
-            return this.syncContext;
         }
 
 
@@ -358,187 +323,100 @@ namespace Dotmim.Sync
         /// Check if the orchestrator database is outdated
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<bool> IsOutDatedAsync(ScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext, bool)> IsOutDatedAsync(SyncContext context, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (!this.StartTime.HasValue)
-                this.StartTime = DateTime.UtcNow;
-
             bool isOutdated = false;
-
-            // Get context or create a new one
-            var ctx = this.GetContext();
 
             // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
             // so far we return directly false
             if (clientScopeInfo.IsNewScope)
-                return false;
+                return (context, false);
 
-            // Check if the provider is not outdated
-            // We can have negative value where we want to compare anyway
             if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
                 isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
 
             // Get a chance to make the sync even if it's outdated
             if (isOutdated)
             {
-                var outdatedArgs = new OutdatedArgs(ctx, clientScopeInfo, serverScopeInfo);
+                var outdatedArgs = new OutdatedArgs(context, clientScopeInfo, serverScopeInfo);
 
                 // Interceptor
                 await this.InterceptAsync(outdatedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (outdatedArgs.Action != OutdatedAction.Rollback)
-                    ctx.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
+                {
+                    context.SyncType = outdatedArgs.Action == OutdatedAction.Reinitialize ? SyncType.Reinitialize : SyncType.ReinitializeWithUpload;
+                }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
                     throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);
             }
 
-            return isOutdated;
+            return (context, isOutdated);
         }
+
+
+
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+            => GetHelloAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken, progress);
+
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            return InternalGetHelloAsync(context, connection, transaction, cancellationToken, progress);
+        }
+
 
         /// <summary>
         /// Get hello from database
         /// </summary>
-        public virtual async Task<(SyncContext SyncContext, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        public virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
+            SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
+            if (this.Provider == null)
+                return (context, default, default);
+
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                // TODO : get all scopes for Hello all of them
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
                 var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
                 await runner.CommitAsync().ConfigureAwait(false);
-                return (this.GetContext(), hello.DatabaseName, hello.Version);
+                return (context, hello.DatabaseName, hello.Version);
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(context, ex);
             }
         }
 
-
-
-        //public async Task<T> RunInTransactionAsync2<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-        //      DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default)
-        //{
-        //    if (!this.StartTime.HasValue)
-        //        this.StartTime = DateTime.UtcNow;
-
-        //    // Get context or create a new one
-        //    var ctx = this.GetContext();
-
-        //    T result = default;
-
-        //    using var c = this.Provider.CreateConnection();
-
-        //    try
-        //    {
-        //        await c.OpenAsync();
-
-        //        using (var t = c.BeginTransaction(this.Provider.IsolationLevel))
-        //        {
-        //            if (actionTask != null)
-        //                result = await actionTask(ctx, c, t);
-
-        //            t.Commit();
-        //        }
-        //        c.Close();
-        //        c.Dispose();
-
-        //        return result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw GetSyncError(ex);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Run an actin inside a connection / transaction
-        ///// </summary>
-        //public async Task<T> RunInTransactionAsync<T>(SyncStage stage = SyncStage.None, Func<SyncContext, DbConnection, DbTransaction, Task<T>> actionTask = null,
-        //      DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
-        //{
-        //    if (!this.StartTime.HasValue)
-        //        this.StartTime = DateTime.UtcNow;
-
-        //    // Get context or create a new one
-        //    var ctx = this.GetContext();
-
-        //    T result = default;
-
-        //    if (connection == null)
-        //        connection = this.Provider.CreateConnection();
-
-        //    var alreadyOpened = connection.State == ConnectionState.Open;
-        //    var alreadyInTransaction = transaction != null && transaction.Connection == connection;
-
-        //    try
-        //    {
-        //        if (stage != SyncStage.None)
-        //            ctx.SyncStage = stage;
-
-        //        // Open connection
-        //        if (!alreadyOpened)
-        //            await this.OpenConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
-
-        //        // Create a transaction
-        //        if (!alreadyInTransaction)
-        //        {
-        //            transaction = connection.BeginTransaction(this.Provider.IsolationLevel);
-        //            await this.InterceptAsync(new TransactionOpenedArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-        //        }
-
-        //        if (actionTask != null)
-        //            result = await actionTask(ctx, connection, transaction);
-
-        //        if (!alreadyInTransaction)
-        //        {
-        //            await this.InterceptAsync(new TransactionCommitArgs(ctx, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-        //            transaction.Commit();
-        //            transaction.Dispose();
-        //        }
-
-        //        if (!alreadyOpened)
-        //            await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
-
-        //        return result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw GetSyncError(ex);
-        //    }
-        //    finally
-        //    {
-        //        if (!alreadyOpened)
-        //            await this.CloseConnectionAsync(connection, cancellationToken, progress).ConfigureAwait(false);
-        //    }
-        //}
+        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, syncParameters, cancellationToken, progress);
 
         /// <summary>
         /// Get a snapshot root directory name and folder directory name
         /// </summary>
-        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task<(string DirectoryRoot, string DirectoryName)>
+            GetSnapshotDirectoryAsync(string scopeName, SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // Get context or create a new one
-            var ctx = this.GetContext();
-
             // check parameters
             // If context has no parameters specified, and user specifies a parameter collection we switch them
-            if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
-                ctx.Parameters = syncParameters;
+            //if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
+            //    ctx.Parameters = syncParameters;
 
-            return this.InternalGetSnapshotDirectoryAsync(ctx, cancellationToken, progress);
+            return this.InternalGetSnapshotDirectoryPathAsync(scopeName, syncParameters, cancellationToken, progress);
         }
 
         /// <summary>
         /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
         /// </summary>
-        internal virtual async Task<bool> InternalCanCleanFolderAsync(SyncContext context, BatchInfo batchInfo,
+        internal virtual async Task<bool> InternalCanCleanFolderAsync(string scopeName, SyncParameters parameters, BatchInfo batchInfo,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 
-            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync();
+            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(scopeName, parameters);
 
             // if we don't have any snapshot configuration, we are sure that the current batchinfo is actually stored into a temp folder
             if (string.IsNullOrEmpty(snapshotRootDirectory))
@@ -556,24 +434,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal routine to get the snapshot root directory and batch directory name
         /// </summary>
-        internal virtual Task<(string DirectoryRoot, string DirectoryName)> InternalGetSnapshotDirectoryAsync(SyncContext context,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        internal virtual Task<(string DirectoryRoot, string DirectoryName)>
+            InternalGetSnapshotDirectoryPathAsync(string scopeName, SyncParameters parameters = null,
+                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
                 return Task.FromResult<(string, string)>((default, default));
 
             // cleansing scope name
-            var directoryScopeName = new string(context.ScopeName.Where(char.IsLetterOrDigit).ToArray());
+            var directoryScopeName = new string(scopeName.Where(char.IsLetterOrDigit).ToArray());
 
             var directoryFullPath = Path.Combine(this.Options.SnapshotsDirectory, directoryScopeName);
 
             var sb = new StringBuilder();
             var underscore = "";
 
-            if (context.Parameters != null)
+            if (parameters != null)
             {
-                foreach (var p in context.Parameters.OrderBy(p => p.Name))
+                foreach (var p in parameters.OrderBy(p => p.Name))
                 {
                     var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());

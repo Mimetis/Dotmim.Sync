@@ -19,7 +19,7 @@ namespace XamAppServerConsole
               .AddJsonFile("appsettings.local.json", true, true)
               .Build();
 
-            await UpdateSetupAndProvisionAsync();
+            await CreateSnapshotAsync();
         }
 
         private static async Task CreateSnapshotAsync()
@@ -46,33 +46,9 @@ namespace XamAppServerConsole
 
             var provider = new SqlSyncProvider(connectionString);
 
-            var orchestrator = new RemoteOrchestrator(provider, syncOptions, syncSetup);
+            var orchestrator = new RemoteOrchestrator(provider, syncOptions);
 
-            var snap = await orchestrator.CreateSnapshotAsync(progress: progress);
-
-        }
-
-
-        private static async Task UpdateSetupAndProvisionAsync()
-        {
-            // [Required]: Get a connection string to your server data source
-            var connectionString = configuration.GetSection("ConnectionStrings")["SqlConnection"];
-
-            // [Required] Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
-
-            var syncSetup = new SyncSetup(tables);
-
-            // Using the Progress pattern to handle progession during the synchronization
-            var progress = new SynchronousProgress<ProgressArgs>(s => Console.WriteLine($"{s.Source}:\t{s.Message}"));
-
-            var provider = new SqlSyncProvider(connectionString);
-
-            var orchestrator = new RemoteOrchestrator(provider, new SyncOptions(), syncSetup);
-
-            await orchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers, progress: progress);
-            await orchestrator.ProvisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers, progress: progress);
+            var snap = await orchestrator.CreateSnapshotAsync(syncSetup, progress: progress);
 
         }
     }

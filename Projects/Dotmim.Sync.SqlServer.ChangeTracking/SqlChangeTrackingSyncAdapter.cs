@@ -14,7 +14,8 @@ namespace Dotmim.Sync.SqlServer
 {
     public class SqlChangeTrackingSyncAdapter : SqlSyncAdapter
     {
-        public SqlChangeTrackingSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, tableName, trackingName, setup)
+        public SqlChangeTrackingSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) 
+            : base(tableDescription, tableName, trackingName, setup, scopeName)
         {
         }
 

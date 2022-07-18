@@ -16,74 +16,69 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
+        public virtual Task<SyncSet> GetSchemaAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => GetSchemaAsync(SyncOptions.DefaultScopeName, setup, connection, transaction, cancellationToken, progress);
+
         /// <summary>
         /// Read the schema stored from the orchestrator database, through the provider.
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual async Task<SyncSet> GetSchemaAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<SyncSet> GetSchemaAsync(string scopeName, SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (setup == null || setup.Tables.Count <= 0)
+                    return null;
 
-                var schema = await this.InternalGetSchemaAsync(this.GetContext(), this.Setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                SyncSet schema;
+                (context, schema) = await this.InternalGetSchemaAsync(context, setup, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 return schema;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(context, ex);
             }
 
         }
 
-
         /// <summary>
-        /// Read the schema stored from the orchestrator database, through the provider.
+        /// Read all tables from database.
         /// </summary>
-        /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual async Task<SyncTable> GetTableSchemaAsync(SetupTable table, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        /// <returns>SyncSetup containing tables names and column names</returns>
+        public virtual async Task<SyncSetup> GetAllTablesAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Reading, SyncStage.SchemaReading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var (schemaTable, _) = await this.InternalGetTableSchemaAsync(this.GetContext(), this.Setup, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                SyncSetup setup;
+                (context, setup) = await this.InternalGetAllTablesAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (schemaTable == null)
-                    throw new MissingTableException(table.GetFullName());
-
-                // Create a temporary SyncSet for attaching to the schemaTable
-                var schema = new SyncSet();
-
-                // Add this table to schema
-                schema.Tables.Add(schemaTable);
-
-                schema.EnsureSchema();
-
-                // copy filters from setup
-                foreach (var filter in this.Setup.Filters)
-                    schema.Filters.Add(filter);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return schemaTable;
+                return setup;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(ex);
+                throw GetSyncError(context, ex);
             }
+
         }
 
         /// <summary>
         /// update configuration object with tables desc from server database
         /// </summary>
-        internal async Task<SyncSet> InternalGetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction,
-                                                           CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, SyncSet schema)> InternalGetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (setup == null || setup.Tables.Count <= 0)
-                throw new MissingTablesException();
+                throw new MissingTablesException(context.ScopeName);
 
-            await this.InterceptAsync(new SchemaLoadingArgs(context, setup, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            await this.InterceptAsync(new SchemaLoadingArgs(context, setup, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             // Create the schema
             var schema = new SyncSet();
@@ -96,7 +91,7 @@ namespace Dotmim.Sync
 
             foreach (var setupTable in setup.Tables)
             {
-                var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setup, setupTable, connection, transaction, cancellationToken, progress);
+                var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setupTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                 // Add this table to schema
                 schema.Tables.Add(syncTable);
@@ -113,27 +108,51 @@ namespace Dotmim.Sync
             // Ensure all objects have correct relations to schema
             schema.EnsureSchema();
 
-            var schemaArgs = new SchemaLoadedArgs(context, schema, connection);
-            await this.InterceptAsync(schemaArgs, progress, cancellationToken).ConfigureAwait(false);
+            var schemaArgs = new SchemaLoadedArgs(context, schema, runner.Connection);
+            await this.InterceptAsync(schemaArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-            return schema;
+            return (context, schema);
         }
 
 
-        internal async Task<(SyncTable SyncTable, IEnumerable<DbRelationDefinition> Relations)> InternalGetTableSchemaAsync(
-            SyncContext context, SyncSetup setup, SetupTable setupTable, DbConnection connection, DbTransaction transaction,
+
+        /// <summary>
+        /// Get all tables with column names from database
+        /// </summary>
+        internal async Task<(SyncContext context, SyncSetup setup)> InternalGetAllTablesAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+            var setup = await dbBuilder.GetAllTablesAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+            return (context, setup);
+        }
+
+
+        private async Task<(SyncTable SyncTable, IEnumerable<DbRelationDefinition> Relations)> InternalGetTableSchemaAsync
+            (SyncContext context, SetupTable setupTable, DbConnection connection, DbTransaction transaction,
                                                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (Provider == null)
+                throw new MissingProviderException(nameof(InternalGetTableSchemaAsync));
 
             // ensure table is compliante with name / schema with provider
             var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction);
 
-            var tableBuilder = this.GetTableBuilder(syncTable, setup);
+            // tmp scope info
+            var scopeInfo = this.InternalCreateScopeInfo(context.ScopeName, DbScopeType.Client);
+            scopeInfo.Setup = new SyncSetup();
+            scopeInfo.Setup.Tables.Add(setupTable);
 
-            var exists = await InternalExistsTableAsync(context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
+
+            bool exists;
+            (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!exists)
-                throw new MissingTableException(string.IsNullOrEmpty(setupTable.SchemaName) ? setupTable.TableName : setupTable.SchemaName + "." + setupTable.TableName);
+                throw new MissingTableException(setupTable.TableName, setupTable.SchemaName, scopeInfo.Name);
 
             // get columns list
             var lstColumns = await tableBuilder.GetColumnsAsync(connection, transaction).ConfigureAwait(false);
@@ -157,7 +176,7 @@ namespace Dotmim.Sync
         private void FillSyncTableWithColumns(SetupTable setupTable, SyncTable schemaTable, IEnumerable<SyncColumn> columns)
         {
             schemaTable.OriginalProvider = this.Provider.GetProviderTypeName();
-            schemaTable.SyncDirection = setupTable.SyncDirection;
+            //schemaTable.SyncDirection = setupTable.SyncDirection;
 
             var ordinal = 0;
 
@@ -200,7 +219,7 @@ namespace Dotmim.Sync
             {
                 // First of all validate if the column is currently supported
                 if (!this.Provider.GetMetadata().IsValid(column))
-                    throw new UnsupportedColumnTypeException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName()); ;
+                    throw new UnsupportedColumnTypeException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
                 var columnNameLower = column.ColumnName.ToLowerInvariant();
                 if (columnNameLower == "sync_scope_id"
@@ -213,7 +232,7 @@ namespace Dotmim.Sync
                     || columnNameLower == "sync_timestamp"
                     || columnNameLower == "sync_row_is_tombstone"
                     )
-                    throw new UnsupportedColumnNameException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName()); ;
+                    throw new UnsupportedColumnNameException(setupTable.GetFullName(), column.ColumnName, column.OriginalTypeName, this.Provider.GetProviderTypeName());
 
                 // Gets the max length
                 column.MaxLength = this.Provider.GetMetadata().GetMaxLength(column);
@@ -239,15 +258,15 @@ namespace Dotmim.Sync
                     {
                         var (p, s) = this.Provider.GetMetadata().GetPrecisionAndScale(column);
                         column.Precision = p;
-                        column.PrecisionSpecified = true;
+                        column.PrecisionIsSpecified = true;
                         column.Scale = s;
-                        column.ScaleSpecified = true;
+                        column.ScaleIsSpecified = true;
                     }
                     else
                     {
                         column.Precision = this.Provider.GetMetadata().GetPrecision(column);
-                        column.PrecisionSpecified = true;
-                        column.ScaleSpecified = false;
+                        column.PrecisionIsSpecified = true;
+                        column.ScaleIsSpecified = false;
                     }
 
                 }

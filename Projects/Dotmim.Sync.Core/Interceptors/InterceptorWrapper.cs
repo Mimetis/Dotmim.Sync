@@ -18,16 +18,24 @@ namespace Dotmim.Sync
         private Func<T, Task> wrapperAsync;
         internal static Func<T, Task> Empty = new Func<T, Task>(t => Task.CompletedTask);
 
-
         /// <summary>
         /// Create a new empty interceptor
         /// </summary>
-        public InterceptorWrapper() => this.wrapperAsync = Empty;
+        public InterceptorWrapper()
+        {
+            this.Id = Guid.NewGuid();
+            this.wrapperAsync = Empty;
+        }
 
         /// <summary>
         /// Gets a boolean indicating if the interceptor is not used by user (ie : is Empty)
         /// </summary>
         public bool IsEmpty => this.wrapperAsync == Empty;
+
+        /// <summary>
+        /// Interceptor Id
+        /// </summary>
+        public Guid Id { get; }
 
         /// <summary>
         /// Set a Func<T, Task> as interceptor

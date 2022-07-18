@@ -18,7 +18,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     {
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            {  ProviderType.Sql, ProviderType.MariaDB, ProviderType.Sqlite};
+            {  ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql,  ProviderType.MariaDB};
+
         public SqlServerHttpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -72,7 +73,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // 4) Custom Wheres on Product.
                 var productFilter = new SetupFilter("Product", "SalesLT");
-                productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL");
+                productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL OR side.sync_row_is_tombstone = 1");
                 setup.Filters.Add(productFilter);
 
 

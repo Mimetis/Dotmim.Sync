@@ -188,6 +188,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Drop a database, depending the Provider type
         /// </summary>
+        [DebuggerStepThrough]
         public static void DropDatabase(ProviderType providerType, string dbName)
         {
             try
@@ -209,6 +210,10 @@ namespace Dotmim.Sync.Tests
                 }
             }
             catch (Exception) { }
+            finally
+            {
+
+            }
         }
 
         /// <summary>
@@ -243,11 +248,13 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Drop a sqlite database
         /// </summary>
+        [DebuggerStepThrough]
         private static void DropSqliteDatabase(string dbName)
         {
             string filePath = null;
             try
             {
+                SqliteConnection.ClearAllPools();
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
                 filePath = GetSqliteFilePath(dbName);
@@ -260,6 +267,7 @@ namespace Dotmim.Sync.Tests
             {
                 Debug.WriteLine($"Sqlite file seems loked. ({filePath})");
             }
+            finally { }
 
         }
 

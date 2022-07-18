@@ -24,6 +24,7 @@ namespace Dotmim.Sync.Builders
         /// Gets or Sets Setup, containing naming prefix and suffix if needed
         /// </summary>
         public SyncSetup Setup { get; }
+        public string ScopeName { get; }
 
         /// <summary>
         /// Gets the table parsed name
@@ -38,10 +39,11 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Construct a DbBuilder
         /// </summary>
-        public DbTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+        public DbTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
+            this.ScopeName = scopeName;
             this.TableName = tableName;
             this.TrackingTableName = trackingTableName;
         }

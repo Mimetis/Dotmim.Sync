@@ -29,7 +29,180 @@ namespace Dotmim.Sync.MySql.Builders
         }
 
 
-        public DbCommand GetAllClientScopesCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var commandText = $"Select {MySqlObjectNames.TimestampValue}";
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return command;
+        }
+
+
+        //Exists Scope Table
+        // ------------------------------
+
+        public override DbCommand GetExistsClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = this.ScopeInfoTableName.Unquoted().ToString();
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+
+            command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+
+            return command;
+        }
+        public override DbCommand GetExistsServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+
+            command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+
+            return command;
+        }
+        public override DbCommand GetExistsServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+
+            command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+
+            return command;
+        }
+        // ------------------------------
+
+
+        // Create Table
+        // ------------------------------
+        public override DbCommand GetCreateClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            {
+                var commandText =
+                    $@"CREATE TABLE IF NOT EXISTS {this.ScopeInfoTableName.Quoted().ToString()}(
+                         sync_scope_id varchar(36) NOT NULL,
+                         sync_scope_name varchar(100) NOT NULL,
+                         sync_scope_schema longtext NULL,
+                         sync_scope_setup longtext NULL,
+                         sync_scope_version varchar(10) NULL,
+                         scope_last_sync datetime NULL,
+                         scope_last_server_sync_timestamp bigint NULL,
+                         scope_last_sync_timestamp bigint NULL,
+                         scope_last_sync_duration bigint NULL,
+                         PRIMARY KEY (sync_scope_id, sync_scope_name)
+                         )";
+
+                var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = commandText;
+                return command;
+
+            }
+        }
+        public override DbCommand GetCreateServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+
+            var commandText =
+                $@"CREATE TABLE IF NOT EXISTS `{tableName}` (
+                     sync_scope_name varchar(100) NOT NULL,
+                     sync_scope_schema longtext NULL,
+                     sync_scope_setup longtext NULL,
+                     sync_scope_version varchar(10) NULL,
+                        sync_scope_last_clean_timestamp bigint NULL,
+                        PRIMARY KEY (sync_scope_name)
+                        )";
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+
+            command.CommandText = commandText;
+
+            return command;
+        }
+        public override DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+
+            var commandText =
+                $@"CREATE TABLE IF NOT EXISTS `{tableName}`(
+                        sync_scope_id varchar(36) NOT NULL,
+                        sync_scope_name varchar(100) NOT NULL,
+                        scope_last_sync_timestamp bigint NULL,
+                        scope_last_sync_duration bigint NULL,
+                        scope_last_sync datetime NULL,
+                        PRIMARY KEY (sync_scope_id, sync_scope_name)
+                        )";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+            return command;
+        }
+        // ------------------------------
+
+
+        // Get all scopes
+        // ------------------------------
+        public override DbCommand GetAllClientScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var commandText =
+                $@"SELECT sync_scope_id, sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version
+                        , scope_last_sync, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration
+                        FROM  {this.ScopeInfoTableName.Quoted().ToString()}";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return command;
+        }
+        public override DbCommand GetAllServerScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+
+            var commandText =
+                $@"SELECT sync_scope_name
+                           , sync_scope_schema
+                           , sync_scope_setup
+                           , sync_scope_version
+                           , sync_scope_last_clean_timestamp                    
+                    FROM  `{tableName}`";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return command;
+        }
+        public override DbCommand GetAllServerHistoriesScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+
+            var commandText =
+                    $@"SELECT  sync_scope_id
+                           , sync_scope_name
+                           , scope_last_sync_timestamp
+                           , scope_last_sync_duration
+                           , scope_last_sync           
+                    FROM  `{tableName}`";
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return command;
+
+        }
+        // ------------------------------
+
+        // Get scope
+        // ------------------------------
+        public override DbCommand GetClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
                 $@"SELECT sync_scope_id
@@ -46,7 +219,6 @@ namespace Dotmim.Sync.MySql.Builders
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-
             command.CommandText = commandText;
 
             var p = command.CreateParameter();
@@ -58,38 +230,7 @@ namespace Dotmim.Sync.MySql.Builders
             return command;
 
         }
-
-        public DbCommand GetAllServerHistoryScopesCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
-
-            var commandText =
-                    $@"SELECT  sync_scope_id
-                           , sync_scope_name
-                           , scope_last_sync_timestamp
-                           , scope_last_sync_duration
-                           , scope_last_sync           
-                    FROM  `{tableName}`
-                    WHERE sync_scope_name = @sync_scope_name";
-
-
-
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-
-            command.CommandText = commandText;
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_name";
-            p.DbType = DbType.String;
-            p.Size = 100;
-            command.Parameters.Add(p);
-
-            return command;
-
-        }
-
-        public DbCommand GetAllServerScopesCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
 
@@ -115,203 +256,54 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-
-        public override DbCommand GetAllScopesCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-            => scopeType switch
-            {
-                DbScopeType.Server => GetAllServerScopesCommand(connection, transaction),
-                DbScopeType.ServerHistory => GetAllServerHistoryScopesCommand(connection, transaction),
-                _ => GetAllClientScopesCommand(connection, transaction)
-            };
-
-
-        public DbCommand GetCreateClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-
-            var commandText =
-                $@"CREATE TABLE IF NOT EXISTS {this.ScopeInfoTableName.Quoted().ToString()}(
-                        sync_scope_id varchar(36) NOT NULL,
-	                    sync_scope_name varchar(100) NOT NULL,
-	                    sync_scope_schema longtext NULL,
-	                    sync_scope_setup longtext NULL,
-	                    sync_scope_version varchar(10) NULL,
-                        scope_last_sync datetime NULL,
-                        scope_last_server_sync_timestamp bigint NULL,
-                        scope_last_sync_timestamp bigint NULL,
-                        scope_last_sync_duration bigint NULL,
-                        PRIMARY KEY (sync_scope_id)
-                        )";
-
-            var command = connection.CreateCommand();
-
-            command.Transaction = transaction;
-
-            command.CommandText = commandText;
-
-            return command;
-
-        }
-
-        public DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
-        {
-
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
             var commandText =
-                $@"CREATE TABLE IF NOT EXISTS `{tableName}`(
-                        sync_scope_id varchar(36) NOT NULL,
-                        sync_scope_name varchar(100) NOT NULL,
-                        scope_last_sync_timestamp bigint NULL,
-                        scope_last_sync_duration bigint NULL,
-                        scope_last_sync datetime NULL,
-                        PRIMARY KEY (sync_scope_id)
-                        )";
+                    $@"SELECT  sync_scope_id
+                           , sync_scope_name
+                           , scope_last_sync_timestamp
+                           , scope_last_sync_duration
+                           , scope_last_sync           
+                    FROM  `{tableName}`
+                    WHERE sync_scope_name = @sync_scope_name and sync_scope_id = @sync_scope_id";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
 
             command.CommandText = commandText;
 
-            return command;
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
 
-
-        }
-
-        public DbCommand GetCreateServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
-
-            var commandText =
-                $@"CREATE TABLE IF NOT EXISTS `{tableName}` (
-	                    sync_scope_name varchar(100) NOT NULL,
-	                    sync_scope_schema longtext NULL,
-	                    sync_scope_setup longtext NULL,
-	                    sync_scope_version varchar(10) NULL,
-                        sync_scope_last_clean_timestamp bigint NULL,
-                        PRIMARY KEY (sync_scope_name)
-                        )";
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-
-            command.CommandText = commandText;
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.String;
+            p.Size = 36;
+            command.Parameters.Add(p);
 
             return command;
+
         }
+        // ------------------------------
 
-        public override DbCommand GetCreateScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-        => scopeType switch
+        // Insert Scope
+        // ------------------------------
+        public override DbCommand GetInsertClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            DbScopeType.Server => GetCreateServerScopeInfoTableCommand(connection, transaction),
-            DbScopeType.ServerHistory => GetCreateServerHistoryScopeInfoTableCommand(connection, transaction),
-            _ => GetCreateClientScopeInfoTableCommand(connection, transaction)
-        };
-
-        public override DbCommand GetDropScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = scopeType switch
-            {
-                DbScopeType.Server => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server",
-                DbScopeType.ServerHistory => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history",
-                _ => this.ScopeInfoTableName.Unquoted().Normalized().ToString(),
-            };
-
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-
-            command.CommandText = $"DROP TABLE `{tableName}`";
-
-            return command;
-        }
-
-        public override DbCommand GetExistsScopeInfoTableCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = scopeType switch
-            {
-                DbScopeType.Server => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server",
-                DbScopeType.ServerHistory => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history",
-                _ => this.ScopeInfoTableName.Unquoted().ToString(),
-            };
-
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-
-            command.CommandText = $"select count(*) from information_schema.TABLES where TABLE_NAME = '{tableName}' and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
-
-            return command;
-        }
-
-        public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var commandText = $"Select {MySqlObjectNames.TimestampValue}";
-
-            var command = connection.CreateCommand();
-
-            command.Connection = connection;
-            command.Transaction = transaction;
-            command.CommandText = commandText;
-
-            return command;
-        }
-
-
-        public override DbCommand GetUpdateScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-            => scopeType switch
-            {
-                DbScopeType.Client => GetSaveClientScopeInfoCommand(true, connection, transaction),
-                DbScopeType.ServerHistory => GetSaveServerHistoryScopeInfoCommand(true, connection, transaction),
-                DbScopeType.Server => GetSaveServerScopeInfoCommand(true, connection, transaction),
-                _ => throw new NotImplementedException($"Can't get Update command from this DbScopeType {scopeType}")
-            };
-
-        public override DbCommand GetInsertScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-            => scopeType switch
-            {
-                DbScopeType.Client => GetSaveClientScopeInfoCommand(false, connection, transaction),
-                DbScopeType.ServerHistory => GetSaveServerHistoryScopeInfoCommand(false, connection, transaction),
-                DbScopeType.Server => GetSaveServerScopeInfoCommand(false, connection, transaction),
-                _ => throw new NotImplementedException($"Can't get Insert command from this DbScopeType {scopeType}")
-            };
-
-
-        public override DbCommand GetExistsScopeInfoCommand(DbScopeType scopeType, DbConnection connection, DbTransaction transaction)
-        {
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-
-            var tableName = scopeType switch
-            {
-                DbScopeType.Client => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}",
-                DbScopeType.Server => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server",
-                DbScopeType.ServerHistory => $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history",
-                _ => throw new NotImplementedException($"Can't get scope name from this DbScopeType {scopeType}")
-            };
-
-            if (scopeType == DbScopeType.Server)
-                command.CommandText = $@"Select count(*) from `{tableName}` where sync_scope_name = @sync_scope_id";
-            else
-                command.CommandText = $@"Select count(*) from `{tableName}` where sync_scope_id = @sync_scope_id";
-
-
-            var p0 = command.CreateParameter();
-            p0.ParameterName = "@sync_scope_id";
-            p0.DbType = DbType.String;
-            p0.Size = -1;
-            command.Parameters.Add(p0);
-
-            return command;
-        }
-
-        public DbCommand GetSaveClientScopeInfoCommand(bool exist, DbConnection connection, DbTransaction transaction)
-        {
-            var stmtText = new StringBuilder(exist
-                ? $"Update {this.ScopeInfoTableName.Quoted().ToString()} set sync_scope_name=@sync_scope_name, sync_scope_schema=@sync_scope_schema,  sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration  where sync_scope_id=@sync_scope_id;"
-                : $"Insert into {this.ScopeInfoTableName.Quoted().ToString()} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, scope_last_sync, sync_scope_id, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @scope_last_sync, @sync_scope_id, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @scope_last_sync_duration);");
+            var tableName = this.ScopeInfoTableName.Quoted().ToString();
+            var stmtText = new StringBuilder(
+                $"Insert into {tableName} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, scope_last_sync, sync_scope_id, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @scope_last_sync, @sync_scope_id, @scope_last_server_sync_timestamp, @scope_last_sync_timestamp, @scope_last_sync_duration);");
 
             stmtText.AppendLine();
 
             stmtText.AppendLine($@"SELECT sync_scope_id, sync_scope_name, sync_scope_schema, sync_scope_setup, 
                              sync_scope_version, scope_last_sync, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration
-                             FROM  {this.ScopeInfoTableName.Quoted().ToString()} WHERE sync_scope_id = @sync_scope_id;");
+                             FROM  {this.ScopeInfoTableName.Quoted().ToString()} WHERE sync_scope_id = @sync_scope_id and sync_scope_name=@sync_scope_name;");
 
             var command = connection.CreateCommand();
 
@@ -371,70 +363,18 @@ namespace Dotmim.Sync.MySql.Builders
             return command;
 
         }
-
-        public DbCommand GetSaveServerHistoryScopeInfoCommand(bool exist, DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
-
-            var stmtText = new StringBuilder(exist
-                ? $"Update `{tableName}` set sync_scope_name=@sync_scope_name, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync=@scope_last_sync, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id;"
-                : $"Insert into `{tableName}` (sync_scope_id, sync_scope_name, scope_last_sync_timestamp, scope_last_sync, scope_last_sync_duration) values (@sync_scope_id, @sync_scope_name, @scope_last_sync_timestamp, @scope_last_sync, @scope_last_sync_duration);");
-
-            stmtText.AppendLine();
-
-            stmtText.AppendLine($@"SELECT  sync_scope_id, sync_scope_name, scope_last_sync_timestamp, scope_last_sync_duration, scope_last_sync           
-                                   FROM `{tableName}` WHERE sync_scope_id = @sync_scope_id;");
-
-            var command = connection.CreateCommand();
-
-            command.Connection = connection;
-            command.Transaction = transaction;
-
-            command.CommandText = stmtText.ToString();
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_name";
-            p.DbType = DbType.String;
-            p.Size = 100;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@scope_last_sync_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@scope_last_sync";
-            p.DbType = DbType.DateTime;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@scope_last_sync_duration";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.Guid;
-            p.Size = 36;
-            command.Parameters.Add(p);
-
-            return command;
-        }
-
-        public DbCommand GetSaveServerScopeInfoCommand(bool exist, DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetInsertServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
 
-            var stmtText = new StringBuilder(exist
-                ? $"UPDATE `{tableName}` set sync_scope_schema=@sync_scope_schema, sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, sync_scope_last_clean_timestamp=@sync_scope_last_clean_timestamp where sync_scope_name=@sync_scope_name;"
-                : $"INSERT INTO `{tableName}` (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_last_clean_timestamp) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @sync_scope_last_clean_timestamp);");
+            var stmtText = new StringBuilder(
+                $"INSERT INTO `{tableName}` (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_last_clean_timestamp) values (@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, @sync_scope_last_clean_timestamp);");
 
             stmtText.AppendLine();
 
             stmtText.AppendLine($@"SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, 
-                                sync_scope_version, sync_scope_last_clean_timestamp                    
-                                FROM  `{tableName}`WHERE sync_scope_name = @sync_scope_name;");
+                                    sync_scope_version, sync_scope_last_clean_timestamp                    
+                                    FROM  `{tableName}`WHERE sync_scope_name = @sync_scope_name;");
 
             var command = connection.CreateCommand();
 
@@ -472,8 +412,398 @@ namespace Dotmim.Sync.MySql.Builders
             command.Parameters.Add(p);
 
             return command;
-        }
 
+        }
+        public override DbCommand GetInsertServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+
+            var stmtText = new StringBuilder(
+                $"Insert into `{tableName}` (sync_scope_id, sync_scope_name, scope_last_sync_timestamp, scope_last_sync, scope_last_sync_duration) values (@sync_scope_id, @sync_scope_name, @scope_last_sync_timestamp, @scope_last_sync, @scope_last_sync_duration);");
+
+            stmtText.AppendLine();
+
+            stmtText.AppendLine($@"SELECT  sync_scope_id, sync_scope_name, scope_last_sync_timestamp, scope_last_sync_duration, scope_last_sync           
+                                   FROM `{tableName}` WHERE sync_scope_id = @sync_scope_id and sync_scope_name=@sync_scope_name;");
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            command.CommandText = stmtText.ToString();
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync";
+            p.DbType = DbType.DateTime;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_duration";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            p.Size = 36;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        // ------------------------------
+
+        // Update Scope
+        // ------------------------------
+        public override DbCommand GetUpdateClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = this.ScopeInfoTableName.Quoted().ToString();
+            var stmtText = new StringBuilder(
+                $"Update {tableName} set sync_scope_schema=@sync_scope_schema, sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, scope_last_sync=@scope_last_sync, scope_last_server_sync_timestamp=@scope_last_server_sync_timestamp, scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id and sync_scope_name=@sync_scope_name;");
+
+            stmtText.AppendLine();
+
+            stmtText.AppendLine($@"SELECT sync_scope_id, sync_scope_name, sync_scope_schema, sync_scope_setup, 
+                             sync_scope_version, scope_last_sync, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration
+                             FROM  {this.ScopeInfoTableName.Quoted().ToString()} WHERE sync_scope_id = @sync_scope_id and sync_scope_name=@sync_scope_name;");
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            command.CommandText = stmtText.ToString();
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_schema";
+            p.DbType = DbType.String;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_setup";
+            p.DbType = DbType.String;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_version";
+            p.DbType = DbType.String;
+            p.Size = 10;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync";
+            p.DbType = DbType.DateTime;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_server_sync_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_duration";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.String;
+            p.Size = 36;
+            command.Parameters.Add(p);
+
+            return command;
+
+        }
+        public override DbCommand GetUpdateServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+
+            var stmtText = new StringBuilder(
+                $"UPDATE `{tableName}` set sync_scope_schema=@sync_scope_schema, sync_scope_setup=@sync_scope_setup, sync_scope_version=@sync_scope_version, sync_scope_last_clean_timestamp=@sync_scope_last_clean_timestamp where sync_scope_name=@sync_scope_name;");
+
+            stmtText.AppendLine();
+
+            stmtText.AppendLine($@"SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, 
+                                    sync_scope_version, sync_scope_last_clean_timestamp                    
+                                    FROM  `{tableName}`WHERE sync_scope_name = @sync_scope_name;");
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            command.CommandText = stmtText.ToString();
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_schema";
+            p.DbType = DbType.String;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_setup";
+            p.DbType = DbType.String;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_version";
+            p.DbType = DbType.String;
+            p.Size = 10;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_last_clean_timestamp";
+            //p.Value = serverScopeInfo.LastCleanupTimestamp;
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            return command;
+
+        }
+        public override DbCommand GetUpdateServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+
+            var stmtText = new StringBuilder(
+                 $"Update `{tableName}` set scope_last_sync_timestamp=@scope_last_sync_timestamp, scope_last_sync=@scope_last_sync, scope_last_sync_duration=@scope_last_sync_duration where sync_scope_id=@sync_scope_id and sync_scope_name=@sync_scope_name;");
+
+            stmtText.AppendLine();
+
+            stmtText.AppendLine($@"SELECT  sync_scope_id, sync_scope_name, scope_last_sync_timestamp, scope_last_sync_duration, scope_last_sync           
+                                   FROM `{tableName}` WHERE sync_scope_id = @sync_scope_id and sync_scope_name=@sync_scope_name;");
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            command.CommandText = stmtText.ToString();
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync";
+            p.DbType = DbType.DateTime;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_duration";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            p.Size = 36;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        // ------------------------------
+
+        // Delete scope
+        // ------------------------------
+        public override DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var stmtText = $"Delete From {this.ScopeInfoTableName.Quoted().ToString()} where sync_scope_id=@sync_scope_id and sync_scope_name=@sync_scope_name;";
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            command.CommandText = stmtText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.String;
+            p.Size = 36;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        public override DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+
+            var stmtText = $"Delete From `{tableName}` where sync_scope_name=@sync_scope_name;";
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            command.CommandText = stmtText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        public override DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+
+            var stmtText = $"Delete From `{tableName}` where sync_scope_id=@sync_scope_id and sync_scope_name=@sync_scope_name;";
+
+            var command = connection.CreateCommand();
+
+            command.Connection = connection;
+            command.Transaction = transaction;
+
+            command.CommandText = stmtText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.String;
+            p.Size = 36;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        // ------------------------------
+
+        // Drop Scope table
+        // ------------------------------
+        public override DbCommand GetDropClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $@"Drop Table`{tableName}`;";
+
+            return command;
+        }
+        public override DbCommand GetDropServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $@"Drop Table`{tableName}`;";
+
+            return command;
+        }
+        public override DbCommand GetDropServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $@"Drop Table`{tableName}`;";
+
+            return command;
+        }
+        // ------------------------------
+
+        // Exist Client Scope
+        // ------------------------------
+        public override DbCommand GetExistsClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
+            
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $@"Select count(*) from `{tableName}` where sync_scope_name=@sync_scope_name;";
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        public override DbCommand GetExistsServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $@"Select count(*) from `{tableName}` where sync_scope_name=@sync_scope_name;";
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+        public override DbCommand GetExistsServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+            command.CommandText = $@"Select count(*) from `{tableName}` where sync_scope_name=@sync_scope_name and sync_scope_id=@sync_scope_id";
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.String;
+            p.Size = 36;
+            command.Parameters.Add(p);
+
+            return command;
+        }
 
     }
 }

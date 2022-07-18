@@ -21,6 +21,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 throw new MissingDatabaseException(connection.Database);
         }
 
+        public override async Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null)
+        {
+            var setup = await SqlManagementUtils.GetAllTablesAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
+            return setup;
+        }
+
+
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => Task.FromResult(new SyncTable(tableName, schemaName));
 

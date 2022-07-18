@@ -7,10 +7,5 @@ namespace Dotmim.Sync
     public static partial class InterceptorsExtensions
     {
 
-
-
-
-     
-
     }
 }

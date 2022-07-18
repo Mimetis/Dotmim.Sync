@@ -21,83 +21,79 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        /// <summary>
-        /// Delete metadatas items from tracking tables
-        /// </summary>
-        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <param name="progress">Progress args</param>
-        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (!timeStampStart.HasValue)
-                return null;
-
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                // Create a dummy schema to be able to call the DeprovisionAsync method on the provider
-                // No need columns or primary keys to be able to deprovision a table
-                SyncSet schema = new SyncSet(this.Setup);
-                var databaseMetadatasCleaned = await this.InternalDeleteMetadatasAsync(this.GetContext(), schema, this.Setup, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                await runner.CommitAsync().ConfigureAwait(false);
-                return databaseMetadatasCleaned;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(ex);
-            }
-
-        }
-
-
-        internal virtual async Task<DatabaseMetadatasCleaned> InternalDeleteMetadatasAsync(SyncContext context, SyncSet schema, SyncSetup setup, long timestampLimit,
+        internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)> 
+            InternalDeleteMetadatasAsync(
+                    IEnumerable<IScopeInfo> scopeInfos, SyncContext context, long timestampLimit,
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            await this.InterceptAsync(new MetadataCleaningArgs(context, this.Setup, timestampLimit, connection, transaction),progress, cancellationToken).ConfigureAwait(false);
+            context.SyncStage = SyncStage.ChangesApplying;
 
-            DatabaseMetadatasCleaned databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
+            var databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
-            foreach (var syncTable in schema.Tables)
+            await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfos, timestampLimit, 
+                                        connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            // contains all tables already processed
+            var doneList = new List<SetupTable>();
+
+            foreach (var scopeInfo in scopeInfos)
             {
-                // Create sync adapter
-                var syncAdapter = this.GetSyncAdapter(syncTable, setup);
+                if (scopeInfo.Setup?.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
+                    continue;
 
-                var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
-
-                if (command != null)
+                foreach (var setupTable in scopeInfo.Setup.Tables)
                 {
+                    var isDone = doneList.Any(t => t.EqualsByName(setupTable));
 
-                    // Set the special parameters for delete metadata
-                    DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+                    if (isDone)
+                        continue;
 
-                    await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    // create a fake syncTable
+                    // Don't need anything else than table name to make a delete metadata clean up
+                    var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
 
-                    var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    // Create sync adapter
+                    var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
-                    // Check if we have a return value instead
-                    var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+                    var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteMetadata, connection, transaction);
 
-                    if (syncRowCountParam != null)
-                        rowsCleanedCount = (int)syncRowCountParam.Value;
-
-                    // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
-                    if (rowsCleanedCount > 0)
+                    if (command != null)
                     {
-                        var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
-                        {
-                            RowsCleanedCount = rowsCleanedCount,
-                            TimestampLimit = timestampLimit
-                        };
+                        // Set the special parameters for delete metadata
+                        DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
-                        databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                        await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                        var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                        // Check if we have a return value instead
+                        var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+
+                        if (syncRowCountParam != null)
+                            rowsCleanedCount = (int)syncRowCountParam.Value;
+
+                        // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
+                        if (rowsCleanedCount > 0)
+                        {
+                            var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
+                            {
+                                RowsCleanedCount = rowsCleanedCount,
+                                TimestampLimit = timestampLimit
+                            };
+
+                            databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                        }
+
+                        command.Dispose();
                     }
 
+                    doneList.Add(setupTable);
                 }
             }
 
             await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, connection), progress, cancellationToken).ConfigureAwait(false);
-            return databaseMetadatasCleaned;
+            return (context, databaseMetadatasCleaned);
         }
 
 
@@ -105,11 +101,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update a metadata row
         /// </summary>
-        internal async Task<bool> InternalUpdateMetadatasAsync(SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        internal async Task<(SyncContext context, bool metadataUpdated)> InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
+            context.SyncStage = SyncStage.ChangesApplying;
+
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
-            if (command == null) return false;
+            if (command == null) return (context, false);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
@@ -127,7 +125,9 @@ namespace Dotmim.Sync
             if (syncRowCountParam != null)
                 metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
 
-            return metadataUpdatedRowsCount > 0;
+            command.Dispose();
+
+            return (context, metadataUpdatedRowsCount > 0);
         }
 
 

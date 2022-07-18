@@ -18,15 +18,13 @@ namespace Dotmim.Sync.SqlServer
 
         public SqlSyncChangeTrackingProvider() : base(){}
 
-        public SqlSyncChangeTrackingProvider(string connectionString) : base() 
-            => this.ConnectionString = connectionString;
-
-        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder) : base()
+        public SqlSyncChangeTrackingProvider(string connectionString) : base(connectionString)
         {
-            if (String.IsNullOrEmpty(builder.ConnectionString))
-                throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
-            this.ConnectionString = builder.ConnectionString;
+        }
+
+        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder) : base(builder)
+        {
         }
 
         public static new string ProviderType
@@ -45,11 +43,11 @@ namespace Dotmim.Sync.SqlServer
         }
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup);
+        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
-            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup);
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
 

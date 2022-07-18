@@ -65,8 +65,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onSessionBegin = false;
 
 
-            var localOrchestrator = new LocalOrchestrator(provider, options, setup);
-            var ctx = localOrchestrator.GetContext();
+            var localOrchestrator = new LocalOrchestrator(provider, options);
 
             localOrchestrator.OnSessionBegin(args =>
             {
@@ -78,8 +77,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             await localOrchestrator.BeginSessionAsync();
-
-            Assert.Equal(SyncStage.BeginSession, ctx.SyncStage);
             Assert.True(onSessionBegin);
         }
 
@@ -91,8 +88,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var provider = new SqlSyncProvider();
             var onSessionEnd = false;
 
-            var localOrchestrator = new LocalOrchestrator(provider, options, setup);
-            var ctx = localOrchestrator.GetContext();
+            var localOrchestrator = new LocalOrchestrator(provider, options);
 
             localOrchestrator.OnSessionEnd(args =>
             {
@@ -103,99 +99,42 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSessionEnd = true;
             });
 
-            await localOrchestrator.EndSessionAsync();
+            await localOrchestrator.EndSessionAsync(SyncOptions.DefaultScopeName);
 
-            Assert.Equal(SyncStage.EndSession, ctx.SyncStage);
             Assert.True(onSessionEnd);
         }
 
         [Fact]
-        public async Task LocalOrchestrator_Interceptor_ShouldSerialize()
+        public void LocalOrchestrator_Constructor()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+            var provider = new SqlSyncProvider();
+            var options = new SyncOptions();
+            var orchestrator = new LocalOrchestrator(provider, options);
 
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+            Assert.NotNull(orchestrator.Options);
+            Assert.Same(options, orchestrator.Options);
 
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
+            Assert.NotNull(orchestrator.Provider);
+            Assert.Same(provider, orchestrator.Provider);
 
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
-            var scopeName = "scopesnap1";
-
-            // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, this.Tables, scopeName);
-
-            // Making a first sync, will initialize everything we need
-            var r = await agent.SynchronizeAsync();
-
-            // Get the orchestrators
-            var localOrchestrator = agent.LocalOrchestrator;
-            var remoteOrchestrator = agent.RemoteOrchestrator;
-
-            // Server side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
-
-
-            // Defining options with Batchsize to enable serialization on disk
-            agent.Options.BatchSize = 2000;
-
-            var myRijndael = new RijndaelManaged();
-            myRijndael.GenerateKey();
-            myRijndael.GenerateIV();
-
-            // Encrypting data on disk
-            localOrchestrator.OnSerializingSet(ssa =>
-            {
-                // Create an encryptor to perform the stream transform.
-                var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
-
-                using (var msEncrypt = new MemoryStream())
-                {
-                    using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
-                    {
-                        using (var swEncrypt = new StreamWriter(csEncrypt))
-                        {
-                            //Write all data to the stream.
-                            var strSet = JsonConvert.SerializeObject(ssa.Set);
-                            swEncrypt.Write(strSet);
-                        }
-                        ssa.Result = msEncrypt.ToArray();
-                    }
-                }
-            });
-
-            // Get changes to be populated to the server.
-            // Should intercept the OnSerializing interceptor
-            var changes = await localOrchestrator.GetChangesAsync();
-
+            Assert.NotNull(provider.Orchestrator);
+            Assert.Same(provider.Orchestrator, orchestrator);
 
         }
 
- 
+        [Fact]
+        public void LocalOrchestrator_ShouldFail_When_Args_AreNull()
+        {
+            var provider = new SqlSyncProvider();
+            var options = new SyncOptions();
+            var setup = new SyncSetup();
+
+            var ex1 = Assert.Throws<SyncException>(() => new LocalOrchestrator(null, options));
+            Assert.Equal("MissingProviderException", ex1.TypeName);
+
+            var ex3 = Assert.Throws<SyncException>(() => new LocalOrchestrator(provider, null));
+            Assert.Equal("ArgumentNullException", ex3.TypeName);
+        }
+
     }
 }
