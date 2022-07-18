@@ -643,6 +643,7 @@ namespace Dotmim.Sync.MySql.Builders
                     sqlParamFilter.Size = columnFilter.MaxLength;
                     sqlParamFilter.IsNullable = param.AllowNull;
                     sqlParamFilter.Value = param.DefaultValue;
+                    sqlParamFilter.SourceColumn = columnFilter.ExtraProperty1;
                     sqlCommand.Parameters.Add(sqlParamFilter);
                 }
 
