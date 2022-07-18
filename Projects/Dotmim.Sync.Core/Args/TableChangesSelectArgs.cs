@@ -55,32 +55,6 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
-    /// Contains SyncRow selected to be written in the batchpart info
-    /// </summary>
-    public class TableChangesSelectedSyncRowArgs : ProgressArgs
-    {
-        public TableChangesSelectedSyncRowArgs(SyncContext context, SyncRow syncRow, SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.SyncRow = syncRow;
-            this.SchemaTable = schemaTable;
-        }
-        public SyncRow SyncRow { get; set; }
-
-        /// <summary>
-        /// Gets the table schema
-        /// </summary>
-        public SyncTable SchemaTable { get; }
-
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-
-        public override string Source => Connection.Database;
-        public override string Message => $"[{this.SchemaTable.GetFullName()}] [SyncRow] {SyncRow.ToString()}.";
-        public override int EventId => SyncEventsId.TableChangesSelected.Id;
-    }
-
-
-    /// <summary>
     /// Raise before selecting changes will occur
     /// </summary>
     public class TableChangesSelectingArgs : ProgressArgs
@@ -105,7 +79,7 @@ namespace Dotmim.Sync
     }
 
 
- 
+
     public static partial class InterceptorsExtensions
     {
         /// <summary>
@@ -133,16 +107,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
         /// </summary>
-        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Action<TableChangesSelectedSyncRowArgs> action)
+        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Action<RowsChangesSelectedArgs> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
         /// </summary>
-        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Func<TableChangesSelectedSyncRowArgs, Task> action)
+        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Func<RowsChangesSelectedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
 
     }
+
+    public static partial class SyncEventsId
+    {
+        public static EventId TableChangesSelecting => CreateEventId(13000, nameof(TableChangesSelecting));
+        public static EventId TableChangesSelected => CreateEventId(13050, nameof(TableChangesSelected));
+    }
+
 
 }

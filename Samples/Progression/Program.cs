@@ -90,7 +90,7 @@ namespace Progression
             // This event is raised for each batch rows (maybe 1 or more in each batch)
             // that will be applied on the datasource
             // You can change something to the rows before they are applied here
-            agent.LocalOrchestrator.OnTableChangesApplyingSyncRows(args =>
+            agent.LocalOrchestrator.OnRowsChangesApplying(args =>
             {
                 foreach (var syncRow in args.SyncRows)
                     Console.Write(".");

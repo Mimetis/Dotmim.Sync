@@ -18,17 +18,17 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default)
-            => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName);
+        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState dataRowState = DataRowState.Modified)
+            => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, dataRowState);
 
-        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default)
+        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState dataRowState = DataRowState.Modified)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
                 SyncTable syncTable = null;
 
-                (_, syncTable) = await InternalLoadTableFromBatchInfoAsync(context, batchInfo, tableName, schemaName).ConfigureAwait(false);
+                (_, syncTable) = await InternalLoadTableFromBatchInfoAsync(context, batchInfo, tableName, schemaName, dataRowState).ConfigureAwait(false);
 
                 return syncTable;
             }
@@ -42,7 +42,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        internal virtual Task<(SyncContext context, SyncTable syncTable)> InternalLoadTableFromBatchInfoAsync(SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default)
+        internal virtual Task<(SyncContext context, SyncTable syncTable)> InternalLoadTableFromBatchInfoAsync(
+            SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, DataRowState dataRowState = DataRowState.Modified)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
                 return Task.FromResult<(SyncContext, SyncTable)>((context, null));
@@ -76,7 +77,8 @@ namespace Dotmim.Sync
                     return Task.FromResult<(SyncContext, SyncTable)>((context, null));
 
                 foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
-                    table.Rows.Add(syncRow);
+                    if (syncRow.RowState == dataRowState)
+                        table.Rows.Add(syncRow);
             }
 
 
@@ -84,16 +86,16 @@ namespace Dotmim.Sync
         }
 
 
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo)
-            => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo);
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState dataRowState = DataRowState.Modified)
+            => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, dataRowState);
 
 
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState dataRowState = DataRowState.Modified)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                return InternalLoadTableFromBatchPartInfoAsync(context, batchInfo, batchPartInfo);
+                return InternalLoadTableFromBatchPartInfoAsync(context, batchInfo, batchPartInfo, dataRowState);
             }
             catch (Exception ex)
             {
@@ -104,7 +106,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        internal Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo)
+        internal Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, DataRowState dataRowState = DataRowState.Modified)
         {
             if (batchInfo == null || batchInfo.SanitizedSchema == null)
                 return Task.FromResult<SyncTable>(null);
@@ -136,7 +138,8 @@ namespace Dotmim.Sync
             }
 
             foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
-                table.Rows.Add(syncRow);
+                if (syncRow.RowState == dataRowState)
+                    table.Rows.Add(syncRow);
 
             return Task.FromResult(table);
         }

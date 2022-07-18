@@ -29,7 +29,6 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
         public override string Message => $"[{Connection.Database}] Getting Changes. [{BatchDirectory}]. Batch size:{BatchSize}. IsNew:{IsNew}.";
-        public MessageGetChangesBatch ChangesRequest { get; }
         public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
 
         public string BatchDirectory { get; }
@@ -116,7 +115,6 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
             => orchestrator.AddInterceptor(func);
-
 
         /// <summary>
         /// Intercept the provider action when changes are applied on each table defined in the configuration schema

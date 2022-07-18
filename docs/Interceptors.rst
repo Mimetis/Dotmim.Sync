@@ -14,7 +14,7 @@ The ``Progress<T>`` stuff is great, but as we said, it's mainly read only, and t
 .. image:: assets/interceptor01.png
 
 
-Imagine you have a table that should **never** be synchronized. You're able to use an interceptor like this:
+Imagine you have a table that should **never** be synchronized on one particular client (and is part of your ``SyncSetup``). You're able to use an interceptor like this:
 
 .. code-block:: csharp
 
@@ -37,54 +37,204 @@ Intercepting rows
 | Or even intercept all the rows that are going to be applied on a destination database.   
 | That way, you may be able to modify these rows, to meet your business / requirements rules.  
 
-To do so, you can use the **interceptors** ``OnTableChangesSelecting`` and ``OnTableChangesSelected`` to have more details on what changes are selected for each table.
-
-In the other hand, you can use the **interceptors** ``OnTableChangesApplying`` and ``OnTableChangesApplied`` to get all the rows that will be applied to a destination database.
-
-
 .. hint:: You will find the sample used for this chapter, here : `Spy sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Spy>`_. 
 
+``DMS`` workload allows you to intecept different kinds of events on different levels:
+- Database level
+- Table level
+- Row level 
 
-Intecepting applying changes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+On each side (client and server), you will have:
+- Interceptors during the "_Select_" phase : Getting changes from the database.
+- Interceptors during the "_Apply_" phase : Applying Insert / Delete or Update to the database.
+- Interceptors for extra workloads like conflict resolution, serialization, converters & so on ...
+
+On each level you will have:
+- A before event: Generally ending by "_ing_" like ``OnDatabaseChangesApplying``.
+- An after event: Generally ending by "_ied_" like ``OnDatabaseChangesApplied``.
+
+Selecting changes
+-------------------
+
+Regarding the rows selection from your client or server:
+- ``OnDatabaseChangesSelecting`` : Raised before selecting rows. You have info about the tmp folder and batch size that will be used.
+- ``OnTableChangesSelecting`` : Raised before selecting rows for a particular table : You have info about the current table and the ``DbCommand`` used to fetch data.
+
+On the other side, once rows are selected, you still can:
+- ``OnRowsChangesSelected`` : Raised once a row is read from the databse, but not yet serialized to disk.
+- ``OnTableChangesSelected`` : Raised once a table changes as been fully read. Changes are serialized to disk.
+- ``OnDatabaseChangesSelected`` : Raised once all changes are grabbed from the local database. Changes are serialized to disk.
+
+Applying changes
+---------------------
+
+Regarding the rows to apply on your client (or server) database, you can intercept different kind of events:
+
+- ``OnDatabaseChangesApplying``: Rows are serialized locally in a batch info folder BUT they are not yet read internally and are not in memory. You can iterate over all the files and see if you have rows to apply.
+- ``OnTableChangesApplying``: Rows are still on disk and not in memory. This interceptor is called for each table that has rows to apply.
+- ``OnRowsChangesApplying`` : Rows ARE now in memory, in a batch (depending on batch size and provider max batch), and are going to be applied.
+
+On the other side, once rows are applied, you can iterate through different interceptors:
+
+- ``OnTableChangesApplied``: Contains a summary of all rows applied on a table for a particular state (DataRowState.Modified or Deleted).
+- ``OnDatabaseChangesApplied`` : Contains a summary of all changes applied on the database level.
+
+Here are some useful information about some of these interceptors:
+
+
+OnDatabaseChangesSelecting
+-------------------------------
+
+The ``OnDatabaseChangesSelecting`` occurs before the database will get changes from the database.
 
 .. code-block:: csharp
 
-    // Intercept a table changes selecting stage.
-    agent.LocalOrchestrator.OnTableChangesSelecting(args =>
+    localOrchestrator.OnDatabaseChangesSelecting(args =>
     {
-        Console.WriteLine('$'"-- Getting changes from table {args.Table.GetFullName()} ...");
+        Console.WriteLine($"--------------------------------------------");
+        Console.WriteLine($"Getting changes from local database:");
+        Console.WriteLine($"--------------------------------------------");
+
+        Console.WriteLine($"BatchDirectory: {args.BatchDirectory}. BatchSize: {args.BatchSize}.");
     });
 
-    // Intercept a table changes applying stage, with a particular state [Upsert] or [Deleted]
-    // The rows included in the args.Changes table will be applied right after.
-    agent.LocalOrchestrator.OnTableChangesBatchApplying(args =>
+.. code-block:: bash
+    
+    --------------------------------------------
+    Getting changes from local database:
+    --------------------------------------------
+    BatchDirectory: C:\Users\spertus\AppData\Local\Temp\DotmimSync\2022_07_18_36tygabvdj2bw. BatchSize: 2000.
+
+
+OnDatabaseChangesApplying
+-------------------------------
+
+| The ``OnDatabaseChangesApplying`` interceptor is happening when changes are going to be applied on the client or server.
+| The changes are not yet loaded in memory. They are all stored locally in a temporary folder.
+
+To be able to load batches from the temporary folder, or save rows, you can use the ``LoadTableFromBatchInfoAsync`` and ``SaveTableToBatchPartInfoAsync`` methods 
+
+.. code-block:: csharp
+
+localOrchestrator.OnDatabaseChangesApplying(async args =>
+{
+    Console.WriteLine($"--------------------------------------------");
+    Console.WriteLine($"Changes to be applied on the local database:");
+    Console.WriteLine($"--------------------------------------------");
+
+    foreach (var table in args.ApplyChanges.Schema.Tables)
     {
-        Console.WriteLine('$'"-- Applying changes {args.State} to table {args.Changes.GetFullName()}");
+        // loading in memory all batches containing rows for the current table
+        var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.BatchInfo, table.TableName, table.SchemaName);
 
-        if (args.Changes == null || args.Changes.Rows.Count == 0)
-            return;
-
-        foreach (var row in args.Changes.Rows)
+        Console.WriteLine($"Changes for table {table.TableName}. Rows:{syncTable.Rows.Count}");
+        foreach (var row in syncTable.Rows)
             Console.WriteLine(row);
-    });
 
-    // Intercept a table changes selected stage.
-    // The rows included in the args.Changes have been selected 
-    // from the local database and will be sent to the server.
-    agent.LocalOrchestrator.OnTableChangesSelected(args =>
+        Console.WriteLine();
+
+    }
+});
+
+.. code-block:: bash
+
+    --------------------------------------------
+    Applying changes to the local database:
+    --------------------------------------------
+    Last timestamp used to compare local rows : 34000
+    List of ALL rows to be sync locally:
+    Changes for table ProductCategory. Rows:1
+    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, [ParentProductCategoryID]:<NULL />
+
+    Changes for table ProductModel. Rows:0
+
+    Changes for table Product. Rows:0
+
+    Changes for table Address. Rows:0
+
+    Changes for table Customer. Rows:1
+    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, [MiddleName]:<NULL />
+
+    Changes for table CustomerAddress. Rows:0
+
+    Changes for table SalesOrderHeader. Rows:0
+
+    Changes for table SalesOrderDetail. Rows:0
+
+OnTableChangesApplying
+----------------------------
+
+| The ``OnTableChangesApplying`` is happening right before rows are applied on the client or server.
+| Like ``OnDatabaseChangesApplying`` the changes are not yet loaded in memory. They are all stored locally in a temporary folder.
+| Be careful, this interceptor is called for each state (Modified / Deleted), so be sure to check the state of the rows:
+| Note that this interceptor is not called if the current tables has no rows to applied.
+
+.. code-block:: csharp
+
+    // Just before applying changes locally, at the table level
+    localOrchestrator.OnTableChangesApplying(async args =>
     {
-        if (args.Changes == null || args.Changes.Rows.Count == 0)
-            return;
+        if (args.BatchPartInfos != null)
+        {
+            var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(
+                args.BatchInfo, args.SchemaTable.TableName, args.SchemaTable.SchemaName, args.State);
 
-        foreach (var row in args.Changes.Rows)
-            Console.WriteLine(row);
+            if (syncTable != null && syncTable.HasRows)
+            {
+                Console.WriteLine($"- --------------------------------------------");
+                Console.WriteLine($"- Applying [{args.State}] changes to Table {args.SchemaTable.GetFullName()}");
+                Console.WriteLine($"Changes for table {args.SchemaTable.TableName}. Rows:{syncTable.Rows.Count}");
+                foreach (var row in syncTable.Rows)
+                    Console.WriteLine(row);
+            }
+
+        }
     });
 
 
-*In the screenshot below, yellow lines are interceptors from server side.*
+.. code-block:: bash
 
-.. image:: assets/ProgressionInterceptors.png
+    - --------------------------------------------
+    - Applying [Modified] changes to Table ProductCategory
+    Changes for table ProductCategory. Rows:1
+    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, [ParentProductCategoryID]:<NULL />
+    - --------------------------------------------
+    - Applying [Modified] changes to Table Customer
+    Changes for table Customer. Rows:1
+    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, [MiddleName]:<NULL />, [LastName]:Doe, [Suffix]:<NULL />, [CompanyName]:<NULL />, [SalesPerson]:<NULL />, [EmailAddress]:<NULL />, [Phone]:<NULL />, [PasswordHash]:<NULL />, [PasswordSalt]:<NULL />, [rowguid]:a2ded505-02ad-4707-bb19-4e58c1740d10, [ModifiedDate]:18/07/2022 12:30:30
+
+
+OnRowsChangesApplying
+-----------------------------------
+
+The ``OnRowsChangesApplying`` interceptor is happening just before applying a batch of rows to the local (client or server) database.
+
+The number of rows to be applied here is depending on:
+- The batch size you have set in your SyncOptions instance : ``SyncOptions.BatchSize`` (Default is 2 Mo)
+- The max number of rows to applied in one single instruction : ``Provider.BulkBatchMaxLinesCount`` (Default is 10 000 rows per instruction)
+
+.. code-block:: csharp
+
+    localOrchestrator.OnRowsChangesApplying(async args =>
+    {
+        Console.WriteLine($"- --------------------------------------------");
+        Console.WriteLine($"- In memory rows that are going to be Applied");
+        foreach (var row in args.SyncRows)
+            Console.WriteLine(row);
+
+        Console.WriteLine();
+    });
+
+
+.. code-block:: bash
+
+    - --------------------------------------------
+    - In memory rows that are going to be Applied
+    [Sync state]:Modified, [ProductCategoryID]:275c44e0-cfc7-4648-95e3-e67f9bb47fb4, [ParentProductCategoryID]:<NULL />, [Name]:Shoes 20202lhufa0w.hab, [rowguid]:d0d159e1-462b-4c35-940d-63972fb8027e, [ModifiedDate]:18/07/2022 12:46:40
+
+    - --------------------------------------------
+    - In memory rows that are going to be Applied
+    [Sync state]:Modified, [CustomerID]:30130, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, [MiddleName]:<NULL />, [LastName]:Doe, [Suffix]:<NULL />, [CompanyName]:<NULL />, [SalesPerson]:<NULL />, [EmailAddress]:<NULL />, [Phone]:<NULL />, [PasswordHash]:<NULL />, [PasswordSalt]:<NULL />, [rowguid]:19b9d81c-2ad4-41c1-a0e1-82deda5a38b8, [ModifiedDate]:18/07/2022 12:46:40
 
 
 Interceptors DbCommand execution
@@ -204,110 +354,27 @@ Here is the `Sql` script executed for trigger ``Insert``:
     FROM Product_tracking 
     JOIN Inserted ON Product_tracking.ProductID = Inserted.ProductID;
 
-Intercepting and controlling data applying
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-| You can use ``Interceptors`` to control how your data are applied (or not)
-| Imagine that, for some reasons, you don't want to delete data that should be deleted.
-
-Here is a quick example:
-
-First of all, making a full sync to be sure we have the same data between the server and one client
-
-.. code-block:: csharp
-
-    var serverProvider = new SqlSyncProvider(serverConnectionString);
-    var clientProvider = new SqlSyncProvider(clientConnectionString);
-
-    // Tables involved in the sync process:
-    var tables = new string[] {"Product" };
-
-    // Creating an agent that will handle all the process
-    var agent = new SyncAgent(clientProvider, serverProvider, tables);
-
-    // First sync to have some rows on client
-    var s1 = await agent.SynchronizeAsync();
-    // Write results
-    Console.WriteLine(s1);
-
-.. code-block:: bash
-
-    Synchronization done.
-            Total changes  uploaded: 0
-            Total changes  downloaded: 295
-            Total changes  applied: 295
-            Total resolved conflicts: 0
-            Total duration :0:0:7.324
-
-Now let's imagine we are deleting some rows on the server
-
-.. code-block:: csharp
-
-    var c = serverProvider.CreateConnection();
-    var cmd = c.CreateCommand();
-    cmd.Connection = c;
-    cmd.CommandText = "DELETE FROM Product WHERE ProductId >= 750 AND ProductId < 760";
-    c.Open();
-    cmd.ExecuteNonQuery();
-    c.Close();
-
-| Ok, now we are expecting to have around 10 rows to be deleted on the next sync on the client.
-| But for some reasons, you don't want them to be deleted (it's your choice)
-| Here is a quick snippet using `OnTableChangesApplying` interceptor :
-
-.. code-block:: csharp
-
-    // Do not delete product rows
-    agent.LocalOrchestrator.OnTableChangesApplying(args =>
-    {
-        if (args.State == DataRowState.Deleted && args.Changes.TableName == "Product")
-        {
-            Console.WriteLine('$'"Preventing deletion on {args.Changes.Rows.Count} rows.");
-            args.Cancel = true;
-        }
-    });
-
-    // Second sync
-    s1 = await agent.SynchronizeAsync();
-    // Write results
-    Console.WriteLine(s1);
-
-
-Second sync result:
-
-.. code-block:: bash
-
-    Preventing deletion on 10 rows.
-    Synchronization done.
-            Total changes  uploaded: 0
-            Total changes  downloaded: 10
-            Total changes  applied: 0
-            Total resolved conflicts: 0
-            Total duration :0:0:0.62
-
-As you can see, the client downloaded 10 rows to be deleted, but nothing has been applied.
-
 
 Intercepting web events
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Some interceptors are specific to web orchestrators ``WebClientOrchestrator`` & ``WebServerOrchestrator``.
+Some interceptors are specific to web orchestrators ``WebClientOrchestrator`` & ``WebServerAgent``.
 
 These orchestrators will let you intercept all the ``Requests`` and ``Responses`` that will be generated by ``DMS`` during a web call.
 
-WebServerOrchestrator
+WebServerAgent
 ------------------------
 
 The two first interceptors will intercept basically all requests and responses coming in and out:
 
-* ``webServerOrchestrator.OnHttpGettingRequest(args => {})``
-* ``webServerOrchestrator.OnHttpSendingResponse(args => {})``
+* ``webServerAgent.OnHttpGettingRequest(args => {})``
+* ``webServerAgent.OnHttpSendingResponse(args => {})``
 
 Each of them will let you access the `HttpContext`, `SyncContext` and `SessionCache` instances:
 
 .. code-block:: csharp
 
-    webServerOrchestrator.OnHttpGettingRequest(args =>
+    webServerAgent.OnHttpGettingRequest(args =>
     {
         var httpContext = args.HttpContext;
         var syncContext = args.Context;
@@ -317,24 +384,24 @@ Each of them will let you access the `HttpContext`, `SyncContext` and `SessionCa
 
 The two last new web server http interceptors will let you intercept all the calls made when server *receives* client changes and when server *sends back* server changes.
 
-* ``webServerOrchestrator.OnHttpGettingChanges(args => {});``
-* ``webServerOrchestrator.OnHttpSendingChanges(args => {});``
+* ``webServerAgent.OnHttpGettingChanges(args => {});``
+* ``webServerAgent.OnHttpSendingChanges(args => {});``
 
 Here is a quick example using all of them:
 
 .. code-block:: csharp
 
-    webServerOrchestrator.OnHttpGettingRequest(req =>
+    webServerAgent.OnHttpGettingRequest(req =>
         Console.WriteLine("Receiving Client Request:" + req.Context.SyncStage + 
         ". " + req.HttpContext.Request.Host.Host + "."));
 
-    webServerOrchestrator.OnHttpSendingResponse(res =>
+    webServerAgent.OnHttpSendingResponse(res =>
         Console.WriteLine("Sending Client Response:" + res.Context.SyncStage + 
         ". " + res.HttpContext.Request.Host.Host));
 
-    webServerOrchestrator.OnHttpGettingChanges(args 
+    webServerAgent.OnHttpGettingChanges(args 
         => Console.WriteLine("Getting Client Changes" + args));
-    webServerOrchestrator.OnHttpSendingChanges(args 
+    webServerAgent.OnHttpSendingChanges(args 
         => Console.WriteLine("Sending Server Changes" + args));
 
     await webServerManager.HandleRequestAsync(context);
@@ -463,11 +530,11 @@ As you can see:
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
-        private WebServerOrchestrator orchestrator;
+        private WebServerAgent webServerAgent;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerOrchestrator webServerOrchestrator) 
-            => this.orchestrator = webServerOrchestrator;
+        public SyncController(WebServerAgent webServerAgent) 
+            => this.webServerAgent = webServerAgent;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
@@ -478,27 +545,31 @@ As you can see:
             // the User.Identity.IsAuthenticated value
             if (HttpContext.User.Identity.IsAuthenticated)
             {
-                // on each request coming from the client, 
-                // just inject the User Id parameter
-                orchestrator.OnHttpGettingRequest(args =>
+                // OPTIONAL: -------------------------------------------
+                // OPTIONAL: Playing with user coming from bearer token
+                // OPTIONAL: -------------------------------------------
+
+                // on each request coming from the client, just inject the User Id parameter
+                webServerAgent.OnHttpGettingRequest(args =>
                 {
                     var pUserId = args.Context.Parameters["UserId"];
 
                     if (pUserId == null)
-                        args.Context.Parameters.Add("UserId", 
-                        this.HttpContext.User.Identity.Name);
+                    {
+                        var userId = this.HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier);
+                        args.Context.Parameters.Add("UserId", userId);
+                    }
 
                 });
 
-                // Because we don't want to send back this value, 
-                // remove it from the response 
-                orchestrator.OnHttpSendingResponse(args =>
+                // Because we don't want to send back this value, remove it from the response 
+                webServerAgent.OnHttpSendingResponse(args =>
                 {
                     if (args.Context.Parameters.Contains("UserId"))
                         args.Context.Parameters.Remove("UserId");
                 });
 
-                await orchestrator.HandleRequestAsync(this.HttpContext);
+                await webServerAgent.HandleRequestAsync(this.HttpContext);
             }
             else
             {
@@ -507,14 +578,12 @@ As you can see:
         }
 
         /// <summary>
-        /// This GET handler is optional. 
-        /// It allows you to see the configuration hosted on the server
+        /// This GET handler is optional. It allows you to see the configuration hosted on the server
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
         [AllowAnonymous]
-        public Task Get() 
-            => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
+        public Task Get() => this.HttpContext.WriteHelloAsync(webServerAgent);
     }
 
 

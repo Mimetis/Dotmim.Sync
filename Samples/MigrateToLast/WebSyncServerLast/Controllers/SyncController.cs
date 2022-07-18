@@ -28,7 +28,7 @@ namespace WebSyncServerLast.Controllers
         [HttpPost]
         public async Task Post()
         {
-            var scopeName = WebServerAgent.GetScopeName(HttpContext);
+            var scopeName = HttpContext.GetScopeName();
 
             var orchestrator = webServerAgents.FirstOrDefault(c => c.ScopeName == scopeName);
 

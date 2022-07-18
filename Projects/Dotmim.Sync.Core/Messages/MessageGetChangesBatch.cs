@@ -17,11 +17,9 @@ namespace Dotmim.Sync
             this.BatchDirectory = batchDirectory ?? throw new ArgumentNullException(nameof(batchDirectory));
             this.BatchDirectoryName = batchDirectoryName;
             this.SupportsMultiActiveResultSets = supportsMultiActiveResultSets;
-            //this.LocalSerializer = localSerializer;
             this.ExcludingScopeId = excludingScopeId;
             this.LocalScopeId = localScopeId;
             this.IsNew = isNew;
-            //this.LastTimestamp = lastTimestamp;
             this.BatchSize = batchSize;
         }
 
@@ -36,17 +34,10 @@ namespace Dotmim.Sync
         /// </summary>
         public Guid LocalScopeId { get; set; }
 
-
         /// <summary>
         /// Gets or Sets if the sync is a first sync. In this case, the last sync timestamp is ignored
         /// </summary>
         public bool IsNew { get; set; }
-
-
-        /// <summary>
-        /// Gets or Sets the last date timestamp from where we want rows
-        /// </summary>
-        //public long? LastTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema used for this sync
@@ -69,10 +60,5 @@ namespace Dotmim.Sync
         public string BatchDirectoryName { get; set; }
 
         public bool SupportsMultiActiveResultSets { get; }
-
-        /// <summary>
-        /// Gets or Sets the Local Serializer, used to buffer rows when reading from datasource
-        /// </summary>
-        //public ILocalSerializer LocalSerializer { get; set; }
     }
 }

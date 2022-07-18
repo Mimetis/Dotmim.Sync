@@ -45,10 +45,6 @@ namespace Dotmim.Sync
                 return (context, batchInfo, changesSelected);
             }
 
-            // Call interceptor
-            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchRootDirectory, this.Options.BatchSize, isNew, connection, transaction);
-            await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
-
             // create local directory
             if (!string.IsNullOrEmpty(batchRootDirectory) && !Directory.Exists(batchRootDirectory))
                 Directory.CreateDirectory(batchRootDirectory);
@@ -60,6 +56,10 @@ namespace Dotmim.Sync
             batchInfo = new BatchInfo(scopeInfo.Schema, batchRootDirectory, batchDirectoryName);
             batchInfo.TryRemoveDirectory();
             batchInfo.CreateDirectory();
+
+            // Call interceptor
+            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchInfo.GetDirectoryFullPath(), this.Options.BatchSize, isNew, connection, transaction);
+            await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             var cptSyncTable = 0;
             var currentProgress = context.ProgressPercentage;
@@ -260,7 +260,7 @@ namespace Dotmim.Sync
                     var syncRow = CreateSyncRowFromReader2(dataReader, schemaChangesTable);
                     rowsCountInBatch++;
 
-                    var tableChangesSelectedSyncRowArgs = await this.InterceptAsync(new TableChangesSelectedSyncRowArgs(context, syncRow, schemaChangesTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    var tableChangesSelectedSyncRowArgs = await this.InterceptAsync(new RowsChangesSelectedArgs(context, syncRow, schemaChangesTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                     syncRow = tableChangesSelectedSyncRowArgs.SyncRow;
 
                     if (syncRow == null)

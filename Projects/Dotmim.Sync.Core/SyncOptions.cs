@@ -105,7 +105,7 @@ namespace Dotmim.Sync
         public SyncOptions()
         {
             this.BatchDirectory = GetDefaultUserBatchDiretory();
-            this.BatchSize = 5000;
+            this.BatchSize = 2000;
             this.CleanMetadatas = true;
             this.CleanFolder = true;
             this.UseVerboseErrors = false;

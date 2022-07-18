@@ -233,13 +233,16 @@ namespace Dotmim.Sync
                             if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 continue;
                         }
+                        if (batchRows.Count <= 0)
+                            continue;
+
                         var failedRows = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName];
 
                         command.CommandText = cmdText;
-                        var batchArgs = new TableChangesApplyingSyncRowsArgs(context, message.BatchInfo, batchRows, schemaChangesTable, applyType, command, connection, transaction);
+                        var batchArgs = new RowsChangesApplyingArgs(context, message.BatchInfo, batchRows, schemaChangesTable, applyType, command, connection, transaction);
                         await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                        if (batchArgs.Cancel || batchArgs.Command == null)
+                        if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count <= 0)
                             continue;
 
                         // get the correct pointer to the command from the interceptor in case user change the whole instance
@@ -268,7 +271,7 @@ namespace Dotmim.Sync
                             continue;
 
                         command.CommandText = cmdText;
-                        var batchArgs = new TableChangesApplyingSyncRowsArgs(context, message.BatchInfo, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, command, connection, transaction);
+                        var batchArgs = new RowsChangesApplyingArgs(context, message.BatchInfo, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, command, connection, transaction);
                         await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
 
                         if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count() <= 0)
@@ -300,7 +303,6 @@ namespace Dotmim.Sync
 
 
                     }
-
                 }
 
 
@@ -378,10 +380,6 @@ namespace Dotmim.Sync
                     // we've got 0.25% to fill here 
                     var progresspct = appliedRowsTmp * 0.25d / tableChangesApplied.TotalRowsCount;
                     context.ProgressPercentage += progresspct;
-
-                    // Report the batch changes applied
-                    var tableChangesBatchAppliedArgs = new TableChangesBatchAppliedArgs(context, tableChangesApplied, connection, transaction);
-                    await this.InterceptAsync(tableChangesBatchAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
                 }
 
             }
