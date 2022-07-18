@@ -104,19 +104,6 @@ namespace Dotmim.Sync
         public static Guid OnTableChangesSelected(this BaseOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
-        /// <summary>
-        /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
-        /// </summary>
-        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Action<RowsChangesSelectedArgs> action)
-            => orchestrator.AddInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
-        /// </summary>
-        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Func<RowsChangesSelectedArgs, Task> action)
-            => orchestrator.AddInterceptor(action);
-
-
     }
 
     public static partial class SyncEventsId

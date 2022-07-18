@@ -76,7 +76,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var onDatabaseApplying = 0;
             var onDatabaseApplied = 0;
-            var onBatchApplied = 0;
             var onApplying = 0;
             var onApplied = 0;
 
@@ -92,11 +91,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDatabaseApplied++;
             });
 
-            localOrchestrator.OnTableChangesBatchApplied(action =>
-            {
-                Assert.Equal(1, action.TableChangesApplied.Applied);
-                onBatchApplied++;
-            });
 
             localOrchestrator.OnTableChangesApplying(action =>
             {
@@ -113,7 +107,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Making a first sync, will initialize everything we need
             var s2 = await agent.SynchronizeAsync(scopeName);
 
-            Assert.Equal(2, onBatchApplied);
             Assert.Equal(1, onDatabaseApplying);
             Assert.Equal(1, onDatabaseApplied);
             Assert.Equal(4, onApplying); // Deletes + Modified state = Table count * 2
@@ -179,7 +172,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onDatabaseApplying = 0;
             var onDatabaseApplied = 0;
             var onApplying = 0;
-            var onApplied = 0;
 
             remoteOrchestrator.OnDatabaseChangesApplying(dcs =>
             {
@@ -199,17 +191,13 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onApplying++;
             });
 
-            remoteOrchestrator.OnTableChangesBatchApplied(action =>
-            {
-                Assert.Equal(1, action.TableChangesApplied.Applied);
-                onApplied++;
-            });
+  
 
             // Making a first sync, will initialize everything we need
             var s2 = await agent.SynchronizeAsync(scopeName);
 
             Assert.Equal(4, onApplying);
-            Assert.Equal(2, onApplied);
+
             Assert.Equal(1, onDatabaseApplying);
             Assert.Equal(1, onDatabaseApplied);
 
