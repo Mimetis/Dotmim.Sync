@@ -112,7 +112,7 @@ Once we have correctly configured our sync process, we can create our controller
 
 .. code-block:: csharp
 
-[ApiController]
+    [ApiController]
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
