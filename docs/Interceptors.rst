@@ -40,16 +40,19 @@ Intercepting rows
 .. hint:: You will find the sample used for this chapter, here : `Spy sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Spy>`_. 
 
 ``DMS`` workload allows you to intecept different kinds of events on different levels:
+
 - Database level
 - Table level
 - Row level 
 
 On each side (client and server), you will have:
+
 - Interceptors during the "_Select_" phase : Getting changes from the database.
 - Interceptors during the "_Apply_" phase : Applying Insert / Delete or Update to the database.
 - Interceptors for extra workloads like conflict resolution, serialization, converters & so on ...
 
 On each level you will have:
+
 - A before event: Generally ending by "_ing_" like ``OnDatabaseChangesApplying``.
 - An after event: Generally ending by "_ied_" like ``OnDatabaseChangesApplied``.
 
@@ -57,10 +60,12 @@ Selecting changes
 -------------------
 
 Regarding the rows selection from your client or server:
+
 - ``OnDatabaseChangesSelecting`` : Raised before selecting rows. You have info about the tmp folder and batch size that will be used.
 - ``OnTableChangesSelecting`` : Raised before selecting rows for a particular table : You have info about the current table and the ``DbCommand`` used to fetch data.
 
 On the other side, once rows are selected, you still can:
+
 - ``OnRowsChangesSelected`` : Raised once a row is read from the databse, but not yet serialized to disk.
 - ``OnTableChangesSelected`` : Raised once a table changes as been fully read. Changes are serialized to disk.
 - ``OnDatabaseChangesSelected`` : Raised once all changes are grabbed from the local database. Changes are serialized to disk.
@@ -103,7 +108,8 @@ The ``OnDatabaseChangesSelecting`` occurs before the database will get changes f
     --------------------------------------------
     Getting changes from local database:
     --------------------------------------------
-    BatchDirectory: C:\Users\spertus\AppData\Local\Temp\DotmimSync\2022_07_18_36tygabvdj2bw. BatchSize: 2000.
+    BatchDirectory: C:\Users\spertus\AppData\Local\Temp\DotmimSync\2022_07_18_36tygabvdj2bw. 
+    BatchSize: 2000.
 
 
 OnDatabaseChangesApplying
@@ -116,25 +122,25 @@ To be able to load batches from the temporary folder, or save rows, you can use 
 
 .. code-block:: csharp
 
-localOrchestrator.OnDatabaseChangesApplying(async args =>
-{
-    Console.WriteLine($"--------------------------------------------");
-    Console.WriteLine($"Changes to be applied on the local database:");
-    Console.WriteLine($"--------------------------------------------");
-
-    foreach (var table in args.ApplyChanges.Schema.Tables)
+    localOrchestrator.OnDatabaseChangesApplying(async args =>
     {
-        // loading in memory all batches containing rows for the current table
-        var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.BatchInfo, table.TableName, table.SchemaName);
+        Console.WriteLine($"--------------------------------------------");
+        Console.WriteLine($"Changes to be applied on the local database:");
+        Console.WriteLine($"--------------------------------------------");
 
-        Console.WriteLine($"Changes for table {table.TableName}. Rows:{syncTable.Rows.Count}");
-        foreach (var row in syncTable.Rows)
-            Console.WriteLine(row);
+        foreach (var table in args.ApplyChanges.Schema.Tables)
+        {
+            // loading in memory all batches containing rows for the current table
+            var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.BatchInfo, table.TableName, table.SchemaName);
 
-        Console.WriteLine();
+            Console.WriteLine($"Changes for table {table.TableName}. Rows:{syncTable.Rows.Count}");
+            foreach (var row in syncTable.Rows)
+                Console.WriteLine(row);
 
-    }
-});
+            Console.WriteLine();
+
+        }
+    });
 
 .. code-block:: bash
 
@@ -144,7 +150,8 @@ localOrchestrator.OnDatabaseChangesApplying(async args =>
     Last timestamp used to compare local rows : 34000
     List of ALL rows to be sync locally:
     Changes for table ProductCategory. Rows:1
-    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, [ParentProductCategoryID]:<NULL />
+    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, 
+    [ParentProductCategoryID]:<NULL />
 
     Changes for table ProductModel. Rows:0
 
@@ -153,7 +160,8 @@ localOrchestrator.OnDatabaseChangesApplying(async args =>
     Changes for table Address. Rows:0
 
     Changes for table Customer. Rows:1
-    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, [MiddleName]:<NULL />
+    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, 
+    [FirstName]:John, [MiddleName]:<NULL />
 
     Changes for table CustomerAddress. Rows:0
 
@@ -182,8 +190,10 @@ OnTableChangesApplying
             if (syncTable != null && syncTable.HasRows)
             {
                 Console.WriteLine($"- --------------------------------------------");
-                Console.WriteLine($"- Applying [{args.State}] changes to Table {args.SchemaTable.GetFullName()}");
-                Console.WriteLine($"Changes for table {args.SchemaTable.TableName}. Rows:{syncTable.Rows.Count}");
+                Console.WriteLine($"- Applying [{args.State}] 
+                        changes to Table {args.SchemaTable.GetFullName()}");
+                Console.WriteLine($"Changes for table 
+                        {args.SchemaTable.TableName}. Rows:{syncTable.Rows.Count}");
                 foreach (var row in syncTable.Rows)
                     Console.WriteLine(row);
             }
@@ -197,11 +207,14 @@ OnTableChangesApplying
     - --------------------------------------------
     - Applying [Modified] changes to Table ProductCategory
     Changes for table ProductCategory. Rows:1
-    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, [ParentProductCategoryID]:<NULL />
+    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, 
+    [ParentProductCategoryID]:<NULL />
     - --------------------------------------------
     - Applying [Modified] changes to Table Customer
     Changes for table Customer. Rows:1
-    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, [MiddleName]:<NULL />, [LastName]:Doe, [Suffix]:<NULL />, [CompanyName]:<NULL />, [SalesPerson]:<NULL />, [EmailAddress]:<NULL />, [Phone]:<NULL />, [PasswordHash]:<NULL />, [PasswordSalt]:<NULL />, [rowguid]:a2ded505-02ad-4707-bb19-4e58c1740d10, [ModifiedDate]:18/07/2022 12:30:30
+    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, 
+    [MiddleName]:<NULL />, [LastName]:Doe, [Suffix]:<NULL />, [CompanyName]:<NULL />, [SalesPerson]:<NULL />,
+    
 
 
 OnRowsChangesApplying
