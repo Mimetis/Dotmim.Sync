@@ -44,9 +44,6 @@ namespace Dotmim.Sync
             {
                 var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
 
-                // contains list of table that have been done
-                var doneTables = new List<SyncTable>();
-
                 // Disable check constraints
                 // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
                 // Report this disabling constraints brefore opening a transaction
@@ -54,7 +51,8 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables)
                     {
-                        context = await this.InternalDisableConstraintsAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
+                        var syncAdapter = this.GetSyncAdapter(table, scopeInfo);
+                        context = await this.InternalDisableConstraintsAsync(scopeInfo, context, syncAdapter, connection, transaction).ConfigureAwait(false);
                     }
                 }
 
@@ -65,7 +63,8 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables.Reverse())
                     {
-                        context = await this.InternalResetTableAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
+                        var syncAdapter = this.GetSyncAdapter(table, scopeInfo);
+                        context = await this.InternalResetTableAsync(scopeInfo, context, syncAdapter, connection, transaction).ConfigureAwait(false);
                     }
                 }
 
@@ -203,6 +202,7 @@ namespace Dotmim.Sync
                     return args.Result;
                 });
             }
+
             // I've got all files for my table
             // applied rows for this bpi
             foreach (var batchPartInfo in bpiTables)

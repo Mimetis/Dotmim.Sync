@@ -776,5 +776,99 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+
+
+        /// <summary>
+        /// Insert two rows on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Deprovision_Then_ProvisionAgain(SyncOptions options)
+        {
+            // create a server schema and seed
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // configure server orchestrator
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, this.FilterSetup);
+            var serviceUri = this.Kestrell.Run();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+                var s = await agent.SynchronizeAsync(this.FilterParameters);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // Create a new address & customer address on server
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var newAddress = new Address { AddressLine1 = addressLine1 };
+
+                serverDbCtx.Address.Add(newAddress);
+                await serverDbCtx.SaveChangesAsync();
+
+                var newCustomerAddress = new CustomerAddress
+                {
+                    AddressId = newAddress.AddressId,
+                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    AddressType = "OTH"
+                };
+
+                serverDbCtx.CustomerAddress.Add(newCustomerAddress);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Deprovision clients
+            foreach (var client in Clients)
+            {
+                // create agent with filtered tables and parameter
+                var localOrchestrator = new LocalOrchestrator(client.Provider);
+                await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+            }
+
+            // Make a new sync on all clients
+            foreach (var client in Clients)
+            {
+                // Create local orchestrator
+                var localOrchestrator = new LocalOrchestrator(client.Provider);
+
+                var needToUpgrade = await localOrchestrator.NeedsToUpgradeAsync();
+                if (needToUpgrade)
+                    await localOrchestrator.UpgradeAsync();
+
+                // Create a remote orchestrator
+                var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+                // Get the scope from server
+                var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+
+                // Apply scope locally to recreate everything we need
+                await localOrchestrator.ProvisionAsync(serverScope);
+
+                var agent = new SyncAgent(client.Provider, remoteOrchestrator, options);
+                var s = await agent.SynchronizeAsync(this.FilterParameters);
+
+                Assert.Equal(2, s.TotalChangesDownloaded);
+                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+        }
+
     }
 }
