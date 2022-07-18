@@ -138,6 +138,10 @@ namespace Dotmim.Sync.Web.Client
                     response = await this.httpRequestHandler.ProcessRequestAsync
                         (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress, 
                          this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+
+                    // See #721 for issue and #721 for PR from slagtejn
+                    if (!bpi.IsLastBatch)
+                        response.Dispose();
                 }
             }
 

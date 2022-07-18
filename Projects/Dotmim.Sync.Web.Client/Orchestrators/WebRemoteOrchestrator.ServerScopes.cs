@@ -59,7 +59,6 @@ namespace Dotmim.Sync.Web.Client
             // Report Progress
             await this.InterceptAsync(new HttpGettingScopeResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-
             // Return scopes and new shema
             return (context, ensureScopesResponse.ServerScopeInfo);
         }

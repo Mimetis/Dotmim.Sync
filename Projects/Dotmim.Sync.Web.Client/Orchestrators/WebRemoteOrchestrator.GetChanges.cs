@@ -135,6 +135,8 @@ namespace Dotmim.Sync.Web.Client
 
                 // Raise response from server containing a batch changes 
                 await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+
+                response.Dispose();
             });
 
             // Parrallel download of all bpis except the last one (which will launch the delete directory on the server side)
