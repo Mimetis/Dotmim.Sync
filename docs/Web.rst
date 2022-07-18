@@ -172,7 +172,7 @@ If your configuration is not correct, you should have an error message, like thi
 .. image:: assets/WebServerPropertiesError.png
 
 
-Mutlis Scope
+Multi Scopes
 -----------------
 
 If you need to handle multi scopes, here is the implementation with 2 scopes : "prod", "cust".
@@ -193,8 +193,10 @@ If you need to handle multi scopes, here is the implementation with 2 scopes : "
         var tables1 = new string[] {"ProductCategory", "ProductModel", "Product" };
         var tables2 = new string[] {"Address", "Customer", "CustomerAddress"};
 
-        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, "prod", tables1, options);
-        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, "cust", tables2, options);
+        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, 
+                "prod", tables1, options);
+        services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, 
+                "cust", tables2, options);
 
     }
 
@@ -206,7 +208,7 @@ Once we have correctly configured our sync process, we can create our controller
 
 .. code-block:: csharp
 
-[ApiController]
+    [ApiController]
     [Route("api/[controller]")]
     public class SyncController : ControllerBase
     {
@@ -214,7 +216,8 @@ Once we have correctly configured our sync process, we can create our controller
         private readonly IWebHostEnvironment env;
 
         // Injected thanks to Dependency Injection
-        public SyncController(IEnumerable<WebServerAgent> webServerAgents, IWebHostEnvironment env)
+        public SyncController(IEnumerable<WebServerAgent> webServerAgents, 
+                              IWebHostEnvironment env)
         {
             this.webServerAgents = webServerAgents;
             this.env = env;
@@ -229,12 +232,15 @@ Once we have correctly configured our sync process, we can create our controller
         {
             var scopeName = HttpContext.GetScopeName();
 
-            var webserverAgent = webserverAgents.FirstOrDefault(c => c.ScopeName == scopeName);
+            var webserverAgent = webserverAgents.FirstOrDefault(
+                    c => c.ScopeName == scopeName);
+            
             await webserverAgent.HandleRequestAsync(HttpContext).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// This GET handler is optional. It allows you to see the configuration hosted on the server
+        /// This GET handler is optional. 
+        /// It allows you to see the configuration hosted on the server
         /// </summary>
         [HttpGet]
         public async Task Get()
