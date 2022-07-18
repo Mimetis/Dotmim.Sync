@@ -47,26 +47,21 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
+
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("AdventureWorks"));
-        //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
-        //var setup = new SyncSetup(regipro_tables)
-        //{
-        //    TrackingTablesPrefix = "_sync_",
-        //    TrackingTablesSuffix = ""
-        //};
-        //var snapshotDirectory = Path.Combine("C:\\Tmp\\Snapshots");
-        //var options = new SyncOptions() { SnapshotsDirectory = snapshotDirectory };
+        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("AdventureWorks"));
 
-        //var op = SyncOptions.GetDefaultUserBatchDiretory();
-
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
+        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("Client"));
 
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup(new string[] { "ProductCategory" });
-        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Information };
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        
+        var options = new SyncOptions() { DisableConstraintsOnApplyChanges = true };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -422,8 +417,6 @@ internal class Program
     }
 
    
-
-
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         //var options = new SyncOptions();
@@ -433,13 +426,8 @@ internal class Program
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
         });
 
-        var syncOptions = new SyncOptions
-        {
-            ProgressLevel = SyncProgressLevel.Debug
-        };
-
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, syncOptions);
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
 
         do
         {
