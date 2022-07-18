@@ -34,7 +34,7 @@ namespace Dotmim.Sync
 
         public override string Source => Connection.Database;
         public override string Message => $"[{this.SchemaTable.GetFullName()}] [SyncRow] {SyncRow.ToString()}.";
-        public override int EventId => SyncEventsId.TableChangesSelected.Id;
+        public override int EventId => SyncEventsId.RowsChangesSelected.Id;
     }
 
 
@@ -51,7 +51,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
         /// </summary>
-        public static Guid OnTableChangesSelectedSyncRow(this BaseOrchestrator orchestrator, Func<RowsChangesSelectedArgs, Task> action)
+        public static Guid OnRowsChangesSelected(this BaseOrchestrator orchestrator, Func<RowsChangesSelectedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
 
@@ -59,6 +59,8 @@ namespace Dotmim.Sync
 
     public static partial class SyncEventsId
     {
+        public static EventId RowsChangesSelected => CreateEventId(13051, nameof(RowsChangesSelected));
+
     }
 
 

@@ -61,6 +61,11 @@ namespace Spy
             });
 
 
+            localOrchestrator.OnTableChangesSelecting(args =>
+            {
+
+            });
+
             // Just before applying something locally, at the database level
             localOrchestrator.OnDatabaseChangesApplying(async args =>
             {
