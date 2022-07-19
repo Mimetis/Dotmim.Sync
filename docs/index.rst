@@ -105,6 +105,7 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    Overview
    HowDoesItWorks
    Synchronize
+   MultiScopes
    Orchestrators
    Progression
    Interceptors
@@ -121,5 +122,4 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    Filters
    SqliteEncryption
    AlreadyExisting
-   MultiScopes
    Debugging

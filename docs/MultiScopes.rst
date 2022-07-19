@@ -1,4 +1,4 @@
-Orchestrators
+MultiScopes
 ================================
 
 Overview
@@ -12,6 +12,7 @@ For example, let's imagine we want to:
 - Sync all the **Customer** and related **SalesOrderHeader**, once we sure all products are on the client database.
 
 Or you can think about syncing a tables with a filter, but with different parameters:
+
 - Sync all the **ProductCategories** and **Products** when **ProductCategoryID** is 'ROADFR'
 - Sync all the **ProductCategories** and **Products** when **ProductCategoryID** is 'MOUNTB'
 
@@ -22,7 +23,7 @@ How does it work ?
 
 On the client side, we store metadatas in the **scope_info** table.  
 
-Imagine we have a really straightforward sync, using the default scope name (DefaultScope):
+Imagine we have a really straightforward sync, using the default scope name (``DefaultScope``):
 
 .. code-block:: csharp
 
@@ -33,12 +34,15 @@ Imagine we have a really straightforward sync, using the default scope name (Def
 
     var agent = new SyncAgent(clientProvider, serverProvider);
     var s1 = await agent.SynchronizeAsync(setup);
+    
+    // Equivalent to
+    // var s1 = await agent.SynchronizeAsync("DefaultScope", setup);
 
 Once the sync is complete, you will have in the client database, a table scope_info containing metadatas:
 
-- A **scope Id**: Defines the Id of your client database (that is unique).
-- A **scope name**: Defines a user friendly name (that is unique) for your scope. Default name is ``DefaultScope``.
-- A **setup**, serialized: Contains all the tables and options you defined as a setup.
+- A **scope Id**: Defines the Id of your client database (unique).
+- A **scope name**: Defines a user friendly name (unique) for your scope. Default name is ``DefaultScope``.
+- A **setup**, serialized: Contains all the tables and options you defined from your ``SyncSetup`` instance.
 - A **schema**, serialized: Contains all the tables, filters, parameters and so on, for this scope.
 - A local last timestamp: Defines the last time this scope was successfully synced with the server.
 - A server last timestamp: Defines the last time this scope was successfully synced, but from a server point of view. 
@@ -64,11 +68,11 @@ In a multi scopes scenario, we will have one line per scope, containing for each
 Multi Scopes
 ^^^^^^^^^^^^^^^^^^^^^^
 
-To be able to create a multi scopes scenario, you just have to create two `SyncSetup` with a named scope:
+To be able to create a multi scopes scenario, you just have to:
 
-- Create two setup with your tables / filters and options.
-- Sync your databases calling SynchronizeAsync with a different scope name for each setup
-  - Or call ProvisionAsync with your scope name
+- Create two ``SyncSetup`` instances with your tables / filters and options.
+- Sync your databases calling ``SynchronizeAsync`` with a different scope name for each setup
+- Or call ``ProvisionAsync`` with your scope name.
 
 Here is a full example, where we sync separately the **Product** table, then the **Customer** table:
 
@@ -80,7 +84,8 @@ Here is a full example, where we sync separately the **Product** table, then the
 
     // Create 2 setup 
     var setupProducts = new SyncSetup("ProductCategory", "ProductModel", "Product");
-    var setupCustomers = new SyncSetup("Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
+    var setupCustomers = new SyncSetup("Address", "Customer", "CustomerAddress", 
+                "SalesOrderHeader", "SalesOrderDetail");
 
     // Create an agent
     var agent = new SyncAgent(clientProvider, serverProvider);
