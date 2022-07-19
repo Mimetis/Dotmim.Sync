@@ -283,28 +283,8 @@ Here is a full example using this special trick:
         acf.SenderScopeId = null;
     });
 
-    // From Server : Remote is client, Local is server
-    // From that point we do not do anything, 
-    // letting the server resolves the conflict and send back
-    // the server row and client row conflicting to the client
-    remoteOrchestrator.OnApplyChangesFailed(acf =>
-    {
-        // Check conflict is correctly set
-        var localRow = acf.Conflict.LocalRow;
-        var remoteRow = acf.Conflict.RemoteRow;
-
-        // remote is client; local is server
-        Assert.StartsWith("CLI", remoteRow["Name"].ToString());
-        Assert.StartsWith("SRV", localRow["Name"].ToString());
-
-        Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-        Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
-
-    });
-
     // First sync, we allow server to resolve the conflict and send back the result to client
     var s = await agent.SynchronizeAsync();
-
     
     Assert.Equal(1, s.TotalChangesDownloaded);
     Assert.Equal(1, s.TotalChangesUploaded);

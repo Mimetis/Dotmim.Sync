@@ -188,8 +188,6 @@ namespace Dotmim.Sync.Tests
 
         }
 
-
-
         [Fact]
         public virtual async Task Scenario_Adding_OneColumn_OneTable_With_TwoScopes_OneClient_Still_OnOldScope_OneClient_OnNewScope()
         {
@@ -366,6 +364,185 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
+
+        [Fact]
+        public virtual async Task Scenario_ConflictResolution_From_Client_Side()
+        {
+            // -------------------------------------------------------
+            // Setup the conflict
+            // -------------------------------------------------------
+
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            var clientDatabaseName = HelperDatabase.GetRandomName();
+            var clientProvider = new SqliteSyncProvider($"{clientDatabaseName}.db");
+            var client = (clientDatabaseName, ProviderType.Sqlite, Provider: clientProvider);
+
+            // create a simple setup with one table to sync
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var setup = new SyncSetup(productCategoryTableName);
+
+            // even if it's default value, let's set the default conflict resolutio
+            var options = new SyncOptions
+            {
+                ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins
+            };
+
+            // configure kestrell and run
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            var serviceUri = this.Kestrell.Run();
+
+            // Execute a sync on to have the databases in sync
+            var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+            var r = await agent.SynchronizeAsync();
+
+            // Conflict product category
+            var conflictProductCategoryId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+            var productCategoryNameClient = "CLI BIKES " + HelperDatabase.GetRandomName();
+            var productCategoryNameServer = "SRV BIKES " + HelperDatabase.GetRandomName();
+
+            // Insert line on server and sync to have it on the client as well
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                ctx.Add(new ProductCategory { ProductCategoryId = conflictProductCategoryId, Name = "BIKES" });
+                await ctx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients to initialize client and server schema 
+            await agent.SynchronizeAsync();
+
+            // Update each client to generate an update conflict
+            using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
+            {
+                var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
+                pc.Name = productCategoryNameClient;
+                await ctx.SaveChangesAsync();
+            }
+
+            // Update server
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = ctx.ProductCategory.Find(conflictProductCategoryId);
+                pc.Name = productCategoryNameServer;
+                await ctx.SaveChangesAsync();
+            }
+            await this.Kestrell.StopAsync();
+            // -------------------------------------------------------
+            // From that point, we know we have a conflict
+            // -------------------------------------------------------
+
+            // Let's configure the server side 
+
+            // Configure kestrell
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+
+            // Create server web proxy
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+
+                webServerAgent.RemoteOrchestrator.OnApplyChangesFailed(async acf =>
+                {
+                    // Check conflict is correctly set
+                    var localRow = acf.Conflict.LocalRow;
+                    var remoteRow = acf.Conflict.RemoteRow;
+
+                    // remote is client; local is server
+                    Assert.StartsWith("CLI", remoteRow["Name"].ToString());
+                    Assert.StartsWith("SRV", localRow["Name"].ToString());
+
+                    Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                });
+
+                await webServerAgent.HandleRequestAsync(context);
+            });
+
+            serviceUri = this.Kestrell.Run(serverHandler);
+
+            // get a new agent (since service uri has changed)
+            agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+            // From client : Remote is server, Local is client
+            // From here, we are going to let the client decides 
+            // who is the winner of the conflict :
+            agent.LocalOrchestrator.OnApplyChangesFailed(acf =>
+            {
+                // Check conflict is correctly set
+                var localRow = acf.Conflict.LocalRow;
+                var remoteRow = acf.Conflict.RemoteRow;
+
+                // From that point, you can easily letting the client decides 
+                // who is the winner
+                // Show a UI with the local / remote row and 
+                // letting him decides what is the good row version
+                // for testing purpose; will just going to set name to some fancy BLA BLA value
+
+                // SHOW UI
+                // OH.... CLIENT DECIDED TO SET NAME TO "BLA BLA BLA" 
+
+                // BE AS FAST AS POSSIBLE IN YOUR DESICION, 
+                // SINCE WE HAVE AN OPENED CONNECTION / TRANSACTION RUNNING
+
+                remoteRow["Name"] = "HHH" + HelperDatabase.GetRandomName();
+
+                // Mandatory to override the winner registered in the tracking table
+                // Use with caution !
+                // To be sure the row will be marked as updated locally, 
+                // the scope id should be set to null
+                acf.SenderScopeId = null;
+            });
+
+            // First sync, we allow server to resolve the conflict and send back the result to client
+            var s = await agent.SynchronizeAsync();
+
+            Assert.Equal(1, s.TotalChangesDownloaded);
+            Assert.Equal(1, s.TotalChangesUploaded);
+            Assert.Equal(1, s.TotalResolvedConflicts);
+
+            // From this point the Server row Name is STILL "SRV...."
+            // And the Client row NAME is "BLA BLA BLA..."
+            // Make a new sync to send "BLA BLA BLA..." to Server
+
+            s = await agent.SynchronizeAsync();
+
+            Assert.Equal(0, s.TotalChangesDownloaded);
+            Assert.Equal(1, s.TotalChangesUploaded);
+            Assert.Equal(0, s.TotalResolvedConflicts);
+
+            await CheckProductCategoryRowsAsync(client, "HHH");
+
+        }
+
+        private async Task CheckProductCategoryRowsAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) client, string nameShouldStartWith = null)
+        {
+            // check rows count on server and on each client
+            using var ctx = new AdventureWorksContext(this.Server);
+            // get all product categories
+            var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
+
+            using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+            // get all product categories
+            var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
+
+            // check row count
+            Assert.Equal(serverPC.Count, clientPC.Count);
+
+            foreach (var cpc in clientPC)
+            {
+                var spc = serverPC.First(pc => pc.ProductCategoryId == cpc.ProductCategoryId);
+
+                // check column value
+                Assert.Equal(spc.ProductCategoryId, cpc.ProductCategoryId);
+                Assert.Equal(spc.Name, cpc.Name);
+
+                if (!string.IsNullOrEmpty(nameShouldStartWith))
+                    Assert.StartsWith(nameShouldStartWith, cpc.Name);
+
+            }
+        }
 
     }
 }
