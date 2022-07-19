@@ -221,6 +221,27 @@ Deprovisioning from client side, using a local orchestrator:
     await localOrchestrator.DeprovisionAsync(p);
 
 
+Drop All
+-------------
+
+The ``DropAllAsync()`` method is almost the same as ``DeprovisionAsync()``. The main difference is that ``DropAllAsync()`` will make a ``DeprovisionAsync()`` on all scopes.
+
+Basically ``DroppAllAsync()`` removes barely everything, and will let your database in a state without anything related to **DMS**
+
+.. warning:: Be extremely cautious with DropAllAsync as you will lost all the tracking rows information of your database.
+
+.. code-block:: csharp
+
+    // Create client provider
+    var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
+
+    // Create a local orchestrator used to Deprovision everything
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+
+    // Drop everything
+    await localOrchestrator.DropAllAsync();
+
+
 Migrating a database schema
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

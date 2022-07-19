@@ -48,15 +48,15 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("AdventureWorks"));
-        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("AdventureWorks"));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
+        //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientDatabaseName = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db";
         //var clientProvider = new SqliteSyncProvider(clientDatabaseName);
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client2"));
-        var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("Client"));
+        //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("Client"));
 
         //var setup = new SyncSetup(allTables);
         var setup = new SyncSetup(new string[] { "ProductCategory" });

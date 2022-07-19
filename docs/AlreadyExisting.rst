@@ -39,15 +39,15 @@ Here is a small sample, following this workflow:
 .. code-block:: csharp
 
     // Tables involved in the sync process:
-    var tables = new string[] { "ServiceTickets" };
+    var setup = new SyncSetup("ServiceTickets");
 
     // Creating an agent that will handle all the process
-    var agent = new SyncAgent(clientProvider, serverProvider, tables);
+    var agent = new SyncAgent(clientProvider, serverProvider);
 
     // Launch the sync process
     // This first sync will create all the sync architecture
     // and will get the server rows
-    var s1 = await agent.SynchronizeAsync();
+    var s1 = await agent.SynchronizeAsync(setup);
 
     // This first sync did not upload the client rows.
     // We only have rows from server that have been downloaded

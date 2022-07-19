@@ -199,7 +199,7 @@ namespace Migration
             Console.WriteLine(client2row);
 
             // What we can do here, is just make a sync with Renit
-            var s6 = await agent2.SynchronizeAsync("v1", SyncType.Reinitialize, progress: progress);
+            var s6 = await agent2.SynchronizeAsync("v1", SyncType.ReinitializeWithUpload, progress: progress);
             Console.WriteLine($"Making a full Reinitialize sync on SQLite client2");
             Console.WriteLine(s6);
 

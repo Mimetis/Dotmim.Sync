@@ -268,9 +268,9 @@ You will find the source code in the last commit, project ``Dotmim.Sync.SampleCo
 .. code-block:: csharp
 
     var setup = new SyncSetup(new string[] {"ProductCategory",
-    "ProductModel", "Product",
-    "Address", "Customer", "CustomerAddress",
-    "SalesOrderHeader", "SalesOrderDetail" });
+        "ProductModel", "Product",
+        "Address", "Customer", "CustomerAddress",
+        "SalesOrderHeader", "SalesOrderDetail" });
 
     // ----------------------------------------------------
     // Horizontal Filter: On rows. Removing rows from source
@@ -359,21 +359,22 @@ And you ``SyncAgent`` now looks like:
 .. code-block:: csharp
 
     // Creating an agent that will handle all the process
-    var agent = new SyncAgent(clientProvider, serverProvider, setup);
+    var agent = new SyncAgent(clientProvider, serverProvider);
 
-    if (!agent.Parameters.Contains("City"))
-        agent.Parameters.Add("City", "Toronto");
-
+    // Adding 2 parameters
     // Because I've specified that "postal" could be null, 
     // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
-    if (!agent.Parameters.Contains("postal"))
-        agent.Parameters.Add("postal", DBNull.Value);
+    var parameters = new SyncParameters
+    {
+        { "City", new Guid("Toronto") },
+        { "postal", DBNull.Value }
+    };    
 
     // [Optional]: Get some progress event during the sync process
     var progress = new SynchronousProgress<ProgressArgs>(
         pa => Console.WriteLine('$'"{pa.PogressPercentageString}\t {pa.Message}"));
 
-    var s1 = await agent.SynchronizeAsync(progress);
+    var s1 = await agent.SynchronizeAsync(setup, parameters, progress);
 
 
 Http mode
@@ -414,14 +415,11 @@ Pretty similar from the last example, excepting you do not add any ``SyncParamet
 
 
         // Create the setup used for your sync process
-        var tables = new string[] {"ProductCategory",
-        "ProductModel", "Product",
-        "Address", "Customer", "CustomerAddress",
-        "SalesOrderHeader", "SalesOrderDetail" };
 
-        var setup = new SyncSetup(tables)
+        var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+                                   "Address", "Customer", "CustomerAddress",
+                                   "SalesOrderHeader", "SalesOrderDetail")
         {
-            // optional :
             StoredProceduresPrefix = "s",
             StoredProceduresSuffix = "",
             TrackingTablesPrefix = "s",
@@ -523,12 +521,13 @@ The client side shoud be familiar to you:
     var progress = new SynchronousProgress<ProgressArgs>(
        pa => Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}"));
 
-    if (!agent.Parameters.Contains("City"))
-        agent.Parameters.Add("City", "Toronto");
-
+    // Adding 2 parameters
     // Because I've specified that "postal" could be null, 
     // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
-    if (!agent.Parameters.Contains("postal"))
-        agent.Parameters.Add("postal", DBNull.Value);
+    var parameters = new SyncParameters
+    {
+        { "City", new Guid("Toronto") },
+        { "postal", DBNull.Value }
+    }; 
 
-    var s1 = await agent.SynchronizeAsync(progress);
+    var s1 = await agent.SynchronizeAsync(parameters, progress);
