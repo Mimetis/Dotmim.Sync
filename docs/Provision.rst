@@ -52,10 +52,10 @@ And here the most straightforward code to be able to sync a client db :
     SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("Northwind"));
     SqlSyncProvider clientProvider = new SqlSyncProvider(GetDatabaseConnectionString("NW1"));
     var setup = new SyncSetup("Customers", "Region");
-    SyncAgent agent = new SyncAgent(clientProvider, serverProvider);
-    var syncContext = await agent.SynchronizeAsync(setup);
+    var agent = new SyncAgent(clientProvider, serverProvider);
+    var result = await agent.SynchronizeAsync(setup);
 
-    Console.WriteLine(syncContext);
+    Console.WriteLine(result);
 
 
 Once your sync process is finished, you will have a full configured database :
@@ -122,8 +122,7 @@ Provisioning from server side, using a remote orchestrator:
 
     // Create standard Setup and Options
     var setup = new SyncSetup("Address", "Customer", "CustomerAddress");
-    var options = new SyncOptions();
-
+    
     // -----------------------------------------------------------------
     // Server side
     // -----------------------------------------------------------------
@@ -134,7 +133,7 @@ Provisioning from server side, using a remote orchestrator:
     // - Provision everything
 
     // Create a server orchestrator used to Deprovision and Provision only table Address
-    var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
     // Provision everything needed (sp, triggers, tracking tables)
     // Internally provision will fectch the schema a will return it to the caller. 
@@ -150,8 +149,7 @@ Provision on the client side is quite similar, despite the fact we will rely on 
     var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
     // Create standard Setup and Options
-    var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress" });
-    var options = new SyncOptions();
+    var setup = new SyncSetup("Address", "Customer", "CustomerAddress");
 
     // -----------------------------------------------------------------
     // Client side
@@ -164,10 +162,10 @@ Provision on the client side is quite similar, despite the fact we will rely on 
     // - Provision everything locally
 
     // Create a local orchestrator used to provision everything locally
-    var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
 
     // Because we need the schema from remote side, create a remote orchestrator
-    var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
     // Getting the server scope from server side
     var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
@@ -213,7 +211,7 @@ Deprovisioning from client side, using a local orchestrator:
     var clientProvider = new SqlSyncProvider(DbHelper.GetDatabaseConnectionString(clientDbName));
 
     // Create a local orchestrator used to Deprovision everything
-    var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
 
     var p = SyncProvision.ClientScope |
             SyncProvision.StoredProcedures | SyncProvision.TrackingTable |
@@ -338,7 +336,6 @@ Then, create a new scope "**v1**":
     Console.WriteLine("Server migration with new column CreatedDate done.");
 
 
-
 At this point, server database has two scopes:
 
 - **v0**   : first scope with Address table without the new column
@@ -355,7 +352,8 @@ As an example, let's add a new row on the server side, with this new column:
 .. code-block:: csharp
 
     // Now add a row on the server (with the new column)
-    var addressId = await Helper.InsertOneAddressWithNewColumnAsync(new SqlConnection(serverConnectionString));
+    var addressId = await Helper.InsertOneAddressWithNewColumnAsync(
+        new SqlConnection(serverConnectionString));
     Console.WriteLine($"New address row added with pk {addressId}");
 
 
@@ -411,7 +409,7 @@ That's why we are going to "**shadow copy**" the required properties from the "*
     v1clientScope.ShadowScope(v0clientScope);
     v1clientScope = await agent1.LocalOrchestrator.SaveClientScopeInfoAsync(v1clientScope);
 
-Now our client 1 is upgrade, has the new scope and can eventually launch a new sync on this new scope:
+Now our client 1 is upgraded, has the new scope and can eventually launch a new sync on this new scope:
 
 
 .. code-block:: csharp
@@ -422,7 +420,8 @@ Now our client 1 is upgrade, has the new scope and can eventually launch a new s
     Console.WriteLine(s4);
 
     // If we get the client row from the client database, it should contains the value
-    var client1row = await Helper.GetLastAddressRowAsync(new SqlConnection(clientConnectionString), addressId);
+    var client1row = await Helper.GetLastAddressRowAsync(
+        new SqlConnection(clientConnectionString), addressId);
 
 Optionally, we can remove the old scope on the Client 1, that we don't need anymore:
 
@@ -433,8 +432,10 @@ Optionally, we can remove the old scope on the Client 1, that we don't need anym
 
     // On this new client, migrated, we no longer need the v0 scope
     // we can deprovision it
-    await agent1.LocalOrchestrator.DeprovisionAsync("v0", SyncProvision.StoredProcedures, progress:progress);
-    await agent1.LocalOrchestrator.DeleteClientScopeInfoAsync(v0clientScope, progress: progress);
+    await agent1.LocalOrchestrator.DeprovisionAsync("v0", SyncProvision.StoredProcedures);
+
+    await agent1.LocalOrchestrator.DeleteClientScopeInfoAsync(v0clientScope);
+
     Console.WriteLine($"Deprovision of old scope v0 done on Sql Server client1");
 
 Client 2

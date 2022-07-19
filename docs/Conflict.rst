@@ -189,41 +189,30 @@ We saw that conflicts are resolved on the server side, if you are in an **HTTP**
     [ApiController]
     public class SyncController : ControllerBase
     {
-        private WebServerOrchestrator orchestrator;
+        private WebServerAgent webServerAgent;
 
         // Injected thanks to Dependency Injection
-        public SyncController(WebServerOrchestrator webServerOrchestrator) 
-            => this.orchestrator = webServerOrchestrator;
+        public SyncController(WebServerAgent webServerAgent) 
+            => this.webServerAgent = webServerAgent;
 
-        [HttpPost]
         public async Task Post()
         {
-            try
+            webServerAgent.RemoteOrchestrator.OnApplyChangesFailed(e =>
             {
-                orchestrator.OnApplyChangesFailed(e =>
+                if (e.Conflict.RemoteRow.SchemaTable.TableName == "Region")
                 {
-                    if (e.Conflict.RemoteRow.Table.TableName == "Region")
-                    {
-                        e.Resolution = ConflictResolution.MergeRow;
-                        e.FinalRow["RegionDescription"] = "Eastern alone !";
-                    }
-                    else
-                    {
-                        e.Resolution = ConflictResolution.ServerWins;
-                    }
-                });
+                    e.Resolution = ConflictResolution.MergeRow;
+                    e.FinalRow["RegionDescription"] = "Eastern alone !";
+                }
+                else
+                {
+                    e.Resolution = ConflictResolution.ServerWins;
+                }
+            });
 
-                var progress = new SynchronousProgress<ProgressArgs>(pa => 
-                    Debug.WriteLine("{0}\t{1}", pa.Context.SyncStage, pa.Message));
+            // handle request
+            await webServerAgent.HandleRequestAsync(this.HttpContext);
 
-                // handle request
-                await orchestrator.HandleRequestAsync(this.HttpContext, default, progress);
-
-            }
-            catch (Exception ex)
-            {
-                await orchestrator.WriteExceptionAsync(this.HttpContext.Response, ex);
-            }
         }
 
         /// <summary>
@@ -232,8 +221,7 @@ We saw that conflicts are resolved on the server side, if you are in an **HTTP**
         /// The configuration is shown only if Environmenent == Development
         /// </summary>
         [HttpGet]
-        public Task Get() 
-            => WebServerOrchestrator.WriteHelloAsync(this.HttpContext, orchestrator);
+        public Task Get() => this.HttpContext.WriteHelloAsync(webServerAgent);
     }
 
 Handling conflicts from the client side
@@ -241,9 +229,6 @@ Handling conflicts from the client side
 
 | As we said, all the conflicts are resolved from the server side.  
 | But, using a **Two sync trick**, you are able to resolve the conflict from the client side.
-
-
-.. tip:: This feature is only available from version `0.5.6`
 
 
 Basically the process is occuring in this order:

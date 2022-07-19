@@ -53,7 +53,7 @@ The easiest way to achieve that, on the server side, is to create a schedule tas
 
 .. code-block:: csharp
 
-    var rmOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+    var rmOrchestrator = new RemoteOrchestrator(serverProvider);
     await rmOrchestrator.DeleteMetadatasAsync();
 
 
