@@ -67,7 +67,7 @@ If we look at the ``SyncSetup`` object, we mainly have properties about your syn
         
     }
 
-The ``SyncAgent`` instance creates a ``SyncSetup`` instance automatically when initialized.
+The ``SynchronizeAsync()`` method creates a ``SyncSetup`` instance automatically when called.
 
 For instance, these two instructions are equivalent:
 
@@ -75,17 +75,20 @@ For instance, these two instructions are equivalent:
 
     var tables = new string[] {"ProductCategory", "ProductModel", "Product",
         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
-    var agent = new SyncAgent(clientProvider, serverProvider, tables);
+
+    var agent = new SyncAgent(clientProvider, serverProvider);
+
+    var r = await agent.SynchronizeAsync(tables);
 
 
 .. code-block:: csharp
 
-    var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+    var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
-    // Creating a sync setup object
-    var setup = new SyncSetup(tables);
-    var agent = new SyncAgent(clientProvider, serverProvider, setup);
+    var agent = new SyncAgent(clientProvider, serverProvider);
+
+    var r = await agent.SynchronizeAsync(tables);
 
 
 The main advantage of using ``SyncSetup`` is you can personalize what you want from your database:
@@ -108,21 +111,17 @@ You have two way to configure schemas:
     var tables = new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product",
                                     "Address", "Customer", "CustomerAddress"};
 
-    SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
-
 
 * On each table, from the ``SyncSetup`` setup instance.
 
 .. code-block:: csharp
 
-    var tables = new string[] { "ProductCategory", "ProductModel", "Product",
-                                "Address", "Customer", "CustomerAddress"};
+    var setup = new SyncSetup ("ProductCategory", "ProductModel", "Product",
+                                "Address", "Customer", "CustomerAddress");
 
-    SyncAgent agent = new SyncAgent(clientProvider, serverProvider, tables);
-
-    agent.Setup.Tables["ProductCategory"].SchemaName = "SalesLt";
-    agent.Setup.Tables["ProductModel"].SchemaName = "SalesLt";
-    agent.Setup.Tables["Product"].SchemaName = "SalesLt";
+    setup.Tables["ProductCategory"].SchemaName = "SalesLt";
+    setup.Tables["ProductModel"].SchemaName = "SalesLt";
+    setup.Tables["Product"].SchemaName = "SalesLt";
 
 .. warning:: Schemas are not replicated if you target ``SqliteSyncProvider`` or ``MySqlSyncProvider`` as client providers.
 
@@ -133,11 +132,8 @@ Once your ``SyncSetup`` instance is created (with your tables list), you can spe
 
 .. code-block:: csharp
 
-    var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
-
-    // Creating a sync setup object
-    var setup = new SyncSetup(tables);
+    var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" );
 
     // Filter columns
     setup.Tables["Customer"].Columns.AddRange(new string[] { 
@@ -363,8 +359,8 @@ The ``BatchSize`` property from the ``SyncOptions`` object allows you to define 
     var clientOptions = new SyncOptions { BatchSize = 500 };
 
 
-.. warning:: | Be careful, the batch size value **is not** a kb maximum size. 
-             | The maximum size depends on compression, converters and so on...   
+.. warning:: | Be careful, the batch size value **is** a kb maximum size. 
+             | **But** The maximum size depends on compression, converters and so on...   
              | Test and adjust the ``BatchSize`` value regarding your result and expectation.
 
 
@@ -387,7 +383,7 @@ By default, here is a sync process, where we download everything from the server
 .. code-block:: csharp
 
     var agent = new SyncAgent(clientProvider, proxyClientProvider);
-    await agent.SynchronizeAsync();
+    await agent.SynchronizeAsync(setup);
 
 Here is the fiddler trace:
 

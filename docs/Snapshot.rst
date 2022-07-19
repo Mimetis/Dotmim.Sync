@@ -68,10 +68,10 @@ Create a new method, that will generate a *snapshot* at a current time *T* with 
     };
 
     // Create a remote orchestrator
-    var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
     // Create a snapshot
-    await remoteOrchestrator.CreateSnapshotAsync();
+    await remoteOrchestrator.CreateSnapshotAsync(setup);
 
 
 Once created, the folder looks like this:
@@ -154,7 +154,7 @@ To generate a filtered snapshot, just add the ``SyncParameters`` values to the n
     snapshotCustomer1001.Parameters = new SyncParameters();
     snapshotCustomer1001.Parameters.Add("CustomerId", "1001");
 
-    await Server.RemoteOrchestrator.CreateSnapshotAsync();
+    await Server.RemoteOrchestrator.CreateSnapshotAsync(setup, snapshotCustomer1001);
 
 
 Activate the snapshot option for all new clients
