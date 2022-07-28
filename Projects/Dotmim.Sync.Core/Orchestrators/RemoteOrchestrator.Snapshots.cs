@@ -256,7 +256,7 @@ namespace Dotmim.Sync
             BatchInfo serverBatchInfo;
 
             (context, serverBatchInfo, _) =
-                    await this.InternalGetChangesAsync(serverScopeInfo, context, true, null, Guid.Empty,
+                    await this.InternalGetChangesAsync(serverScopeInfo, context, true, null, null, Guid.Empty,
                     this.Provider.SupportsMultipleActiveResultSets,
                     rootDirectory, nameDirectory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 

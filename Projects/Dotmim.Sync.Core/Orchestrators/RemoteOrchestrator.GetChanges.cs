@@ -64,7 +64,7 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(clientScope, context, fromScratch, clientScope.LastServerSyncTimestamp,
+                    await this.InternalGetChangesAsync(clientScope, context, fromScratch, clientScope.LastServerSyncTimestamp, remoteClientTimestamp,
                     clientScope.Id, this.Provider.SupportsMultipleActiveResultSets,
                     this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -122,7 +122,7 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverChangesSelected) =
-                    await this.InternalGetEstimatedChangesCountAsync(serverScopeInfo, context, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalGetEstimatedChangesCountAsync(serverScopeInfo, context, fromScratch, clientScope.LastServerSyncTimestamp, remoteClientTimestamp, clientScope.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected);
 

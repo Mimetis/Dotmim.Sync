@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangesAsync(
-                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
+                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toNewTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets, string batchRootDirectory, string batchDirectoryName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -58,7 +58,8 @@ namespace Dotmim.Sync
             batchInfo.CreateDirectory();
 
             // Call interceptor
-            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchInfo.GetDirectoryFullPath(), this.Options.BatchSize, isNew, connection, transaction);
+            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchInfo.GetDirectoryFullPath(), this.Options.BatchSize, isNew, 
+                fromLastTimestamp, toNewTimestamp, connection, transaction);
             await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             var cptSyncTable = 0;
@@ -84,7 +85,7 @@ namespace Dotmim.Sync
                     List<BatchPartInfo> syncTableBatchPartInfos;
                     TableChangesSelected tableChangesSelected;
                     (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
-                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, fromLastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (syncTableBatchPartInfos == null)
                         return;
@@ -113,7 +114,7 @@ namespace Dotmim.Sync
                     List<BatchPartInfo> syncTableBatchPartInfos;
                     TableChangesSelected tableChangesSelected;
                     (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
-                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, lastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, fromLastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (syncTableBatchPartInfos == null)
                         continue;
@@ -170,7 +171,7 @@ namespace Dotmim.Sync
                 batchInfo.Clear(cleanFolder);
             }
 
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, null, batchInfo, changesSelected, connection);
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toNewTimestamp, batchInfo, changesSelected, connection);
             await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, batchInfo, changesSelected);
@@ -331,7 +332,7 @@ namespace Dotmim.Sync
         /// Gets changes rows count estimation, 
         /// </summary>
         internal virtual async Task<(SyncContext, DatabaseChangesSelected)> InternalGetEstimatedChangesCountAsync(
-                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? lastTimestamp, Guid? excludingScopeId,
+                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toLastTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -340,7 +341,7 @@ namespace Dotmim.Sync
             context.SyncStage = SyncStage.ChangesSelecting;
 
             // Call interceptor
-            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, this.Options.BatchDirectory, this.Options.BatchSize, isNew, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DatabaseChangesSelectingArgs(context, this.Options.BatchDirectory, this.Options.BatchSize, isNew, fromLastTimestamp, toLastTimestamp, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
@@ -377,7 +378,7 @@ namespace Dotmim.Sync
 
                 if (command == null) return;
 
-                this.InternalSetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, lastTimestamp, command);
+                this.InternalSetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, fromLastTimestamp, command);
 
                 // launch interceptor if any
                 var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
@@ -424,7 +425,7 @@ namespace Dotmim.Sync
             }, threadNumberLimits);
 
             // Raise database changes selected
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, null, null, changes, connection);
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp, null, changes, connection);
             await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, changes);

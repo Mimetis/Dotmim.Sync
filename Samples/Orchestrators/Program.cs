@@ -47,9 +47,9 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverScope = await orchestrator.GetServerScopeInfoAsync(setup);
+            var serverSchema = await orchestrator.GetSchemaAsync(setup);
 
-            foreach (var column in serverScope.Schema.Tables["Product"].Columns)
+            foreach (var column in serverSchema.Tables["Product"].Columns)
                 Console.WriteLine(column);
         }
 

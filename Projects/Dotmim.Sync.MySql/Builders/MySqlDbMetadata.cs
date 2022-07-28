@@ -49,7 +49,7 @@ namespace Dotmim.Sync.MySql.Builders
                 "year" => DbType.Int32,
                 "time" => DbType.Time,
                 "timestamp" => DbType.DateTime,
-                "text" or "set" or "enum" or "nchar" or "nvarchar" or "varchar" => stringDbType,
+                "text" or "set" or "enum" or "nchar" or "nvarchar" or "varchar" or "json" => stringDbType,
                 "char" => columnDefinition.MaxLength == 36 ? DbType.Guid : stringDbType,
 
                 _ => throw new Exception($"this db type {columnDefinition.GetDbType()} for column {columnDefinition.ColumnName} is not supported"),
@@ -60,6 +60,7 @@ namespace Dotmim.Sync.MySql.Builders
         {
             "char" => columnDefinition.MaxLength == 36 ? MySqlDbType.Guid : MySqlDbType.String,
             "guid" => MySqlDbType.Guid,
+            "json" => MySqlDbType.JSON,
             "string" => MySqlDbType.String,
             "varchar" => MySqlDbType.VarChar,
             "date" => MySqlDbType.Date,
@@ -149,9 +150,11 @@ namespace Dotmim.Sync.MySql.Builders
             MySqlDbType.Double => typeof(double),
             MySqlDbType.Time => typeof(TimeSpan),
             MySqlDbType.Date or MySqlDbType.DateTime or MySqlDbType.Newdate or MySqlDbType.Timestamp => typeof(DateTime),
-            MySqlDbType.Enum or MySqlDbType.VarString or MySqlDbType.JSON or MySqlDbType.VarChar or MySqlDbType.String or MySqlDbType.TinyText or MySqlDbType.MediumText or MySqlDbType.LongText or MySqlDbType.Text or MySqlDbType.Set => typeof(string),
+            MySqlDbType.Enum or MySqlDbType.VarString or MySqlDbType.JSON
+            or MySqlDbType.VarChar or MySqlDbType.String or MySqlDbType.TinyText or MySqlDbType.MediumText or MySqlDbType.LongText or MySqlDbType.Text or MySqlDbType.Set => typeof(string),
             MySqlDbType.Guid => typeof(Guid),
-            MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
+            MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob
+            or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
             _ => throw new Exception($"In Column {column.ColumnName}, the type {GetMySqlDbType(column)} is not supported"),
         };
 
@@ -162,7 +165,8 @@ namespace Dotmim.Sync.MySql.Builders
                 return 0;
 
             // text
-            if (columnDefinition.OriginalTypeName.ToLowerInvariant() == "longtext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "mediumtext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "tinytext")
+            if (columnDefinition.OriginalTypeName.ToLowerInvariant() == "longtext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "mediumtext"
+                || columnDefinition.OriginalTypeName.ToLowerInvariant() == "tinytext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "json")
                 return 0;
 
             var iMaxLength = columnDefinition.MaxLength > 8000 ? 8000 : Convert.ToInt32(columnDefinition.MaxLength);
@@ -209,7 +213,7 @@ namespace Dotmim.Sync.MySql.Builders
             "tinyint" or "mediumint" or "bigint" or "real" or "double" or "float" or "serial" or "smallint" or
             "varchar" or "char" or "text" or "longtext" or "tinytext" or "mediumtext" or "nchar" or "nvarchar" or
             "enum" or "set" or "blob" or "longblob" or "tinyblob" or "mediumblob" or "binary" or "varbinary" or
-            "year" or "time" or "timestamp" => true,
+            "year" or "time" or "timestamp" or "json" => true,
             _ => false,
         };
         public override bool IsReadonly(SyncColumn columnDefinition) => columnDefinition.IsCompute;
@@ -228,7 +232,7 @@ namespace Dotmim.Sync.MySql.Builders
                 return column.OriginalTypeName.ToLowerInvariant() switch
                 {
                     "varbinary" or "binary" or "varchar" or "char" or "text" or "longtext" or "tinytext" or
-                    "mediumtext" or "nchar" or "nvarchar" or "enum" or "set" => true,
+                    "mediumtext" or "nchar" or "nvarchar" or "enum" or "set" or "json" => true,
                     _ => false,
                 };
             }
@@ -292,7 +296,8 @@ namespace Dotmim.Sync.MySql.Builders
             MySqlDbType.MediumText => "mediumtext",
             MySqlDbType.LongText => "longtext",
             MySqlDbType.Text => "text",
-            MySqlDbType.JSON or MySqlDbType.VarChar or MySqlDbType.VarString => "varchar",
+            MySqlDbType.JSON => "JSON",
+            MySqlDbType.VarChar or MySqlDbType.VarString => "varchar",
             MySqlDbType.String or MySqlDbType.Guid => "char",
             MySqlDbType.Set => "set",
             MySqlDbType.Timestamp => "timestamp",

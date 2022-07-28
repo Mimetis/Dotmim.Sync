@@ -78,7 +78,7 @@ namespace Dotmim.Sync
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     (context, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangesAsync(clientScope, context, fromScratch, clientScope.LastServerSyncTimestamp, clientScope.Id,
+                        await this.InternalGetChangesAsync(clientScope, context, fromScratch, clientScope.LastServerSyncTimestamp, remoteClientTimestamp, clientScope.Id,
                         this.Provider.SupportsMultipleActiveResultSets,
                         this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 

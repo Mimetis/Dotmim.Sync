@@ -19,12 +19,14 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseChangesSelectingArgs : ProgressArgs
     {
-        public DatabaseChangesSelectingArgs(SyncContext context, string batchDirectory, int batchSize, bool isNew, DbConnection connection, DbTransaction transaction)
+        public DatabaseChangesSelectingArgs(SyncContext context, string batchDirectory, int batchSize, bool isNew, long? fromLastTimestamp, long? toLastTimestamp, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.BatchDirectory = batchDirectory;
             this.BatchSize = batchSize;
             this.IsNew = isNew;
+            this.FromTimestamp = fromLastTimestamp;
+            this.ToTimestamp = toLastTimestamp;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
@@ -34,6 +36,8 @@ namespace Dotmim.Sync
         public string BatchDirectory { get; }
         public int BatchSize { get; }
         public bool IsNew { get; }
+        public long? FromTimestamp { get; }
+        public long? ToTimestamp { get; }
     }
 
     /// <summary>
@@ -41,10 +45,11 @@ namespace Dotmim.Sync
     /// </summary>
     public class DatabaseChangesSelectedArgs : ProgressArgs
     {
-        public DatabaseChangesSelectedArgs(SyncContext context, long? timestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected changesSelected, DbConnection connection = null, DbTransaction transaction = null)
+        public DatabaseChangesSelectedArgs(SyncContext context, long? fromLastTimestamp, long? toLastTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected changesSelected, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            this.Timestamp = timestamp;
+            this.FromTimestamp = fromLastTimestamp;
+            this.ToTimestamp = toLastTimestamp;
             this.BatchInfo = clientBatchInfo;
             this.ChangesSelected = changesSelected;
         }
@@ -52,7 +57,8 @@ namespace Dotmim.Sync
         public override string Source => Connection?.Database;
         public override string Message => $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}. [{this.BatchInfo.GetDirectoryFullPath()}]";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
-        public long? Timestamp { get; }
+        public long? FromTimestamp { get; }
+        public long? ToTimestamp { get; }
 
         /// <summary>
         /// Get the batch info. Always null when raised from a call from GetEstimatedChangesCount

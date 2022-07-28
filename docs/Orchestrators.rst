@@ -14,8 +14,8 @@ We have two kind of orchestrators:
 
 We have to more kind of orchestrators, that will handle under the hood the web sync process:
 
-* The ``WebRemoteOrchestrator``: This orchestrator will run locally, and will act "*as*" a orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information
-* The ``WebServerAgent``: On the opposite side, this agent is hosted through an exposed web api, and will get the incoming request from the ``WebRemoteOrchestrator`` and will then call the server provider correctly.
+* The ``WebRemoteOrchestrator``: This orchestrator will run locally, and will act "*as*" an orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information
+* The ``WebServerAgent``: On the opposite side, this agent is hosted through an exposed web api, and will get the incoming request from the ``WebRemoteOrchestrator`` and will then call the underline ``RemoteOrchestrator`` correctly.
 
 
 Orchestrators public methods
@@ -43,17 +43,14 @@ This method runs on any ``Orchestrator``, but we are using here a ``RemoteOrches
 
     var provider = new SqlSyncProvider(serverConnectionString);
     var options = new SyncOptions();
-    var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-    var orchestrator = new RemoteOrchestrator(provider, options, setup);
+    var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
+    var orchestrator = new RemoteOrchestrator(provider, options);
 
-    // working on the product Table
-    var productSetupTable = setup.Tables["Product"];
+    var serverSchema = await orchestrator.GetSchemaAsync(setup);
 
-    // Getting the table schema
-    var productTable = await orchestrator.GetTableSchemaAsync(productSetupTable);
-
-    foreach (var column in productTable.Columns)
+    foreach (var column in serverSchema.Tables["Product"].Columns)
         Console.WriteLine(column);
+
 
 .. code-block:: bash
 
