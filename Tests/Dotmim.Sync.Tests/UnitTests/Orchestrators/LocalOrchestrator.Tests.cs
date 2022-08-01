@@ -99,7 +99,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSessionEnd = true;
             });
 
-            await localOrchestrator.EndSessionAsync(SyncOptions.DefaultScopeName);
+            await localOrchestrator.EndSessionAsync(new SyncResult(), SyncOptions.DefaultScopeName);
 
             Assert.True(onSessionEnd);
         }

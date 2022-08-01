@@ -65,25 +65,25 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public Task EndSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task EndSessionAsync(SyncResult syncResult, string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Create a new context
             var ctx = new SyncContext(Guid.NewGuid(), scopeName);
 
-            return InternalEndSessionAsync(ctx, cancellationToken, progress);
+            return InternalEndSessionAsync(ctx, syncResult, cancellationToken, progress);
         }
 
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public async Task<SyncContext> InternalEndSessionAsync(SyncContext context, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             context.SyncStage = SyncStage.EndSession;
 
             var connection = this.Provider.CreateConnection();
 
             // Progress & interceptor
-            await this.InterceptAsync(new SessionEndArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new SessionEndArgs(context, result, connection), progress, cancellationToken).ConfigureAwait(false);
 
             return context;
         }
