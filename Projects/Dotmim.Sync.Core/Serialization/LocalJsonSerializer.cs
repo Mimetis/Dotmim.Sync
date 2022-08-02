@@ -110,7 +110,9 @@ namespace Dotmim.Sync.Serialization
             var isSameColumns = true;
 
             JsonSerializer serializer = new JsonSerializer();
+            serializer.DateParseHandling = DateParseHandling.DateTimeOffset;
             using var reader = new JsonTextReader(new StreamReader(path));
+            reader.DateParseHandling = DateParseHandling.DateTimeOffset;
             while (reader.Read())
             {
                 if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "t")
@@ -192,6 +194,21 @@ namespace Dotmim.Sync.Serialization
 
                                     if (isSameColumns)
                                     {
+                                        for (var index = 1; index < array.Length; index++)
+                                        {
+                                            var existSchemaTableColumn = schemaTable.Columns[index - 1];
+
+                                            // Set the correct value in existing row for DateTime types.
+                                            // They are being Deserialized as DateTimeOffsets
+                                            if (existSchemaTableColumn != null && existSchemaTableColumn.GetDataType() == typeof(DateTime))
+                                            {
+                                                if (array[index] != null && array[index] is DateTimeOffset)
+                                                {
+                                                    array[index] = ((DateTimeOffset)array[index]).DateTime;
+                                                }
+                                            }
+                                        }
+
                                         yield return new SyncRow(schemaTable, array);
                                     }
                                     else
@@ -211,9 +228,17 @@ namespace Dotmim.Sync.Serialization
                                             // if column exist, set the correct value in new row
                                             if (existSchemaTableColumn != null)
                                             {
-                                                row[schemaTable.Columns.IndexOf(existSchemaTableColumn) + 1] = array[index];
+                                                // Set the correct value in existing row for DateTime types.
+                                                // They are being Deserialized as DateTimeOffsets
+                                                if (existSchemaTableColumn.GetDataType() == typeof(DateTime) && array[index] != null && array[index] is DateTimeOffset)
+                                                {
+                                                    row[schemaTable.Columns.IndexOf(existSchemaTableColumn) + 1] = ((DateTimeOffset)array[index]).DateTime;
+                                                }
+                                                else
+                                                {
+                                                    row[schemaTable.Columns.IndexOf(existSchemaTableColumn) + 1] = array[index];
+                                                }
                                             }
-
                                         }
                                         Array.Clear(array, 0, array.Length);
                                         yield return new SyncRow(schemaTable, row);
