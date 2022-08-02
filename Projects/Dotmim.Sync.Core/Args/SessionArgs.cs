@@ -131,9 +131,15 @@ namespace Dotmim.Sync
     /// </summary>
     public class SessionEndArgs : ProgressArgs
     {
-        public SessionEndArgs(SyncContext context, DbConnection connection)
+        /// <summary>
+        /// Gets the sync result
+        /// </summary>
+        public SyncResult SyncResult { get; }
+
+        public SessionEndArgs(SyncContext context, SyncResult syncResult, DbConnection connection)
             : base(context, connection, null)
         {
+            SyncResult = syncResult;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         public override string Source => Connection.Database;
