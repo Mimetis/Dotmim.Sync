@@ -410,9 +410,9 @@ namespace Dotmim.Sync
                 result.ChangesAppliedOnClient = clientChangesApplied.ChangesApplied;
                 result.ChangesAppliedOnServer = serverChangesApplied;
 
-                // Begin session
+                // End session
                 context.ProgressPercentage = 1;
-                context = await this.LocalOrchestrator.InternalEndSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -565,9 +565,9 @@ namespace Dotmim.Sync
 
                 result.CompleteTime = completeTime;
 
-                // Begin session
+                // End session
                 context.ProgressPercentage = 1;
-                await this.LocalOrchestrator.EndSessionAsync(scopeName, cancellationToken, progress).ConfigureAwait(false);
+                await this.LocalOrchestrator.EndSessionAsync(result, scopeName, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
