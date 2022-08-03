@@ -78,6 +78,36 @@ namespace Dotmim.Sync
             }
         }
 
+
+
+        /// <summary>
+        /// Get all scopes histories. scopeName arg is just here for logging purpose and is not used
+        /// </summary>
+        public virtual async Task<List<ServerHistoryScopeInfo>>
+            GetAllServerScopesHistoriesInfosAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                List<ServerHistoryScopeInfo> localScopes;
+                (context, localScopes) = await InternalLoadAllServerHistoriesScopesAsync(context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return localScopes;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
+
         /// <summary>
         /// Internal exists server history scope
         /// </summary>
@@ -179,9 +209,10 @@ namespace Dotmim.Sync
             {
                 Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id")),
                 Name = reader["sync_scope_name"] as string,
-                LastSync = reader["scope_last_sync"] != DBNull.Value ? (DateTime?)reader.GetDateTime(reader.GetOrdinal("scope_last_sync")) : null,
+                LastSync = reader["scope_last_sync"] != DBNull.Value ? reader.GetDateTime(reader.GetOrdinal("scope_last_sync")) : null,
                 LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L,
-                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L
+                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : 0L,
+                Properties = reader["scope_properties"] != DBNull.Value ? reader.GetString(reader.GetOrdinal("scope_properties")) : null
             };
 
             return serverScopeInfo;
@@ -237,6 +268,7 @@ namespace Dotmim.Sync
             DbSyncAdapter.SetParameterValue(command, "scope_last_sync_timestamp", serverHistoryScopeInfo.LastSyncTimestamp);
             DbSyncAdapter.SetParameterValue(command, "scope_last_sync", serverHistoryScopeInfo.LastSync.HasValue ? (object)serverHistoryScopeInfo.LastSync.Value : DBNull.Value);
             DbSyncAdapter.SetParameterValue(command, "scope_last_sync_duration", serverHistoryScopeInfo.LastSyncDuration);
+            DbSyncAdapter.SetParameterValue(command, "scope_properties", serverHistoryScopeInfo.Properties);
 
             return command;
         }

@@ -426,6 +426,64 @@ namespace Dotmim.Sync
 
             return newVersion;
         }
+
+
+        private async Task<Version> UpgdrateTo096Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+
+        {
+            var newVersion = new Version(0, 9, 9);
+
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            // get scope info table name
+            var scopeInfoTableName = ParserName.Parse(this.Options.ScopeInfoTableName);
+            var tableName = $"{scopeInfoTableName.Unquoted().Normalized().ToString()}";
+            var historyTableName = $"{tableName}_history";
+
+            var syncTable = new SyncTable(historyTableName);
+            var historyTableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
+
+            if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.SqlServer.SqlSyncProvider"))
+            {
+                var commandText = @$"IF NOT EXISTS(SELECT col.name AS name FROM sys.columns as col
+                                        INNER join sys.tables as tbl on tbl.object_id = col.object_id 
+                                        WHERE tbl.name = '{historyTableName}' and col.name = 'scope_properties')
+                                            ALTER TABLE {historyTableName} ADD scope_properties nvarchar(MAX) NULL;";
+
+
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Transaction = transaction;
+                await command.ExecuteNonQueryAsync();
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on SQL Server", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (this.Provider.GetProviderTypeName().Contains("MySqlSyncProvider"))
+            {
+                var commandText = @$"";
+
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Transaction = transaction;
+                await command.ExecuteNonQueryAsync();
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on MySql", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            }
+
+            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+            await this.DeprovisionAsync(scopeInfo.Name, provision, connection, transaction, progress: progress);
+            // simulate 0.94 scope without scopename in sp
+            await this.DeprovisionAsync(SyncOptions.DefaultScopeName, scopeInfo.Setup, provision, connection, transaction, progress: progress);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Deprovision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            await this.ProvisionAsync(scopeInfo.Name, provision, true, connection, transaction, progress: progress);
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Provision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            return newVersion;
+        }
+
+
         private async Task<Version> AutoUpgdrateToNewVersionAsync(IScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var message = $"Upgrade to {newVersion} for scope {scopeInfo.Name}.";

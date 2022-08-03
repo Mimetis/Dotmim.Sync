@@ -43,9 +43,19 @@ namespace Dotmim.Sync
         /// </summary>
         public void AddRange(IEnumerable<string> columnsName)
         {
-            foreach (var columnName in columnsName) 
+            foreach (var columnName in columnsName)
                 this.Add(columnName);
         }
+
+        /// <summary>
+        /// Add a range of columns to the sync process setup
+        /// </summary>
+        public void AddRange(params string[] columnsName)
+        {
+            foreach (var columnName in columnsName)
+                this.Add(columnName);
+        }
+
 
         /// <summary>
         /// Clear all columns
@@ -56,7 +66,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a Column by its name
         /// </summary>
-        public string this[string columnName] 
+        public string this[string columnName]
             => InnerCollection.FirstOrDefault(c => string.Equals(c, columnName, SyncGlobalization.DataSourceStringComparison));
 
 

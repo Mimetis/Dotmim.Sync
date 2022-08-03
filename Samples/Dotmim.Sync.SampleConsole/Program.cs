@@ -52,17 +52,18 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
-        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
+        //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString("Client"));
-        //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString("Client"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
+        //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
         //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var setup = new SyncSetup("Address");
+        setup.Tables["Address"].Columns.AddRange("AddressID", "ModifiedDate");
 
         var options = new SyncOptions() { DisableConstraintsOnApplyChanges = true };
 
@@ -90,9 +91,7 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        // await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options);
-
-        setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "Tree" });
+        //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
     }
@@ -105,10 +104,11 @@ internal class Program
 
         var showHelp = new Action(() =>
         {
-            Console.WriteLine("+ :\t\t Add 1 Product & 1 Product Category");
-            Console.WriteLine("- :\t\t Remove 1 Product & 1 Product Category");
+            Console.WriteLine("+ :\t\t Add 1 Product & 1 Product Category to server");
+            Console.WriteLine("a :\t\t Add 1 Product & 1 Product Category to client");
             Console.WriteLine("c :\t\t Generate Product Category Conflict");
             Console.WriteLine("h :\t\t Show Help");
+            Console.WriteLine("r :\t\t Reinitialize");
             Console.WriteLine("Esc :\t\t End");
             Console.WriteLine("Default :\t Synchronize");
 
@@ -140,12 +140,22 @@ internal class Program
                             await AddProductCategoryRowAsync(clientProvider, pId);
                             break;
                         case ConsoleKey.Add:
-                            Console.WriteLine("Adding 1 product & 1 product category");
+                            Console.WriteLine("Adding 1 product & 1 product category to server");
                             await AddProductCategoryRowAsync(serverProvider);
                             await AddProductRowAsync(serverProvider);
                             break;
+                        case ConsoleKey.A:
+                            Console.WriteLine("Adding 1 product & 1 product category to client");
+                            await AddProductCategoryRowAsync(clientProvider);
+                            await AddProductRowAsync(clientProvider);
+                            break;
+                        case ConsoleKey.R:
+                            Console.WriteLine("Reinitialiaze");
+                            await agent.SynchronizeAsync(scopeName, setup, SyncType.Reinitialize);
+                            showHelp();
+                            break;
                         default:
-                            var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
+                            await agent.SynchronizeAsync(scopeName, setup);
                             showHelp();
                             break;
                     }
@@ -344,7 +354,7 @@ internal class Program
                 logTable.TotalChangesApplied = logTable.TotalChangesApplied.HasValue ? logTable.TotalChangesApplied += args.TableChangesApplied.Applied : args.TableChangesApplied.Applied;
 
             if (args.TableChangesApplied.ResolvedConflicts > 0)
-            logTable.TotalResolvedConflicts = logTable.TotalResolvedConflicts.HasValue ? logTable.TotalResolvedConflicts += args.TableChangesApplied.ResolvedConflicts : args.TableChangesApplied.ResolvedConflicts;
+                logTable.TotalResolvedConflicts = logTable.TotalResolvedConflicts.HasValue ? logTable.TotalResolvedConflicts += args.TableChangesApplied.ResolvedConflicts : args.TableChangesApplied.ResolvedConflicts;
 
             if (args.TableChangesApplied.State == DataRowState.Modified)
                 logTable.TotalChangesAppliedUpdates = args.TableChangesApplied.Applied;

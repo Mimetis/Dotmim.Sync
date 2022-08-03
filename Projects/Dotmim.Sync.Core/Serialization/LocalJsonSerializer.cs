@@ -41,7 +41,12 @@ namespace Dotmim.Sync.Serialization
             }
 
             this.sw = new StreamWriter(path);
-            this.writer = new JsonTextWriter(sw) { CloseOutput = true };
+            this.writer = new JsonTextWriter(sw)
+            {
+                CloseOutput = true,
+                DateFormatHandling = DateFormatHandling.IsoDateFormat,
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+            };
 
             this.writer.WriteStartObject();
             this.writer.WritePropertyName("t");
@@ -109,7 +114,13 @@ namespace Dotmim.Sync.Serialization
             var includedColumns = new List<string>();
             var isSameColumns = true;
 
-            JsonSerializer serializer = new JsonSerializer();
+            JsonSerializer serializer = new JsonSerializer
+            {
+                DateFormatHandling = DateFormatHandling.IsoDateFormat,
+                DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+                DateParseHandling = DateParseHandling.DateTimeOffset
+            };
+
             using var reader = new JsonTextReader(new StreamReader(path));
             while (reader.Read())
             {
