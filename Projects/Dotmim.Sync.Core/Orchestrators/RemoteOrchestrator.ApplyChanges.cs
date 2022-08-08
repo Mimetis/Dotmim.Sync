@@ -25,6 +25,7 @@ namespace Dotmim.Sync
                 DatabaseChangesSelected serverChangesSelected = null;
                 DatabaseChangesApplied clientChangesApplied = null;
                 BatchInfo serverBatchInfo = null;
+                IScopeInfo serverClientScopeInfo = null;
 
                 // Create two transactions
                 // First one to commit changes
@@ -34,7 +35,6 @@ namespace Dotmim.Sync
                     //Direction set to Upload
                     context.SyncWay = SyncWay.Upload;
 
-                    IScopeInfo serverClientScopeInfo;
                     // Getting server scope assumes we have already created the schema on server
                     // Scope name is the scope name coming from client
                     // Since server can have multiples scopes
@@ -78,7 +78,7 @@ namespace Dotmim.Sync
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     (context, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangesAsync(clientScope, context, fromScratch, clientScope.LastServerSyncTimestamp, remoteClientTimestamp, clientScope.Id,
+                        await this.InternalGetChangesAsync(serverClientScopeInfo, context, fromScratch, clientScope.LastServerSyncTimestamp, remoteClientTimestamp, clientScope.Id,
                         this.Provider.SupportsMultipleActiveResultSets,
                         this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 

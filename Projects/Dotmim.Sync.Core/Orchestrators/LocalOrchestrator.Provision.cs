@@ -158,7 +158,9 @@ namespace Dotmim.Sync
                 (context, setup) = await this.InternalGetAllTablesAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Considering removing tables with "_tracking" at the end
-                var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking")).ToList();
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var scopeInfoTableName = scopeBuilder.ScopeInfoTableName.Unquoted().ToString();
+                var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking") && setupTable.TableName != scopeInfoTableName).ToList();
                 setup.Tables.Clear();
                 setup.Tables.AddRange(tables);
                 defaultClientScopeInfo.Setup = setup;

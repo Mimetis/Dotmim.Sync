@@ -36,5 +36,10 @@ namespace Dotmim.Sync.Enumerations
         /// Deprovision stored procedures & triggers and sync again
         /// </summary>
         DeprovisionAndSync = 16,
+
+        /// <summary>
+        /// Exit a Sync session without syncing
+        /// </summary>
+        AbortSync = 32,
     }
 }

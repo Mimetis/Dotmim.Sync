@@ -25,19 +25,41 @@ namespace HelloSync
             var serverProvider = new SqlSyncProvider(serverConnectionString);
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
-            var clientProvider = new SqliteSyncProvider("adv.db");
+            //var clientProvider = new SqliteSyncProvider("adv.db");
+            var clientProvider = new SqlSyncProvider(clientConnectionString);
 
             // Tables involved in the sync process:
-            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
-                        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
+            //var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+            //            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
+
+            var setup = new SyncSetup("ProductCategory");
+           
 
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProvider);
+
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+            var localOrchestrator = agent.LocalOrchestrator;
+
+
 
             do
             {
                 // Launch the sync process
                 var s1 = await agent.SynchronizeAsync(setup);
+
+                var serverScope = await remoteOrchestrator.ProvisionAsync(setup);
+                setup = new SyncSetup("ProductCategory", "Product");
+                var schema = await remoteOrchestrator.GetSchemaAsync(setup);
+                serverScope.Schema = schema;
+                serverScope.Setup = setup;
+                await remoteOrchestrator.ProvisionAsync(serverScope, overwrite: true);
+
+                var cs = await localOrchestrator.ProvisionAsync(serverScope, overwrite: true);
+
+                s1 = await agent.SynchronizeAsync();
+
+
                 // Write results
                 Console.WriteLine(s1);
 

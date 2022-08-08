@@ -245,12 +245,29 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
+                // on remote orchestrator, get Server scope
+                ServerScopeInfo serverScopeInfo;
+                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                bool isConflicting = false;
+                (context, isConflicting, serverScopeInfo) = await this.RemoteOrchestrator.IsConflictingSetupAsync(context, setup, serverScopeInfo).ConfigureAwait(false);
+
+                if (cancellationToken.IsCancellationRequested)
+                    cancellationToken.ThrowIfCancellationRequested();
+
                 // On local orchestrator, get scope info.
                 ClientScopeInfo clientScopeInfo;
                 (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
-                if (setup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(setup))
-                    throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your scope");
+                isConflicting = false;
+                (context, isConflicting, clientScopeInfo, serverScopeInfo) = await this.LocalOrchestrator.IsConflictingSetupAsync(context, setup, clientScopeInfo, serverScopeInfo).ConfigureAwait(false);
+
+                if (isConflicting)
+                {
+                    context.ProgressPercentage = 1;
+                    context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, cancellationToken, progress).ConfigureAwait(false);
+                    return result;
+                }
 
                 // Register local scope id
                 context.ClientScopeId = clientScopeInfo.Id;
@@ -258,9 +275,6 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // on remote orchestrator, get Server scope
-                ServerScopeInfo serverScopeInfo;
-                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 // If we just have create the server scope, we need to provision it
                 // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
@@ -279,6 +293,13 @@ namespace Dotmim.Sync
 
                 if (operation != SyncOperation.Normal)
                 {
+                    if (operation == SyncOperation.AbortSync)
+                    {
+                        context.ProgressPercentage = 1;
+                        context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, cancellationToken, progress).ConfigureAwait(false);
+                        return result;
+                    }
+
                     // override order to Deprovision client
                     if (operation == SyncOperation.DeprovisionAndSync && clientScopeInfo.Setup != null && clientScopeInfo.Setup.HasTables)
                     {
@@ -297,6 +318,8 @@ namespace Dotmim.Sync
                     if (operation == SyncOperation.DropAllAndExit)
                     {
                         await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                        context.ProgressPercentage = 1;
+                        context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, cancellationToken, progress).ConfigureAwait(false);
                         return result;
                     }
 
@@ -513,7 +536,7 @@ namespace Dotmim.Sync
 
                 // on remote orchestrator, get Server scope
                 ServerScopeInfo serverScopeInfo;
-                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 context.ProgressPercentage = 0.4;
 

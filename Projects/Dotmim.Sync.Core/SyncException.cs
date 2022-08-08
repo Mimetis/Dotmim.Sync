@@ -300,6 +300,17 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
+    /// Setup table exception. Used when a your setup does not contains any table
+    /// </summary>
+    public class MissingServerScopeTablesException : Exception
+    {
+        const string message = "Your server scope {0} is not existing on server, or you did not provide a setup with tables to provision on the server.";
+
+        public MissingServerScopeTablesException(string scopeName) : base(string.Format(message, scopeName)) { }
+    }
+
+
+    /// <summary>
     /// No schema in the scope
     /// </summary>
     public class MissingSchemaInScopeException : Exception

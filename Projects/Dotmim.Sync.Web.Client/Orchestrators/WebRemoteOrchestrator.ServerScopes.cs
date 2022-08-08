@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Web.Client
         /// Get server scope from server, by sending an http request to the server 
         /// </summary>
         internal override async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)>
-                InternalGetServerScopeInfoAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+                InternalGetServerScopeInfoAsync(SyncContext context, SyncSetup setup, bool ovewrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             // Create the message to be sent

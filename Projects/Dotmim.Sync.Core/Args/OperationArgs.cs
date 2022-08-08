@@ -18,10 +18,10 @@ namespace Dotmim.Sync
             this.ServerScopeInfo = serverScopeInfo;
             this.ClientScopeInfo = clientScopeInfo;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Client Operation returned by server.";
+        public override string Message => $"[{Connection.Database}] Overriding operation from server. Operation: {Operation}.";
 
         public SyncOperation Operation { get; set; }
 

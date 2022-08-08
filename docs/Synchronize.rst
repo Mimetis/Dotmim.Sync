@@ -253,6 +253,11 @@ Here are the operation action you can use to force the client in a particular si
      /// Deprovision stored procedures & triggers and sync again
      /// </summary>
      DeprovisionAndSync = 16,
+
+     /// <summary>
+     /// Exit a Sync session without syncing
+     /// </summary>
+     AbortSync = 32,		 
  }
 
 

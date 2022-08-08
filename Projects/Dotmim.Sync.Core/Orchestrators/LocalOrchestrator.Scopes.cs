@@ -30,15 +30,13 @@ namespace Dotmim.Sync
             GetClientScopeInfoAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
-            
+
             try
             {
-
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ClientScopeInfo localScope;
-                (context, localScope) = await InternalGetClientScopeInfoAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, localScope) = await InternalGetClientScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -92,12 +90,12 @@ namespace Dotmim.Sync
 
                 if (shouldSave)
                 {
-                    (context, localScopeInfo) = await this.InternalSaveClientScopeInfoAsync(localScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
                     // if not shouldSave, that means we already raised this event before
                     var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, localScopeInfo, runner.Connection, runner.Transaction);
                     await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+                    localScopeInfo = scopeLoadedArgs.ClientScopeInfo;
 
+                    (context, localScopeInfo) = await this.InternalSaveClientScopeInfoAsync(localScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -201,6 +199,64 @@ namespace Dotmim.Sync
 
 
         /// <summary>
+        /// Check 
+        /// </summary>
+        public virtual async Task<(SyncContext, bool, ClientScopeInfo, ServerScopeInfo)> IsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (clientScopeInfo.IsNewScope || clientScopeInfo.Schema == null)
+            {
+                return (context, false, clientScopeInfo, serverScopeInfo);
+
+            }
+
+            if (inputSetup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(inputSetup))
+            {
+
+                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, clientScopeInfo, serverScopeInfo);
+                await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
+                {
+                    throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your client scope.");
+                }
+                if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
+                {
+                    return (context, true, clientScopeInfo, serverScopeInfo);
+                }
+
+                // re affect scope infos
+                clientScopeInfo = conflictingSetupArgs.ClientScopeInfo;
+                serverScopeInfo = conflictingSetupArgs.ServerScopeInfo;
+            }
+
+            if (clientScopeInfo.Setup != null && serverScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
+            {
+                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, clientScopeInfo, serverScopeInfo);
+                await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
+                {
+                    throw new Exception("Seems your client setup is different from your server setup. Please create a new scope or deprovision and provision again your client scope with the server scope.");
+                }
+                if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
+                {
+                    return (context, true, clientScopeInfo, serverScopeInfo);
+                }
+
+                // re affect scope infos
+                clientScopeInfo = conflictingSetupArgs.ClientScopeInfo;
+                serverScopeInfo = conflictingSetupArgs.ServerScopeInfo;
+            }
+
+            // We gave 2 chances to user to edit the setup and fill correct values.
+            // Final check, but if not valid, raise an error
+            if (clientScopeInfo.Setup != null && serverScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
+                throw new Exception("Seems your client setup is different from your server setup. Please create a new scope or deprovision and provision again your client scope with the server scope.");
+
+            return (context, false, clientScopeInfo, serverScopeInfo);
+        }
+
+        /// <summary>
         /// Internal exists scope
         /// </summary>
         internal async Task<(SyncContext context, bool exists)> InternalExistsClientScopeInfoAsync(string scopeName, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -258,8 +314,13 @@ namespace Dotmim.Sync
             if (clientScopeInfo?.Schema != null)
                 clientScopeInfo.Schema.EnsureSchema();
 
-            var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, clientScopeInfo, connection, transaction);
-            await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+            if (clientScopeInfo != null)
+            {
+                var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, clientScopeInfo, connection, transaction);
+                await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+                clientScopeInfo = scopeLoadedArgs.ClientScopeInfo;
+            }
+
             action.Command.Dispose();
 
             return (context, clientScopeInfo);
@@ -301,12 +362,6 @@ namespace Dotmim.Sync
 
             reader.Close();
 
-            foreach (var scopeInfo in clientScopes)
-            {
-                var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, scopeInfo, connection, transaction);
-                await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-            }
             action.Command.Dispose();
 
             return (context, clientScopes);

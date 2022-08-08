@@ -89,8 +89,6 @@ namespace Dotmim.Sync.Serialization
             writer.Flush();
         }
 
-        //private Func<SyncTable, object[], string> writingRow;
-        //private Func<SyncTable, string, object[]> readingRow;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
 
@@ -121,7 +119,13 @@ namespace Dotmim.Sync.Serialization
                 DateParseHandling = DateParseHandling.DateTimeOffset
             };
 
-            using var reader = new JsonTextReader(new StreamReader(path));
+            using var reader = new JsonTextReader(new StreamReader(path))
+            {
+                //DateTimeZoneHandling = DateTimeZoneHandling.Utc,
+                //DateParseHandling = DateParseHandling.DateTimeOffset
+            };
+
+
             while (reader.Read())
             {
                 if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "t")
@@ -203,6 +207,22 @@ namespace Dotmim.Sync.Serialization
 
                                     if (isSameColumns)
                                     {
+
+                                        for (var index = 1; index < array.Length; index++)
+                                        {
+                                            var existSchemaTableColumn = schemaTable.Columns[index - 1];
+
+                                            // Set the correct value in existing row for DateTime types.
+                                            // They are being Deserialized as DateTimeOffsets
+                                            if (existSchemaTableColumn != null && existSchemaTableColumn.GetDataType() == typeof(DateTime))
+                                            {
+                                                if (array[index] != null && array[index] is DateTimeOffset)
+                                                {
+                                                    array[index] = ((DateTimeOffset)array[index]).DateTime;
+                                                }
+                                            }
+                                        }
+
                                         yield return new SyncRow(schemaTable, array);
                                     }
                                     else
@@ -219,11 +239,16 @@ namespace Dotmim.Sync.Serialization
 
                                             var existSchemaTableColumn = schemaTable.Columns[includedColumnName];
 
-                                            // if column exist, set the correct value in new row
-                                            if (existSchemaTableColumn != null)
-                                            {
+                                            //// if column exist, set the correct value in new row
+                                            //if (existSchemaTableColumn != null)
+                                            //{
+                                            //    row[schemaTable.Columns.IndexOf(existSchemaTableColumn) + 1] = array[index];
+                                            //}
+
+                                            if (existSchemaTableColumn.GetDataType() == typeof(DateTime) && array[index] != null && array[index] is DateTimeOffset)
+                                                row[schemaTable.Columns.IndexOf(existSchemaTableColumn) + 1] = ((DateTimeOffset)array[index]).DateTime;
+                                            else
                                                 row[schemaTable.Columns.IndexOf(existSchemaTableColumn) + 1] = array[index];
-                                            }
 
                                         }
                                         Array.Clear(array, 0, array.Length);

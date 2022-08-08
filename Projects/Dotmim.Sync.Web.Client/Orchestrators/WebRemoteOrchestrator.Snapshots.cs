@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Web.Client
             if (serverScopeInfo.Schema == null)
             {
                 (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(
-                    context, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    context, null, false, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 serverScopeInfo.Schema.EnsureSchema();
             }

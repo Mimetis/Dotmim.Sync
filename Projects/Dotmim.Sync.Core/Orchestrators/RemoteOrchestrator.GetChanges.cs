@@ -40,7 +40,7 @@ namespace Dotmim.Sync
 
                 // Before getting changes, be sure we have a remote schema available
                 ServerScopeInfo serverScopeInfo;
-                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, runner.Connection, runner.Transaction, cancellationToken, progress);
+                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, false, runner.Connection, runner.Transaction, cancellationToken, progress);
                 // TODO : if serverScope.Schema is null, should we Provision here ?
 
                 // Should we ?
@@ -96,7 +96,7 @@ namespace Dotmim.Sync
                 await using var runner0 = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ServerScopeInfo serverScopeInfo;
-                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, runner0.Connection, runner0.Transaction, runner0.CancellationToken, runner0.Progress).ConfigureAwait(false);
+                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, false, runner0.Connection, runner0.Transaction, runner0.CancellationToken, runner0.Progress).ConfigureAwait(false);
 
                 await runner0.CommitAsync().ConfigureAwait(false);
 
