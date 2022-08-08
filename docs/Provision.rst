@@ -249,36 +249,16 @@ Migrating a database schema
 | Adding or deleting columns will break the sync process.  
 | Manually, without the ``ProvisionAsync()`` and ``DeprovisionAsync()`` methods, you will have to edit all the stored procedures, triggers and so on to be able to recreate a full sync processus.  
 
-We are going to handle, with a little example, how we could add a new column on an already existing sync architecture:
+Before going further, you need to decide:
 
-.. hint:: You will find this complete sample here : `Migration sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Migration>`_ 
+- When your server is upgraded with a new schema, is any client should still be able to sync their old version, without the new columns / tables added (or removed) ?
+- When your server is upgraded with a new schema, is any client should upgrade their local database before being able to eventually make a new sync on the new schema ?
 
-The main constraint we have is to ensure that a client "not yet upgraded" will still continue to work, and a client "upgraded" will have a full sync available.
+The first scenario is the easiest one to handle, since we will not allow any client to make a sync if they don't have a schema up to date.
 
-So far, we are going to use a multi scopes architecture:
+The second scenario is a little bit more complex, but we can handle it by using different scopes.
 
-- scope name "**v0**" will have the initial version of the schema.
-- scope name "**v1**" will have the new version of the schema.
-
-In our sample, we are going to migrate 2 clients. 
-
-- First client (running on **Sql Server**) will receive the upgrade on the finally
-- Second client (running on **SQLite**) will stay on first version and then will eventually upgrade later.
-
-
-Here is the macro processus:
-
-- Client 1 & 2 are synced with the server, using the scope "**v0**".
-- Server will upgrade its schema by adding a new column (with null values allowed !).
-- Server will create a new SyncSetup on a new scope "**v1**" to have this new column handled.
-- Client 1 will upgrade on its own its schema, adding the new column as well.
-- Client 1 will request the new scope "**v2**" and will sync successfully the new column.
-- Client 2 remains on scope "**v0**" and is still able to sync (but not the new column values).
-- Eventually Client 2 upgrade its schema.
-- Client 2 gets the new scope "**v1**".
-- Client 2 makes a ``Reinitialize`` sync to get all rows with the correct values.
-
-.. warning:: Remember : You are in charge of migrating the schema of your server and your clients !
+Before going further, here is the starting point, using a quite simple Synchronization:
 
 
 Basically, we can imagine having a sync process already in place:
@@ -316,8 +296,143 @@ Basically, we can imagine having a sync process already in place:
     Console.WriteLine("Initial Sync on Sqlite Client 2");
     Console.WriteLine(s2);
 
+
+In place migration
+----------------------
+
+| The in place migration will use the same algorithm as the provisioning and deprovisioning.
+| Eventually, we will just foce the ``ProvisionAsync`` call on both side.
+
+The easiest method, **BUT** the downside is that once your server is upgraded, no clients will be able to sync unless they upgrade on their side as well.
+
+Server Side
+_________________
+
+Now, we are adding a new column on the server side, in the **Address** table, and we are adding a new table **Product**.
+
+.. hint:: Here, using a tool like EF Migrations could be really useful.
+
+.. code-block:: csharp
+
+    // -----------------------------------------------------------------
+    // Migrating a table by adding a new column on the server side
+    // -----------------------------------------------------------------
+
+    // Adding a new column called CreatedDate to Address table, on the server, and on the client.
+    await AddNewColumnToAddressAsync(serverProvider.CreateConnection());
+    // Adding a new table Product
+    await AddNewTableProductAsync(serverProvider.CreateConnection());
+
+Then, upgrading the server scope:
+
+.. code-block:: csharp
+
+    // -----------------------------------------------------------------
+    // Server side
+    // -----------------------------------------------------------------
+
+    // Create standard Setup
+    var setup = new SyncSetup("Product", "Address", "Customer", "CustomerAddress");
+
+    // Create a server orchestrator used to Deprovision and Provision only table Address
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+    // Calling the ProvisionAsync method with overwrite to true, will force a refresh
+    await remoteOrchestrator.ProvisionAsync("v0", setup, overwrite:true, progress:progress);
+    Console.WriteLine("Server migration with new column CreatedDate and new table Product done.");
+
+
+
+Client Side
+_________________
+
+On the client side, as on the server, you're still responsible of migrating your schema.
+Once it's done, the code is almost the same, a part from that you need to get the ``ServerScopeInfo`` from the server to be able to call ``ProvisionAsync``:
+
+
+.. code-block:: csharp
+
+    // -----------------------------------------------------------------
+    // Client side
+    // -----------------------------------------------------------------
+    
+    // Provision client with the new the v0 scope, again
+    // Getting the scope from server and apply it locally
+    var serverScope = await agent1.RemoteOrchestrator.GetServerScopeInfoAsync("v0", progress: progress);
+
+    // provision
+    var clientScope = await agent1.LocalOrchestrator.ProvisionAsync(serverScope, overwrite:true, progress:progress);
+    Console.WriteLine("Sql Server client1 Provision done.");
+
+
+| You can use an interceptor as well, that can automate this step (if you are not updating your client application after a database schema update).
+| Basically, the interceptor ``OnConflictingSetup`` is called every time a setup from the server is different from the one on the client.
+| You can choose then to update your database accordingly:
+
+.. code-block:: csharp
+
+    // -----------------------------------------------------------------
+    // Client side
+    // -----------------------------------------------------------------
+    
+    agent.LocalOrchestrator.OnConflictingSetup(async args =>
+    {
+        if (args.ServerScopeInfo != null)
+        {
+            args.ClientScopeInfo = await localOrchestrator.ProvisionAsync(args.ServerScopeInfo, overwrite: true);
+
+            // this action will let the sync continue
+            args.Action = ConflictingSetupAction.Continue;
+
+            return;
+        }
+        // if we raise this step, just and the sync without raising an error
+        args.Action = ConflictingSetupAction.Abort;
+
+        // The Rollback Action will raise an error
+        // args.Action = ConflictingSetupAction.Rollback;
+        }
+    });
+
+
+
+Multi scopes migration
+--------------------------
+
+We are going to handle, with a little example, how we could add a new column on an already existing sync architecture:
+
+.. hint:: You will find this complete sample here : `Migration sample <https://github.com/Mimetis/Dotmim.Sync/tree/master/Samples/Migration>`_ 
+
+The main constraint we have is to ensure that a client "not yet upgraded" will still continue to work, and a client "upgraded" will have a full sync available.
+
+So far, we are going to use a multi scopes architecture:
+
+- scope name "**v0**" will have the initial version of the schema.
+- scope name "**v1**" will have the new version of the schema.
+
+In our sample, we are going to migrate 2 clients. 
+
+- First client (running on **Sql Server**) will receive the upgrade on the finally
+- Second client (running on **SQLite**) will stay on first version and then will eventually upgrade later.
+
+
+Here is the macro processus:
+
+- Client 1 & 2 are synced with the server, using the scope "**v0**".
+- Server will upgrade its schema by adding a new column (with null values allowed !).
+- Server will create a new SyncSetup on a new scope "**v1**" to have this new column handled.
+- Client 1 will upgrade on its own its schema, adding the new column as well.
+- Client 1 will request the new scope "**v2**" and will sync successfully the new column.
+- Client 2 remains on scope "**v0**" and is still able to sync (but not the new column values).
+- Eventually Client 2 upgrade its schema.
+- Client 2 gets the new scope "**v1**".
+- Client 2 makes a ``Reinitialize`` sync to get all rows with the correct values.
+
+.. warning:: Remember : You are in charge of migrating the schema of your server and your clients !
+
+
 Server side
----------------
+________________
 
 Now, we are adding a new column on the server side, in the **Address** table:
 
@@ -384,7 +499,7 @@ Now that the server is migrated, we are going to handle the clients:
 - Client 2 stays on "**v0**" and sync.
 
 Client 1 
------------------
+_________________
 
 .. code-block:: csharp
 
