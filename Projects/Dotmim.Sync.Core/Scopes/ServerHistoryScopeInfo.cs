@@ -51,5 +51,7 @@ namespace Dotmim.Sync
         public SyncSet Schema { get; set; }
         public SyncSetup Setup { get; set; }
         public string Version { get; set; }
+
+        public string Properties { get; set; }
     }
 }
