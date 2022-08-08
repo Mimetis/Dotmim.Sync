@@ -29,6 +29,8 @@ namespace Dotmim.Sync
         /// </summary>
         [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public string ScopeName { get; set; }
+
+        [IgnoreDataMember]
         public DateTime StartTime { get; }
 
         /// <summary>

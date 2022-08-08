@@ -286,7 +286,6 @@ namespace Dotmim.Sync
                     (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-
                 // Get operation from server
                 SyncOperation operation;
                 (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, clientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);

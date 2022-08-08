@@ -338,17 +338,11 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            var action = new ClientScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
-            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
-
-            if (action.Cancel || action.Command == null)
-                return (context, null);
-
             var clientScopes = new List<ClientScopeInfo>();
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
+            using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             while (reader.Read())
             {
@@ -362,7 +356,7 @@ namespace Dotmim.Sync
 
             reader.Close();
 
-            action.Command.Dispose();
+            command.Dispose();
 
             return (context, clientScopes);
         }

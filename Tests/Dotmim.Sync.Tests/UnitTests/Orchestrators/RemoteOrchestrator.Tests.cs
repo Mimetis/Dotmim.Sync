@@ -112,7 +112,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);
-            Assert.Equal("MissingTablesException", se.TypeName);
+            Assert.Equal("MissingServerScopeTablesException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
@@ -408,7 +408,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);
-            Assert.Equal("MissingTablesException", se.TypeName);
+            Assert.Equal("MissingServerScopeTablesException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

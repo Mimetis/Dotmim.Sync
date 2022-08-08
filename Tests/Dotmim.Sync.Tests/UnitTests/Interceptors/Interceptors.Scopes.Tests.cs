@@ -90,8 +90,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(1, scopeTableCreating);
             Assert.Equal(1, scopeTableCreated);
-            Assert.Equal(2, scopeLoading);
-            Assert.Equal(2, scopeLoaded);
+            Assert.Equal(1, scopeLoading);
+            Assert.Equal(1, scopeLoaded);
             Assert.Equal(1, scopeSaving);
             Assert.Equal(1, scopeSaved);
 
@@ -177,16 +177,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
-            // TODO : if serverScope.Schema is null, should we Provision here ?
-
+    
             serverScopeInfo.Version = "2.0";
 
             await remoteOrchestrator.SaveServerScopeInfoAsync(serverScopeInfo);
 
             Assert.Equal(2, scopeTableCreating);
             Assert.Equal(2, scopeTableCreated);
-            Assert.Equal(2, scopeLoading);
-            Assert.Equal(3, scopeLoaded);
+            Assert.Equal(1, scopeLoading);
+            Assert.Equal(1, scopeLoaded);
             Assert.Equal(3, scopeSaving);
             Assert.Equal(3, scopeSaved);
 

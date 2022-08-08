@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         /// Exposing the InnerCollection for serialization purpose
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<string> InnerCollection = new Collection<string>();
+        public Collection<string> InnerCollection { get; set; } = new Collection<string>();
 
         public SetupColumns() { }
 

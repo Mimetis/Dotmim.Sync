@@ -519,8 +519,10 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter and serializer message pack
-                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-                webRemoteOrchestrator.SerializerFactory = new CustomMessagePackSerializerFactory();
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri)
+                {
+                    SerializerFactory = new CustomMessagePackSerializerFactory()
+                };
 
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);

@@ -265,10 +265,6 @@ namespace Dotmim.Sync
                             }
                         }
 
-                        var scopeLoadedArgs = new ServerScopeInfoLoadedArgs(context, context.ScopeName, serverScopeInfo, runner.Connection, runner.Transaction);
-                        await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
-                        serverScopeInfo = scopeLoadedArgs.ServerScopeInfo;
-
                         // Write scopes locally
                         (context, serverScopeInfo) = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
@@ -340,17 +336,11 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            var action = new ServerScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
-            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
-
-            if (action.Cancel || action.Command == null)
-                return (context, null);
-
             var serverScopes = new List<ServerScopeInfo>();
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
+            using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             while (reader.Read())
             {
@@ -363,7 +353,7 @@ namespace Dotmim.Sync
             }
 
             reader.Close();
-            action.Command.Dispose();
+            command.Dispose();
 
             return (context, serverScopes);
         }

@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// Get the view to be applied 
         /// </summary>
         [DataMember(Name = "tca", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public List<TableChangesApplied> TableChangesApplied { get; } = new List<TableChangesApplied>();
+        public List<TableChangesApplied> TableChangesApplied { get; set; } = new List<TableChangesApplied>();
 
 
         /// <summary>

@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Setup;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -31,25 +32,25 @@ namespace Dotmim.Sync
         /// Gets the custom joins list, used with custom wheres
         /// </summary>
         [DataMember(Name = "j", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public List<SetupFilterJoin> Joins { get; } = new List<SetupFilterJoin>();
+        public List<SetupFilterJoin> Joins { get; set; } = new List<SetupFilterJoin>();
 
         /// <summary>
         /// Gets the custom joins list, used with custom wheres
         /// </summary>
         [DataMember(Name = "cw", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public List<string> CustomWheres { get; } = new List<string>();
+        public List<string> CustomWheres { get; set; } = new List<string>();
 
         /// <summary>
         /// Gets the parameters list, used as input in the stored procedure
         /// </summary>
         [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public List<SetupFilterParameter> Parameters { get; } = new List<SetupFilterParameter>();
+        public List<SetupFilterParameter> Parameters { get; set; } = new List<SetupFilterParameter>();
 
         /// <summary>
         /// Side where filters list
         /// </summary>
         [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public List<SetupFilterWhere> Wheres { get; } = new List<SetupFilterWhere>();
+        public List<SetupFilterWhere> Wheres { get; set; } = new List<SetupFilterWhere>();
 
         /// <summary>
         /// Creates a filterclause allowing to specify a different DbType.
@@ -195,6 +196,16 @@ namespace Dotmim.Sync
             return true;
         }
 
-     
+        public override string ToString()
+        {
+            if (string.IsNullOrEmpty(this.TableName))
+                return base.ToString();
+
+            if (!string.IsNullOrEmpty(this.SchemaName))
+                return $"{this.SchemaName}.{this.TableName}";
+            else
+                return this.TableName;
+        }
+
     }
 }
