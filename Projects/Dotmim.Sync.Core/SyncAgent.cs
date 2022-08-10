@@ -59,6 +59,17 @@ namespace Dotmim.Sync
             this.RemoteOrchestrator.OnApplyChangesFailed(action);
         }
 
+        /// <summary>
+        /// Shortcut to Apply changed failed if remote orchestrator supports it
+        /// </summary>
+        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action)
+        {
+            if (this.RemoteOrchestrator == null)
+                throw new InvalidRemoteOrchestratorException();
+
+            this.RemoteOrchestrator.OnApplyChangesFailed(action);
+        }
+
 
         /// <summary>
         /// Lock sync to prevent multi call to sync at the same time

@@ -3195,7 +3195,7 @@ namespace Dotmim.Sync.Tests
             var writringRowsTables = new ConcurrentDictionary<string, int>();
             var readingRowsTables = new ConcurrentDictionary<string, int>();
 
-            var serializingRowsAction = new Func<SerializingRowArgs, Task>(async (args) =>
+            var serializingRowsAction = new Func<SerializingRowArgs, Task>((args) =>
             {
                 // Assertion
                 writringRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
@@ -3208,9 +3208,11 @@ namespace Dotmim.Sync.Tests
                     swEncrypt.Write(strSet);
 
                 args.Result = Convert.ToBase64String(msEncrypt.ToArray());
+
+                return Task.CompletedTask;
             });
 
-            var deserializingRowsAction = new Func<DeserializingRowArgs, Task>(async (args) =>
+            var deserializingRowsAction = new Func<DeserializingRowArgs, Task>((args) =>
             {
                 // Assertion
                 readingRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
@@ -3226,6 +3228,8 @@ namespace Dotmim.Sync.Tests
                 var array = JsonConvert.DeserializeObject<object[]>(value);
 
                 args.Result = array;
+                return Task.CompletedTask;
+
             });
 
             foreach (var client in this.Clients)

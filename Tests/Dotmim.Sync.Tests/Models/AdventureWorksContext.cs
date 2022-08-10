@@ -1145,7 +1145,7 @@ namespace Dotmim.Sync.Tests.Models
                 return isequal;
 
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 
                 throw;
