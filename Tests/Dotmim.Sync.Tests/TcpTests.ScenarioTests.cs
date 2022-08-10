@@ -82,7 +82,6 @@ namespace Dotmim.Sync.Tests
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupV2);
 
-
             // Create a server new ProductCategory with the new column value filled
             // and a Product related
             var productId = Guid.NewGuid();
@@ -336,6 +335,276 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
+        [Fact]
+        public virtual async Task Scenario_Adding_OneColumn_OneTable_On_SameScope()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // --------------------------
+            // Step 1: Create a default scope and Sync clients
+            // Note we are not including the [Attribute With Space] column
+
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+
+            var setup = new SyncSetup(new string[] { productCategoryTableName });
+            setup.Tables[productCategoryTableName].Columns.AddRange(
+                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+
+            int productCategoryRowsCount = 0;
+            using (var readCtx = new AdventureWorksContext(Server, this.UseFallbackSchema))
+            {
+                productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
+            }
+
+            // First sync to initialiaze client database, create table and fill product categories
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                var r = await agent.SynchronizeAsync("v1", setup);
+
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+            }
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
+
+            // Editing the current scope on the server with this new column and a new table
+            setup.Tables.Add(productTableName);
+            setup.Tables[productCategoryTableName].Columns.Clear();
+            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
+
+            // overwrite the setup
+            var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setup, overwrite: true);
+
+            if (Server.ProviderType == ProviderType.MySql || Server.ProviderType == ProviderType.MariaDB)
+            {
+                var connection = Server.Provider.CreateConnection();
+                // tracking https://github.com/mysql-net/MySqlConnector/issues/924
+                MySqlConnection.ClearPool(connection as MySqlConnection);
+            }
+
+            // Create a server new ProductCategory with the new column value filled
+            // and a Product related
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            var newAttributeWithSpaceValue = HelperDatabase.GetRandomName();
+
+            using (var ctx = new AdventureWorksContext(Server, this.UseFallbackSchema))
+            {
+                var pc = new ProductCategory
+                {
+                    ProductCategoryId = productCategoryId,
+                    Name = productCategoryName,
+                    AttributeWithSpace = newAttributeWithSpaceValue
+                };
+                ctx.ProductCategory.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Product.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            foreach (var client in this.Clients)
+            {
+                var commandText = client.ProviderType switch
+                {
+                    ProviderType.Sql => $@"ALTER TABLE {productCategoryTableName} ADD [Attribute With Space] nvarchar(250) NULL;",
+                    ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
+                    ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    _ => throw new NotImplementedException()
+                };
+
+                var connection = client.Provider.CreateConnection();
+
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+                await command.ExecuteNonQueryAsync();
+
+                connection.Close();
+
+
+                if (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
+                {
+                    // tracking https://github.com/mysql-net/MySqlConnector/issues/924
+                    MySqlConnection.ClearPool(connection as MySqlConnection);
+                }
+
+                // Creating a new table is quite easier since DMS can do it for us
+                // Get scope from server (v1 because it contains the new table schema)
+                // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
+                // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+
+                var localOrchestrator = new LocalOrchestrator(client.Provider);
+                await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
+
+                // Once created we can override the client scope, thanks to the serverScope instance we already have
+                await localOrchestrator.ProvisionAsync(serverScope, overwrite: true);
+
+                // We are ready to sync this new scope !
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+
+
+                var r = await agent.SynchronizeAsync("v1");
+
+                Assert.Equal(2, r.TotalChangesDownloaded);
+
+            }
+
+        }
+
+
+        [Fact]
+        public virtual async Task Scenario_Adding_OneColumn_OneTable_On_SameScope_Using_Interceptor()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // --------------------------
+            // Step 1: Create a default scope and Sync clients
+            // Note we are not including the [Attribute With Space] column
+
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+
+            var setup = new SyncSetup(new string[] { productCategoryTableName });
+            setup.Tables[productCategoryTableName].Columns.AddRange(
+                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+
+            int productCategoryRowsCount = 0;
+            using (var readCtx = new AdventureWorksContext(Server, this.UseFallbackSchema))
+            {
+                productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
+            }
+
+            // First sync to initialiaze client database, create table and fill product categories
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                var r = await agent.SynchronizeAsync("v1", setup);
+
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+            }
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
+
+            // Editing the current scope on the server with this new column and a new table
+            setup.Tables.Add(productTableName);
+            setup.Tables[productCategoryTableName].Columns.Clear();
+            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
+
+            // overwrite the setup
+            var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setup, overwrite: true);
+
+            if (Server.ProviderType == ProviderType.MySql || Server.ProviderType == ProviderType.MariaDB)
+            {
+                var connection = Server.Provider.CreateConnection();
+                // tracking https://github.com/mysql-net/MySqlConnector/issues/924
+                MySqlConnection.ClearPool(connection as MySqlConnection);
+            }
+
+            // Create a server new ProductCategory with the new column value filled
+            // and a Product related
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            var newAttributeWithSpaceValue = HelperDatabase.GetRandomName();
+
+            using (var ctx = new AdventureWorksContext(Server, this.UseFallbackSchema))
+            {
+                var pc = new ProductCategory
+                {
+                    ProductCategoryId = productCategoryId,
+                    Name = productCategoryName,
+                    AttributeWithSpace = newAttributeWithSpaceValue
+                };
+                ctx.ProductCategory.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Product.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            foreach (var client in this.Clients)
+            {
+                var commandText = client.ProviderType switch
+                {
+                    ProviderType.Sql => $@"ALTER TABLE {productCategoryTableName} ADD [Attribute With Space] nvarchar(250) NULL;",
+                    ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
+                    ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    _ => throw new NotImplementedException()
+                };
+
+                var connection = client.Provider.CreateConnection();
+
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+                await command.ExecuteNonQueryAsync();
+
+                connection.Close();
+
+
+                if (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
+                {
+                    // tracking https://github.com/mysql-net/MySqlConnector/issues/924
+                    MySqlConnection.ClearPool(connection as MySqlConnection);
+                }
+
+                // Creating a new table is quite easier since DMS can do it for us
+                // Get scope from server (v1 because it contains the new table schema)
+                // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
+                // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+
+                var localOrchestrator = new LocalOrchestrator(client.Provider);
+                await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
+
+                // We are ready to sync this new scope !
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+
+                agent.LocalOrchestrator.OnConflictingSetup(async args =>
+                {
+                    if (args.ServerScopeInfo != null)
+                    {
+                        args.ClientScopeInfo = await localOrchestrator.ProvisionAsync(args.ServerScopeInfo, overwrite: true);
+                        args.Action = ConflictingSetupAction.Continue;
+                        return;
+                    }
+                    args.Action = ConflictingSetupAction.Abort;
+                });
+
+                var r = await agent.SynchronizeAsync("v1");
+
+                Assert.Equal(2, r.TotalChangesDownloaded);
+
+            }
+
+        }
 
 
     }

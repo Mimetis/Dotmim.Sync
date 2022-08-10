@@ -31,7 +31,7 @@ namespace Dotmim.Sync.Web.Client
             ServerScopeInfo serverScopeInfo;
 
             // Need the server scope
-            (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScopeInfo.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             schema = serverScopeInfo.Schema;
             schema.EnsureSchema();
 
@@ -172,7 +172,7 @@ namespace Dotmim.Sync.Web.Client
             ServerScopeInfo serverScopeInfo;
 
             // Need the server scope
-            (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScopeInfo.Setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             schema = serverScopeInfo.Schema;
             schema.EnsureSchema();
 

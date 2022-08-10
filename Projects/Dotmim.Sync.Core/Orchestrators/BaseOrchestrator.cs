@@ -91,6 +91,21 @@ namespace Dotmim.Sync
         public void ClearInterceptors(Guid id) => this.interceptors.Clear(id);
 
 
+
+        /// <summary>
+        /// Returns a boolean value indicating if we have any interceptors for the current type T
+        /// </summary>
+        public bool HasInterceptors<T>() where T : ProgressArgs
+        {
+            if (this.interceptors == null)
+                return false;
+
+            var interceptors = this.interceptors.GetInterceptors<T>();
+
+            return interceptors.Any();
+
+        }
+
         /// <summary>
         /// Try to proc a On[Method]
         /// </summary>

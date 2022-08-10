@@ -84,8 +84,6 @@ namespace Dotmim.Sync.Serialization
             writer.Flush();
         }
 
-        //private Func<SyncTable, object[], string> writingRow;
-        //private Func<SyncTable, string, object[]> readingRow;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
 

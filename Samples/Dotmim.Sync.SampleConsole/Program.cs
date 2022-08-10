@@ -63,7 +63,7 @@ internal class Program
 
         //var setup = new SyncSetup(allTables);
         var setup = new SyncSetup("Address");
-        setup.Tables["Address"].Columns.AddRange("AddressID", "ModifiedDate");
+        //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions() { DisableConstraintsOnApplyChanges = true };
 
@@ -93,7 +93,9 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+
+        await ScenarioMigrationAddingColumnsAndTableInSameScopeAsync();
     }
 
 
@@ -475,6 +477,100 @@ internal class Program
     }
 
 
+    private static async Task ScenarioMigrationAddingColumnsAndTableInSameScopeAsync()
+    {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        // Server provider
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        // Client 1 provider. 
+        var clientProvider1 = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        // --------------------------
+        // Step 1: Create a default scope and Sync clients
+        var setup = new SyncSetup("ProductCategory");
+        setup.Tables["ProductCategory"].Columns.AddRange("ProductCategoryID", "ParentProductCategoryID", "Name", "rowguid", "ModifiedDate");
+
+        var options = new SyncOptions() { ProgressLevel = SyncProgressLevel.Debug };
+
+        // Sync 2 clients
+        var agent = new SyncAgent(clientProvider1, serverProvider, options);
+        Console.WriteLine(await agent.SynchronizeAsync(setup, progress: progress));
+        var localOrchestrator = agent.LocalOrchestrator;
+        var remoteOrchestrator = agent.RemoteOrchestrator;
+
+
+        // --------------------------
+        // Step2 : Adding a new column "CreatedDate datetime NULL" on the server
+        await AddColumnsToProductCategoryAsync(serverProvider);
+
+        // Step 2 : Add new table in setup
+        setup.Tables.Add("Product");
+        // Remove all columns to get a * :D
+        setup.Tables["ProductCategory"].Columns.Clear();
+
+        // get existing scope
+        var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+
+        // You don't want to create a new scope, but instead editing the existing one
+        // You need to get the new schema from the database containing this new table
+        var schema = await remoteOrchestrator.GetSchemaAsync(setup);
+        serverScope.Schema = schema;
+        serverScope.Setup = setup;
+
+        // You call the ProvisionAsync with an override of true to override all existing stored procs and so on
+        // This method will save the server scope as well
+        serverScope = await remoteOrchestrator.ProvisionAsync(serverScope, overwrite: true);
+
+        // You call the ProvisionAsync with an override of true to override all existing stored procs and so on
+        // This method will save the server scope as well
+        var serverScopea = await remoteOrchestrator.ProvisionAsync("a", serverScope.Setup, overwrite: true);
+
+
+        // Add a product category row on server (just to check we are still able to get this row on clients)
+        await AddProductCategoryRowWithOneMoreColumnAsync(serverProvider);
+
+        // --------------------------
+        // Step 3 : Add the column to client 1, add the new scope "v1" and sync
+        await AddColumnsToProductCategoryAsync(clientProvider1);
+
+        // Step 4 Add product table
+        await localOrchestrator.CreateTableAsync(serverScope, "Product");
+
+
+        agent.LocalOrchestrator.OnConflictingSetup(async args =>
+        {
+            if (args.ServerScopeInfo != null)
+            {
+                args.ClientScopeInfo = await localOrchestrator.ProvisionAsync(args.ServerScopeInfo, overwrite: true);
+
+                // this action will let the sync continue
+                args.Action = ConflictingSetupAction.Continue;
+            }
+            else
+            {
+                // if we raise this step, just and the sync without raising an error
+                args.Action = ConflictingSetupAction.Abort;
+
+                // The Rollback Action will raise an error
+                // args.Action = ConflictingSetupAction.Rollback;
+            }
+        });
+
+
+        Console.WriteLine(await agent.SynchronizeAsync("a", progress: progress));
+
+
+
+    }
+
+
     //private static async Task ScenarioMigrationRemovingColumnsAsync()
     //{
     //var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -772,14 +868,13 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-
         do
         {
             try
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(setup, progress: progress);
                 Console.ResetColor();
                 Console.WriteLine(s);
             }
@@ -1024,6 +1119,27 @@ internal class Program
 
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
+        //var remoteOrchestrator = new WebRemoteOrchestrator(uri);
+        //var localOrchestrator = new LocalOrchestrator(provider);
+
+        //ClientScopeInfo clientScopeInfo = null;
+        //ServerScopeInfo serverScopeInfo = null;
+
+        //localOrchestrator.OnClientScopeInfoLoaded(args =>
+        //{
+        //    clientScopeInfo = args.ClientScopeInfo;
+        //});
+
+
+        //remoteOrchestrator.OnHttpGettingScopeResponse(async args =>
+        //{
+        //    serverScopeInfo = args.ServerScopeInfo;
+
+        //    if (clientScopeInfo != null && !clientScopeInfo.IsNewScope && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
+        //    {
+        //        var cs = await localOrchestrator.ProvisionAsync(serverScopeInfo, overwrite: true);// Do Something
+        //    }
+        //});
 
         var configureServices = new Action<IServiceCollection>(services =>
         {

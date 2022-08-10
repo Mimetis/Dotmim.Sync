@@ -364,8 +364,6 @@ namespace Dotmim.Sync.Tests
 
         }
 
-
-
         [Fact]
         public virtual async Task Scenario_ConflictResolution_From_Client_Side()
         {

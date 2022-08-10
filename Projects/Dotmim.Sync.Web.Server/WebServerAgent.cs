@@ -427,7 +427,7 @@ namespace Dotmim.Sync.Web.Server
 
             ServerScopeInfo serverScopeInfo;
 
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
@@ -488,7 +488,7 @@ namespace Dotmim.Sync.Web.Server
 
             ServerScopeInfo serverScopeInfo;
 
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             SyncOperation operation;
             (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, httpMessage.ClientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
@@ -587,7 +587,7 @@ namespace Dotmim.Sync.Web.Server
             ServerScopeInfo serverScopeInfo;
 
             (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(
-                context, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+                context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
 
             // TODO : Is it used ?
@@ -769,7 +769,7 @@ namespace Dotmim.Sync.Web.Server
             ServerScopeInfo serverScopeInfo;
 
             (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(
-                context, this.Setup, default, default, default, default).ConfigureAwait(false);
+                context, this.Setup, false, default, default, default, default).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(context.ScopeName, serverScopeInfo.Schema);

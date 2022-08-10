@@ -32,7 +32,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var exc = await Assert.ThrowsAsync<SyncException>(() => remoteOrchestrator.GetServerScopeInfoAsync(setup));
 
             Assert.IsType<SyncException>(exc);
-            Assert.Equal("MissingTablesException", exc.TypeName);
+            Assert.Equal("MissingServerScopeTablesException", exc.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
