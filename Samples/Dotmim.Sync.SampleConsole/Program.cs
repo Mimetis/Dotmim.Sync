@@ -61,8 +61,8 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup("Address");
+        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup("Address");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions() { DisableConstraintsOnApplyChanges = true };
@@ -95,8 +95,126 @@ internal class Program
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        await ScenarioMigrationAddingColumnsAndTableInSameScopeAsync();
+        //await ScenarioMigrationAddingColumnsAndTableInSameScopeAsync();
+        await ScenarioConflictOnApplyChangesChangeResolutionAsync();
     }
+
+
+    private static async Task ScenarioConflictOnApplyChangesChangeResolutionAsync()
+    {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        // Server provider
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        // Client 1 provider. Will migrate to the new schema (with one more column)
+        var clientProvider1 = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        // Step 1. Add a lot of ProductCategory
+        // --------------------------
+        //for (int i = 0; i < 1000; i++)
+        //    await AddProductCategoryRowAsync(serverProvider);
+
+
+        // Step 2: Sync 
+        // --------------------------
+        var setup = new SyncSetup(new string[] { "ProductCategory" });
+        var options = new SyncOptions()
+        {
+            ProgressLevel = SyncProgressLevel.Debug,
+            DisableConstraintsOnApplyChanges = true,
+            BatchSize = 1,
+        };
+
+        var agent = new SyncAgent(clientProvider1, serverProvider, options);
+        Console.WriteLine(await agent.SynchronizeAsync(setup, progress: progress));
+
+        // Step 3: Update all product on both sides
+        // --------------------------
+        await UpdateAllProductCategoryAsync(serverProvider, "server");
+        await UpdateAllProductCategoryAsync(clientProvider1, "client");
+
+
+        agent.RemoteOrchestrator.OnApplyChangesFailed(async args =>
+        {
+            args.Resolution = ConflictResolution.ClientWins;
+            var conflict = await args.GetSyncConflictAsync();
+        });
+
+        Console.WriteLine(await agent.SynchronizeAsync(setup, progress: progress));
+
+
+        //// Step 4: Sync through kestrell
+        //// --------------------------
+        //var configureServices = new Action<IServiceCollection>(services =>
+        //{
+        //    services.AddSyncServer<SqlSyncProvider>(DBHelper.GetDatabaseConnectionString(serverDbName), setup, options);
+        //});
+
+        //var cpt = 0;
+        //var serverHandler = new RequestDelegate(async context =>
+        //{
+        //    try
+        //    {
+        //        var webServerAgent = context.RequestServices.GetService<WebServerAgent>();
+
+        //        var scopeName = context.GetScopeName();
+        //        var clientScopeId = context.GetClientScopeId();
+
+        //        webServerAgent.RemoteOrchestrator.OnApplyChangesFailed(args =>
+        //        {
+        //            args.Resolution = ConflictResolution.ClientWins;
+        //            cpt++;
+        //        });
+
+        //        await webServerAgent.HandleRequestAsync(context);
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine(ex);
+        //        throw;
+        //    }
+
+        //});
+
+        //using var server = new KestrellTestServer(configureServices, false);
+
+        //var clientHandler = new ResponseDelegate(async (serviceUri) =>
+        //{
+        //    try
+        //    {
+        //        // create the agent
+        //        var agent = new SyncAgent(clientProvider1, new WebRemoteOrchestrator(serviceUri), options);
+
+        //        // make a synchronization to get all rows between backup and now
+        //        var s = await agent.SynchronizeAsync(progress: progress);
+
+        //        Console.WriteLine(cpt);
+        //        Console.WriteLine(s);
+        //    }
+        //    catch (SyncException e)
+        //    {
+        //        Console.WriteLine(e.ToString());
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+        //    }
+
+        //});
+        //await server.Run(serverHandler, clientHandler);
+
+
+
+
+    }
+
 
 
     static async Task ScenarioPluginLogsAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -724,6 +842,7 @@ internal class Program
         connection.Open();
 
         var pId = productId.HasValue ? productId.Value : Guid.NewGuid();
+
         var command = connection.CreateCommand();
         command.CommandText = commandText;
         command.Connection = connection;
@@ -731,7 +850,7 @@ internal class Program
         var p = command.CreateParameter();
         p.DbType = DbType.String;
         p.ParameterName = "@Name";
-        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ' ' + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
         command.Parameters.Add(p);
 
         p = command.CreateParameter();
@@ -758,6 +877,29 @@ internal class Program
 
         return pId;
     }
+
+    private static async Task UpdateAllProductCategoryAsync(CoreProvider provider, string addedString)
+    {
+        string commandText = "Update ProductCategory Set Name = Name + @addedString";
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.Connection = connection;
+
+        var p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.ParameterName = "@addedString";
+        p.Value = addedString;
+        command.Parameters.Add(p);
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
+    }
+
 
     private static async Task AddProductRowAsync(CoreProvider provider)
     {
@@ -1119,28 +1261,6 @@ internal class Program
 
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
-        //var remoteOrchestrator = new WebRemoteOrchestrator(uri);
-        //var localOrchestrator = new LocalOrchestrator(provider);
-
-        //ClientScopeInfo clientScopeInfo = null;
-        //ServerScopeInfo serverScopeInfo = null;
-
-        //localOrchestrator.OnClientScopeInfoLoaded(args =>
-        //{
-        //    clientScopeInfo = args.ClientScopeInfo;
-        //});
-
-
-        //remoteOrchestrator.OnHttpGettingScopeResponse(async args =>
-        //{
-        //    serverScopeInfo = args.ServerScopeInfo;
-
-        //    if (clientScopeInfo != null && !clientScopeInfo.IsNewScope && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
-        //    {
-        //        var cs = await localOrchestrator.ProvisionAsync(serverScopeInfo, overwrite: true);// Do Something
-        //    }
-        //});
-
         var configureServices = new Action<IServiceCollection>(services =>
         {
             services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "DefaultScope", setup, options);

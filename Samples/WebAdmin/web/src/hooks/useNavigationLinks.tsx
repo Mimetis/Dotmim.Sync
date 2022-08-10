@@ -6,7 +6,7 @@ import { ClientsPage, ClientsPageDetails, ScopesPage, SyncLogsPage } from "../pa
 
 export type NavigationLink = {
     id: string;
-    icon: React.ReactNode;
+    icon: React.ReactElement;
     path: string;
     active: boolean;
     element?: React.ReactNode;

@@ -46,9 +46,8 @@ const StyledTableRow = styled(TableRow)(({ theme }) => ({
 }));
 
 const TableButton = styled(Button)({
-  borderRadius: "1px",
+    borderRadius: "1px",
 });
-
 
 const ScopesComponent: React.FunctionComponent = (props) => {
     const clientsQuery = useClientScopes();
@@ -72,7 +71,6 @@ const ScopesComponent: React.FunctionComponent = (props) => {
         console.log("openJsonDialogClick");
     };
 
-   
     return (
         <>
             {(!clientsQuery || !clientsQuery.data || clientsQuery.data.length <= 0) && (
@@ -98,7 +96,6 @@ const ScopesComponent: React.FunctionComponent = (props) => {
                                     </Grid>
                                     <Grid item xs>
                                         <TextField
-                                            fullWidth
                                             placeholder="Search client"
                                             InputProps={{
                                                 disableUnderline: true,
@@ -139,20 +136,22 @@ const ScopesComponent: React.FunctionComponent = (props) => {
                             </TableHead>
                             <TableBody>
                                 {clientsQuery.data.map((row) => (
-                                    <>
-                                        <StyledTableRow key={row.id}>
-                                            <StyledTableCell><Link href={`/clientDetails/${row.id}`} underline="none">{row.id}</Link></StyledTableCell>
-                                            <StyledTableCell>{row.scopeName}</StyledTableCell>
-                                            <StyledTableCell>{convertToDate(row.lastSync?.toString())}</StyledTableCell>
-                                            <StyledTableCell>{convertToTime(row.lastSyncDuration / 1000)}</StyledTableCell>
-                                            <StyledTableCell>{row.lastSyncTimestamp}</StyledTableCell>
-                                            <StyledTableCell>
-                                                <Button onClick={() => openJsonDialogClick(row.properties)}>
-                                                    <Chip sx={{ cursor: "pointer" }} label={JSON.stringify(row.properties).substring(0, 60) + "..."} />
-                                                </Button>
-                                            </StyledTableCell>
-                                        </StyledTableRow>
-                                    </>
+                                    <StyledTableRow key={row.id}>
+                                        <StyledTableCell>
+                                            <Link href={`/clientDetails/${row.id}`} underline="none">
+                                                {row.id}
+                                            </Link>
+                                        </StyledTableCell>
+                                        <StyledTableCell>{row.scopeName}</StyledTableCell>
+                                        <StyledTableCell>{convertToDate(row.lastSync?.toString())}</StyledTableCell>
+                                        <StyledTableCell>{convertToTime(row.lastSyncDuration / 1000)}</StyledTableCell>
+                                        <StyledTableCell>{row.lastSyncTimestamp}</StyledTableCell>
+                                        <StyledTableCell>
+                                            <Button onClick={() => openJsonDialogClick(row.properties)}>
+                                                <Chip sx={{ cursor: "pointer" }} label={JSON.stringify(row.properties).substring(0, 60) + "..."} />
+                                            </Button>
+                                        </StyledTableCell>
+                                    </StyledTableRow>
                                 ))}
                             </TableBody>
                         </Table>

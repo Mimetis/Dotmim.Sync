@@ -169,11 +169,12 @@ namespace Dotmim.Sync
 
                     if (this.resolution == ConflictResolution.MergeRow)
                     {
-                        var finalRowArray = this.Conflict.RemoteRow.ToArray();
-                        var finalTable = this.Conflict.RemoteRow.SchemaTable.Clone();
-                        var finalSet = this.Conflict.RemoteRow.SchemaTable.Schema.Clone(false);
+                        var conflict = this.GetSyncConflictAsync().GetAwaiter().GetResult();
+                        var finalRowArray = conflict.RemoteRow.ToArray();
+                        var finalTable = conflict.RemoteRow.SchemaTable.Clone();
+                        var finalSet = conflict.RemoteRow.SchemaTable.Schema.Clone(false);
                         finalSet.Tables.Add(finalTable);
-                        this.FinalRow = new SyncRow(this.Conflict.RemoteRow.SchemaTable, finalRowArray);
+                        this.FinalRow = new SyncRow(conflict.RemoteRow.SchemaTable, finalRowArray);
                         finalTable.Rows.Add(this.FinalRow);
                     }
                     else if (this.FinalRow != null)
@@ -187,12 +188,7 @@ namespace Dotmim.Sync
             }
         }
 
-        /// <summary>
-        /// Gets the object that contains data and metadata for the row being applied and for the existing row in the database that caused the failure.
-        /// </summary>
-        public SyncConflict Conflict { get; }
-
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         /// <summary>
         /// Gets or Sets the scope id who will be marked as winner
         /// </summary>
@@ -204,15 +200,36 @@ namespace Dotmim.Sync
         public SyncRow FinalRow { get; set; }
 
 
-        public ApplyChangesFailedArgs(SyncContext context, SyncConflict dbSyncConflict, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
+        private BaseOrchestrator orchestrator;
+        private DbSyncAdapter syncAdapter;
+        private readonly SyncRow conflictRow;
+        private SyncTable schemaChangesTable;
+
+        // used only internally
+        internal SyncConflict conflict;
+
+        public async Task<SyncConflict> GetSyncConflictAsync()
+        {
+            var (_, localRow) = await orchestrator.InternalGetConflictRowAsync(Context, syncAdapter, conflictRow, schemaChangesTable, this.Connection, this.Transaction).ConfigureAwait(false);
+
+            var conflict = orchestrator.InternalGetConflict(conflictRow, localRow);
+
+            this.conflict = conflict;
+            return conflict;
+        }
+
+        public ApplyChangesFailedArgs(SyncContext context, BaseOrchestrator orchestrator, DbSyncAdapter syncAdapter, SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
-            this.Conflict = dbSyncConflict;
+            this.orchestrator = orchestrator;
+            this.syncAdapter = syncAdapter;
+            this.conflictRow = conflictRow;
+            this.schemaChangesTable = schemaChangesTable;
             this.resolution = action;
             this.SenderScopeId = senderScopeId;
         }
         public override string Source => Connection.Database;
-        public override string Message => $"Conflict {this.Conflict.Type}.";
+        public override string Message => $"Conflict {conflictRow}.";
         public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
 
     }

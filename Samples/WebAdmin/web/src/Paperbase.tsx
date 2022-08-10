@@ -9,6 +9,7 @@ import Navigator from "./Navigator";
 import Header from "./Header";
 import { BrowserRouter as Router } from "react-router-dom";
 import RoutesComponent from "./components.tsx/RoutesComponents";
+import { useState } from "react";
 
 function Copyright() {
     return (
@@ -168,7 +169,7 @@ theme = {
 const drawerWidth = 256;
 
 export default function Paperbase() {
-    const [mobileOpen, setMobileOpen] = React.useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const isSmUp = useMediaQuery(theme.breakpoints.up("sm"));
 
     const handleDrawerToggle = () => {

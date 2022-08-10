@@ -70,13 +70,13 @@ public class SyncLogsController : ControllerBase
         foreach (var scope in scopes)
         {
             jArray.Add(new JObject{
-        { "id", scope.Id },
-        { "scopeName", scope.Name },
-        { "lastSync", scope.LastSync },
-        { "lastSyncDuration", scope.LastSyncDuration },
-        { "lastSyncTimestamp", scope.LastSyncTimestamp },
-          { "properties", scope.Properties },
-      });
+                { "id", scope.Id },
+                { "scopeName", scope.Name },
+                { "lastSync", scope.LastSync },
+                { "lastSyncDuration", scope.LastSyncDuration },
+                { "lastSyncTimestamp", scope.LastSyncTimestamp },
+                { "properties", scope.Properties },
+            });
         }
 
         return jArray;
