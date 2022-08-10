@@ -293,40 +293,42 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is server; local is client
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified,conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -410,17 +412,18 @@ namespace Dotmim.Sync.Tests
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
 
@@ -458,7 +461,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Since we have a ClientWins resolution,
                     // We should NOT have any conflict raised on the client side
@@ -470,20 +473,21 @@ namespace Dotmim.Sync.Tests
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
 
                     // Client should wins
                     acf.Resolution = ConflictResolution.ClientWins;
@@ -605,40 +609,42 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is server; local is client
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -709,28 +715,29 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
                     throw new Exception("Should not happen because ConflictResolution.ClientWins");
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -763,13 +770,14 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                agent.OnApplyChangesFailed(acf =>
+                agent.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
 
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
@@ -810,41 +818,43 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is server; local is client
                     Assert.StartsWith("BOTH", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
 
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
 
                     // Merge row
                     acf.Resolution = ConflictResolution.MergeRow;
@@ -973,7 +983,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Since we have a ClientWins resolution,
                     // We should NOT have any conflict raised on the client side
@@ -985,17 +995,18 @@ namespace Dotmim.Sync.Tests
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
 
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
@@ -1060,31 +1071,33 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -1169,14 +1182,14 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
 
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
                 });
@@ -1225,13 +1238,13 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
                 });
@@ -1352,38 +1365,40 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is server; local is client
                     Assert.StartsWith("CLI_UPDATED", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
                     Assert.StartsWith("CLI_UPDATED", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -1449,26 +1464,27 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
                     Assert.StartsWith("CLI_UPDATED", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -1573,32 +1589,34 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
+                    var conflict = await acf.GetSyncConflictAsync();
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -1662,23 +1680,24 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -1776,21 +1795,22 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Even if it's a server win here, the server should not send back anything, since he has anything related to this line in its metadatas");
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, acf.Conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
 
                 });
@@ -1856,21 +1876,22 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, acf.Conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
 
                 });
@@ -1962,20 +1983,21 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, acf.Conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
@@ -2046,20 +2068,21 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, acf.Conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, acf.Conflict.RemoteRow.RowState);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
+                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
@@ -2106,22 +2129,23 @@ namespace Dotmim.Sync.Tests
 
                 // From client : Remote is server, Local is client
                 // From here, we are going to let the client decides who is the winner of the conflict
-                localOrchestrator.OnApplyChangesFailed(acf =>
+                localOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is server; local is client
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
 
                     // From that point, you can easily letting the client decides who is the winner
                     // You can do a merge or whatever
@@ -2141,21 +2165,22 @@ namespace Dotmim.Sync.Tests
                 // From Server : Remote is client, Local is server
                 // From that point we do not do anything, letting the server to resolve the conflict and send back
                 // the server row and client row conflicting to the client
-                remoteOrchestrator.OnApplyChangesFailed(acf =>
+                remoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, acf.Conflict.LocalRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 // First sync, we allow server to resolve the conflict and send back the result to client

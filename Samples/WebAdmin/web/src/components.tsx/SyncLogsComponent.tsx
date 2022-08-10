@@ -48,7 +48,6 @@ const SyncLogsComponent: React.FunctionComponent = () => {
                   </Grid>
                   <Grid item xs>
                     <TextField
-                      fullWidth
                       placeholder="Search sync session "
                       InputProps={{
                         disableUnderline: true,

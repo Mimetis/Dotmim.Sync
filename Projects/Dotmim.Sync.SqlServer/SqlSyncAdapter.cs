@@ -270,7 +270,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
-            {
+            {   
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 

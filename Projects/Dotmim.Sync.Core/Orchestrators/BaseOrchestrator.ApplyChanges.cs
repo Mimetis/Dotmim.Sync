@@ -186,9 +186,6 @@ namespace Dotmim.Sync
 
             TableChangesApplied tableChangesApplied = null;
 
-            // Conflicts occured when trying to apply rows
-            var conflictRows = new List<SyncRow>();
-
             var localSerializer = new LocalJsonSerializer();
 
             // If someone has an interceptor on deserializing, we read the row and intercept
@@ -207,6 +204,9 @@ namespace Dotmim.Sync
             // applied rows for this bpi
             foreach (var batchPartInfo in bpiTables)
             {
+                // Conflicts occured when trying to apply rows
+                var conflictRows = new List<SyncRow>();
+
                 // Applied row for this particular BPI
                 var appliedRowsTmp = 0;
                 // Rows fetch (either of the good state or not) from the BPI
@@ -474,10 +474,6 @@ namespace Dotmim.Sync
                 {
                     // Remote source has row, Local don't have the row, so insert it
                     case ConflictType.RemoteExistsLocalExists:
-                        (context, operationComplete) = await this.InternalApplyConflictUpdateAsync(scopeInfo, context, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
-                        rowAppliedCount = 1;
-                        break;
-
                     case ConflictType.RemoteExistsLocalNotExists:
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
@@ -566,19 +562,15 @@ namespace Dotmim.Sync
             // So far we get the conflict only if an interceptor exists
             if (interceptors.Count > 0)
             {
-                // Get the localRow
-                (context, localRow) = await this.InternalGetConflictRowAsync(scopeInfo, context, syncAdapter, localScopeId, conflictRow, schemaChangesTable, connection, transaction).ConfigureAwait(false);
-                // Get the conflict
-                var conflict = this.GetConflict(conflictRow, localRow);
 
                 // Interceptor
-                var arg = new ApplyChangesFailedArgs(context, conflict, resolution, senderScopeId, connection, transaction);
+                var arg = new ApplyChangesFailedArgs(context, this, syncAdapter, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
                 await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
                 resolution = arg.Resolution;
                 finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
                 finalSenderScopeId = arg.SenderScopeId;
-                conflictType = arg.Conflict.Type;
+                conflictType = arg.conflict != null ? arg.conflict.Type : conflictType;
             }
             else
             {
@@ -604,7 +596,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// We have a conflict, try to get the source row and generate a conflict
         /// </summary>
-        private SyncConflict GetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
+        internal SyncConflict InternalGetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
         {
 
             var dbConflictType = ConflictType.ErrorsOccurred;
@@ -647,7 +639,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to get a source row
         /// </summary>
-        private async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, Guid localScopeId, SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
+        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, 
+                    SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);

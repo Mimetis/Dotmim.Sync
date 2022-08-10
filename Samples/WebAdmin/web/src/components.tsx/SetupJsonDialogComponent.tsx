@@ -31,7 +31,6 @@ const SetupJsonDialogComponent: React.FunctionComponent<ISetupJsonDialogProps> =
     <Dialog
       sx={{ '& .MuiDialog-paper': { width: '100%', maxHeight: 835 } }}
       maxWidth="lg"    
-      fullWidth
       open={props.open}
       onClose={handleClose}
       scroll="paper"

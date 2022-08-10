@@ -444,15 +444,16 @@ namespace Dotmim.Sync.Tests
                 webServerAgent.RemoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
-                    var localRow = acf.Conflict.LocalRow;
-                    var remoteRow = acf.Conflict.RemoteRow;
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-                    Assert.Equal(ConflictType.RemoteExistsLocalExists, acf.Conflict.Type);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
                 await webServerAgent.HandleRequestAsync(context);
@@ -466,11 +467,12 @@ namespace Dotmim.Sync.Tests
             // From client : Remote is server, Local is client
             // From here, we are going to let the client decides 
             // who is the winner of the conflict :
-            agent.LocalOrchestrator.OnApplyChangesFailed(acf =>
+            agent.LocalOrchestrator.OnApplyChangesFailed(async acf =>
             {
                 // Check conflict is correctly set
-                var localRow = acf.Conflict.LocalRow;
-                var remoteRow = acf.Conflict.RemoteRow;
+                var conflict = await acf.GetSyncConflictAsync(); 
+                var localRow = conflict.LocalRow;
+                var remoteRow = conflict.RemoteRow;
 
                 // From that point, you can easily letting the client decides 
                 // who is the winner
