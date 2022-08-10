@@ -461,7 +461,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     // Since we have a ClientWins resolution,
                     // We should NOT have any conflict raised on the client side
@@ -715,7 +715,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     // Check conflict is correctly set
                     throw new Exception("Should not happen because ConflictResolution.ClientWins");
@@ -983,7 +983,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     // Since we have a ClientWins resolution,
                     // We should NOT have any conflict raised on the client side
@@ -1182,14 +1182,14 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
 
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(async acf =>
+                remoteOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
                 });
@@ -1238,13 +1238,13 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(async acf =>
+                remoteOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
                 });
@@ -1464,7 +1464,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
                 });
@@ -1680,7 +1680,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
                 });
@@ -1795,7 +1795,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Even if it's a server win here, the server should not send back anything, since he has anything related to this line in its metadatas");
                 });
@@ -1876,7 +1876,7 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // From client : Remote is server, Local is client
-                localOrchestrator.OnApplyChangesFailed(async acf =>
+                localOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
                 });
@@ -1997,7 +1997,7 @@ namespace Dotmim.Sync.Tests
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(async acf =>
+                remoteOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
@@ -2082,7 +2082,7 @@ namespace Dotmim.Sync.Tests
                 });
 
                 // From Server : Remote is client, Local is server
-                remoteOrchestrator.OnApplyChangesFailed(async acf =>
+                remoteOrchestrator.OnApplyChangesFailed(acf =>
                 {
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
