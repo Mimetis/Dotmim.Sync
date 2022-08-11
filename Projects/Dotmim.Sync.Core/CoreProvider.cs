@@ -101,6 +101,11 @@ namespace Dotmim.Sync
         public virtual bool SupportsMultipleActiveResultSets { get; set; } = false;
 
         /// <summary>
+        /// Gets or Sets if provider should use bulk operations for Insert / Update (only Sql Server)
+        /// </summary>
+        public virtual bool UseBulkOperations { get; set; } = true;
+
+        /// <summary>
         /// Get naming tables
         /// </summary>
         public abstract (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup);

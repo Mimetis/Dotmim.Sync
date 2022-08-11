@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using System.Threading.Tasks;
@@ -234,6 +235,31 @@ namespace Dotmim.Sync
 
     }
 
+    public class ApplyChangesErrorOccuredArgs : ProgressArgs
+    {
+        public ApplyChangesErrorOccuredArgs(SyncContext context, SyncRow errorRow, SyncTable schemaChangesTable, DataRowState applyType, Exception exception, DbCommand command, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+        {
+            this.ErrorRow = errorRow;
+            this.SchemaTable = schemaChangesTable;
+            this.ApplyType = applyType;
+            this.Exception = exception;
+            this.Command = command;
+        }
+
+        public SyncRow ErrorRow { get; }
+        public SyncTable SchemaTable { get; }
+        public DataRowState ApplyType { get; }
+        public Exception Exception { get; }
+        public ErrorResolution Resolution { get; set; } = ErrorResolution.Throw;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Connection.Database}] Error: {Exception.Message}. Row:{ErrorRow}. ApplyType:{ApplyType}";
+
+        public override int EventId => SyncEventsId.ApplyChangesErrorOccured.Id;
+
+        public DbCommand Command { get; }
+    }
 
     public static partial class InterceptorsExtensions
     {
@@ -325,6 +351,17 @@ namespace Dotmim.Sync
         public static Guid OnApplyChangesFailed(this BaseOrchestrator orchestrator, Func<ApplyChangesFailedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
+        /// <summary>
+        /// Intercept the provider when an apply change is failing
+        /// </summary>
+        public static Guid OnApplyChangesErrorOccured(this BaseOrchestrator orchestrator, Action<ApplyChangesErrorOccuredArgs> action)
+            => orchestrator.AddInterceptor(action);
+        /// <summary>
+        /// Intercept the provider when an apply change is failing
+        /// </summary>
+        public static Guid OnApplyChangesErrorOccured(this BaseOrchestrator orchestrator, Func<ApplyChangesErrorOccuredArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
+
     }
 
     public static partial class SyncEventsId
@@ -338,5 +375,6 @@ namespace Dotmim.Sync
         public static EventId SessionBegin => CreateEventId(100, nameof(SessionBegin));
         public static EventId SessionEnd => CreateEventId(200, nameof(SessionEnd));
         public static EventId ApplyChangesFailed => CreateEventId(300, nameof(ApplyChangesFailed));
+        public static EventId ApplyChangesErrorOccured => CreateEventId(301, nameof(ApplyChangesErrorOccured));
     }
 }

@@ -125,7 +125,7 @@ namespace Dotmim.Sync.SqlServer
         => new SqlTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
+            => new SqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
 

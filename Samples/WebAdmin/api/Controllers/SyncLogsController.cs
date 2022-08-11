@@ -49,7 +49,7 @@ public class SyncLogsController : ControllerBase
             jArray.Add(new JObject{
         { "name", scope.Name },
         { "setup", JObject.FromObject(scope.Setup) },
-        { "lastsync", scope.LastCleanupTimestamp },
+        { "lastCleanup", scope.LastCleanupTimestamp },
         { "version", scope.Version },
       });
         }

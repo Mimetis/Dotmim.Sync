@@ -95,10 +95,90 @@ internal class Program
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        //await ScenarioMigrationAddingColumnsAndTableInSameScopeAsync();
-        await ScenarioConflictOnApplyChangesChangeResolutionAsync();
+        await ScenarioMultiplesFiltersErrorAsync();
     }
 
+
+    private static async Task ScenarioMultiplesFiltersErrorAsync()
+    {
+        var serverDbName = "FServer";
+        var clientDbName1 = "Employee1";
+        var clientDbName2 = "Employee2";
+
+        await DBHelper.CreateDatabaseAsync(serverDbName, true);
+        await DBHelper.CreateDatabaseAsync(clientDbName1, true);
+        await DBHelper.CreateDatabaseAsync(clientDbName2, true);
+
+        var script = @"
+        CREATE TABLE Customer (CustomerId int IDENTITY(5000, 1000) NOT NULL PRIMARY KEY, Name varchar(50) Not Null, EmployeeId int NOT NULL);
+
+        CREATE TABLE Sales (SalesId int IDENTITY(100, 10) NOT NULL PRIMARY KEY, EmployeeId int NOT NULL, BuyerCustomerId int NOT NULL, Product varchar(50) NOT NULL,
+        CONSTRAINT FK_Buyer_Customer FOREIGN KEY(BuyerCustomerId) REFERENCES Customer(CustomerId));
+
+        SET IDENTITY_INSERT Customer ON
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(5000, 'B. Gates', 1)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(6000, 'S. Nadela', 1)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(7000, 'S. Balmer', 1)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(8000, 'S. Jobs', 2)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(9000, 'T. Cook', 2)
+        SET IDENTITY_INSERT Customer OFF
+
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (1, 5000, 'Stairs');
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (1, 6000, 'Doors');
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (2, 8000, 'Oranges');
+        -- We have a problem here. An employee 1 sold something to a customer that is not in its customers list 
+        -- Customer 9000 is affiliated to employee 2
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (1, 9000, 'Strawberries');
+        ";
+
+        await DBHelper.ExecuteScriptAsync(serverDbName, script);
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        var employee1Provider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName1))
+        {
+            UseBulkOperations = false
+        };
+
+        var setup = new SyncSetup("Customer", "Sales");
+        setup.Filters.Add("Customer", "EmployeeId");
+        setup.Filters.Add("Sales", "EmployeeId");
+
+        try
+        {
+
+            var emp1Agent = new SyncAgent(employee1Provider, serverProvider);
+            var emp1Params = new SyncParameters(("EmployeeId", 1));
+
+            emp1Agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+            {
+                Console.WriteLine(args.ErrorRow);
+                // We can do something here the failed row
+                // ....
+                // Then pass the resolution to Continue to prevent a fail 
+                args.Resolution = ErrorResolution.Continue;
+            });
+
+            var emp1result = await emp1Agent.SynchronizeAsync(setup, emp1Params, progress);
+            Console.WriteLine(emp1result);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+
+
+
+    }
 
     private static async Task ScenarioConflictOnApplyChangesChangeResolutionAsync()
     {

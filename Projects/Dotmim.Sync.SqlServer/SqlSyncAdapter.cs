@@ -32,10 +32,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         public SqlObjectNames SqlObjectNames { get; set; }
         public SqlDbMetadata SqlMetadata { get; set; }
 
-        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
+        private bool useBulkOperations;
+
+        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations) : base(tableDescription, setup, scopeName)
         {
             this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup, scopeName);
             this.SqlMetadata = new SqlDbMetadata();
+            this.useBulkOperations = useBulkOperations;
         }
 
         private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
@@ -97,7 +100,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (p == 0)
                         p = 18;
                     if (s == 0)
-                        s = Math.Min((byte)(p-1), (byte)6);
+                        s = Math.Min((byte)(p - 1), (byte)6);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 }
 
@@ -270,7 +273,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
-            {   
+            {
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
@@ -378,8 +381,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                 case DbCommandType.UpdateRows:
                 case DbCommandType.InsertRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
-                    isBatch = true;
+                    if (useBulkOperations)
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                        isBatch = true;
+                    }
+                    else
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                        isBatch = false;
+                    }
                     break;
                 case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
@@ -388,8 +399,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                     break;
                 case DbCommandType.DeleteRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
-                    isBatch = true;
+                    if (useBulkOperations)
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                        isBatch = true;
+                    }
+                    else
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                        isBatch = false;
+                    }
                     break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;

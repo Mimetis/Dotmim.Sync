@@ -770,7 +770,7 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                agent.OnApplyChangesFailed(async acf =>
+                agent.RemoteOrchestrator.OnApplyChangesFailed(async acf =>
                 {
                     // Check conflict is correctly set
                     var conflict = await acf.GetSyncConflictAsync();

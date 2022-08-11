@@ -131,7 +131,7 @@ namespace Dotmim.Sync
                 return context;
 
             context.SyncStage = SyncStage.ChangesApplying;
-            
+
             var setupTable = scopeInfo.Setup.Tables[schemaTable.TableName, schemaTable.SchemaName];
 
             if (setupTable == null)
@@ -209,6 +209,8 @@ namespace Dotmim.Sync
 
                 // Applied row for this particular BPI
                 var appliedRowsTmp = 0;
+                // failed applied rows for this BPI
+                var errorRowsTmp = 0;
                 // Rows fetch (either of the good state or not) from the BPI
                 var rowsFetched = 0;
 
@@ -288,7 +290,23 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                        var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        int rowAppliedCount = 0;
+                        int errorOccured = 0;
+                        try
+                        {
+                            rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                        }
+                        catch (Exception ex)
+                        {
+                            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, syncRow, schemaChangesTable, applyType, ex, command, connection, transaction);
+                            var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                            if (errorOccuredArgs.Resolution == ErrorResolution.Throw)
+                                throw;
+
+                            errorOccured = 1;
+                        }
 
                         // Check if we have a return value instead
                         var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
@@ -298,6 +316,8 @@ namespace Dotmim.Sync
 
                         if (rowAppliedCount > 0)
                             appliedRowsTmp++;
+                        else if (errorOccured > 0)
+                            errorRowsTmp++;
                         else
                             conflictRows.Add(syncRow);
 
@@ -334,10 +354,10 @@ namespace Dotmim.Sync
                 }
 
                 // Any failure ?
-                var changedFailed = rowsFetched - conflictsResolvedCount - appliedRowsTmp;
+                var changedFailed = errorRowsTmp;
 
                 // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
-                if (appliedRowsTmp > 0 || conflictsResolvedCount > 0)
+                if (appliedRowsTmp > 0 || conflictsResolvedCount > 0 || errorRowsTmp > 0)
                 {
                     // We may have multiple batch files, so we can have multipe sync tables with the same name
                     // We can say that a syncTable may be contained in several files
@@ -639,7 +659,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to get a source row
         /// </summary>
-        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, 
+        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter,
                     SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository

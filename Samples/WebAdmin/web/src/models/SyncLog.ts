@@ -37,7 +37,7 @@ export type SyncLogDetail = {
 export type Scope = {
   name: string;
   setup: any;
-  lastsync: any;
+  lastCleanup: any;
   version: string;
 }
 
