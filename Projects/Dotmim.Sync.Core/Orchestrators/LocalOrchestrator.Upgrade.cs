@@ -458,10 +458,7 @@ namespace Dotmim.Sync
                 }
                 if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.Sqlite.SqliteSyncProvider"))
                 {
-                    var commandText = @$"
-                                        PRAGMA foreign_keys=off;
-                                        BEGIN TRANSACTION;
-
+                    var commandText = @$"BEGIN TRANSACTION;
                                         ALTER TABLE [{scopeClientInfoTableName}] RENAME TO old_table_{scopeClientInfoTableName};
                                         CREATE TABLE [{scopeClientInfoTableName}](
                                                     sync_scope_id blob NOT NULL,
@@ -476,11 +473,8 @@ namespace Dotmim.Sync
                                                     CONSTRAINT PK_{scopeClientInfoTableName} PRIMARY KEY(sync_scope_id, sync_scope_name));
 
                                         INSERT INTO [{scopeClientInfoTableName}] SELECT * FROM old_table_{scopeClientInfoTableName};
-                                        COMMIT;
-
                                         DROP TABLE old_table_{scopeClientInfoTableName};
-
-                                        PRAGMA foreign_keys=on;";
+                                        COMMIT;";
 
                     var command = runner.Connection.CreateCommand();
                     command.CommandText = commandText;

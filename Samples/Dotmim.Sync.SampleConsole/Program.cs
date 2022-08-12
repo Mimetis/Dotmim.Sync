@@ -110,9 +110,9 @@ internal class Program
         await DBHelper.CreateDatabaseAsync(clientDbName2, true);
 
         var script = @"
-        CREATE TABLE Customer (CustomerId int IDENTITY(5000, 1000) NOT NULL PRIMARY KEY, Name varchar(50) Not Null, EmployeeId int NOT NULL);
+        CREATE TABLE Customer (CustomerId int IDENTITY(1, 1) NOT NULL PRIMARY KEY, Name varchar(50) Not Null, EmployeeId int NOT NULL);
 
-        CREATE TABLE Sales (SalesId int IDENTITY(100, 10) NOT NULL PRIMARY KEY, EmployeeId int NOT NULL, BuyerCustomerId int NOT NULL, Product varchar(50) NOT NULL,
+        CREATE TABLE Sales (SalesId int IDENTITY(1, 1) NOT NULL PRIMARY KEY, EmployeeId int NOT NULL, BuyerCustomerId int NOT NULL, Product varchar(50) NOT NULL,
         CONSTRAINT FK_Buyer_Customer FOREIGN KEY(BuyerCustomerId) REFERENCES Customer(CustomerId));
 
         SET IDENTITY_INSERT Customer ON
@@ -143,10 +143,13 @@ internal class Program
 
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
 
-        var employee1Provider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName1))
-        {
-            UseBulkOperations = false
-        };
+        //var employee1Provider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName1))
+        //{
+        //    UseBulkOperations = false
+        //};
+
+        var employee1Provider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+
 
         var setup = new SyncSetup("Customer", "Sales");
         setup.Filters.Add("Customer", "EmployeeId");

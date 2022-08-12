@@ -24,6 +24,12 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// Indicates that you want to rollback the whole sync process
         /// </summary>
-        Rollback
+        Rollback,
+
+        /// <summary>
+        /// Ignore the row in conflict and try to continue sync
+        /// </summary>
+        Ignore
+
     }
 }
