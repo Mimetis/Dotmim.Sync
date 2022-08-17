@@ -181,11 +181,6 @@ namespace Dotmim.Sync.Tests
 
 
             }
-
-
-
-
-
         }
 
         [Fact]
@@ -217,7 +212,7 @@ namespace Dotmim.Sync.Tests
 
             var setup = new SyncSetup(new string[] { productCategoryTableName });
             setup.Tables[productCategoryTableName].Columns.AddRange(
-                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+                new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             // Counting product categories & products
             int productCategoryRowsCount = 0;
@@ -248,7 +243,7 @@ namespace Dotmim.Sync.Tests
             var setupV1 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
 
             setupV1.Tables[productCategoryTableName].Columns.AddRange(
-            new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
+            new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
 
@@ -470,7 +465,7 @@ namespace Dotmim.Sync.Tests
             agent.LocalOrchestrator.OnApplyChangesFailed(async acf =>
             {
                 // Check conflict is correctly set
-                var conflict = await acf.GetSyncConflictAsync(); 
+                var conflict = await acf.GetSyncConflictAsync();
                 var localRow = conflict.LocalRow;
                 var remoteRow = conflict.RemoteRow;
 
