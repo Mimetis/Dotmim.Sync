@@ -53,19 +53,22 @@ internal class Program
     {
 
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        serverProvider.UseBulkOperations = false;
+
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup("Address");
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup("ProductCategory");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
-        var options = new SyncOptions() { DisableConstraintsOnApplyChanges = true };
+        var options = new SyncOptions() {  };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -95,7 +98,74 @@ internal class Program
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        await ScenarioMultiplesFiltersErrorAsync();
+        await ScenarioForeignKeyOnSameTableErrorsAsync();
+    }
+
+
+    private static async Task ScenarioForeignKeyOnSameTableErrorsAsync()
+    {
+        var serverDbName = "PCServer";
+        var clientDbName1 = "PCClient";
+
+        await DBHelper.CreateDatabaseAsync(serverDbName, true);
+        await DBHelper.CreateDatabaseAsync(clientDbName1, true);
+
+        var script = @"CREATE TABLE [dbo].[ProductCategory](
+	                    [ProductCategoryID] [uniqueidentifier] NOT NULL,
+	                    [ParentProductCategoryID] [uniqueidentifier] NULL,
+	                    [Name] [nvarchar](50) NOT NULL,
+	                    [rowguid] [uniqueidentifier] ROWGUIDCOL  NULL,
+	                    [ModifiedDate] [datetime] NULL,
+                     CONSTRAINT [PK_ProductCategory_ProductCategoryID] PRIMARY KEY CLUSTERED ([ProductCategoryID] ASC));
+
+                    ALTER TABLE [dbo].[ProductCategory] WITH CHECK 
+                    ADD CONSTRAINT [FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID] 
+                    FOREIGN KEY([ParentProductCategoryID])
+                    REFERENCES [dbo].[ProductCategory] ([ProductCategoryID])
+                    
+                    ALTER TABLE [dbo].[ProductCategory] CHECK CONSTRAINT [FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID]
+
+                    INSERT [dbo].[ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('cfbda25c-df71-47a7-b81b-64ee161aa37c', NULL, N'Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));
+                    INSERT [dbo].[ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('ad364ade-264a-433c-b092-4fcbf3804e01', 'cfbda25c-df71-47a7-b81b-64ee161aa37c', N'Mountain Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));";
+
+        await DBHelper.ExecuteScriptAsync(serverDbName, script);
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName1))
+        {
+            UseBulkOperations = false
+        };
+
+        var setup = new SyncSetup("ProductCategory");
+
+        try
+        {
+            var agent = new SyncAgent(clientProvider, serverProvider);
+
+            agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(args.ErrorRow);
+                args.Resolution = ErrorResolution.ContinueOnError;
+                Console.ForegroundColor = ConsoleColor.Green;
+            });
+
+            var result = await agent.SynchronizeAsync(setup, progress);
+            Console.WriteLine(result);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
     }
 
 
@@ -166,8 +236,8 @@ internal class Program
                 Console.WriteLine(args.ErrorRow);
                 // We can do something here the failed row
                 // ....
-                // Then pass the resolution to Continue to prevent a fail 
-                args.Resolution = ErrorResolution.Continue;
+                // Then pass the resolution to Ignore to prevent a fail 
+                args.Resolution = ErrorResolution.ContinueOnError;
             });
 
             var emp1result = await emp1Agent.SynchronizeAsync(setup, emp1Params, progress);
@@ -178,9 +248,6 @@ internal class Program
         {
             Console.WriteLine(ex);
         }
-
-
-
     }
 
     private static async Task ScenarioConflictOnApplyChangesChangeResolutionAsync()
@@ -1083,6 +1150,7 @@ internal class Program
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
+        
         //var options = new SyncOptions();
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -1093,22 +1161,33 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(args.Exception.Message);
+            Console.WriteLine(args.ErrorRow);
+            Console.ForegroundColor = ConsoleColor.Green;
+            args.Resolution = ErrorResolution.RetryOneMoreTime;
+        });
+
         do
         {
             try
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup, progress: progress);
+                var s = await agent.SynchronizeAsync( setup, SyncType.Reinitialize, progress: progress);
                 Console.ResetColor();
                 Console.WriteLine(s);
             }
             catch (SyncException e)
             {
-                Console.WriteLine(e.ToString());
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
             }
             catch (Exception e)
             {
+                Console.ResetColor();
                 Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
             }
 

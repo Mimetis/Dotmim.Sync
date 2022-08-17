@@ -54,7 +54,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the number of sync errors
         /// </summary>
-        public int TotalSyncErrors { get; set; }
+        public int TotalChangesFailed => (this.ChangesAppliedOnServer?.TotalAppliedChangesFailed ?? 0) +
+            (this.ChangesAppliedOnClient?.TotalAppliedChangesFailed ?? 0);
 
 
         /// <summary>
@@ -106,17 +107,15 @@ namespace Dotmim.Sync
             {
                 var tsEnded = TimeSpan.FromTicks(CompleteTime.Ticks);
                 var tsStarted = TimeSpan.FromTicks(StartTime.Ticks);
-
                 var durationTs = tsEnded.Subtract(tsStarted);
-                var durationstr = $"{durationTs.Hours}:{durationTs.Minutes}:{durationTs.Seconds}.{durationTs.Milliseconds}";
 
                 return ($"Synchronization done. " + Environment.NewLine +
                         $"\tTotal changes  uploaded: {TotalChangesUploaded}" + Environment.NewLine +
                         $"\tTotal changes  downloaded: {TotalChangesDownloaded} " + Environment.NewLine +
                         $"\tTotal changes  applied: {TotalChangesApplied} " + Environment.NewLine +
+                        $"\tTotal changes  failed: {TotalChangesFailed}" + Environment.NewLine +
                         $"\tTotal resolved conflicts: {TotalResolvedConflicts}" + Environment.NewLine +
                         $"\tTotal duration :{durationTs:hh\\.mm\\:ss\\.fff} ");
-
             }
             return base.ToString();
         }

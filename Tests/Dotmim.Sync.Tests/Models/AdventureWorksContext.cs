@@ -471,6 +471,10 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.AttributeWithSpace)
                     .HasColumnName("Attribute With Space");
 
+                // Foreign Key
+                entity.HasOne(e => e.ParentProductCategory)
+                .WithMany(e => e.ProductCategories)
+                .HasForeignKey(e => e.ParentProductCategoryId);
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
@@ -855,14 +859,14 @@ namespace Dotmim.Sync.Tests.Models
                 new ProductCategory { ProductCategoryId = "_BIKES", Name = "Bikes" },
                 new ProductCategory { ProductCategoryId = "_COMPT", Name = "Components" },
                 new ProductCategory { ProductCategoryId = "_CLOTHE", Name = "Clothing" },
-                new ProductCategory { ProductCategoryId = "_ACCESS", Name = "Accessories" },
-                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes" },
-                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes" },
-                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames" },
-                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes" },
-                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars" },
-                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets" },
-                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes" }
+                new ProductCategory { ProductCategoryId = "_ACCESS",   Name = "Accessories" },
+                new ProductCategory { ProductCategoryId = "MOUNTB", ParentProductCategoryId = "_BIKES",  Name = "Mountain Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADB", ParentProductCategoryId = "_BIKES", Name = "Road Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADFR", ParentProductCategoryId = "_COMPT", Name = "Road Frames" },
+                new ProductCategory { ProductCategoryId = "TOURB", ParentProductCategoryId = "_BIKES", Name = "Touring Bikes" },
+                new ProductCategory { ProductCategoryId = "HANDLB", ParentProductCategoryId = "_COMPT", Name = "Handlebars" },
+                new ProductCategory { ProductCategoryId = "BRACK", ParentProductCategoryId = "_COMPT", Name = "Bottom Brackets" },
+                new ProductCategory { ProductCategoryId = "BRAKES", ParentProductCategoryId = "_COMPT", Name = "Brakes" }
 
             );
 
@@ -902,24 +906,6 @@ namespace Dotmim.Sync.Tests.Models
             var p3 = Guid.NewGuid();
 
             var products = new List<Product>();
-            //for (var i = 0; i < 2000; i++)
-            //{
-            //    products.Add(
-            //        new Product
-            //        {
-            //            ProductId = Guid.NewGuid(),
-            //            Name = $"Generated N° {i.ToString()}",
-            //            ProductNumber = $"FR-{i.ToString()}",
-            //            Color = "Black",
-            //            StandardCost = 1059.3100M,
-            //            ListPrice = 1431.5000M,
-            //            Size = "58",
-            //            Weight = 1016.04M,
-            //            ProductCategoryId = "ROADFR",
-            //            ProductModelId = 6
-            //        }
-            //    );
-            //}
 
             products.AddRange(new[] {
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Road Frame - Black, 58", ProductNumber = "FR-R92B-58", Color = "Black", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
@@ -1014,7 +1000,7 @@ namespace Dotmim.Sync.Tests.Models
                     );
 
 
-            var dettails = new System.Collections.Generic.List<PriceListDetail>();
+            var dettails = new List<PriceListDetail>();
             var generator = new Random((int)DateTime.Now.Ticks);
             //Add hollyday price list
             dettails.AddRange(products

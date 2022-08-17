@@ -416,7 +416,8 @@ namespace Dotmim.Sync
                 DatabaseChangesApplied serverChangesApplied;
                 ConflictResolutionPolicy serverResolutionPolicy;
 
-                (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = 
+                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-
     /// <summary>
     /// Raised as an argument when an apply is failing. Waiting from user for the conflict resolution
     /// </summary>
@@ -20,46 +19,15 @@ namespace Dotmim.Sync
         private DbSyncAdapter syncAdapter;
         private readonly SyncRow conflictRow;
         private SyncTable schemaChangesTable;
-        private ConflictResolution resolution;
 
         // used only internally
         internal SyncConflict conflict;
 
         /// <summary>
         /// Gets or Sets the action to be taken when resolving the conflict. 
-        /// If you choose MergeRow, you have to fill the FinalRow property
+        /// If you choose MergeRow, FinalRow will be merged in both sources
         /// </summary>
-        public ConflictResolution Resolution
-        {
-            get => this.resolution;
-            set
-            {
-                if (this.resolution != value)
-                {
-                    this.resolution = value;
-
-                    //if (this.resolution == ConflictResolution.MergeRow)
-                    //{
-                    //    if (this.conflict == null)
-                    //        this.conflict = this.GetSyncConflictAsync().GetAwaiter().GetResult();
-
-                    //    var finalRowArray = this.conflict.RemoteRow.ToArray();
-                    //    var finalTable = this.conflict.RemoteRow.SchemaTable.Clone();
-                    //    var finalSet = this.conflict.RemoteRow.SchemaTable.Schema.Clone(false);
-                    //    finalSet.Tables.Add(finalTable);
-                    //    this.FinalRow = new SyncRow(this.conflict.RemoteRow.SchemaTable, finalRowArray);
-                    //    finalTable.Rows.Add(this.FinalRow);
-                    //}
-                    //else if (this.FinalRow != null)
-                    //{
-                    //    var finalSet = this.FinalRow.SchemaTable.Schema;
-                    //    this.FinalRow.Clear();
-                    //    finalSet.Clear();
-                    //    finalSet.Dispose();
-                    //}
-                }
-            }
-        }
+        public ConflictResolution Resolution { get; set; }
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
@@ -74,13 +42,13 @@ namespace Dotmim.Sync
         public SyncRow FinalRow { get; set; }
 
 
+        /// <summary>
+        /// Get the conflict that occurs by selecting the local conflict row
+        /// </summary>
         public async Task<SyncConflict> GetSyncConflictAsync()
         {
             var (_, localRow) = await orchestrator.InternalGetConflictRowAsync(Context, syncAdapter, conflictRow, schemaChangesTable, this.Connection, this.Transaction).ConfigureAwait(false);
-
-            if (localRow != null)
-                this.conflict = orchestrator.InternalGetConflict(conflictRow, localRow);
-
+            this.conflict = orchestrator.InternalGetConflict(conflictRow, localRow);
             return conflict;
         }
 
@@ -91,7 +59,7 @@ namespace Dotmim.Sync
             this.syncAdapter = syncAdapter;
             this.conflictRow = conflictRow;
             this.schemaChangesTable = schemaChangesTable;
-            this.resolution = action;
+            this.Resolution = action;
             this.SenderScopeId = senderScopeId;
 
             var finalRowArray = new object[conflictRow.ToArray().Length];
@@ -105,15 +73,17 @@ namespace Dotmim.Sync
 
     }
 
+
     public class ApplyChangesErrorOccuredArgs : ProgressArgs
     {
-        public ApplyChangesErrorOccuredArgs(SyncContext context, SyncRow errorRow, SyncTable schemaChangesTable, DataRowState applyType, Exception exception, DbCommand command, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+        public ApplyChangesErrorOccuredArgs(SyncContext context, SyncRow errorRow,
+            SyncTable schemaChangesTable,
+            DataRowState applyType, Exception exception, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
             this.ErrorRow = errorRow;
             this.SchemaTable = schemaChangesTable;
             this.ApplyType = applyType;
             this.Exception = exception;
-            this.Command = command;
         }
 
         public SyncRow ErrorRow { get; }
@@ -121,14 +91,12 @@ namespace Dotmim.Sync
         public DataRowState ApplyType { get; }
         public Exception Exception { get; }
         public ErrorResolution Resolution { get; set; } = ErrorResolution.Throw;
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public override string Source => Connection.Database;
         public override string Message => $"[{Connection.Database}] Error: {Exception.Message}. Row:{ErrorRow}. ApplyType:{ApplyType}";
 
         public override int EventId => SyncEventsId.ApplyChangesErrorOccured.Id;
-
-        public DbCommand Command { get; }
     }
 
     public static partial class InterceptorsExtensions

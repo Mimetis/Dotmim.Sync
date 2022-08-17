@@ -21,7 +21,7 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)> 
+        internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
             InternalDeleteMetadatasAsync(
                     IEnumerable<IScopeInfo> scopeInfos, SyncContext context, long timestampLimit,
                     DbConnection connection, DbTransaction transaction,
@@ -31,7 +31,7 @@ namespace Dotmim.Sync
 
             var databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
-            await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfos, timestampLimit, 
+            await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfos, timestampLimit,
                                         connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // contains all tables already processed
@@ -101,13 +101,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update a metadata row
         /// </summary>
-        internal async Task<(SyncContext context, bool metadataUpdated)> InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        internal async Task<(SyncContext context, bool metadataUpdated, Exception exception)> InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             context.SyncStage = SyncStage.ChangesApplying;
 
             var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateMetadata, connection, transaction);
 
-            if (command == null) return (context, false);
+            if (command == null) return (context, false, null);
 
             // Set the parameters value from row
             syncAdapter.SetColumnParametersValues(command, row);
@@ -117,17 +117,26 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
-            var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            Exception exception = null;
+            int metadataUpdatedRowsCount = 0;
+            try
+            {
+                metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            // Check if we have a return value instead
-            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+                // Check if we have a return value instead
+                var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
 
-            if (syncRowCountParam != null)
-                metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
+                if (syncRowCountParam != null)
+                    metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
 
-            command.Dispose();
+                command.Dispose();
+            }
+            catch (Exception ex)
+            {
+                exception = ex;
+            }
 
-            return (context, metadataUpdatedRowsCount > 0);
+            return (context, metadataUpdatedRowsCount > 0, exception);
         }
 
 

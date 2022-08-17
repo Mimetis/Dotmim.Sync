@@ -23,6 +23,11 @@ namespace Dotmim.Sync.Enumerations
         RetryWithForceWrite,
 
         /// <summary>
+        /// Force the finale row to be applied locally
+        /// </summary>
+        Merge,
+
+        /// <summary>
         /// Force to rollback all the sync processus
         /// </summary>
         Rollback
