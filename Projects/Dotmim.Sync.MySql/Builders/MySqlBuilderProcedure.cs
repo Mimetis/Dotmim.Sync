@@ -277,8 +277,8 @@ namespace Dotmim.Sync.MySql.Builders
 
             var sqlCommand = new MySqlCommand();
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"TRUNCATE TABLE {tableName.Quoted().ToString()};");
-            stringBuilder.AppendLine($"TRUNCATE TABLE {trackingName.Quoted().ToString()};");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
             stringBuilder.AppendLine();
 
             sqlCommand.CommandText = stringBuilder.ToString();

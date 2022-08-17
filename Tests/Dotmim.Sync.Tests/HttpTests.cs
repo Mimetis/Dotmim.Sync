@@ -611,6 +611,10 @@ namespace Dotmim.Sync.Tests
             // inserted rows will be deleted 
             foreach (var client in Clients)
             {
+                // coz of ProductCategory Parent Id Foreign Key Constraints
+                // on Reset table in MySql
+                options.DisableConstraintsOnApplyChanges = true;
+
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
@@ -679,6 +683,10 @@ namespace Dotmim.Sync.Tests
             int download = 2;
             foreach (var client in Clients)
             {
+                // coz of ProductCategory Parent Id Foreign Key Constraints
+                // on Reset table in MySql
+                options.DisableConstraintsOnApplyChanges = true;
+
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 

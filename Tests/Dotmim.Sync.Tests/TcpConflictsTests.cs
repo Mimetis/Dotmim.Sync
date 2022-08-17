@@ -1272,6 +1272,10 @@ namespace Dotmim.Sync.Tests
 
             var setup = new SyncSetup(Tables);
 
+            // coz of ProductCategory Parent Id Foreign Key Constraints
+            // on Reset table in MySql
+            options.DisableConstraintsOnApplyChanges = true;
+
             // Execute a sync to initialize client and server schema 
             var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
