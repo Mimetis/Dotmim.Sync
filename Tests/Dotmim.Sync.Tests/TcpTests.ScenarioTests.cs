@@ -186,7 +186,7 @@ namespace Dotmim.Sync.Tests
             // Note we are not including the [Attribute With Space] column
             var setup = new SyncSetup(new string[] { productCategoryTableName });
             setup.Tables[productCategoryTableName].Columns.AddRange(
-                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+                "ProductCategoryId", "Name", "ParentProductCategoryId", "rowguid", "ModifiedDate");
 
             // Counting product categories & products
             int productCategoryRowsCount = 0;
@@ -217,7 +217,7 @@ namespace Dotmim.Sync.Tests
             var setupV1 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
 
             setupV1.Tables[productCategoryTableName].Columns.AddRange(
-            new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
+                "ProductCategoryId", "Name", "ParentProductCategoryId", "rowguid", "ModifiedDate", "Attribute With Space");
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
 

@@ -3809,6 +3809,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
+                options.DisableConstraintsOnApplyChanges = true;
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
