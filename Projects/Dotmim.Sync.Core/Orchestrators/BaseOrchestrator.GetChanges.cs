@@ -58,7 +58,7 @@ namespace Dotmim.Sync
             batchInfo.CreateDirectory();
 
             // Call interceptor
-            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchInfo.GetDirectoryFullPath(), this.Options.BatchSize, isNew, 
+            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchInfo.GetDirectoryFullPath(), this.Options.BatchSize, isNew,
                 fromLastTimestamp, toNewTimestamp, connection, transaction);
             await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
@@ -252,6 +252,8 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new DbCommandArgs(context, args.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+                args.Command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -391,6 +393,9 @@ namespace Dotmim.Sync
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
                 await this.InterceptAsync(new DbCommandArgs(context, args.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                args.Command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -431,7 +436,7 @@ namespace Dotmim.Sync
             return (context, changes);
         }
 
-       
+
 
         /// <summary>
         /// Generate an empty BatchInfo

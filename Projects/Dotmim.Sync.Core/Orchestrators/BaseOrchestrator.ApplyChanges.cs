@@ -131,7 +131,7 @@ namespace Dotmim.Sync
                 return context;
 
             context.SyncStage = SyncStage.ChangesApplying;
-            
+
             var setupTable = scopeInfo.Setup.Tables[schemaTable.TableName, schemaTable.SchemaName];
 
             if (setupTable == null)
@@ -248,6 +248,8 @@ namespace Dotmim.Sync
                         // get the correct pointer to the command from the interceptor in case user change the whole instance
                         command = batchArgs.Command;
 
+                        command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                         // execute the batch, through the provider
@@ -280,6 +282,8 @@ namespace Dotmim.Sync
                         // get the correct pointer to the command from the interceptor in case user change the whole instance
                         command = batchArgs.Command;
 
+                        command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+
                         // Set the parameters value from row 
                         syncAdapter.SetColumnParametersValues(command, batchArgs.SyncRows.First());
 
@@ -300,8 +304,6 @@ namespace Dotmim.Sync
                             appliedRowsTmp++;
                         else
                             conflictRows.Add(syncRow);
-
-
                     }
                 }
 
@@ -639,7 +641,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to get a source row
         /// </summary>
-        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter, 
+        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter,
                     SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository

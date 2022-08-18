@@ -59,6 +59,12 @@ namespace Dotmim.Sync
         public string TrackingTablesSuffix { get; set; }
 
         /// <summary>
+        /// Gets or Sets the sql commands timeout in the sync. 30 sec by default
+        /// </summary>
+        [DataMember(Name = "sqlcmdt", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        public int SqlCommandTimeout = 30;
+
+        /// <summary>
         /// Create a list of tables to be added to the sync process
         /// </summary>
         public SyncSetup(IEnumerable<string> tables) : this() => this.Tables.AddRange(tables);
@@ -108,7 +114,7 @@ namespace Dotmim.Sync
                 !string.Equals(this.TrackingTablesPrefix, otherSetup.TrackingTablesPrefix, sc) ||
                 !string.Equals(this.TrackingTablesSuffix, otherSetup.TrackingTablesSuffix, sc) ||
                 !string.Equals(this.TriggersPrefix, otherSetup.TriggersPrefix, sc) ||
-                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc)) 
+                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc))
                 return false;
 
             return true;
