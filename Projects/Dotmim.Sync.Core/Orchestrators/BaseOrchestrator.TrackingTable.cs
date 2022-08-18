@@ -290,6 +290,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.CommandTimeout = Options.SqlCommandTimeout;
+
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             await this.InterceptAsync(new TrackingTableCreatedArgs(context, tableBuilder.TableDescription, trackingTableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -330,6 +332,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.CommandTimeout = Options.SqlCommandTimeout;
+
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             await this.InterceptAsync(new TrackingTableRenamedArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -362,6 +366,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.CommandTimeout = Options.SqlCommandTimeout;
+
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
             await this.InterceptAsync(new TrackingTableDroppedArgs(context, tableBuilder.TableDescription, trackingTableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -384,14 +390,13 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, existsCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            existsCommand.CommandTimeout = Options.SqlCommandTimeout;
+
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;
             await runner.CommitAsync().ConfigureAwait(false);
             return (context, exists);
 
         }
-
-
-
     }
 }

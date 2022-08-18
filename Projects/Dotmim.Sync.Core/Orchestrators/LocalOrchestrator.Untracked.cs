@@ -87,6 +87,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            command.CommandTimeout = Options.SqlCommandTimeout;
+
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 

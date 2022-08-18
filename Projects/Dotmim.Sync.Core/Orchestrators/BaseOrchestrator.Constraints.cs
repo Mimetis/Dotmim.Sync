@@ -126,7 +126,7 @@ namespace Dotmim.Sync
 
             if (command == null) return context;
 
-            command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+            command.CommandTimeout = Options.SqlCommandTimeout;
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
@@ -145,7 +145,7 @@ namespace Dotmim.Sync
 
             if (command == null) return context;
 
-            command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+            command.CommandTimeout = Options.SqlCommandTimeout;
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
@@ -164,7 +164,7 @@ namespace Dotmim.Sync
 
             if (command != null)
             {
-                command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+                command.CommandTimeout = Options.SqlCommandTimeout;
 
                 await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);

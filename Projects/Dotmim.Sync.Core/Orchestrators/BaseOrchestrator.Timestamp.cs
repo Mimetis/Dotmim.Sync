@@ -61,6 +61,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            action.Command.CommandTimeout = Options.SqlCommandTimeout;
+
             long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
 
             var loadedArgs = await this.InterceptAsync(new LocalTimestampLoadedArgs(context, result, connection, transaction), progress, cancellationToken).ConfigureAwait(false);

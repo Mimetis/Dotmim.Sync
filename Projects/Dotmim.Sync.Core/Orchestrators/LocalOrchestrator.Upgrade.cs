@@ -440,6 +440,9 @@ namespace Dotmim.Sync
                     var command = runner.Connection.CreateCommand();
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
+
+                    command.CommandTimeout = Options.SqlCommandTimeout;
+
                     await command.ExecuteNonQueryAsync();
 
                     await this.InterceptAsync(new UpgradeProgressArgs(context, $"{scopeClientInfoTableName} primary keys updated on SQL Server", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -454,6 +457,9 @@ namespace Dotmim.Sync
                     var command = runner.Connection.CreateCommand();
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
+
+                    command.CommandTimeout = Options.SqlCommandTimeout;
+
                     await command.ExecuteNonQueryAsync();
                 }
                 if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.Sqlite.SqliteSyncProvider"))
@@ -482,6 +488,9 @@ namespace Dotmim.Sync
                     var command = runner.Connection.CreateCommand();
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
+
+                    command.CommandTimeout = Options.SqlCommandTimeout;
+
                     await command.ExecuteNonQueryAsync();
                 }
             }

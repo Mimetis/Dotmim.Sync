@@ -394,6 +394,9 @@ namespace Dotmim.Sync
                     var command = connection.CreateCommand();
                     command.CommandText = commandText;
                     command.Transaction = transaction;
+
+                    command.CommandTimeout = Options.SqlCommandTimeout;
+
                     await command.ExecuteNonQueryAsync();
                     await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on SQL Server", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 }
@@ -408,6 +411,9 @@ namespace Dotmim.Sync
                     var command = connection.CreateCommand();
                     command.CommandText = commandText;
                     command.Transaction = transaction;
+
+                    command.CommandTimeout = Options.SqlCommandTimeout;
+
                     await command.ExecuteNonQueryAsync();
                     await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on MySql", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 }
@@ -455,7 +461,10 @@ namespace Dotmim.Sync
                 var command = connection.CreateCommand();
                 command.CommandText = commandText;
                 command.Transaction = transaction;
+
+                command.CommandTimeout = Options.SqlCommandTimeout;
                 await command.ExecuteNonQueryAsync();
+
                 await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on SQL Server", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 
@@ -466,6 +475,9 @@ namespace Dotmim.Sync
                 var command = connection.CreateCommand();
                 command.CommandText = commandText;
                 command.Transaction = transaction;
+
+                command.CommandTimeout = Options.SqlCommandTimeout;
+
                 await command.ExecuteNonQueryAsync();
                 await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on MySql", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 

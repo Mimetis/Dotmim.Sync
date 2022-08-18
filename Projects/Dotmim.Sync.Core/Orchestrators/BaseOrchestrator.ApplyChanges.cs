@@ -246,11 +246,11 @@ namespace Dotmim.Sync
                             continue;
 
                         // get the correct pointer to the command from the interceptor in case user change the whole instance
-                        command = batchArgs.Command;
-
-                        command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
+                        command = batchArgs.Command;                        
 
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                        command.CommandTimeout = Options.SqlCommandTimeout;
 
                         // execute the batch, through the provider
                         await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, failedRows, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
@@ -282,8 +282,6 @@ namespace Dotmim.Sync
                         // get the correct pointer to the command from the interceptor in case user change the whole instance
                         command = batchArgs.Command;
 
-                        command.CommandTimeout = scopeInfo.Setup.SqlCommandTimeout;
-
                         // Set the parameters value from row 
                         syncAdapter.SetColumnParametersValues(command, batchArgs.SyncRows.First());
 
@@ -291,6 +289,8 @@ namespace Dotmim.Sync
                         syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
 
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                        command.CommandTimeout = Options.SqlCommandTimeout;
 
                         var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -658,6 +658,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
+            command.CommandTimeout = Options.SqlCommandTimeout;
+
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
             if (!dataReader.Read())
@@ -718,6 +720,8 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
+            command.CommandTimeout = Options.SqlCommandTimeout;
+
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
@@ -750,6 +754,8 @@ namespace Dotmim.Sync
             syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
+            command.CommandTimeout = Options.SqlCommandTimeout;
 
             var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
