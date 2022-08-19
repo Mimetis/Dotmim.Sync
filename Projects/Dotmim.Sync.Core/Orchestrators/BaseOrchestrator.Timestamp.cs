@@ -61,7 +61,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            action.Command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
 

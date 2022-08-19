@@ -275,7 +275,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, existsCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            existsCommand.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                existsCommand.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;
@@ -304,7 +308,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -346,7 +354,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -396,7 +408,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -438,7 +454,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            action.Command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 

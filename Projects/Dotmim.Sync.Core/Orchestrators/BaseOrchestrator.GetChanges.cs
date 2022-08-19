@@ -252,7 +252,11 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new DbCommandArgs(context, args.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                args.Command.CommandTimeout = Options.SqlCommandTimeout;
+                // Parametrized command timeout established if exist
+                if (Options.DbCommandTimeout.HasValue)
+                {
+                    args.Command.CommandTimeout = Options.DbCommandTimeout.Value;
+                }
 
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
@@ -394,7 +398,11 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new DbCommandArgs(context, args.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                command.CommandTimeout = Options.SqlCommandTimeout;
+                // Parametrized command timeout established if exist
+                if (Options.DbCommandTimeout.HasValue)
+                {
+                    command.CommandTimeout = Options.DbCommandTimeout.Value;
+                }
 
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);

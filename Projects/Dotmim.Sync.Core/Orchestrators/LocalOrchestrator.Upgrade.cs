@@ -441,7 +441,11 @@ namespace Dotmim.Sync
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
 
-                    command.CommandTimeout = Options.SqlCommandTimeout;
+                    // Parametrized command timeout established if exist
+                    if (Options.DbCommandTimeout.HasValue)
+                    {
+                        command.CommandTimeout = Options.DbCommandTimeout.Value;
+                    }
 
                     await command.ExecuteNonQueryAsync();
 
@@ -458,7 +462,11 @@ namespace Dotmim.Sync
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
 
-                    command.CommandTimeout = Options.SqlCommandTimeout;
+                    // Parametrized command timeout established if exist
+                    if (Options.DbCommandTimeout.HasValue)
+                    {
+                        command.CommandTimeout = Options.DbCommandTimeout.Value;
+                    }
 
                     await command.ExecuteNonQueryAsync();
                 }
@@ -489,7 +497,11 @@ namespace Dotmim.Sync
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
 
-                    command.CommandTimeout = Options.SqlCommandTimeout;
+                    // Parametrized command timeout established if exist
+                    if (Options.DbCommandTimeout.HasValue)
+                    {
+                        command.CommandTimeout = Options.DbCommandTimeout.Value;
+                    }
 
                     await command.ExecuteNonQueryAsync();
                 }

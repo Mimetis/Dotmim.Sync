@@ -65,7 +65,11 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                        command.CommandTimeout = Options.SqlCommandTimeout;
+                        // Parametrized command timeout established if exist
+                        if (Options.DbCommandTimeout.HasValue)
+                        {
+                            command.CommandTimeout = Options.DbCommandTimeout.Value;
+                        }
 
                         var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -119,7 +123,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 

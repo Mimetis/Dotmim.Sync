@@ -395,7 +395,11 @@ namespace Dotmim.Sync
                     command.CommandText = commandText;
                     command.Transaction = transaction;
 
-                    command.CommandTimeout = Options.SqlCommandTimeout;
+                    // Parametrized command timeout established if exist
+                    if (Options.DbCommandTimeout.HasValue)
+                    {
+                        command.CommandTimeout = Options.DbCommandTimeout.Value;
+                    }
 
                     await command.ExecuteNonQueryAsync();
                     await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on SQL Server", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -412,7 +416,11 @@ namespace Dotmim.Sync
                     command.CommandText = commandText;
                     command.Transaction = transaction;
 
-                    command.CommandTimeout = Options.SqlCommandTimeout;
+                    // Parametrized command timeout established if exist
+                    if (Options.DbCommandTimeout.HasValue)
+                    {
+                        command.CommandTimeout = Options.DbCommandTimeout.Value;
+                    }
 
                     await command.ExecuteNonQueryAsync();
                     await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on MySql", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -462,7 +470,12 @@ namespace Dotmim.Sync
                 command.CommandText = commandText;
                 command.Transaction = transaction;
 
-                command.CommandTimeout = Options.SqlCommandTimeout;
+                // Parametrized command timeout established if exist
+                if (Options.DbCommandTimeout.HasValue)
+                {
+                    command.CommandTimeout = Options.DbCommandTimeout.Value;
+                }
+
                 await command.ExecuteNonQueryAsync();
 
                 await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on SQL Server", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -476,7 +489,11 @@ namespace Dotmim.Sync
                 command.CommandText = commandText;
                 command.Transaction = transaction;
 
-                command.CommandTimeout = Options.SqlCommandTimeout;
+                // Parametrized command timeout established if exist
+                if (Options.DbCommandTimeout.HasValue)
+                {
+                    command.CommandTimeout = Options.DbCommandTimeout.Value;
+                }
 
                 await command.ExecuteNonQueryAsync();
                 await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on MySql", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);

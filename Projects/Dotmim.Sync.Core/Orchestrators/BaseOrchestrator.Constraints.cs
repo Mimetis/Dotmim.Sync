@@ -126,7 +126,11 @@ namespace Dotmim.Sync
 
             if (command == null) return context;
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
@@ -145,7 +149,11 @@ namespace Dotmim.Sync
 
             if (command == null) return context;
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
@@ -164,7 +172,11 @@ namespace Dotmim.Sync
 
             if (command != null)
             {
-                command.CommandTimeout = Options.SqlCommandTimeout;
+                // Parametrized command timeout established if exist
+                if (Options.DbCommandTimeout.HasValue)
+                {
+                    command.CommandTimeout = Options.DbCommandTimeout.Value;
+                }
 
                 await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);

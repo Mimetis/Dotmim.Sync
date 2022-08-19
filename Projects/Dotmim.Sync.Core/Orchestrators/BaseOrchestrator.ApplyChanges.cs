@@ -249,8 +249,12 @@ namespace Dotmim.Sync
                         command = batchArgs.Command;                        
 
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                        command.CommandTimeout = Options.SqlCommandTimeout;
+                        
+                        // Parametrized command timeout established if exist
+                        if (Options.DbCommandTimeout.HasValue)
+                        {
+                            command.CommandTimeout = Options.DbCommandTimeout.Value;
+                        }                        
 
                         // execute the batch, through the provider
                         await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, failedRows, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
@@ -290,7 +294,11 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                        command.CommandTimeout = Options.SqlCommandTimeout;
+                        // Parametrized command timeout established if exist
+                        if (Options.DbCommandTimeout.HasValue)
+                        {
+                            command.CommandTimeout = Options.DbCommandTimeout.Value;
+                        }
 
                         var rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -658,7 +666,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -720,7 +732,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             var rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -755,7 +771,11 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
 
-            command.CommandTimeout = Options.SqlCommandTimeout;
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             var rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
