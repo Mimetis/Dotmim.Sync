@@ -29,6 +29,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Dotmim.Sync.Builders;
+using Dotmim.Sync.Args;
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -70,10 +71,10 @@ internal class Program
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
 
-        
 
 
-        var options = new SyncOptions() {  };
+
+        var options = new SyncOptions() { };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -103,31 +104,74 @@ internal class Program
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        await ScenarioForeignKeyOnSameTableErrorsAsync();
+        await TestsSetupInheritance();
     }
 
     private static async Task TestsSetupInheritance()
     {
-
         // Creating one Setup
-        dynamic setup = new SyncSetup("ProductCategory");
+        // This Setup contains all tables without filters
+        // When provision, it will be called "default"
+        var setup = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
 
-        setup.Tables["ProductCategory"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
-        // Override default generation
-        setup.Tables["ProductCategory"].BulkDelete.CommandText = "ProductCategory_bulkdelete";
-        setup.Tables["ProductCategory"].BulkUpdate.CommandText = "ProductCategory_bulkupdate";
-        setup.Tables["ProductCategory"].Initialize.CommandText = "ProductCategory_initialize";
-        setup.Tables["ProductCategory"].GetChanges.CommandText = "ProductCategory_changes";
-        setup.Tables["ProductCategory"].Delete.CommandText = "ProductCategory_delete";
-        setup.Tables["ProductCategory"].Update.CommandText = "ProductCategory_update";
-        setup.Tables["ProductCategory"].Reset.CommandText = "ProductCategory_reset";
-        setup.Tables["ProductCategory"].SelectRow.CommandText = "ProductCategory_selectrow";
-        setup.Tables["ProductCategory"].DeleteMetadata.CommandText = "ProductCategory_deletemetadata";
+        // Provision this "default" scope
+        var serverScopeInfo = await remoteOrchestrator.ProvisionAsync("default", setup);
 
-        // Setting command type
-        setup.Tables["ProductCategory"].BulkDelete.CommandType = CommandType.StoredProcedure;
+        // Now, we are creating a new setup with a filter on ProductCategory and Product
+        var setup2 = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
+        setup2.Filters.Add("ProductCategory", "Name");
 
+        var productFilter = new SetupFilter("Product");
+        productFilter.AddParameter("Name", DbType.String);
+        productFilter.AddJoin(Join.Left, "ProductCategory").On("Product", "ProductCategoryID", "ProductCategory", "ProductCategoryID");
+        productFilter.AddWhere("Name", "ProductCategory", "Name");
+        setup2.Filters.Add(productFilter);
+
+        // Instead of Provisioning everything, we are 
+        // Provisionning the Stored procedures specific to filters and then save this new Scope
+        // Create a new ServerScopeInfo instance with schema and setup containing the filter
+        var schema2 = await remoteOrchestrator.GetSchemaAsync(setup2);
+        serverScopeInfo.Schema = schema2;
+        serverScopeInfo.Setup = setup2;
+        serverScopeInfo.Name = "filterproducts";
+
+        // Only generate the get changes with filters 
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "ProductCategory", default, DbStoredProcedureType.SelectChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "ProductCategory", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "Product", default, DbStoredProcedureType.SelectChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "Product", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
+
+        await remoteOrchestrator.SaveServerScopeInfoAsync(serverScopeInfo);
+
+        // Testing a new client
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        // Eeach time a command is called on remote side, 
+        // We are making a redirection to "default" stored procedures, except for filters specific stored proc
+        agent.RemoteOrchestrator.OnDbCommand(args =>
+        {
+            if (args.Command.CommandType == CommandType.StoredProcedure)
+            {
+                switch (args.CommandType)
+                {
+                    case DbCommandType.SelectInitializedChangesWithFilters:
+                    case DbCommandType.SelectChangesWithFilters:
+                        break;
+                    default:
+                        args.Command.CommandText = args.Command.CommandText.Replace("_filterproducts_", "_default_");
+                        break;
+                }
+                Console.WriteLine(args.Command.CommandText);
+            }
+        });
+
+        var p = new SyncParameters(("Name", "Bikes"));
+        var s = await agent.SynchronizeAsync("filterproducts", p);
 
     }
 
@@ -1178,7 +1222,7 @@ internal class Program
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
-        
+
         //var options = new SyncOptions();
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -1204,7 +1248,7 @@ internal class Program
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync( setup, SyncType.Reinitialize, progress: progress);
+                var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress: progress);
                 Console.ResetColor();
                 Console.WriteLine(s);
             }

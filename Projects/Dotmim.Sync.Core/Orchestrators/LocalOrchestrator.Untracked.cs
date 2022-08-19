@@ -85,7 +85,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, 0);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.UpdateUntrackedRows, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);

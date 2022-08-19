@@ -63,7 +63,7 @@ namespace Dotmim.Sync
                         // Set the special parameters for delete metadata
                         DbSyncAdapter.SetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
-                        await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.DeleteMetadata, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                         var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -115,7 +115,7 @@ namespace Dotmim.Sync
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.UpdateMetadata, connection, transaction)).ConfigureAwait(false);
 
             Exception exception = null;
             int metadataUpdatedRowsCount = 0;

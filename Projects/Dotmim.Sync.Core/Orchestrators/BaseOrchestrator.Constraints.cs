@@ -126,7 +126,7 @@ namespace Dotmim.Sync
 
             if (command == null) return context;
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.DisableConstraints, connection, transaction)).ConfigureAwait(false);
 
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -143,7 +143,7 @@ namespace Dotmim.Sync
 
             if (command == null) return context;
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.EnableConstraints, connection, transaction)).ConfigureAwait(false);
 
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
             command.Dispose();
@@ -160,7 +160,7 @@ namespace Dotmim.Sync
 
             if (command != null)
             {
-                await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+                await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.Reset, connection, transaction)).ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 command.Dispose();
             }

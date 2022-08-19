@@ -278,7 +278,7 @@ namespace Dotmim.Sync
             var changesSet = schema.Schema.Clone(false);
             var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
 
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 

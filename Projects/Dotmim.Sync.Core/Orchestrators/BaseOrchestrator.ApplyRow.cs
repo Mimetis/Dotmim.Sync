@@ -34,7 +34,7 @@ namespace Dotmim.Sync
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.DeleteRow, connection, transaction)).ConfigureAwait(false);
 
             Exception exception = null;
             int rowDeletedCount = 0;
@@ -74,7 +74,7 @@ namespace Dotmim.Sync
             // Set the special parameters for update
             syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.UpdateRow, connection, transaction)).ConfigureAwait(false);
 
             Exception exception = null;
             int rowUpdatedCount = 0;
