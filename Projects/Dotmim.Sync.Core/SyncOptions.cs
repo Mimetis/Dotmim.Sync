@@ -98,6 +98,10 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncProgressLevel ProgressLevel { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the sql commands timeout in the sync. 30 sec by default
+        /// </summary>
+        public int? DbCommandTimeout { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values

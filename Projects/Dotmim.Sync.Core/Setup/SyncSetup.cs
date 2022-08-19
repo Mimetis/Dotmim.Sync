@@ -108,7 +108,7 @@ namespace Dotmim.Sync
                 !string.Equals(this.TrackingTablesPrefix, otherSetup.TrackingTablesPrefix, sc) ||
                 !string.Equals(this.TrackingTablesSuffix, otherSetup.TrackingTablesSuffix, sc) ||
                 !string.Equals(this.TriggersPrefix, otherSetup.TriggersPrefix, sc) ||
-                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc)) 
+                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc))
                 return false;
 
             return true;

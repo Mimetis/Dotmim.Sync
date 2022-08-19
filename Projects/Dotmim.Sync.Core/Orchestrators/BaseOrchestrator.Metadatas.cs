@@ -65,6 +65,12 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+                        // Parametrized command timeout established if exist
+                        if (Options.DbCommandTimeout.HasValue)
+                        {
+                            command.CommandTimeout = Options.DbCommandTimeout.Value;
+                        }
+
                         var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                         // Check if we have a return value instead
@@ -116,6 +122,12 @@ namespace Dotmim.Sync
             syncAdapter.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
 
             await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             var metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
