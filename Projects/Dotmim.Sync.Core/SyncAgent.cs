@@ -49,25 +49,25 @@ namespace Dotmim.Sync
         public SyncOptions Options => this.LocalOrchestrator?.Options;
 
         /// <summary>
-        /// Shortcut to Apply changed failed if remote orchestrator supports it
+        /// Shortcut to Apply changed conflict occured if remote orchestrator supports it
         /// </summary>
-        public void OnApplyChangesFailed(Action<ApplyChangesFailedArgs> action)
+        public void OnApplyChangesConflictOccured(Action<ApplyChangesConflictOccuredArgs> action)
         {
             if (this.RemoteOrchestrator == null)
                 throw new InvalidRemoteOrchestratorException();
 
-            this.RemoteOrchestrator.OnApplyChangesFailed(action);
+            this.RemoteOrchestrator.OnApplyChangesConflictOccured(action);
         }
 
         /// <summary>
-        /// Shortcut to Apply changed failed if remote orchestrator supports it
+        /// Shortcut to Apply changed conflict occured if remote orchestrator supports it
         /// </summary>
-        public void OnApplyChangesFailed(Func<ApplyChangesFailedArgs, Task> action)
+        public void OnApplyChangesConflictOccured(Func<ApplyChangesConflictOccuredArgs, Task> action)
         {
             if (this.RemoteOrchestrator == null)
                 throw new InvalidRemoteOrchestratorException();
 
-            this.RemoteOrchestrator.OnApplyChangesFailed(action);
+            this.RemoteOrchestrator.OnApplyChangesConflictOccured(action);
         }
 
 

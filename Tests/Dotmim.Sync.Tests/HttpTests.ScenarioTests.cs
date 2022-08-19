@@ -436,7 +436,7 @@ namespace Dotmim.Sync.Tests
             {
                 var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
-                webServerAgent.RemoteOrchestrator.OnApplyChangesFailed(async acf =>
+                webServerAgent.RemoteOrchestrator.OnApplyChangesConflictOccured(async acf =>
                 {
                     // Check conflict is correctly set
                     var conflict = await acf.GetSyncConflictAsync();
@@ -462,7 +462,7 @@ namespace Dotmim.Sync.Tests
             // From client : Remote is server, Local is client
             // From here, we are going to let the client decides 
             // who is the winner of the conflict :
-            agent.LocalOrchestrator.OnApplyChangesFailed(async acf =>
+            agent.LocalOrchestrator.OnApplyChangesConflictOccured(async acf =>
             {
                 // Check conflict is correctly set
                 var conflict = await acf.GetSyncConflictAsync();

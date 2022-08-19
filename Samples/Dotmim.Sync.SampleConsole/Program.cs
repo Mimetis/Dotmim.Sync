@@ -28,6 +28,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Dotmim.Sync.Builders;
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -68,6 +69,10 @@ internal class Program
         var setup = new SyncSetup("ProductCategory");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
+
+        
+
+
         var options = new SyncOptions() {  };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
@@ -101,6 +106,30 @@ internal class Program
         await ScenarioForeignKeyOnSameTableErrorsAsync();
     }
 
+    private static async Task TestsSetupInheritance()
+    {
+
+        // Creating one Setup
+        dynamic setup = new SyncSetup("ProductCategory");
+
+        setup.Tables["ProductCategory"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
+
+        // Override default generation
+        setup.Tables["ProductCategory"].BulkDelete.CommandText = "ProductCategory_bulkdelete";
+        setup.Tables["ProductCategory"].BulkUpdate.CommandText = "ProductCategory_bulkupdate";
+        setup.Tables["ProductCategory"].Initialize.CommandText = "ProductCategory_initialize";
+        setup.Tables["ProductCategory"].GetChanges.CommandText = "ProductCategory_changes";
+        setup.Tables["ProductCategory"].Delete.CommandText = "ProductCategory_delete";
+        setup.Tables["ProductCategory"].Update.CommandText = "ProductCategory_update";
+        setup.Tables["ProductCategory"].Reset.CommandText = "ProductCategory_reset";
+        setup.Tables["ProductCategory"].SelectRow.CommandText = "ProductCategory_selectrow";
+        setup.Tables["ProductCategory"].DeleteMetadata.CommandText = "ProductCategory_deletemetadata";
+
+        // Setting command type
+        setup.Tables["ProductCategory"].BulkDelete.CommandType = CommandType.StoredProcedure;
+
+
+    }
 
     private static async Task ScenarioForeignKeyOnSameTableErrorsAsync()
     {
@@ -290,7 +319,7 @@ internal class Program
         await UpdateAllProductCategoryAsync(clientProvider1, "client");
 
 
-        agent.RemoteOrchestrator.OnApplyChangesFailed(async args =>
+        agent.RemoteOrchestrator.OnApplyChangesConflictOccured(async args =>
         {
             args.Resolution = ConflictResolution.ClientWins;
             var conflict = await args.GetSyncConflictAsync();
@@ -364,7 +393,6 @@ internal class Program
 
 
     }
-
 
 
     static async Task ScenarioPluginLogsAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)

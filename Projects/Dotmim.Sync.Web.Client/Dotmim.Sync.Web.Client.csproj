@@ -17,7 +17,7 @@
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
-		<Version>0.9.5</Version>
+		<Version>0.9.6</Version>
 		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>

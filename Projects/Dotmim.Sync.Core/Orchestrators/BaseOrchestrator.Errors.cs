@@ -37,55 +37,45 @@ namespace Dotmim.Sync
 
             TableConflictErrorApplied tableConflictError = new TableConflictErrorApplied();
 
-            if (errorOccuredArgs.Resolution == ErrorResolution.Throw)
+            switch (errorOccuredArgs.Resolution)
             {
-                tableConflictError.Exception = exception;
-                tableConflictError.HasBeenApplied = false;
-                tableConflictError.HasBeenResolved = false;
-                return (context, tableConflictError);
-            }
-            else if (errorOccuredArgs.Resolution == ErrorResolution.RetryOneMoreTime)
-            {
-                Exception operationException;
-                bool operationComplete;
+                case ErrorResolution.Throw:
+                    tableConflictError.Exception = exception;
+                    tableConflictError.HasBeenApplied = false;
+                    tableConflictError.HasBeenResolved = false;
+                    break;
+                case ErrorResolution.RetryOneMoreTime:
+                    {
+                        Exception operationException;
+                        bool operationComplete;
 
-                if (applyType == DataRowState.Deleted)
-                {
-                    (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(
-                        scopeInfo, context, syncAdapter, errorRow, lastTimestamp, senderScopeId, true, connection, transaction);
+                        if (applyType == DataRowState.Deleted)
+                            (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(
+                                scopeInfo, context, syncAdapter, errorRow, lastTimestamp, senderScopeId, true, connection, transaction);
+                        else
+                            (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(
+                                scopeInfo, context, syncAdapter, errorRow, lastTimestamp, senderScopeId, true, connection, transaction).ConfigureAwait(false);
 
-                    tableConflictError.Exception = operationException;
-                    tableConflictError.HasBeenApplied = operationComplete;
-                    tableConflictError.HasBeenResolved = operationException == null;
+                        tableConflictError.Exception = operationException;
+                        tableConflictError.HasBeenApplied = operationComplete;
+                        tableConflictError.HasBeenResolved = operationException == null;
+                        break;
+                    }
 
-                }
-                else
-                {
-                    (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(
-                        scopeInfo, context, syncAdapter, errorRow, lastTimestamp, senderScopeId, true, connection, transaction).ConfigureAwait(false);
-
-                    tableConflictError.Exception = operationException;
-                    tableConflictError.HasBeenApplied = operationComplete;
-                    tableConflictError.HasBeenResolved = operationException == null;
-                }
-
-                return (context, tableConflictError);
-            }
-            else if (errorOccuredArgs.Resolution == ErrorResolution.ContinueOnError)
-            {
-                tableConflictError.Exception = null;
-                tableConflictError.HasBeenApplied = false;
-                tableConflictError.HasBeenResolved = true;
-                return (context, tableConflictError);
-            }
-            else 
-            {
-                tableConflictError.Exception = null;
-                tableConflictError.HasBeenApplied = true;
-                tableConflictError.HasBeenResolved = true;
-                return (context, tableConflictError);
+                case ErrorResolution.ContinueOnError:
+                    tableConflictError.Exception = null;
+                    tableConflictError.HasBeenApplied = false;
+                    tableConflictError.HasBeenResolved = true;
+                    break;
+                case ErrorResolution.Resolved:
+                default:
+                    tableConflictError.Exception = null;
+                    tableConflictError.HasBeenApplied = true;
+                    tableConflictError.HasBeenResolved = true;
+                    break;
             }
 
+            return (context, tableConflictError);
         }
     }
 }

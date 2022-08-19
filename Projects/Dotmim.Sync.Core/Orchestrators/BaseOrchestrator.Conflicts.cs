@@ -171,7 +171,7 @@ namespace Dotmim.Sync
             var action = ApplyAction.Continue;
 
             // check the interceptor
-            var interceptors = this.interceptors.GetInterceptors<ApplyChangesFailedArgs>();
+            var interceptors = this.interceptors.GetInterceptors<ApplyChangesConflictOccuredArgs>();
 
             SyncRow finalRow = null;
             Guid? finalSenderScopeId = senderScopeId;
@@ -186,7 +186,7 @@ namespace Dotmim.Sync
             if (interceptors.Count > 0)
             {
                 // Interceptor
-                var arg = new ApplyChangesFailedArgs(context, this, syncAdapter, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
+                var arg = new ApplyChangesConflictOccuredArgs(context, this, syncAdapter, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
                 await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
                 resolution = arg.Resolution;

@@ -12,7 +12,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Raised as an argument when an apply is failing. Waiting from user for the conflict resolution
     /// </summary>
-    public class ApplyChangesFailedArgs : ProgressArgs
+    public class ApplyChangesConflictOccuredArgs : ProgressArgs
     {
 
         private BaseOrchestrator orchestrator;
@@ -52,7 +52,7 @@ namespace Dotmim.Sync
             return conflict;
         }
 
-        public ApplyChangesFailedArgs(SyncContext context, BaseOrchestrator orchestrator, DbSyncAdapter syncAdapter, SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
+        public ApplyChangesConflictOccuredArgs(SyncContext context, BaseOrchestrator orchestrator, DbSyncAdapter syncAdapter, SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.orchestrator = orchestrator;
@@ -103,14 +103,14 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Intercept the provider when an apply change is failing
+        /// Intercept the provider when a conflict is happening
         /// </summary>
-        public static Guid OnApplyChangesFailed(this BaseOrchestrator orchestrator, Action<ApplyChangesFailedArgs> action)
+        public static Guid OnApplyChangesConflictOccured(this BaseOrchestrator orchestrator, Action<ApplyChangesConflictOccuredArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
-        /// Intercept the provider when an apply change is failing
+        /// Intercept the provider when a conflict is happening
         /// </summary>
-        public static Guid OnApplyChangesFailed(this BaseOrchestrator orchestrator, Func<ApplyChangesFailedArgs, Task> action)
+        public static Guid OnApplyChangesConflictOccured(this BaseOrchestrator orchestrator, Func<ApplyChangesConflictOccuredArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>

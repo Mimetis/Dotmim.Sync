@@ -171,7 +171,8 @@ namespace Dotmim.Sync
                 if (isNew)
                     (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(clientScopeInfo, this.Options.BatchDirectory).ConfigureAwait(false);
                 else
-                    (context, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(clientScopeInfo, context, isNew, lastTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
+                    (context, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(clientScopeInfo, 
+                        context, isNew, lastTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                         this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
