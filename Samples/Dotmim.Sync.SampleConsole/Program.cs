@@ -109,10 +109,18 @@ internal class Program
 
     private static async Task TestsSetupInheritance()
     {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
         // Creating one Setup
         // This Setup contains all tables without filters
         // When provision, it will be called "default"
-        var setup = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
+        var setup = new SyncSetup("ProductCategory", "Product", "Address", 
+            "Customer", "CustomerAddress");
 
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
@@ -121,12 +129,14 @@ internal class Program
         var serverScopeInfo = await remoteOrchestrator.ProvisionAsync("default", setup);
 
         // Now, we are creating a new setup with a filter on ProductCategory and Product
-        var setup2 = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
+        var setup2 = new SyncSetup("ProductCategory", "Product", "Address", 
+            "Customer", "CustomerAddress");
         setup2.Filters.Add("ProductCategory", "Name");
 
         var productFilter = new SetupFilter("Product");
         productFilter.AddParameter("Name", DbType.String);
-        productFilter.AddJoin(Join.Left, "ProductCategory").On("Product", "ProductCategoryID", "ProductCategory", "ProductCategoryID");
+        productFilter.AddJoin(Join.Left, "ProductCategory")
+            .On("Product", "ProductCategoryID", "ProductCategory", "ProductCategoryID");
         productFilter.AddWhere("Name", "ProductCategory", "Name");
         setup2.Filters.Add(productFilter);
 
@@ -139,10 +149,15 @@ internal class Program
         serverScopeInfo.Name = "filterproducts";
 
         // Only generate the get changes with filters 
-        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "ProductCategory", default, DbStoredProcedureType.SelectChangesWithFilters, true);
-        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "ProductCategory", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
-        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "Product", default, DbStoredProcedureType.SelectChangesWithFilters, true);
-        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, "Product", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, 
+            "ProductCategory", default, DbStoredProcedureType.SelectChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, 
+            "ProductCategory", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
+        
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, 
+            "Product", default, DbStoredProcedureType.SelectChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo, 
+            "Product", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
 
         await remoteOrchestrator.SaveServerScopeInfoAsync(serverScopeInfo);
 
@@ -153,7 +168,7 @@ internal class Program
 
         // Eeach time a command is called on remote side, 
         // We are making a redirection to "default" stored procedures, except for filters specific stored proc
-        agent.RemoteOrchestrator.OnDbCommand(args =>
+        agent.RemoteOrchestrator.OnGetCommand(args =>
         {
             if (args.Command.CommandType == CommandType.StoredProcedure)
             {
@@ -171,7 +186,8 @@ internal class Program
         });
 
         var p = new SyncParameters(("Name", "Bikes"));
-        var s = await agent.SynchronizeAsync("filterproducts", p);
+        var s = await agent.SynchronizeAsync("filterproducts", p, progress: progress);
+        Console.WriteLine(s);
 
     }
 

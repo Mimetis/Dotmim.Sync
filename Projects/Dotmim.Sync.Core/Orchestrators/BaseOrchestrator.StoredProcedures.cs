@@ -173,8 +173,7 @@ namespace Dotmim.Sync
                     (context, hasBeenDropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Removing cached commands
-                var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
-                syncAdapter.RemoveCommands();
+                this.RemoveCommands();
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -214,8 +213,7 @@ namespace Dotmim.Sync
                 (context, hasDroppedAtLeastOneStoredProcedure) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Removing cached commands
-                var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
-                syncAdapter.RemoveCommands();
+                this.RemoveCommands();
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -252,7 +250,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
             await this.InterceptAsync(new StoredProcedureCreatedArgs(context, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -277,7 +275,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -297,7 +295,7 @@ namespace Dotmim.Sync
             if (existsCommand == null)
                 return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;

@@ -8,9 +8,37 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Args
 {
-    public class DbCommandArgs : ProgressArgs
+
+
+    public class GetCommandArgs : ProgressArgs
     {
-        public DbCommandArgs(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+        public GetCommandArgs(IScopeInfo scopeInfo, SyncContext context, DbCommand command, bool isBatch, SyncTable table, DbCommandType commandType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.ScopeInfo = scopeInfo;
+            this.Command = command;
+            this.IsBatch = isBatch;
+            this.Table = table;
+            this.CommandType = commandType;
+            this.Filter = filter;
+        }
+
+        public IScopeInfo ScopeInfo { get; }
+        public DbCommand Command { get; set; }
+        public bool IsBatch { get; set; }
+        public SyncTable Table { get; }
+        public DbCommandType CommandType { get; }
+        public SyncFilter Filter { get; }
+
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Sql;
+        public override string Source => Connection.Database;
+        public override string Message => $"[{Connection.Database}] Sql Statement:{Command.CommandText}.";
+
+    }
+
+    public class ExecuteCommandArgs : ProgressArgs
+    {
+        public ExecuteCommandArgs(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.Command = command;
@@ -26,19 +54,26 @@ namespace Dotmim.Sync.Args
         public DbCommand Command { get; }
         public DbCommandType CommandType { get; }
     }
+
     public static partial class InterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static Guid OnDbCommand(this BaseOrchestrator orchestrator, Action<DbCommandArgs> func)
+        public static Guid OnExecuteCommand(this BaseOrchestrator orchestrator, Action<ExecuteCommandArgs> func)
             => orchestrator.AddInterceptor(func);
         /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
         /// </summary>
-        public static Guid OnDbCommand(this BaseOrchestrator orchestrator, Func<DbCommandArgs, Task> func)
+        public static Guid OnExecuteCommand(this BaseOrchestrator orchestrator, Func<ExecuteCommandArgs, Task> func)
             => orchestrator.AddInterceptor(func);
 
-    }
+        /// <summary>
+        /// </summary>
+        public static Guid OnGetCommand(this BaseOrchestrator orchestrator, Action<GetCommandArgs> func)
+            => orchestrator.AddInterceptor(func);
 
+        /// <summary>
+        /// </summary>
+        public static Guid OnGetCommand(this BaseOrchestrator orchestrator, Func<GetCommandArgs, Task> func)
+            => orchestrator.AddInterceptor(func);
+    }
 }

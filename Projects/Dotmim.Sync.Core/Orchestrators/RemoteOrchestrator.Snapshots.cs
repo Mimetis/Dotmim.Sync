@@ -112,7 +112,7 @@ namespace Dotmim.Sync
                         // Create a Schema set without readonly columns, attached to memory changes
                         foreach (var table in serverScopeInfo.Schema.Tables)
                         {
-                            DbSyncAdapter.CreateChangesTable(serverScopeInfo.Schema.Tables[table.TableName, table.SchemaName], changesSet);
+                            CreateChangesTable(serverScopeInfo.Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
                             // Get all stats about this table
                             var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>

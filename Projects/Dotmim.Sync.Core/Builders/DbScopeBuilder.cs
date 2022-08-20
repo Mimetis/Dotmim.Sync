@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Builders
 
 
         // Internal commands cache
-        private ConcurrentDictionary<string, Lazy<SyncCommand>> commands = new();
+        private ConcurrentDictionary<string, Lazy<SyncPreparedCommand>> commands = new();
 
         /// <summary>
         /// Remove a Command from internal shared dictionary
@@ -117,9 +117,9 @@ namespace Dotmim.Sync.Builders
             command.Transaction = transaction;
 
             // Get a lazy command instance
-            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncCommand>(() =>
+            var lazyCommand = commands.GetOrAdd(commandKey, k => new Lazy<SyncPreparedCommand>(() =>
             {
-                var syncCommand = new SyncCommand(commandKey);
+                var syncCommand = new SyncPreparedCommand(commandKey);
                 return syncCommand;
             }));
 
@@ -133,7 +133,7 @@ namespace Dotmim.Sync.Builders
             // Adding this command as prepared
             lazyCommand.Value.IsPrepared = true;
 
-            commands.AddOrUpdate(commandKey, lazyCommand, (key, lc) => new Lazy<SyncCommand>(() => lc.Value));
+            commands.AddOrUpdate(commandKey, lazyCommand, (key, lc) => new Lazy<SyncPreparedCommand>(() => lc.Value));
 
             return command;
         }

@@ -118,7 +118,7 @@ namespace Dotmim.Sync.Web.Client
                         }
                         // Should have only one table
                         var table = getMoreChanges.Changes.Tables[0];
-                        var schemaTable = DbSyncAdapter.CreateChangesTable(serverScopeInfo.Schema.Tables[table.TableName, table.SchemaName]);
+                        var schemaTable = CreateChangesTable(serverScopeInfo.Schema.Tables[table.TableName, table.SchemaName]);
 
                         var fullPath = Path.Combine(batchDirectoryFullPath, bpi.FileName);
 

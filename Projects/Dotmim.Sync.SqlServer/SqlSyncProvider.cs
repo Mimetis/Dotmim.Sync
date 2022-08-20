@@ -6,6 +6,7 @@ using Dotmim.Sync.SqlServer.Scope;
 using System;
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace Dotmim.Sync.SqlServer
 {

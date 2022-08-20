@@ -206,14 +206,14 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                 return (context, default, default);
 
-            var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
+            var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction);
 
             if (selectIncrementalChangesCommand == null)
                 return (context, default, default);
 
             this.InternalSetSelectChangesCommonParameters(context, syncTable, excludintScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
 
-            var schemaChangesTable = DbSyncAdapter.CreateChangesTable(syncTable);
+            var schemaChangesTable = CreateChangesTable(syncTable);
 
             // numbers of batch files generated
             var batchIndex = 0;
@@ -250,7 +250,7 @@ namespace Dotmim.Sync
                 // open the file and write table header
                 await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
 
-                await this.InterceptAsync(new DbCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
@@ -374,12 +374,12 @@ namespace Dotmim.Sync
                     return;
 
                 // Get Command
-                var (command, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(context, syncTable, scopeInfo, isNew, connection, transaction);
+                var (command, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction);
 
                 if (command == null) return;
 
                 this.InternalSetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, fromLastTimestamp, command);
-
+                
                 // launch interceptor if any
                 var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
                 await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
@@ -390,7 +390,7 @@ namespace Dotmim.Sync
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
-                await this.InterceptAsync(new DbCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -455,13 +455,13 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        internal async Task<(DbCommand, DbCommandType)> InternalGetSelectChangesCommandAsync(SyncContext context, SyncTable syncTable, IScopeInfo scopeInfo, bool isNew, DbConnection connection, DbTransaction transaction)
+        internal async Task<(DbCommand, DbCommandType)> InternalGetSelectChangesCommandAsync(IScopeInfo scopeInfo, SyncContext context, 
+            SyncTable syncTable,  bool isNew, DbConnection connection, DbTransaction transaction)
         {
             DbCommandType dbCommandType;
 
             SyncFilter tableFilter = null;
 
-            var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
             // Check if we have parameters specified
 
@@ -482,7 +482,8 @@ namespace Dotmim.Sync
                 dbCommandType = DbCommandType.SelectChanges;
 
             // Get correct Select incremental changes command 
-            var (command, _) = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction, tableFilter);
+            var (command, _) = await this.GetCommandAsync(scopeInfo, context, syncTable, dbCommandType, tableFilter, 
+                connection, transaction, default, default).ConfigureAwait(false);
 
             return (command, dbCommandType);
         }
@@ -493,8 +494,8 @@ namespace Dotmim.Sync
         internal void InternalSetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
             // Set the parameters
-            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
+            SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+            SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
 
             // Check filters
             SyncFilter tableFilter = null;
@@ -518,7 +519,7 @@ namespace Dotmim.Sync
 
                 object val = parameter?.Value;
 
-                DbSyncAdapter.SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
+                SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
             }
 
         }

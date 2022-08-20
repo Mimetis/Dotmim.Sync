@@ -36,9 +36,7 @@ namespace Dotmim.Sync.MySql
             this.MySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup, scopeName);
 
         }
-        public override bool IsPrimaryKeyViolation(Exception Error) => false;
-        public override bool IsUniqueKeyViolation(Exception exception) => false;
-
+     
         public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null)
         {
             var command = new MySqlCommand();

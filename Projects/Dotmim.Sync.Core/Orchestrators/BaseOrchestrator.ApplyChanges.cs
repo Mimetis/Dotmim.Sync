@@ -51,8 +51,7 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables)
                     {
-                        var syncAdapter = this.GetSyncAdapter(table, scopeInfo);
-                        context = await this.InternalDisableConstraintsAsync(scopeInfo, context, syncAdapter, connection, transaction).ConfigureAwait(false);
+                        context = await this.InternalDisableConstraintsAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
                     }
                 }
 
@@ -63,8 +62,7 @@ namespace Dotmim.Sync
                 {
                     foreach (var table in schemaTables.Reverse())
                     {
-                        var syncAdapter = this.GetSyncAdapter(table, scopeInfo);
-                        context = await this.InternalResetTableAsync(scopeInfo, context, syncAdapter, connection, transaction).ConfigureAwait(false);
+                        context = await this.InternalResetTableAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
                     }
                 }
 
@@ -98,7 +96,7 @@ namespace Dotmim.Sync
                 // Re enable check constraints
                 if (message.DisableConstraintsOnApplyChanges)
                     foreach (var table in schemaTables)
-                        context = await this.InternalEnableConstraintsAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), connection, transaction).ConfigureAwait(false);
+                        context = await this.InternalEnableConstraintsAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
 
                 // Dispose data
                 message.BatchInfo.Clear(false);
@@ -161,14 +159,14 @@ namespace Dotmim.Sync
 
             // tmp sync table with only writable columns
             var changesSet = schemaTable.Schema.Clone(false);
-            var schemaChangesTable = DbSyncAdapter.CreateChangesTable(schemaTable, changesSet);
+            var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
 
             // get executioning adapter
             var syncAdapter = this.GetSyncAdapter(schemaChangesTable, scopeInfo);
-            syncAdapter.ApplyType = applyType;
 
             // Get command
-            var (command, isBatch) = await syncAdapter.GetCommandAsync(dbCommandType, connection, transaction);
+            var (command, isBatch) = await this.GetCommandAsync(scopeInfo, context, schemaChangesTable, dbCommandType, null, 
+                connection, transaction, cancellationToken, progress);
 
             if (command == null) return context;
 
@@ -255,7 +253,7 @@ namespace Dotmim.Sync
                         // get the correct pointer to the command from the interceptor in case user change the whole instance
                         command = batchArgs.Command;
 
-                        await this.InterceptAsync(new DbCommandArgs(context, command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                         // execute the batch, through the provider
                         await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
@@ -288,12 +286,12 @@ namespace Dotmim.Sync
                         command = batchArgs.Command;
 
                         // Set the parameters value from row 
-                        syncAdapter.SetColumnParametersValues(command, batchArgs.SyncRows.First());
+                        this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
 
                         // Set the special parameters for update
-                        syncAdapter.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
+                        this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
 
-                        await this.InterceptAsync(new DbCommandArgs(context, command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                         int rowAppliedCount = 0;
                         Exception errorException = null;
@@ -307,7 +305,7 @@ namespace Dotmim.Sync
                         }
 
                         // Check if we have a return value instead
-                        var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+                        var syncRowCountParam = GetParameter(command, "sync_row_count");
 
                         if (syncRowCountParam != null)
                             rowAppliedCount = (int)syncRowCountParam.Value;
@@ -330,7 +328,7 @@ namespace Dotmim.Sync
                 {
                     TableConflictErrorApplied tableConflictApplied;
                     (context, tableConflictApplied) =
-                        await this.HandleConflictAsync(scopeInfo, context, message.LocalScopeId, message.SenderScopeId, syncAdapter, conflictRow, schemaChangesTable,
+                        await this.HandleConflictAsync(scopeInfo, context, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
                                                        message.Policy, message.LastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (tableConflictApplied.Exception != null)
@@ -349,8 +347,8 @@ namespace Dotmim.Sync
                 {
                     TableConflictErrorApplied tableErrorApplied;
                     (context, tableErrorApplied) = await this.HandleErrorAsync(scopeInfo, context, errorRow.SyncRow, applyType,
-                                                    schemaChangesTable, errorRow.Exception,
-                                                    syncAdapter, message.SenderScopeId, message.LastTimestamp,
+                                                    schemaChangesTable, errorRow.Exception, 
+                                                    message.SenderScopeId, message.LastTimestamp,
                                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
 

@@ -101,7 +101,7 @@ namespace Dotmim.Sync.Web.Client
                 foreach (var bpi in clientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
                     // Get the updatable schema for the only table contained in the batchpartinfo
-                    var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[bpi.Tables[0].TableName, bpi.Tables[0].SchemaName]);
+                    var schemaTable = CreateChangesTable(schema.Tables[bpi.Tables[0].TableName, bpi.Tables[0].SchemaName]);
 
                     // Generate the ContainerSet containing rows to send to the user
                     var containerSet = new ContainerSet();
@@ -241,7 +241,7 @@ namespace Dotmim.Sync.Web.Client
 
                         // Should have only one table
                         var table = getMoreChanges.Changes.Tables[0];
-                        var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName]);
+                        var schemaTable = CreateChangesTable(schema.Tables[table.TableName, table.SchemaName]);
 
                         var fullPath = Path.Combine(serverBatchInfo.GetDirectoryFullPath(), bpi.FileName);
 

@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<(SyncContext context, TableConflictErrorApplied tableConflictApplied)>
             HandleConflictAsync(IScopeInfo scopeInfo, SyncContext context,
-                                Guid localScopeId, Guid senderScopeId, DbSyncAdapter syncAdapter, SyncRow conflictRow, 
+                                Guid localScopeId, Guid senderScopeId, SyncRow conflictRow, 
                                 SyncTable schemaChangesTable,
                                 ConflictResolutionPolicy policy, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
@@ -49,7 +49,7 @@ namespace Dotmim.Sync
             }
 
             (context, conflictApplyAction, conflictType, finalRow, nullableSenderScopeId) =
-                 await this.GetConflictActionAsync(scopeInfo, context, localScopeId, syncAdapter, conflictRow, schemaChangesTable,
+                 await this.GetConflictActionAsync(scopeInfo, context, localScopeId, conflictRow, schemaChangesTable,
                 policy, senderScopeId, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Conflict rollbacked by user
@@ -70,7 +70,7 @@ namespace Dotmim.Sync
                 Exception exception;
 
                 (context, isUpdated, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
-                    syncAdapter, finalRow, lastTimestamp, null, true, connection, transaction).ConfigureAwait(false);
+                    finalRow, schemaChangesTable, lastTimestamp, null, true, connection, transaction).ConfigureAwait(false);
 
                 if (!isUpdated && exception == null)
                     exception = new Exception("Can't update the merged row.");
@@ -104,7 +104,7 @@ namespace Dotmim.Sync
                     case ConflictType.RemoteExistsLocalIsDeleted:
                     case ConflictType.UniqueKeyConstraint:
                         (context, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
-                            syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
+                            conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
                         tableConflictApplied.HasBeenApplied = operationComplete;
                         tableConflictApplied.HasBeenResolved = operationComplete;
                         tableConflictApplied.Exception = exception;
@@ -112,7 +112,8 @@ namespace Dotmim.Sync
 
                     // Conflict, but both have delete the row, so just update the metadata to the right winner
                     case ConflictType.RemoteIsDeletedLocalIsDeleted:
-                        (context, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context, syncAdapter, conflictRow, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
+                        (context, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context, 
+                            conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
                         tableConflictApplied.HasBeenApplied = false;
                         tableConflictApplied.HasBeenResolved = operationComplete;
                         tableConflictApplied.Exception = exception;
@@ -129,12 +130,14 @@ namespace Dotmim.Sync
                     // The remote has delete the row, and local has insert or update it
                     // So delete the local row
                     case ConflictType.RemoteIsDeletedLocalExists:
-                        (context, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context, syncAdapter, conflictRow, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
+                        (context, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context, 
+                            conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
 
                         // Conflict, but both have delete the row, so just update the metadata to the right winner
                         if (!operationComplete && exception == null)
                         {
-                            (context, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context, syncAdapter, conflictRow, nullableSenderScopeId, true, connection, transaction);
+                            (context, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
+                                conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction);
                             tableConflictApplied.HasBeenApplied = false;
                             tableConflictApplied.HasBeenResolved = operationComplete;
                             tableConflictApplied.Exception = exception;
@@ -159,7 +162,7 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<(SyncContext context, ApplyAction applyAction, ConflictType conflictType,
             SyncRow finalRow, Guid? finalSenderScopeId)>
-            GetConflictActionAsync(IScopeInfo scopeInfo, SyncContext context, Guid localScopeId, DbSyncAdapter syncAdapter, SyncRow conflictRow,
+            GetConflictActionAsync(IScopeInfo scopeInfo, SyncContext context, Guid localScopeId, SyncRow conflictRow,
             SyncTable schemaChangesTable, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -186,7 +189,7 @@ namespace Dotmim.Sync
             if (interceptors.Count > 0)
             {
                 // Interceptor
-                var arg = new ApplyChangesConflictOccuredArgs(context, this, syncAdapter, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
+                var arg = new ApplyChangesConflictOccuredArgs(scopeInfo, context, this, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
                 await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
                 resolution = arg.Resolution;
@@ -263,22 +266,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to get a source row
         /// </summary>
-        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(SyncContext context, DbSyncAdapter syncAdapter,
-                    SyncRow primaryKeyRow, SyncTable schema, DbConnection connection, DbTransaction transaction)
+        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(IScopeInfo scopeInfo, SyncContext context, 
+            SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository
-            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.SelectRow, connection, transaction);
+            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.SelectRow, null, 
+                connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, null);
 
             // set the primary keys columns as parameters
-            syncAdapter.SetColumnParametersValues(command, primaryKeyRow);
+            this.SetColumnParametersValues(command, primaryKeyRow);
 
             // Create a select table based on the schema in parameter + scope columns
-            var changesSet = schema.Schema.Clone(false);
-            var selectTable = DbSyncAdapter.CreateChangesTable(schema, changesSet);
+            var changesSet = schemaTable.Schema.Clone(false);
+            var selectTable = CreateChangesTable(schemaTable, changesSet);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
 
             using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 

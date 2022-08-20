@@ -14,7 +14,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class ApplyChangesConflictOccuredArgs : ProgressArgs
     {
-
+        private readonly IScopeInfo scopeInfo;
         private BaseOrchestrator orchestrator;
         private DbSyncAdapter syncAdapter;
         private readonly SyncRow conflictRow;
@@ -47,16 +47,17 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task<SyncConflict> GetSyncConflictAsync()
         {
-            var (_, localRow) = await orchestrator.InternalGetConflictRowAsync(Context, syncAdapter, conflictRow, schemaChangesTable, this.Connection, this.Transaction).ConfigureAwait(false);
+            var (_, localRow) = await orchestrator.InternalGetConflictRowAsync(scopeInfo, Context, schemaChangesTable, conflictRow, this.Connection, this.Transaction).ConfigureAwait(false);
             this.conflict = orchestrator.InternalGetConflict(conflictRow, localRow);
             return conflict;
         }
 
-        public ApplyChangesConflictOccuredArgs(SyncContext context, BaseOrchestrator orchestrator, DbSyncAdapter syncAdapter, SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
+        public ApplyChangesConflictOccuredArgs(IScopeInfo scopeInfo, SyncContext context, BaseOrchestrator orchestrator, 
+            SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
+            this.scopeInfo = scopeInfo;
             this.orchestrator = orchestrator;
-            this.syncAdapter = syncAdapter;
             this.conflictRow = conflictRow;
             this.schemaChangesTable = schemaChangesTable;
             this.Resolution = action;

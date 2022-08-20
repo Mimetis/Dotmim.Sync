@@ -154,7 +154,7 @@ namespace Dotmim.Sync
             // Disable check constraints
             if (this.Options.DisableConstraintsOnApplyChanges)
                 foreach (var table in schemaTables.Reverse())
-                    await this.InternalDisableConstraintsAsync(scopeInfo, context, this.GetSyncAdapter(table, scopeInfo), runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
 
             // Checking if we have to deprovision tables
@@ -173,8 +173,7 @@ namespace Dotmim.Sync
                     (context, _) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Removing cached commands
-                    var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
-                    syncAdapter.RemoveCommands();
+                    this.RemoveCommands();
                 }
 
                 if (provision.HasFlag(SyncProvision.Triggers))

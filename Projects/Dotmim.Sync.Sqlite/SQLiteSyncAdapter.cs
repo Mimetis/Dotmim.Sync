@@ -22,10 +22,7 @@ namespace Dotmim.Sync.Sqlite
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
 
-        public override bool IsPrimaryKeyViolation(Exception Error)
-        {
-            return false;
-        }
+       
 
         public override (DbCommand, bool) GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
@@ -268,10 +265,5 @@ namespace Dotmim.Sync.Sqlite
 
         public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null) 
             => throw new NotImplementedException();
-
-        public override bool IsUniqueKeyViolation(Exception exception)
-        {
-            return false;
-        }
     }
 }

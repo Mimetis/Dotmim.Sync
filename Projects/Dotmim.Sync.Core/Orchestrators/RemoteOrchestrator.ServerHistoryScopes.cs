@@ -121,13 +121,13 @@ namespace Dotmim.Sync
 
             if (existsCommand == null) return (context, false);
 
-            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", scopeName);
-            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_Id", scopeId);
+            SetParameterValue(existsCommand, "sync_scope_name", scopeName);
+            SetParameterValue(existsCommand, "sync_scope_Id", scopeId);
 
             if (existsCommand == null)
                 return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;
@@ -146,10 +146,10 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", scopeId);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", context.ScopeName);
+            SetParameterValue(command, "sync_scope_id", scopeId);
+            SetParameterValue(command, "sync_scope_name", context.ScopeName);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -182,7 +182,7 @@ namespace Dotmim.Sync
 
             var serverHistoriesScopes = new List<ServerHistoryScopeInfo>();
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -245,7 +245,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return default;
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -263,12 +263,12 @@ namespace Dotmim.Sync
 
         private DbCommand InternalSetSaveServerHistoryScopeParameters(ServerHistoryScopeInfo serverHistoryScopeInfo, DbCommand command)
         {
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", serverHistoryScopeInfo.Id.ToString());
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", serverHistoryScopeInfo.Name);
-            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_timestamp", serverHistoryScopeInfo.LastSyncTimestamp);
-            DbSyncAdapter.SetParameterValue(command, "scope_last_sync", serverHistoryScopeInfo.LastSync.HasValue ? (object)serverHistoryScopeInfo.LastSync.Value : DBNull.Value);
-            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_duration", serverHistoryScopeInfo.LastSyncDuration);
-            DbSyncAdapter.SetParameterValue(command, "scope_properties", serverHistoryScopeInfo.Properties);
+            SetParameterValue(command, "sync_scope_id", serverHistoryScopeInfo.Id.ToString());
+            SetParameterValue(command, "sync_scope_name", serverHistoryScopeInfo.Name);
+            SetParameterValue(command, "scope_last_sync_timestamp", serverHistoryScopeInfo.LastSyncTimestamp);
+            SetParameterValue(command, "scope_last_sync", serverHistoryScopeInfo.LastSync.HasValue ? (object)serverHistoryScopeInfo.LastSync.Value : DBNull.Value);
+            SetParameterValue(command, "scope_last_sync_duration", serverHistoryScopeInfo.LastSyncDuration);
+            SetParameterValue(command, "scope_properties", serverHistoryScopeInfo.Properties);
 
             return command;
         }

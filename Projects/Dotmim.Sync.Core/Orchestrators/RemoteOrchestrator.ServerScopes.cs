@@ -186,12 +186,12 @@ namespace Dotmim.Sync
 
             if (existsCommand == null) return (context, false);
 
-            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
+            SetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
 
             if (existsCommand == null)
                 return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;
@@ -294,7 +294,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", context.ScopeName);
+            SetParameterValue(command, "sync_scope_name", context.ScopeName);
 
             var action = new ServerScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
@@ -302,7 +302,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, null);
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -338,7 +338,7 @@ namespace Dotmim.Sync
 
             var serverScopes = new List<ServerScopeInfo>();
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -363,11 +363,11 @@ namespace Dotmim.Sync
             var serializedSchema = JsonConvert.SerializeObject(serverScopeInfo.Schema);
             var serializedSetup = JsonConvert.SerializeObject(serverScopeInfo.Setup);
 
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", serverScopeInfo.Name);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_schema", serverScopeInfo.Schema == null ? DBNull.Value : serializedSchema);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_setup", serverScopeInfo.Setup == null ? DBNull.Value : serializedSetup);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_version", serverScopeInfo.Version);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_last_clean_timestamp", serverScopeInfo.LastCleanupTimestamp);
+            SetParameterValue(command, "sync_scope_name", serverScopeInfo.Name);
+            SetParameterValue(command, "sync_scope_schema", serverScopeInfo.Schema == null ? DBNull.Value : serializedSchema);
+            SetParameterValue(command, "sync_scope_setup", serverScopeInfo.Setup == null ? DBNull.Value : serializedSetup);
+            SetParameterValue(command, "sync_scope_version", serverScopeInfo.Version);
+            SetParameterValue(command, "sync_scope_last_clean_timestamp", serverScopeInfo.LastCleanupTimestamp);
 
             return command;
         }
@@ -413,7 +413,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return default;
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -452,7 +452,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return default;
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 

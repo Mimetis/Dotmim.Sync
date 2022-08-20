@@ -160,7 +160,7 @@ namespace Dotmim.Sync.Web.Server
                     && sessionCache.ClientBatchInfo.SanitizedSchema != null && sessionCache.ClientBatchInfo.SanitizedSchema.Tables.Count == 0
                     && schema != null && schema.Tables.Count > 0)
                     foreach (var table in schema.Tables)
-                        DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], sessionCache.ClientBatchInfo.SanitizedSchema);
+                        BaseOrchestrator.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], sessionCache.ClientBatchInfo.SanitizedSchema);
 
                 //// action from user if available
                 //action?.Invoke(this);
@@ -621,7 +621,7 @@ namespace Dotmim.Sync.Web.Server
                 // we have only one table here
                 var localSerializer = new LocalJsonSerializer();
                 var containerTable = httpMessage.Changes.Tables[0];
-                var schemaTable = DbSyncAdapter.CreateChangesTable(serverScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
+                var schemaTable = BaseOrchestrator.CreateChangesTable(serverScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
                 var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, localSerializer.Extension);
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
@@ -801,7 +801,7 @@ namespace Dotmim.Sync.Web.Server
             var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
 
             // Get the updatable schema for the only table contained in the batchpartinfo
-            var schemaTable = DbSyncAdapter.CreateChangesTable(serverScopeInfo.Schema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName]);
+            var schemaTable = BaseOrchestrator.CreateChangesTable(serverScopeInfo.Schema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName]);
 
             // Generate the ContainerSet containing rows to send to the user
             var containerSet = new ContainerSet();

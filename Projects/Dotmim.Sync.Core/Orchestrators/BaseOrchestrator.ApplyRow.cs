@@ -22,19 +22,21 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a delete on a row. if forceWrite, force the delete
         /// </summary>
-        private async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyDeleteAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        private async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyDeleteAsync(
+            IScopeInfo scopeInfo, SyncContext context, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.DeleteRow, connection, transaction);
+            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.DeleteRow, null,
+                connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);
 
             // Set the parameters value from row
-            syncAdapter.SetColumnParametersValues(command, row);
+            this.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
-            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
+            this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.DeleteRow, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteRow, connection, transaction)).ConfigureAwait(false);
 
             Exception exception = null;
             int rowDeletedCount = 0;
@@ -44,7 +46,7 @@ namespace Dotmim.Sync
                 rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = GetParameter(command, "sync_row_count");
 
                 if (syncRowCountParam != null)
                     rowDeletedCount = (int)syncRowCountParam.Value;
@@ -62,19 +64,21 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, force the update
         /// </summary>
-        private async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyUpdateAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, SyncRow row, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        private async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyUpdateAsync(
+            IScopeInfo scopeInfo, SyncContext context, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateRow, connection, transaction);
+            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.UpdateRow, null,
+                connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);
 
             // Set the parameters value from row
-            syncAdapter.SetColumnParametersValues(command, row);
+            this.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
-            syncAdapter.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
+            this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.UpdateRow, connection, transaction)).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateRow, connection, transaction)).ConfigureAwait(false);
 
             Exception exception = null;
             int rowUpdatedCount = 0;
@@ -83,7 +87,7 @@ namespace Dotmim.Sync
                 rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = GetParameter(command, "sync_row_count");
 
                 if (syncRowCountParam != null)
                     rowUpdatedCount = (int)syncRowCountParam.Value;

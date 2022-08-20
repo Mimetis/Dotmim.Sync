@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<(SyncContext context, TableConflictErrorApplied tableConflictError)>
             HandleErrorAsync(IScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, DataRowState applyType,
-                                SyncTable schemaChangesTable, Exception exception, DbSyncAdapter syncAdapter,
+                                SyncTable schemaChangesTable, Exception exception,
                                 Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -51,10 +51,10 @@ namespace Dotmim.Sync
 
                         if (applyType == DataRowState.Deleted)
                             (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(
-                                scopeInfo, context, syncAdapter, errorRow, lastTimestamp, senderScopeId, true, connection, transaction);
+                                scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true, connection, transaction);
                         else
                             (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(
-                                scopeInfo, context, syncAdapter, errorRow, lastTimestamp, senderScopeId, true, connection, transaction).ConfigureAwait(false);
+                                scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true, connection, transaction).ConfigureAwait(false);
 
                         tableConflictError.Exception = operationException;
                         tableConflictError.HasBeenApplied = operationComplete;

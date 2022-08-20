@@ -321,30 +321,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        /// <summary>
-        /// Check if an exception is a primary key exception
-        /// </summary>
-        public override bool IsPrimaryKeyViolation(Exception exception)
-        {
-            if (exception is SqlException error && error.Number == 2627)
-                return true;
-
-            return false;
-        }
-
-
-        public override bool IsUniqueKeyViolation(Exception exception)
-        {
-            if (exception is SqlException error && error.Number == 2627)
-                return true;
-
-            return false;
-        }
-
+       
         public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqlCommand();
-            bool isBatch = false;
+            bool isBatch;
             switch (nameType)
             {
                 case DbCommandType.SelectChanges:

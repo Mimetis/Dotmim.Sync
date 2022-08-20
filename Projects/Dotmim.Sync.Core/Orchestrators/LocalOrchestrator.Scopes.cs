@@ -268,12 +268,12 @@ namespace Dotmim.Sync
 
             if (existsCommand == null) return (context, false);
 
-            DbSyncAdapter.SetParameterValue(existsCommand, "sync_scope_name", scopeName);
+            SetParameterValue(existsCommand, "sync_scope_name", scopeName);
 
             if (existsCommand == null)
                 return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;
@@ -292,7 +292,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", context.ScopeName);
+            SetParameterValue(command, "sync_scope_name", context.ScopeName);
 
             var action = new ClientScopeInfoLoadingArgs(context, context.ScopeName, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
@@ -300,7 +300,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, null);
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -340,7 +340,7 @@ namespace Dotmim.Sync
 
             var clientScopes = new List<ClientScopeInfo>();
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -388,7 +388,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, null);
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -428,7 +428,7 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, false);
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
@@ -441,23 +441,23 @@ namespace Dotmim.Sync
 
         private DbCommand InternalSetSaveClientScopeInfoParameters(ClientScopeInfo clientScopeInfo, DbCommand command)
         {
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", clientScopeInfo.Id.ToString());
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", clientScopeInfo.Name);
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_schema", clientScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(clientScopeInfo.Schema));
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_setup", clientScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(clientScopeInfo.Setup));
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_version", clientScopeInfo.Version);
-            DbSyncAdapter.SetParameterValue(command, "scope_last_sync", clientScopeInfo.LastSync.HasValue ? (object)clientScopeInfo.LastSync.Value : DBNull.Value);
-            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_timestamp", clientScopeInfo.LastSyncTimestamp);
-            DbSyncAdapter.SetParameterValue(command, "scope_last_server_sync_timestamp", clientScopeInfo.LastServerSyncTimestamp);
-            DbSyncAdapter.SetParameterValue(command, "scope_last_sync_duration", clientScopeInfo.LastSyncDuration);
+            SetParameterValue(command, "sync_scope_id", clientScopeInfo.Id.ToString());
+            SetParameterValue(command, "sync_scope_name", clientScopeInfo.Name);
+            SetParameterValue(command, "sync_scope_schema", clientScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(clientScopeInfo.Schema));
+            SetParameterValue(command, "sync_scope_setup", clientScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(clientScopeInfo.Setup));
+            SetParameterValue(command, "sync_scope_version", clientScopeInfo.Version);
+            SetParameterValue(command, "scope_last_sync", clientScopeInfo.LastSync.HasValue ? (object)clientScopeInfo.LastSync.Value : DBNull.Value);
+            SetParameterValue(command, "scope_last_sync_timestamp", clientScopeInfo.LastSyncTimestamp);
+            SetParameterValue(command, "scope_last_server_sync_timestamp", clientScopeInfo.LastServerSyncTimestamp);
+            SetParameterValue(command, "scope_last_sync_duration", clientScopeInfo.LastSyncDuration);
 
             return command;
         }
 
         private DbCommand InternalSetDeleteClientScopeInfoParameters(ClientScopeInfo clientScopeInfo, DbCommand command)
         {
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_id", clientScopeInfo.Id.ToString());
-            DbSyncAdapter.SetParameterValue(command, "sync_scope_name", clientScopeInfo.Name);
+            SetParameterValue(command, "sync_scope_id", clientScopeInfo.Id.ToString());
+            SetParameterValue(command, "sync_scope_name", clientScopeInfo.Name);
 
             return command;
         }

@@ -41,9 +41,8 @@ namespace Dotmim.Sync
                 // Update untracked rows
                 foreach (var table in clientScopeInfo.Schema.Tables)
                 {
-                    var syncAdapter = this.GetSyncAdapter(table, clientScopeInfo);
                     long updates = 0L;
-                    (context, updates) = await this.InternalUpdateUntrackedRowsAsync(clientScopeInfo, context, syncAdapter, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, updates) = await this.InternalUpdateUntrackedRowsAsync(clientScopeInfo, context, table, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                     totalUpdates += updates;
                 }
 
@@ -64,14 +63,14 @@ namespace Dotmim.Sync
             => this.UpdateUntrackedRowsAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken);
 
 
-
         /// <summary>
         /// Internal update untracked rows routine
         /// </summary>
-        internal async Task<(SyncContext context, int updated)> InternalUpdateUntrackedRowsAsync(IScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal async Task<(SyncContext context, int updated)> InternalUpdateUntrackedRowsAsync(IScopeInfo scopeInfo, SyncContext context,
+            SyncTable schemaTable, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get table builder
-            var tableBuilder = this.GetTableBuilder(syncAdapter.TableDescription, scopeInfo);
+            var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
             // Check if tracking table exists
             bool trackingTableExists;
@@ -81,17 +80,18 @@ namespace Dotmim.Sync
                 throw new MissingTrackingTableException(tableBuilder.TableDescription.GetFullName());
 
             // Get correct Select incremental changes command 
-            var (command, _) = await syncAdapter.GetCommandAsync(DbCommandType.UpdateUntrackedRows, connection, transaction);
+            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.UpdateUntrackedRows, null,
+                        connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (command == null) return (context, 0);
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, DbCommandType.UpdateUntrackedRows, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateUntrackedRows, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = DbSyncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;
