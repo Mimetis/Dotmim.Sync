@@ -29,15 +29,13 @@ namespace Dotmim.Sync
             {
                 SyncOperation syncOperation = SyncOperation.Normal;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var operationArgs = new OperationArgs(context, serverScopeInfo, clientScopeInfo, runner.Connection, runner.Transaction);
 
                 await this.InterceptAsync(operationArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 syncOperation = operationArgs.Operation;
-
-                await runner.CommitAsync().ConfigureAwait(false);
 
                 return (context, syncOperation);
             }

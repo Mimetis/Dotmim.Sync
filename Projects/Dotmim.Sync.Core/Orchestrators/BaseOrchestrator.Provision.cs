@@ -131,7 +131,7 @@ namespace Dotmim.Sync
             if (scopeInfo.Setup == null || scopeInfo.Setup.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
                 throw new MissingTablesException(scopeInfo.Name);
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo.Setup, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 

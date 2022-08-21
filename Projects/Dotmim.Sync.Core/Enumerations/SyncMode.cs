@@ -10,7 +10,7 @@ namespace Dotmim.Sync.Enumerations
     /// </summary>
     public enum SyncMode
     {
-        Reading,
-        Writing,
+        NoTransaction,
+        WithTransaction,
     }
 }

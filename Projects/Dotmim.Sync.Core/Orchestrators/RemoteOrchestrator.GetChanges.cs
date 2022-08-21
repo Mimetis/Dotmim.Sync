@@ -36,7 +36,7 @@ namespace Dotmim.Sync
             try
             {
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Before getting changes, be sure we have a remote schema available
                 ServerScopeInfo serverScopeInfo;
@@ -93,7 +93,7 @@ namespace Dotmim.Sync
             try
             {
 
-                await using var runner0 = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner0 = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ServerScopeInfo serverScopeInfo;
                 (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(context, clientScope.Setup, false, runner0.Connection, runner0.Transaction, runner0.CancellationToken, runner0.Progress).ConfigureAwait(false);
@@ -104,7 +104,7 @@ namespace Dotmim.Sync
                 if (serverScopeInfo.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
