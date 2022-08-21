@@ -27,7 +27,7 @@ namespace Dotmim.Sync
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            context.SyncStage = SyncStage.ChangesApplying;
+            context.SyncStage = SyncStage.MetadataCleaning;
 
             var databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 

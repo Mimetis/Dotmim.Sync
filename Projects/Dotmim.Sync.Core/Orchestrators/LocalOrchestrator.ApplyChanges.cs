@@ -45,12 +45,11 @@ namespace Dotmim.Sync
 
                 DatabaseChangesApplied clientChangesApplied;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 context.SyncWay = SyncWay.Download;
 
                 // Call apply changes on provider
-                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(clientScopeInfo, context, applyChanges, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(clientScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -58,6 +57,8 @@ namespace Dotmim.Sync
                 // check if we need to delete metadatas
                 if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastTimestamp.HasValue)
                 {
+                    await using var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                     List<ClientScopeInfo> allScopes;
                     (context, allScopes) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
@@ -69,6 +70,8 @@ namespace Dotmim.Sync
 
                         (context, _) = await this.InternalDeleteMetadatasAsync(allScopes, context, minLastTimeStamp, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
                 }
 
                 // now the sync is complete, remember the time
@@ -82,9 +85,11 @@ namespace Dotmim.Sync
                 clientScopeInfo.LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks;
 
                 // Write scopes locally
-                (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner2 = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
+                (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner2.Connection, runner2.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await runner2.CommitAsync().ConfigureAwait(false);
+
 
                 return (context, clientChangesApplied, clientScopeInfo);
             }

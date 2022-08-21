@@ -27,38 +27,31 @@ namespace Dotmim.Sync
                 BatchInfo serverBatchInfo = null;
                 IScopeInfo serverClientScopeInfo = null;
 
-                // Create two transactions
-                // First one to commit changes
-                // Second one to get changes now that everything is commited
-                await using (var runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
-                {
-                    //Direction set to Upload
-                    context.SyncWay = SyncWay.Upload;
+                //Direction set to Upload
+                context.SyncWay = SyncWay.Upload;
 
+
+                await using (var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                {
                     // Getting server scope assumes we have already created the schema on server
                     // Scope name is the scope name coming from client
                     // Since server can have multiples scopes
                     (context, serverClientScopeInfo) = await this.InternalLoadServerScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    // Should we ?
-                    if (serverClientScopeInfo == null || serverClientScopeInfo.Schema == null)
-                        throw new MissingRemoteOrchestratorSchemaException();
-
-                    // Deserialiaze schema
-                    var schema = serverClientScopeInfo.Schema;
-
-                    // Create message containing everything we need to apply on server side
-                    var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
-                                    this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo);
-
-                    // Call provider to apply changes
-                    (context, clientChangesApplied) = await this.InternalApplyChangesAsync(serverClientScopeInfo, context, applyChanges, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    await this.InterceptAsync(new TransactionCommitArgs(context, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                    // commit first transaction
-                    await runner.CommitAsync().ConfigureAwait(false);
                 }
+                // Should we ?
+                if (serverClientScopeInfo == null || serverClientScopeInfo.Schema == null)
+                    throw new MissingRemoteOrchestratorSchemaException();
+
+                // Deserialiaze schema
+                var schema = serverClientScopeInfo.Schema;
+
+                // Create message containing everything we need to apply on server side
+                var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
+                                this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo);
+
+                // Call provider to apply changes
+                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(serverClientScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await using (var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
@@ -99,9 +92,6 @@ namespace Dotmim.Sync
 
                     // Write scopes locally
                     await this.InternalSaveServerHistoryScopeAsync(scopeHistory, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    // Commit second transaction for getting changes
-                    await this.InterceptAsync(new TransactionCommitArgs(context, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
                 }

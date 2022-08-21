@@ -55,26 +55,23 @@ internal class Program
     {
 
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        serverProvider.UseBulkOperations = false;
+        serverProvider.UseBulkOperations = true;
 
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        clientProvider.UseBulkOperations = false;
+        clientProvider.UseBulkOperations = true;
+
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
         //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup("ProductCategory");
+        var setup = new SyncSetup("ProductCategory", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
-
-
-
-
-        var options = new SyncOptions() { };
+        var options = new SyncOptions() {  TransactionMode = TransactionMode.PerBatch};
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -102,9 +99,9 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        await TestsSetupInheritance();
+        //await TestsSetupInheritance();
     }
 
     private static async Task TestsSetupInheritance()
@@ -1243,11 +1240,14 @@ internal class Program
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
         });
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        agent.LocalOrchestrator.OnTransactionCommit(args => Console.WriteLine($"Transaction commit on local orchestrator. {args.Context.SyncStage}."));
+        agent.RemoteOrchestrator.OnTransactionCommit(args => Console.WriteLine($"Transaction commit on remote orchestrator. {args.Context.SyncStage}."));
 
         agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
         {
@@ -1264,7 +1264,7 @@ internal class Program
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress: progress);
+                var s = await agent.SynchronizeAsync(setup, progress: progress);
                 Console.ResetColor();
                 Console.WriteLine(s);
             }
@@ -1278,8 +1278,6 @@ internal class Program
                 Console.ResetColor();
                 Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
             }
-
-
             Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 

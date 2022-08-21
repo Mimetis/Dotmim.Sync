@@ -39,83 +39,147 @@ namespace Dotmim.Sync
             // Check if we have some data available
             var hasChanges = message.BatchInfo.HasData();
 
-            // if we have changes or if we are in re init mode
-            if (hasChanges || context.SyncType != SyncType.Normal)
+            // Connection & Transaction runner
+            DbConnectionRunner runner = null;
+
+            try
             {
-                var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
 
-                // Disable check constraints
-                // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
-                // Report this disabling constraints brefore opening a transaction
-                if (message.DisableConstraintsOnApplyChanges)
+                // Transaction mode
+                if (Options.TransactionMode == TransactionMode.AllOrNothing)
+                    runner = await this.GetConnectionAsync(context, SyncMode.Writing, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // if we have changes or if we are in re init mode
+                if (hasChanges || context.SyncType != SyncType.Normal)
                 {
-                    foreach (var table in schemaTables)
+                    var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+
+                    // Disable check constraints
+                    // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
+                    // Report this disabling constraints brefore opening a transaction
+                    if (message.DisableConstraintsOnApplyChanges)
                     {
-                        context = await this.InternalDisableConstraintsAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
+                        foreach (var table in schemaTables)
+                        {
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing)
+                                runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.Writing : SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            context = await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing && runner != null)
+                                await runner.CommitAsync().ConfigureAwait(false);
+                        }
                     }
+
+                    // -----------------------------------------------------
+                    // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server, then check if we don't have already applied a snapshot)
+                    // -----------------------------------------------------
+                    if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
+                    {
+                        foreach (var table in schemaTables.Reverse())
+                        {
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing)
+                                runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.Writing : SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            context = await this.InternalResetTableAsync(scopeInfo, context, table, runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing && runner != null)
+                                await runner.CommitAsync().ConfigureAwait(false);
+                        }
+                    }
+
+                    // Trying to change order (from deletes-upserts to upserts-deletes)
+                    // see https://github.com/Mimetis/Dotmim.Sync/discussions/453#discussioncomment-380530
+
+                    // -----------------------------------------------------
+                    // 1) Applying Inserts and Updates. Apply in table order
+                    // -----------------------------------------------------
+                    if (hasChanges)
+                    {
+                        foreach (var table in schemaTables)
+                        {
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing)
+                                runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.Writing : SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message,
+                                runner.Connection, runner.Transaction, DataRowState.Modified, changesApplied,
+                                runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing && runner != null)
+                                await runner.CommitAsync().ConfigureAwait(false);
+
+                        }
+                    }
+
+                    // -----------------------------------------------------
+                    // 2) Applying Deletes. Do not apply deletes if we are in a new database
+                    // -----------------------------------------------------
+                    if (!message.IsNew && hasChanges)
+                    {
+                        foreach (var table in schemaTables.Reverse())
+                        {
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing)
+                                runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.Writing : SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message,
+                                runner.Connection, runner.Transaction, DataRowState.Deleted, changesApplied,
+                                runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing && runner != null)
+                                await runner.CommitAsync().ConfigureAwait(false);
+                        }
+                    }
+
+                    // Re enable check constraints
+                    if (message.DisableConstraintsOnApplyChanges)
+                        foreach (var table in schemaTables)
+                        {
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing)
+                                runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.Writing : SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            context = await this.InternalEnableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                            if (Options.TransactionMode != TransactionMode.AllOrNothing && runner != null)
+                                await runner.CommitAsync().ConfigureAwait(false);
+                        }
+
+                    // Dispose data
+                    message.BatchInfo.Clear(false);
+
+                    if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
+                        await runner.CommitAsync().ConfigureAwait(false);
+
                 }
 
-                // -----------------------------------------------------
-                // 0) Check if we are in a reinit mode (Check also SyncWay to be sure we don't reset tables on server, then check if we don't have already applied a snapshot)
-                // -----------------------------------------------------
-                if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
-                {
-                    foreach (var table in schemaTables.Reverse())
-                    {
-                        context = await this.InternalResetTableAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
-                    }
-                }
+                // Before cleaning, check if we are not applying changes from a snapshotdirectory
+                var cleanFolder = message.CleanFolder;
 
-                // Trying to change order (from deletes-upserts to upserts-deletes)
-                // see https://github.com/Mimetis/Dotmim.Sync/discussions/453#discussioncomment-380530
+                if (cleanFolder)
+                    cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, message.BatchInfo, cancellationToken, progress).ConfigureAwait(false);
 
-                // -----------------------------------------------------
-                // 1) Applying Inserts and Updates. Apply in table order
-                // -----------------------------------------------------
-                if (hasChanges)
-                {
-                    foreach (var table in schemaTables)
-                    {
-                        context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, connection, transaction,
-                            DataRowState.Modified, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                    }
-                }
+                // clear the changes because we don't need them anymore
+                message.BatchInfo.Clear(cleanFolder);
 
-                // -----------------------------------------------------
-                // 2) Applying Deletes. Do not apply deletes if we are in a new database
-                // -----------------------------------------------------
-                if (!message.IsNew && hasChanges)
-                {
-                    foreach (var table in schemaTables.Reverse())
-                    {
-                        context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, connection, transaction,
-                            DataRowState.Deleted, changesApplied, cancellationToken, progress).ConfigureAwait(false);
-                    }
-                }
+                // if no changes, no runner. 
+                // Just get one for event raising
+                if (runner == null)
+                    runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Re enable check constraints
-                if (message.DisableConstraintsOnApplyChanges)
-                    foreach (var table in schemaTables)
-                        context = await this.InternalEnableConstraintsAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
+                var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, runner.Connection, runner.Transaction);
+                await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                // Dispose data
-                message.BatchInfo.Clear(false);
+                return (context, changesApplied);
             }
-
-            // Before cleaning, check if we are not applying changes from a snapshotdirectory
-            var cleanFolder = message.CleanFolder;
-
-            if (cleanFolder)
-                cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, message.BatchInfo, cancellationToken, progress).ConfigureAwait(false);
-
-            // clear the changes because we don't need them anymore
-            message.BatchInfo.Clear(cleanFolder);
-
-            var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, changesApplied, connection, transaction);
-            await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-            return (context, changesApplied);
-
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                if (runner != null)
+                    runner.Dispose();
+            }
         }
 
         /// <summary>
@@ -165,7 +229,7 @@ namespace Dotmim.Sync
             var syncAdapter = this.GetSyncAdapter(schemaChangesTable, scopeInfo);
 
             // Get command
-            var (command, isBatch) = await this.GetCommandAsync(scopeInfo, context, schemaChangesTable, dbCommandType, null, 
+            var (command, isBatch) = await this.GetCommandAsync(scopeInfo, context, schemaChangesTable, dbCommandType, null,
                 connection, transaction, cancellationToken, progress);
 
             if (command == null) return context;
@@ -347,7 +411,7 @@ namespace Dotmim.Sync
                 {
                     TableConflictErrorApplied tableErrorApplied;
                     (context, tableErrorApplied) = await this.HandleErrorAsync(scopeInfo, context, errorRow.SyncRow, applyType,
-                                                    schemaChangesTable, errorRow.Exception, 
+                                                    schemaChangesTable, errorRow.Exception,
                                                     message.SenderScopeId, message.LastTimestamp,
                                                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
