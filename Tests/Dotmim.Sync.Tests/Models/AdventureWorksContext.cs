@@ -856,17 +856,17 @@ namespace Dotmim.Sync.Tests.Models
             );
 
             modelBuilder.Entity<ProductCategory>().HasData(
-                new ProductCategory { ProductCategoryId = "_BIKES", Name = "Bikes" },
-                new ProductCategory { ProductCategoryId = "_COMPT", Name = "Components" },
-                new ProductCategory { ProductCategoryId = "_CLOTHE", Name = "Clothing" },
-                new ProductCategory { ProductCategoryId = "_ACCESS",   Name = "Accessories" },
-                new ProductCategory { ProductCategoryId = "MOUNTB", ParentProductCategoryId = "_BIKES",  Name = "Mountain Bikes" },
-                new ProductCategory { ProductCategoryId = "ROADB", ParentProductCategoryId = "_BIKES", Name = "Road Bikes" },
-                new ProductCategory { ProductCategoryId = "ROADFR", ParentProductCategoryId = "_COMPT", Name = "Road Frames" },
-                new ProductCategory { ProductCategoryId = "TOURB", ParentProductCategoryId = "_BIKES", Name = "Touring Bikes" },
-                new ProductCategory { ProductCategoryId = "HANDLB", ParentProductCategoryId = "_COMPT", Name = "Handlebars" },
-                new ProductCategory { ProductCategoryId = "BRACK", ParentProductCategoryId = "_COMPT", Name = "Bottom Brackets" },
-                new ProductCategory { ProductCategoryId = "BRAKES", ParentProductCategoryId = "_COMPT", Name = "Brakes" }
+                new ProductCategory { ProductCategoryId = "A_BIKES", Name = "Bikes" },
+                new ProductCategory { ProductCategoryId = "A_COMPT", Name = "Components" },
+                new ProductCategory { ProductCategoryId = "A_CLOTHE", Name = "Clothing" },
+                new ProductCategory { ProductCategoryId = "A_ACCESS",   Name = "Accessories" },
+                new ProductCategory { ProductCategoryId = "MOUNTB", ParentProductCategoryId = "A_BIKES",  Name = "Mountain Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADB", ParentProductCategoryId = "A_BIKES", Name = "Road Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADFR", ParentProductCategoryId = "A_COMPT", Name = "Road Frames" },
+                new ProductCategory { ProductCategoryId = "TOURB", ParentProductCategoryId = "A_BIKES", Name = "Touring Bikes" },
+                new ProductCategory { ProductCategoryId = "HANDLB", ParentProductCategoryId = "A_COMPT", Name = "Handlebars" },
+                new ProductCategory { ProductCategoryId = "BRACK", ParentProductCategoryId = "A_COMPT", Name = "Bottom Brackets" },
+                new ProductCategory { ProductCategoryId = "BRAKES", ParentProductCategoryId = "A_COMPT", Name = "Brakes" }
 
             );
 
@@ -992,11 +992,11 @@ namespace Dotmim.Sync.Tests.Models
             });
 
             modelBuilder.Entity<PriceListCategory>()
-                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_BIKES" }
-                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_BIKES", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_COMPT", }
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "A_BIKES" }
+                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "A_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "A_BIKES", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "A_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "A_COMPT", }
                     );
 
 
@@ -1008,7 +1008,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "_BIKES",
+                    PriceCategoryId = "A_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1018,11 +1018,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "_CLOTHE")
+                .Where(p => p.ProductCategoryId == "A_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "_CLOTHE",
+                    PriceCategoryId = "A_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1037,7 +1037,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "_BIKES",
+                    PriceCategoryId = "A_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
@@ -1046,11 +1046,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "_CLOTHE")
+                .Where(p => p.ProductCategoryId == "A_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "_CLOTHE",
+                    PriceCategoryId = "A_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,

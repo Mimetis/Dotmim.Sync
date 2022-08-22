@@ -328,21 +328,21 @@ namespace Dotmim.Sync
 
                         int rowAppliedCount = 0;
                         Exception errorException = null;
-
+                        DbParameter syncRowCountParam = null;
                         try
                         {
                             rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                            // Check if we have a return value instead
+                            syncRowCountParam = GetParameter(command, "sync_row_count");
+
+                            if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
+                                rowAppliedCount = (int)syncRowCountParam.Value;
                         }
                         catch (Exception ex)
                         {
                             errorException = ex;
                         }
-
-                        // Check if we have a return value instead
-                        var syncRowCountParam = GetParameter(command, "sync_row_count");
-
-                        if (syncRowCountParam != null)
-                            rowAppliedCount = (int)syncRowCountParam.Value;
 
                         if (rowAppliedCount > 0)
                             appliedRows++;
