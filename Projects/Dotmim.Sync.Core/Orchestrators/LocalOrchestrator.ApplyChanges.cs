@@ -53,10 +53,15 @@ namespace Dotmim.Sync
 
                 // Transaction mode
                 if (Options.TransactionMode == TransactionMode.AllOrNothing)
+                {
                     runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    // affect connection and transaction to reaffect later on save scope
+                    connection = runner.Connection;
+                    transaction = runner.Transaction;
+                }
 
                 // Call apply changes on provider
-                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(clientScopeInfo, context, applyChanges, runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(clientScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
