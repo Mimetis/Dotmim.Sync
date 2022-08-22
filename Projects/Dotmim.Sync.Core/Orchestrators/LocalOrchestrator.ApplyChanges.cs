@@ -29,6 +29,8 @@ namespace Dotmim.Sync
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, bool snapshotApplied, DatabaseChangesSelected allChangesSelected,
                               DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+            // Connection & Transaction runner
+            DbConnectionRunner runner = null;
 
             try
             {
@@ -48,8 +50,6 @@ namespace Dotmim.Sync
 
                 context.SyncWay = SyncWay.Download;
 
-                // Connection & Transaction runner
-                DbConnectionRunner runner = null;
 
                 // Transaction mode
                 if (Options.TransactionMode == TransactionMode.AllOrNothing)
@@ -64,19 +64,20 @@ namespace Dotmim.Sync
                 // check if we need to delete metadatas
                 if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastTimestamp.HasValue)
                 {
-                    runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    List<ClientScopeInfo> allScopes;
-                    (context, allScopes) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    if (allScopes.Count > 0)
+                    using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                     {
-                        // Get the min value from LastSyncTimestamp from all scopes
-                        var minLastTimeStamp = allScopes.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
-                        minLastTimeStamp = minLastTimeStamp > lastTimestamp.Value ? lastTimestamp.Value : minLastTimeStamp;
+                        List<ClientScopeInfo> allScopes;
+                        (context, allScopes) = await this.InternalLoadAllClientScopesInfoAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
 
-                        (context, _) = await this.InternalDeleteMetadatasAsync(allScopes, context, minLastTimeStamp, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
+                        if (allScopes.Count > 0)
+                        {
+                            // Get the min value from LastSyncTimestamp from all scopes
+                            var minLastTimeStamp = allScopes.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
+                            minLastTimeStamp = minLastTimeStamp > lastTimestamp.Value ? lastTimestamp.Value : minLastTimeStamp;
+
+                            (context, _) = await this.InternalDeleteMetadatasAsync(allScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                        }
+                    };
                 }
 
                 // now the sync is complete, remember the time
@@ -91,13 +92,13 @@ namespace Dotmim.Sync
 
                 // Write scopes locally
 
-                using (var runner2 = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
-                    (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, 
-                        runner2.Connection, runner2.Transaction, runner2.CancellationToken, runner2.Progress).ConfigureAwait(false);
+                    (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context,
+                        runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
                 };
 
-                if (runner != null)
+                if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
                     await runner.CommitAsync().ConfigureAwait(false);
 
 
@@ -105,7 +106,15 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
+                if (runner != null)
+                    await runner.RollbackAsync().ConfigureAwait(false);
+
                 throw GetSyncError(context, ex);
+            }
+            finally
+            {
+                if (runner != null)
+                    await runner.DisposeAsync().ConfigureAwait(false);
             }
 
         }

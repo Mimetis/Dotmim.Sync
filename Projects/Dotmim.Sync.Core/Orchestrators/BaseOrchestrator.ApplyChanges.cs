@@ -246,208 +246,207 @@ namespace Dotmim.Sync
                 // accumulating rows
                 var batchRows = new List<SyncRow>();
 
-                await using (var runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.WithTransaction : SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                await using var runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.WithTransaction : SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                
+                if (isBatch)
                 {
-                    if (isBatch)
+                    foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                     {
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                        rowsFetched++;
+
+                        // Adding rows to the batch rows
+                        if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                         {
-                            rowsFetched++;
+                            if (syncRow.RowState == applyType)
+                                batchRows.Add(syncRow);
 
-                            // Adding rows to the batch rows
-                            if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
-                            {
-                                if (syncRow.RowState == applyType)
-                                    batchRows.Add(syncRow);
-
-                                if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
-                                    continue;
-                            }
-                            if (batchRows.Count <= 0)
+                            if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 continue;
-
-                            var conflictRowsTable = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName];
-
-                            command.CommandText = cmdText;
-                            command.Connection = runner.Connection;
-                            command.Transaction = runner.Transaction;
-
-                            var batchArgs = new RowsChangesApplyingArgs(context, message.BatchInfo, batchRows, schemaChangesTable, applyType, command, runner.Connection, runner.Transaction);
-                            await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                            if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count <= 0)
-                                continue;
-
-                            // get the correct pointer to the command from the interceptor in case user change the whole instance
-                            command = batchArgs.Command;
-
-                            await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                            // execute the batch, through the provider
-                            await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-                            foreach (var failedRow in conflictRowsTable.Rows)
-                                conflictRows.Add(failedRow);
-
-                            //rows minus failed rows
-                            appliedRows += batchRows.Count - conflictRowsTable.Rows.Count;
-
-                            batchRows.Clear();
                         }
+                        if (batchRows.Count <= 0)
+                            continue;
+
+                        var conflictRowsTable = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName];
+
+                        command.CommandText = cmdText;
+                        command.Connection = runner.Connection;
+                        command.Transaction = runner.Transaction;
+
+                        var batchArgs = new RowsChangesApplyingArgs(context, message.BatchInfo, batchRows, schemaChangesTable, applyType, command, runner.Connection, runner.Transaction);
+                        await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                        if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count <= 0)
+                            continue;
+
+                        // get the correct pointer to the command from the interceptor in case user change the whole instance
+                        command = batchArgs.Command;
+
+                        await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                        // execute the batch, through the provider
+                        await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                        foreach (var failedRow in conflictRowsTable.Rows)
+                            conflictRows.Add(failedRow);
+
+                        //rows minus failed rows
+                        appliedRows += batchRows.Count - conflictRowsTable.Rows.Count;
+
+                        batchRows.Clear();
+                    }
+                }
+                else
+                {
+                    foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                    {
+                        rowsFetched++;
+
+                        if (syncRow.RowState != applyType)
+                            continue;
+
+                        command.CommandText = cmdText;
+                        command.Connection = runner.Connection;
+                        command.Transaction = runner.Transaction;
+
+                        var batchArgs = new RowsChangesApplyingArgs(context, message.BatchInfo, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, command, runner.Connection, runner.Transaction);
+                        await this.InterceptAsync(batchArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                        if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count() <= 0)
+                            continue;
+
+                        // get the correct pointer to the command from the interceptor in case user change the whole instance
+                        command = batchArgs.Command;
+
+                        // Set the parameters value from row 
+                        this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
+
+                        // Set the special parameters for update
+                        this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
+
+                        await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, runner.Connection, runner.Transaction),
+                            runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                        int rowAppliedCount = 0;
+                        Exception errorException = null;
+
+                        try
+                        {
+                            rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            errorException = ex;
+                        }
+
+                        // Check if we have a return value instead
+                        var syncRowCountParam = GetParameter(command, "sync_row_count");
+
+                        if (syncRowCountParam != null)
+                            rowAppliedCount = (int)syncRowCountParam.Value;
+
+                        if (rowAppliedCount > 0)
+                            appliedRows++;
+                        else if (errorException != null)
+                            errorsRows.Add((syncRow, errorException));
+                        else
+                            conflictRows.Add(syncRow);
+                    }
+                }
+
+                // conflict resolved count
+                int conflictsResolvedCount = 0;
+
+                // If conflicts occured
+                foreach (var conflictRow in conflictRows)
+                {
+                    TableConflictErrorApplied tableConflictApplied;
+                    (context, tableConflictApplied) =
+                        await this.HandleConflictAsync(scopeInfo, context, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
+                                                       message.Policy, message.LastTimestamp, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    if (tableConflictApplied.Exception != null)
+                    {
+                        errorsRows.Add((conflictRow, tableConflictApplied.Exception));
                     }
                     else
                     {
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
-                        {
-                            rowsFetched++;
-
-                            if (syncRow.RowState != applyType)
-                                continue;
-
-                            command.CommandText = cmdText;
-                            command.Connection = runner.Connection;
-                            command.Transaction = runner.Transaction;
-
-                            var batchArgs = new RowsChangesApplyingArgs(context, message.BatchInfo, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, command, runner.Connection, runner.Transaction);
-                            await this.InterceptAsync(batchArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                            if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count() <= 0)
-                                continue;
-
-                            // get the correct pointer to the command from the interceptor in case user change the whole instance
-                            command = batchArgs.Command;
-
-                            // Set the parameters value from row 
-                            this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
-
-                            // Set the special parameters for update
-                            this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == DataRowState.Deleted, false);
-
-                            await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, runner.Connection, runner.Transaction),
-                                runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                            int rowAppliedCount = 0;
-                            Exception errorException = null;
-
-                            try
-                            {
-                                rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                            }
-                            catch (Exception ex)
-                            {
-                                errorException = ex;
-                            }
-
-                            // Check if we have a return value instead
-                            var syncRowCountParam = GetParameter(command, "sync_row_count");
-
-                            if (syncRowCountParam != null)
-                                rowAppliedCount = (int)syncRowCountParam.Value;
-
-                            if (rowAppliedCount > 0)
-                                appliedRows++;
-                            else if (errorException != null)
-                                errorsRows.Add((syncRow, errorException));
-                            else
-                                conflictRows.Add(syncRow);
-                        }
+                        conflictsResolvedCount += tableConflictApplied.HasBeenResolved ? 1 : 0;
+                        appliedRows += tableConflictApplied.HasBeenApplied ? 1 : 0;
                     }
-
-                    // conflict resolved count
-                    int conflictsResolvedCount = 0;
-
-                    // If conflicts occured
-                    foreach (var conflictRow in conflictRows)
-                    {
-                        TableConflictErrorApplied tableConflictApplied;
-                        (context, tableConflictApplied) =
-                            await this.HandleConflictAsync(scopeInfo, context, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
-                                                           message.Policy, message.LastTimestamp, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                        if (tableConflictApplied.Exception != null)
-                        {
-                            errorsRows.Add((conflictRow, tableConflictApplied.Exception));
-                        }
-                        else
-                        {
-                            conflictsResolvedCount += tableConflictApplied.HasBeenResolved ? 1 : 0;
-                            appliedRows += tableConflictApplied.HasBeenApplied ? 1 : 0;
-                        }
-                    }
-
-                    // If errors occured
-                    foreach (var errorRow in errorsRows)
-                    {
-                        TableConflictErrorApplied tableErrorApplied;
-                        (context, tableErrorApplied) = await this.HandleErrorAsync(scopeInfo, context, errorRow.SyncRow, applyType,
-                                                        schemaChangesTable, errorRow.Exception,
-                                                        message.SenderScopeId, message.LastTimestamp,
-                                                        connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-
-                        if (tableErrorApplied.Exception != null)
-                        {
-                            // Last chance, now we can throw the exception
-                            throw tableErrorApplied.Exception;
-                        }
-                        else
-                        {
-                            appliedRows += tableErrorApplied.HasBeenApplied ? 1 : 0;
-                            // to be a failed row, we need to have a row
-                            // -- resolved (no exception on action)
-                            // -- not applied (otherwise it's an applied row
-                            failedRows += (tableErrorApplied.HasBeenResolved && !tableErrorApplied.HasBeenApplied) ? 1 : 0;
-                        }
-                    }
-
-                    // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
-                    if (appliedRows > 0 || conflictsResolvedCount > 0 || failedRows > 0)
-                    {
-                        // We may have multiple batch files, so we can have multipe sync tables with the same name
-                        // We can say that a syncTable may be contained in several files
-                        // That's why we should get an applied changes instance if already exists from a previous batch file
-                        tableChangesApplied = changesApplied.TableChangesApplied.FirstOrDefault(tca =>
-                        {
-                            var sc = SyncGlobalization.DataSourceStringComparison;
-
-                            var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
-                            var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
-
-                            return tca.TableName.Equals(schemaTable.TableName, sc) &&
-                                   sn.Equals(otherSn, sc) &&
-                                   tca.State == applyType;
-                        });
-
-                        if (tableChangesApplied == null)
-                        {
-                            tableChangesApplied = new TableChangesApplied
-                            {
-                                TableName = schemaTable.TableName,
-                                SchemaName = schemaTable.SchemaName,
-                                Applied = appliedRows,
-                                ResolvedConflicts = conflictsResolvedCount,
-                                Failed = failedRows,
-                                State = applyType,
-                                TotalRowsCount = message.BatchInfo.RowsCount,
-                                TotalAppliedCount = changesApplied.TotalAppliedChanges + appliedRows
-                            };
-                            changesApplied.TableChangesApplied.Add(tableChangesApplied);
-                        }
-                        else
-                        {
-                            tableChangesApplied.Applied += appliedRows;
-                            tableChangesApplied.TotalAppliedCount = changesApplied.TotalAppliedChanges;
-                            tableChangesApplied.ResolvedConflicts += conflictsResolvedCount;
-                            tableChangesApplied.Failed += failedRows;
-                        }
-
-                        // we've got 0.25% to fill here 
-                        var progresspct = appliedRows * 0.25d / tableChangesApplied.TotalRowsCount;
-                        context.ProgressPercentage += progresspct;
-                    }
-
-                    await runner.CommitAsync().ConfigureAwait(false);
                 }
+
+                // If errors occured
+                foreach (var errorRow in errorsRows)
+                {
+                    TableConflictErrorApplied tableErrorApplied;
+                    (context, tableErrorApplied) = await this.HandleErrorAsync(scopeInfo, context, errorRow.SyncRow, applyType,
+                                                    schemaChangesTable, errorRow.Exception,
+                                                    message.SenderScopeId, message.LastTimestamp,
+                                                    connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+                    if (tableErrorApplied.Exception != null)
+                    {
+                        // Last chance, now we can throw the exception
+                        throw tableErrorApplied.Exception;
+                    }
+                    else
+                    {
+                        appliedRows += tableErrorApplied.HasBeenApplied ? 1 : 0;
+                        // to be a failed row, we need to have a row
+                        // -- resolved (no exception on action)
+                        // -- not applied (otherwise it's an applied row
+                        failedRows += (tableErrorApplied.HasBeenResolved && !tableErrorApplied.HasBeenApplied) ? 1 : 0;
+                    }
+                }
+
+                // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
+                if (appliedRows > 0 || conflictsResolvedCount > 0 || failedRows > 0)
+                {
+                    // We may have multiple batch files, so we can have multipe sync tables with the same name
+                    // We can say that a syncTable may be contained in several files
+                    // That's why we should get an applied changes instance if already exists from a previous batch file
+                    tableChangesApplied = changesApplied.TableChangesApplied.FirstOrDefault(tca =>
+                    {
+                        var sc = SyncGlobalization.DataSourceStringComparison;
+
+                        var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
+                        var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
+
+                        return tca.TableName.Equals(schemaTable.TableName, sc) &&
+                               sn.Equals(otherSn, sc) &&
+                               tca.State == applyType;
+                    });
+
+                    if (tableChangesApplied == null)
+                    {
+                        tableChangesApplied = new TableChangesApplied
+                        {
+                            TableName = schemaTable.TableName,
+                            SchemaName = schemaTable.SchemaName,
+                            Applied = appliedRows,
+                            ResolvedConflicts = conflictsResolvedCount,
+                            Failed = failedRows,
+                            State = applyType,
+                            TotalRowsCount = message.BatchInfo.RowsCount,
+                            TotalAppliedCount = changesApplied.TotalAppliedChanges + appliedRows
+                        };
+                        changesApplied.TableChangesApplied.Add(tableChangesApplied);
+                    }
+                    else
+                    {
+                        tableChangesApplied.Applied += appliedRows;
+                        tableChangesApplied.TotalAppliedCount = changesApplied.TotalAppliedChanges;
+                        tableChangesApplied.ResolvedConflicts += conflictsResolvedCount;
+                        tableChangesApplied.Failed += failedRows;
+                    }
+
+                    // we've got 0.25% to fill here 
+                    var progresspct = appliedRows * 0.25d / tableChangesApplied.TotalRowsCount;
+                    context.ProgressPercentage += progresspct;
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
             }
 
             schemaChangesTable.Dispose();
